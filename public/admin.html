@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Panel – Coffeemoon</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0d1117; color: #e6edf3; font-family: 'Segoe UI', sans-serif; }
+  header { background: #161b22; padding: 16px 24px; display: flex;
+           align-items: center; gap: 12px; border-bottom: 1px solid #30363d; }
+  header h1 { font-size: 1.2rem; color: #e2b96f; }
+  .tabs { display: flex; gap: 4px; padding: 16px 24px 0; border-bottom: 1px solid #30363d; }
+  .tab { padding: 8px 20px; border-radius: 8px 8px 0 0; cursor: pointer;
+         background: #161b22; color: #8b949e; border: 1px solid #30363d; border-bottom: none; }
+  .tab.active { background: #0d1117; color: #e2b96f; }
+  .pane { display: none; padding: 24px; }
+  .pane.active { display: block; }
+  .card { background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+  input, select { background: #0d1117; border: 1px solid #30363d; color: #e6edf3;
+                  padding: 8px 12px; border-radius: 8px; font-size: .9rem; }
+  .btn { padding: 8px 18px; border-radius: 8px; border: none; cursor: pointer;
+         font-size: .9rem; font-weight: 600; }
+  .btn-g { background: #238636; color: #fff; }
+  .btn-r { background: #da3633; color: #fff; }
+  .btn-b { background: #1f6feb; color: #fff; }
+  table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+  th { padding: 10px; text-align: left; color: #8b949e; border-bottom: 1px solid #30363d; }
+  td { padding: 10px; border-bottom: 1px solid #21262d; }
+  tr:hover td { background: #161b22; }
+  .badge { padding: 3px 10px; border-radius: 20px; font-size: .75rem; font-weight: 600; }
+  .badge-g { background: #1e3a2e; color: #2ecc71; }
+  .badge-r { background: #3a1e1e; color: #e74c3c; }
+  .badge-y { background: #3a3010; color: #f1c40f; }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .link { color: #58a6ff; font-size: .8rem; text-decoration: none; }
+</style>
+</head>
+<body>
+
+<header>
+  <span style="font-size:1.5rem">☕</span>
+  <h1>Coffeemoon Admin</h1>
+  <span style="margin-left:auto;font-size:.8rem;color:#8b949e" id="clock"></span>
+</header>
+
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('emps')">👥 İşçilər</div>
+  <div class="tab" onclick="switchTab('att')">📋 Davamiyyət</div>
+  <div class="tab" onclick="switchTab('devs')">📱 Cihazlar</div>
+</div>
+
+<!-- İŞÇİLƏR -->
+<div class="pane active" id="pane-emps">
+  <div class="card">
+    <div class="row">
+      <input id="new-name" placeholder="Ad Soyad" style="flex:1">
+      <select id="new-dept">
+        <option>Ağ Şəhər</option><option>Gənclik</option>
+        <option>Elmlər</option><option>Sahil</option>
+      </select>
+      <button class="btn btn-g" onclick="addEmp()">+ Əlavə et</button>
+    </div>
+  </div>
+  <div class="card">
+    <table>
+      <thead><tr><th>Ad</th><th>Şöbə</th><th>Kod</th><th>PIN linki</th><th></th></tr></thead>
+      <tbody id="emp-tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- DAVAMİYYƏT -->
+<div class="pane" id="pane-att">
+  <div class="card">
+    <table>
+      <thead><tr><th>Tarix</th><th>Ad</th><th>Şöbə</th><th>Növ</th><th>Vaxt</th></tr></thead>
+      <tbody id="att-tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- CİHAZLAR -->
+<div class="pane" id="pane-devs">
+  <div class="card">
+    <p style="color:#8b949e;font-size:.85rem;margin-bottom:12px">
+      Yeni cihaz scan etdikdə burada "pending" olaraq görünür. İcazə verin və ya bloklayın.
+    </p>
+    <table>
+      <thead><tr><th>Cihaz ID</th><th>Filial</th><th>Status</th><th>Əməliyyat</th></tr></thead>
+      <tbody id="dev-tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', ['emps','att','devs'][i]===name));
+  document.querySelectorAll('.pane').forEach(p => p.classList.toggle('active', p.id==='pane-'+name));
+  if (name==='att') loadAtt();
+  if (name==='devs') loadDevs();
+}
+
+// ── İŞÇİLƏR ──
+async function loadEmps() {
+  const r = await fetch('/api/employees');
+  const emps = await r.json();
+  const tb = document.getElementById('emp-tbody');
+  tb.innerHTML = emps.map(e => `
+    <tr>
+      <td>${e.name}</td>
+      <td>${e.dept}</td>
+      <td><code>${e.secret}</code></td>
+      <td><a class="link" href="/mycode.html?secret=${e.secret}" target="_blank">🔗 PIN linki</a></td>
+      <td><button class="btn btn-r" onclick="delEmp('${e.id}')">Sil</button></td>
+    </tr>`).join('');
+}
+
+async function addEmp() {
+  const name = document.getElementById('new-name').value.trim();
+  const dept = document.getElementById('new-dept').value;
+  if (!name) return alert('Ad yazın');
+  await fetch('/api/employees', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({name,dept}) });
+  document.getElementById('new-name').value = '';
+  loadEmps();
+}
+
+async function delEmp(id) {
+  if (!confirm('Silmək istəyirsiniz?')) return;
+  await fetch('/api/employees/'+id, { method:'DELETE' });
+  loadEmps();
+}
+
+// ── DAVAMİYYƏT ──
+async function loadAtt() {
+  const r = await fetch('/api/attendance');
+  const logs = await r.json();
+  const tb = document.getElementById('att-tbody');
+  tb.innerHTML = logs.map(l => {
+    const d = new Date(l.logged_at);
+    const badge = l.type==='GƏLİŞ' ? 'badge-g' : 'badge-r';
+    return `<tr>
+      <td>${l.date_str}</td>
+      <td>${l.emp_name}</td>
+      <td>${l.dept}</td>
+      <td><span class="badge ${badge}">${l.type}</span></td>
+      <td>${d.toLocaleTimeString('az')}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── CİHAZLAR ──
+async function loadDevs() {
+  const r = await fetch('/api/devices');
+  const devs = await r.json();
+  const tb = document.getElementById('dev-tbody');
+  tb.innerHTML = devs.map(d => {
+    const badge = d.status==='allowed' ? 'badge-g' : d.status==='blocked' ? 'badge-r' : 'badge-y';
+    return `<tr>
+      <td><code style="font-size:.75rem">${d.device_id}</code></td>
+      <td>${d.branch}</td>
+      <td><span class="badge ${badge}">${d.status}</span></td>
+      <td style="display:flex;gap:6px">
+        <button class="btn btn-g" onclick="setStatus('${d.device_id}','allowed')">İcazə</button>
+        <button class="btn btn-r" onclick="setStatus('${d.device_id}','blocked')">Blokla</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+async function setStatus(id, status) {
+  await fetch('/api/devices/'+encodeURIComponent(id)+'/status', {
+    method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({status})
+  });
+  loadDevs();
+}
+
+// ── SAAT ──
+setInterval(() => {
+  document.getElementById('clock').textContent = new Date().toLocaleString('az');
+}, 1000);
+
+loadEmps();
+</script>
+</body>
+</html>

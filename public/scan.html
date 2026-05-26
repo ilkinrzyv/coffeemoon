@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Coffeemoon – Giriş</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #1a1a2e; color: #fff; font-family: 'Segoe UI', sans-serif;
+         display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+  .card { background: #16213e; border-radius: 20px; padding: 40px 30px;
+          width: 340px; text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
+  .logo { font-size: 2rem; margin-bottom: 8px; }
+  h1 { font-size: 1.4rem; color: #e2b96f; margin-bottom: 30px; }
+  .display { background: #0f3460; border-radius: 12px; padding: 20px;
+             font-size: 3rem; font-weight: bold; letter-spacing: 12px;
+             color: #e2b96f; margin-bottom: 24px; min-height: 80px; }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px; }
+  button { background: #0f3460; border: none; border-radius: 10px; color: #fff;
+           font-size: 1.4rem; padding: 18px; cursor: pointer; transition: all .15s; }
+  button:active { background: #e2b96f; color: #1a1a2e; transform: scale(.95); }
+  .btn-del { background: #c0392b; }
+  .btn-ok  { background: #27ae60; font-size: 1rem; }
+  .status  { margin-top: 16px; padding: 12px; border-radius: 10px; font-size: .95rem; display: none; }
+  .ok  { background: #1e3a2e; color: #2ecc71; display: block; }
+  .err { background: #3a1e1e; color: #e74c3c; display: block; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">☕</div>
+  <h1>Coffeemoon</h1>
+  <div class="display" id="display">_ _ _ _</div>
+  <div class="grid" id="grid"></div>
+  <div class="status" id="status"></div>
+</div>
+
+<script>
+let pin = '';
+const display = document.getElementById('display');
+const status  = document.getElementById('status');
+
+const deviceId = localStorage.getItem('deviceId') || 'dev_' + Math.random().toString(36).slice(2, 10);
+localStorage.setItem('deviceId', deviceId);
+
+const branch = new URLSearchParams(location.search).get('branch') || 'Naməlum';
+
+function updateDisplay() {
+  const shown = pin.split('').concat(Array(4 - pin.length).fill('_'));
+  display.textContent = shown.join(' ');
+}
+
+function press(val) {
+  if (pin.length < 4) { pin += val; updateDisplay(); }
+  if (pin.length === 4) setTimeout(submit, 300);
+}
+
+function del() { pin = pin.slice(0, -1); updateDisplay(); }
+
+async function submit() {
+  status.className = 'status';
+  status.textContent = '⏳ Yoxlanır...';
+  status.style.display = 'block';
+
+  try {
+    const r = await fetch('/api/validate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pin, deviceId, branch })
+    });
+    const d = await r.json();
+
+    if (d.valid) {
+      const icon = d.type === 'GƏLİŞ' ? '🟢' : '🔴';
+      status.textContent = `${icon} ${d.empName} — ${d.type}`;
+      status.className = 'status ok';
+    } else {
+      status.textContent = '❌ ' + d.reason;
+      status.className = 'status err';
+    }
+  } catch(e) {
+    status.textContent = '⚠️ Server xətası';
+    status.className = 'status err';
+  }
+
+  pin = '';
+  setTimeout(() => { updateDisplay(); status.style.display = 'none'; }, 2500);
+}
+
+// Klaviatura yarat
+const grid = document.getElementById('grid');
+[1,2,3,4,5,6,7,8,9,'←',0,'✓'].forEach(v => {
+  const b = document.createElement('button');
+  b.textContent = v;
+  if (v === '←') { b.className = 'btn-del'; b.onclick = del; }
+  else if (v === '✓') { b.className = 'btn-ok'; b.onclick = submit; }
+  else { b.onclick = () => press(String(v)); }
+  grid.appendChild(b);
+});
+
+updateDisplay();
+</script>
+</body>
+</html>

@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mənim Kodum</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #1a1a2e; color: #fff; font-family: 'Segoe UI', sans-serif;
+         display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+  .card { background: #16213e; border-radius: 20px; padding: 40px 30px;
+          width: 320px; text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
+  .logo { font-size: 2.5rem; margin-bottom: 8px; }
+  .name { font-size: 1.3rem; font-weight: bold; color: #e2b96f; margin-bottom: 4px; }
+  .dept { font-size: .9rem; color: #aaa; margin-bottom: 30px; }
+  .pin  { font-size: 3.5rem; font-weight: bold; letter-spacing: 14px;
+          color: #e2b96f; background: #0f3460; border-radius: 14px;
+          padding: 20px 10px; margin-bottom: 16px; }
+  .timer { font-size: .85rem; color: #aaa; margin-bottom: 6px; }
+  .bar-wrap { background: #0f3460; border-radius: 10px; height: 6px; overflow: hidden; }
+  .bar { height: 100%; background: #e2b96f; transition: width .9s linear; border-radius: 10px; }
+  .err { color: #e74c3c; margin-top: 20px; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">☕</div>
+  <div class="name" id="name">Yüklənir...</div>
+  <div class="dept" id="dept"></div>
+  <div class="pin"  id="pin">—</div>
+  <div class="timer" id="timer"></div>
+  <div class="bar-wrap"><div class="bar" id="bar"></div></div>
+  <div class="err"  id="err"></div>
+</div>
+
+<script>
+const secret = new URLSearchParams(location.search).get('secret');
+const STEP = 10;
+
+async function load() {
+  if (!secret) { document.getElementById('err').textContent = 'Link səhvdir'; return; }
+  try {
+    const r = await fetch('/api/mycode?secret=' + secret);
+    const d = await r.json();
+    if (d.error) { document.getElementById('err').textContent = d.error; return; }
+    document.getElementById('name').textContent = d.name;
+    document.getElementById('dept').textContent = d.dept;
+    document.getElementById('pin').textContent  = d.pin.split('').join(' ');
+    startTimer(d.remaining);
+  } catch(e) {
+    document.getElementById('err').textContent = 'Server xətası';
+  }
+}
+
+function startTimer(remaining) {
+  let r = remaining;
+  const timer = document.getElementById('timer');
+  const bar   = document.getElementById('bar');
+
+  function tick() {
+    timer.textContent = r + ' saniyə sonra yenilənir';
+    bar.style.width = (r / STEP * 100) + '%';
+    if (r <= 0) { load(); return; }
+    r--;
+    setTimeout(tick, 1000);
+  }
+  tick();
+}
+
+load();
+</script>
+</body>
+</html>
