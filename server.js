@@ -393,10 +393,11 @@ API.validateAndLog = async (enteredPin, clientIp) => {
     const lateStr = late
       ? `\n⚠️ <b>GECİKMƏ!</b>${shiftInfo ? ` (limit: ${String(shiftInfo.lateH).padStart(2,'0')}:${String(shiftInfo.lateM).padStart(2,'0')})` : ''}`
       : '\n✅ Vaxtında';
-    await sb.from('attendance').insert({
+    const { error: insErr } = await sb.from('attendance').insert({
       empId: matched.id, empName: matched.name, dept: matched.dept,
       timestamp: ts.toISOString(), type: 'GƏLİŞ', overtime: '', shiftType: todayShift || '',
     });
+    if (insErr) console.error('[ATTEND INSERT]', insErr.message, insErr.details);
     await U.sendTelegramMsg(`<b>Smendə</b>\n <b>${matched.name}</b>\n${lateStr}\n ${U.fmtTime(ts)}`, matched.dept);
     return { valid: true, empName: matched.name, dept: matched.dept, type: 'GƏLİŞ', overtime: '' };
 
