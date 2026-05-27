@@ -1429,12 +1429,10 @@ function clSaveItems() {
   });
   google.script.run
     .withSuccessHandler(function(res) {
-      if (res && res.success) {
-        showResult('cl-save-result', true, '<i class="fa-solid fa-check"></i> Elementlər saxlandı!');
-        loadChecklistReport();
-      }
+      showResult('cl-save-result', true, '<i class="fa-solid fa-check"></i> Elementlər saxlandı!');
+      loadChecklistReport();
     })
-    .withFailureHandler(function(){ alert('Server xətası!'); })
+    .withFailureHandler(function(err){ console.error('saveChecklistItems:', err); })
     .saveChecklistItems(clItems);
 }
  
