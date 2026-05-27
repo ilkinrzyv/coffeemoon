@@ -100,26 +100,26 @@ function isLate(dept, dateObj) {
 // ── DB köməkçi sorğular ───────────────────────────────────────────
 async function getEmployeeShift(empId, dateStr) {
   const { data } = await sb.from('cedvel')
-    .select('shiftType').eq('empId', String(empId)).eq('dateStr', dateStr).single();
-  return data ? data.shiftType || null : null;
+    .select('shift_type').eq('emp_id', String(empId)).eq('date_str', dateStr).single();
+  return data ? data.shift_type || null : null;
 }
 
 async function hasApprovedLeave(empId, dateStr) {
   const { data } = await sb.from('izin')
-    .select('startDate,endDate').eq('empId', String(empId)).eq('status', 'approved');
-  return (data || []).some(r => dateStr >= r.startDate && dateStr <= r.endDate);
+    .select('start_date,end_date').eq('emp_id', String(empId)).eq('status', 'approved');
+  return (data || []).some(r => dateStr >= r.start_date && dateStr <= r.end_date);
 }
 
 async function getApprovedLatePerm(empId, dateStr) {
-  const { data } = await sb.from('latePerms')
-    .select('requestedTime').eq('empId', String(empId)).eq('dateStr', dateStr).eq('status', 'approved').single();
-  return data || null;
+  const { data } = await sb.from('late_perms')
+    .select('requested_time').eq('emp_id', String(empId)).eq('date_str', dateStr).eq('status', 'approved').single();
+  return data ? { requestedTime: data.requested_time } : null;
 }
 
 // ── Streak ───────────────────────────────────────────────────────
 async function calcStreak(empId, dept) {
   const { data: logs } = await sb.from('attendance')
-    .select('timestamp,shiftType').eq('empId', String(empId)).eq('type', 'GƏLİŞ')
+    .select('timestamp,shift_type').eq('emp_id', String(empId)).eq('type', 'GƏLİŞ')
     .order('timestamp', { ascending: false });
   if (!logs) return 0;
   let streak = 0;

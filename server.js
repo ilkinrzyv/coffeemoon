@@ -8,7 +8,7 @@ const U       = require('./utils');
 
 const app       = express();
 const PORT      = process.env.PORT || 3000;
-const ADMIN_KEY = process.env.ADMIN_KEY || 'coffeemoon';
+const ADMIN_KEY = process.env.ADMIN_KEY || 'moC7O5F2F6E3E8on';
 
 app.use(express.json({ limit: '5mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
@@ -136,12 +136,12 @@ API.bindDevice = async (secret, deviceId) => {
   const { data: emp } = await sb.from('employees').select('*').eq('secret', secret).single();
   if (!emp) return { success: false, reason: 'İşçi tapılmadı.' };
 
-  if (!emp.deviceId) {
-    await sb.from('employees').update({ deviceId }).eq('secret', secret);
+  if (!emp.device_id) {
+    await sb.from('employees').update({ device_id: deviceId }).eq('secret', secret);
     return { success: true, message: emp.message || '' };
   }
 
-  if (emp.deviceId !== deviceId) {
+  if (emp.device_id !== deviceId) {
     return {
       success: false,
       reason: 'Bu kart başqa cihazda qeydiyyatlıdır. Dəyişdirmək üçün adminə müraciət edin.',
@@ -153,7 +153,7 @@ API.bindDevice = async (secret, deviceId) => {
 };
 
 API.resetDevice = async (id) => {
-  const { error } = await sb.from('employees').update({ deviceId: '' }).eq('id', id);
+  const { error } = await sb.from('employees').update({ device_id: '' }).eq('id', id);
   return { success: !error };
 };
 
@@ -161,38 +161,38 @@ API.resetDevice = async (id) => {
 
 API.checkScanDevice = async (deviceId) => {
   if (!deviceId) return { allowed: false, pending: false, reason: 'Cihaz ID tapılmadı.' };
-  const { data: dev } = await sb.from('scanDevices').select('*').eq('deviceId', deviceId).single();
+  const { data: dev } = await sb.from('scan_devices').select('*').eq('device_id', deviceId).single();
   if (dev) {
     if (dev.status === 'active')  return { allowed: true, branch: dev.branch, label: dev.label };
     if (dev.status === 'pending') return { allowed: false, pending: true, reason: 'Cihazınız admin tərəfindən hələ təsdiqlənməyib.' };
     if (dev.status === 'blocked') return { allowed: false, pending: false, reason: 'Bu cihaz admin tərəfindən bloklanıb.' };
   }
-  await sb.from('scanDevices').upsert({ deviceId, status: 'pending' }, { onConflict: 'deviceId' });
+  await sb.from('scan_devices').upsert({ device_id: deviceId, status: 'pending' }, { onConflict: 'device_id' });
   await U.sendTelegramMsg(`☕ <b>Coffeemoon</b>\n\n📱 <b>Yeni Scan Cihazı qeydə alındı</b>\n\n🔑 <code>${deviceId}</code>`, null);
   return { allowed: false, pending: true, reason: 'Cihazınız qeydə alındı. Admin təsdiqini gözləyin.' };
 };
 
 API.getScanDevices = async () => {
-  const { data } = await sb.from('scanDevices').select('*').order('createdAt', { ascending: false });
+  const { data } = await sb.from('scan_devices').select('*').order('createdAt', { ascending: false });
   return (data || []).map(d => ({
-    id: d.deviceId, branch: d.branch || '', status: d.status || 'pending',
+    id: d.device_id, branch: d.branch || '', status: d.status || 'pending',
     createdAt: d.createdAt || '', label: d.label || '',
   }));
 };
 
 API.approveScanDevice = async (deviceId, branch, label) => {
-  const { error } = await sb.from('scanDevices')
-    .upsert({ deviceId, branch, status: 'active', label: label || branch }, { onConflict: 'deviceId' });
+  const { error } = await sb.from('scan_devices')
+    .upsert({ device_id: deviceId, branch, status: 'active', label: label || branch }, { onConflict: 'device_id' });
   return { success: !error };
 };
 
 API.blockScanDevice = async (deviceId) => {
-  const { error } = await sb.from('scanDevices').update({ status: 'blocked' }).eq('deviceId', deviceId);
+  const { error } = await sb.from('scan_devices').update({ status: 'blocked' }).eq('device_id', deviceId);
   return { success: !error };
 };
 
 API.removeScanDevice = async (deviceId) => {
-  const { error } = await sb.from('scanDevices').delete().eq('deviceId', deviceId);
+  const { error } = await sb.from('scan_devices').delete().eq('device_id', deviceId);
   return { success: !error };
 };
 
@@ -206,11 +206,11 @@ API.getCedvel = async (dept, weekStart) => {
     dates.push(U.toYMD(dd));
   }
   const { data: emps } = await sb.from('employees').select('*').eq('dept', dept).order('name');
-  const { data: rows } = await sb.from('cedvel').select('*').eq('dept', dept).in('dateStr', dates);
+  const { data: rows } = await sb.from('cedvel').select('*').eq('dept', dept).in('date_str', dates);
   const map = {};
   for (const r of rows || []) {
-    if (!map[r.empId]) map[r.empId] = {};
-    map[r.empId][r.dateStr] = r.shiftType;
+    if (!map[r.emp_id]) map[r.emp_id] = {};
+    map[r.emp_id][r.date_str] = r.shift_type;
   }
   return (emps || []).map(e => ({
     empId: e.id, empName: e.name, dept: e.dept,
@@ -223,14 +223,14 @@ API.saveCedvel = async (entries) => {
   const empIds = [...new Set(entries.map(e => String(e.empId)).filter(Boolean))];
   const dates  = [...new Set(entries.map(e => e.dateStr).filter(Boolean))];
   if (empIds.length && dates.length) {
-    await sb.from('cedvel').delete().in('empId', empIds).in('dateStr', dates);
+    await sb.from('cedvel').delete().in('emp_id', empIds).in('date_str', dates);
   }
   const toInsert = entries
     .filter(e => e.empId && e.dateStr && e.shiftType)
     .map(e => ({
-      cedvelId:  'C' + Date.now().toString(36).toUpperCase() + Math.floor(Math.random()*1000).toString(36).toUpperCase(),
-      empId:     e.empId, empName: e.empName, dept: e.dept,
-      dateStr:   e.dateStr, shiftType: e.shiftType,
+      cedvel_id:  'C' + Date.now().toString(36).toUpperCase() + Math.floor(Math.random()*1000).toString(36).toUpperCase(),
+      emp_id:     e.empId, emp_name: e.empName, dept: e.dept,
+      date_str:   e.dateStr, shift_type: e.shiftType,
     }));
   if (toInsert.length) await sb.from('cedvel').insert(toInsert);
   return { success: true };
@@ -256,8 +256,8 @@ API.saveCedvelForManager = async (key, entries) => {
 API.getIzinList = async () => {
   const { data } = await sb.from('izin').select('*').order('createdAt', { ascending: false });
   return (data || []).map(r => ({
-    id: r.izinId, empId: r.empId, empName: r.empName, dept: r.dept,
-    startDate: r.startDate, endDate: r.endDate,
+    id: r.izin_id, empId: r.emp_id, empName: r.emp_name, dept: r.dept,
+    startDate: r.start_date, endDate: r.end_date,
     type: r.type || '', note: r.note || '', status: r.status || '',
     createdAt: r.createdAt || '',
   }));
@@ -266,20 +266,20 @@ API.getIzinList = async () => {
 API.addIzin = async (data) => {
   const id = 'I' + Date.now().toString(36).toUpperCase().slice(-6);
   const { error } = await sb.from('izin').insert({
-    izinId: id, empId: data.empId, empName: data.empName, dept: data.dept,
-    startDate: data.startDate, endDate: data.endDate,
+    izin_id: id, emp_id: data.empId, emp_name: data.empName, dept: data.dept,
+    start_date: data.startDate, end_date: data.endDate,
     type: data.type || 'İzin', note: data.note || '', status: 'pending',
   });
   return { success: !error };
 };
 
 API.updateIzinStatus = async (izinId, status) => {
-  const { error } = await sb.from('izin').update({ status }).eq('izinId', izinId);
+  const { error } = await sb.from('izin').update({ status }).eq('izin_id', izinId);
   return { success: !error };
 };
 
 API.removeIzin = async (izinId) => {
-  const { error } = await sb.from('izin').delete().eq('izinId', izinId);
+  const { error } = await sb.from('izin').delete().eq('izin_id', izinId);
   return { success: !error };
 };
 
@@ -293,20 +293,20 @@ API.getMonthlyReport = async (year, month) => {
     .lt('timestamp', month === 12 ? `${year + 1}-01-01` : `${year}-${String(month + 1).padStart(2, '0')}-01`);
 
   return (emps || []).map(emp => {
-    const myLogs    = (logs || []).filter(r => r.empId === emp.id);
+    const myLogs    = (logs || []).filter(r => r.emp_id === emp.id);
     const gelisLogs = myLogs.filter(r => r.type === 'GƏLİŞ');
     const cixisLogs = myLogs.filter(r => r.type === 'CIXIS');
     let lateCount = 0, onTime = 0, totalHours = 0;
     for (const r of gelisLogs) {
       const d = new Date(r.timestamp);
-      const si = r.shiftType ? U.getShiftInfo(emp.dept, r.shiftType) : null;
+      const si = r.shift_type ? U.getShiftInfo(emp.dept, r.shift_type) : null;
       const late = si
         ? (d.getHours() * 60 + d.getMinutes()) > (si.lateH * 60 + si.lateM)
         : U.isLate(emp.dept, d);
       if (late) lateCount++; else onTime++;
     }
     for (const r of cixisLogs) {
-      const si  = r.shiftType ? U.getShiftInfo(emp.dept, r.shiftType) : null;
+      const si  = r.shift_type ? U.getShiftInfo(emp.dept, r.shift_type) : null;
       const dur = si ? si.durH : ((emp.dept === 'Ağ Şəhər' || emp.dept === 'Gənclik') ? 9 : 8);
       const ot  = r.overtime || '';
       const sign = ot.startsWith('+') ? 1 : ot.startsWith('-') ? -1 : 0;
@@ -330,11 +330,11 @@ API.getWarnings = async () => {
     .eq('type', 'GƏLİŞ').gte('timestamp', monday.toISOString());
   const warnings = [];
   for (const emp of emps || []) {
-    const myLogs = (logs || []).filter(r => r.empId === emp.id);
+    const myLogs = (logs || []).filter(r => r.emp_id === emp.id);
     let late = 0;
     for (const r of myLogs) {
       const d  = new Date(r.timestamp);
-      const si = r.shiftType ? U.getShiftInfo(emp.dept, r.shiftType) : null;
+      const si = r.shift_type ? U.getShiftInfo(emp.dept, r.shift_type) : null;
       const isL = si
         ? (d.getHours() * 60 + d.getMinutes()) > (si.lateH * 60 + si.lateM)
         : U.isLate(emp.dept, d);
@@ -373,7 +373,7 @@ API.validateAndLog = async (enteredPin, clientIp) => {
   if (todayShift === 'istirahetsm') return { valid: false, reason: 'Bu gün sizin istirahət gününüzdür!' };
   if (await U.hasApprovedLeave(matched.id, todayYMD)) return { valid: false, reason: 'Bu gün üçün təsdiq edilmiş izniniz var.' };
 
-  const { data: allLogs } = await sb.from('attendance').select('*').eq('empId', String(matched.id));
+  const { data: allLogs } = await sb.from('attendance').select('*').eq('emp_id', String(matched.id));
   const todayLogs = (allLogs || []).filter(r => U.getLogicalDateStr(new Date(r.timestamp)) === todayStr);
   const shiftInfo = todayShift ? U.getShiftInfo(matched.dept, todayShift) : null;
 
@@ -386,20 +386,19 @@ API.validateAndLog = async (enteredPin, clientIp) => {
     if (late) {
       const perm = await U.getApprovedLatePerm(matched.id, todayYMD);
       if (perm) {
-        const [ph, pm] = perm.requestedTime.split(':').map(Number);
+        const [ph, pm] = perm.requested_time.split(':').map(Number);
         if ((ts.getHours() * 60 + ts.getMinutes()) <= ph * 60 + pm + 5) late = false;
       }
     }
     const lateStr = late
       ? `\n⚠️ <b>GECİKMƏ!</b>${shiftInfo ? ` (limit: ${String(shiftInfo.lateH).padStart(2,'0')}:${String(shiftInfo.lateM).padStart(2,'0')})` : ''}`
       : '\n✅ Vaxtında';
-    const { error: insErr } = await sb.from('attendance').insert({
-      empId: matched.id, empName: matched.name, dept: matched.dept,
-      timestamp: ts.toISOString(), type: 'GƏLİŞ', overtime: '', shiftType: todayShift || '',
+    await sb.from('attendance').insert({
+      emp_id: matched.id, emp_name: matched.name, dept: matched.dept,
+      timestamp: ts.toISOString(), type: 'GƏLİŞ', overtime: '', shift_type: todayShift || '' || '',
     });
-    if (insErr) console.error('[ATTEND INSERT]', insErr.message, insErr.details);
     await U.sendTelegramMsg(`<b>Smendə</b>\n <b>${matched.name}</b>\n${lateStr}\n ${U.fmtTime(ts)}`, matched.dept);
-    return { valid: true, empName: matched.name, dept: matched.dept, type: 'GƏLİŞ', overtime: '' };
+    return { valid: true, emp_name: matched.name, dept: matched.dept, type: 'GƏLİŞ', overtime: '' };
 
   } else if (todayLogs.length === 1) {
     const reqH = shiftInfo ? shiftInfo.durH
@@ -410,12 +409,12 @@ API.validateAndLog = async (enteredPin, clientIp) => {
     const overtimeStr = (dh === 0 && dm === 0) ? 'Tam vaxtında'
       : `${diffMs >= 0 ? '+' : '-'}${dh} saat ${dm} dəq`;
     await sb.from('attendance').insert({
-      empId: matched.id, empName: matched.name, dept: matched.dept,
-      timestamp: ts.toISOString(), type: 'CIXIS', overtime: overtimeStr, shiftType: todayShift || '',
+      emp_id: matched.id, emp_name: matched.name, dept: matched.dept,
+      timestamp: ts.toISOString(), type: 'CIXIS', overtime: overtimeStr, shift_type: todayShift || '' || '',
     });
     const otE = diffMs > 0 ? '🟢' : diffMs < 0 ? '🔴' : '⚪';
     await U.sendTelegramMsg(`<b>Smen bitdi</b>\n <b>${matched.name}</b>\n ${U.fmtTime(ts)}\n${otE} Fərq: <b>${overtimeStr}</b>`, matched.dept);
-    return { valid: true, empName: matched.name, dept: matched.dept, type: 'CIXIS', overtime: overtimeStr };
+    return { valid: true, emp_name: matched.name, dept: matched.dept, type: 'CIXIS', overtime: overtimeStr };
   }
   return { valid: false, reason: 'Bu gün üçün artıq qeyd var' };
 };
@@ -425,12 +424,12 @@ API.getOnlineEmployees = async () => {
   const { data: logs } = await sb.from('attendance').select('*').order('timestamp');
   const empMap = {};
   for (const row of logs || []) {
-    if (!row.empId || String(row.empId).startsWith('MGR-')) continue;
+    if (!row.emp_id || String(row.emp_id).startsWith('MGR-')) continue;
     const rd = new Date(row.timestamp);
     if (U.getLogicalDateStr(rd) !== todayStr) continue;
-    if (!empMap[row.empId]) empMap[row.empId] = { name: row.empName, dept: row.dept, gelis: null, cixis: false };
-    if (row.type === 'GƏLİŞ') empMap[row.empId].gelis = rd;
-    if (row.type === 'CIXIS') empMap[row.empId].cixis = true;
+    if (!empMap[row.emp_id]) empMap[row.emp_id] = { name: row.empName, dept: row.dept, gelis: null, cixis: false };
+    if (row.type === 'GƏLİŞ') empMap[row.emp_id].gelis = rd;
+    if (row.type === 'CIXIS') empMap[row.emp_id].cixis = true;
   }
   return Object.values(empMap)
     .filter(e => e.gelis && !e.cixis)
@@ -467,11 +466,11 @@ API.getDashboardData = async (secret) => {
       const colleagues = [];
       if (st && st !== 'istirahetsm') {
         for (const other of deptSched) {
-          if (other.empId === emp.id) continue;
+          if (other.emp_id === emp.id) continue;
           const od = other.schedule[d];
           if (!od?.shiftType || od.shiftType === 'istirahetsm') continue;
           const tg = (od.shiftType === 'axsamsm' || od.shiftType === 'fullsm') ? 'evening' : 'morning';
-          if (tg === myGroup) colleagues.push(other.empName.split(' ')[0]);
+          if (tg === myGroup) colleagues.push(other.emp_name.split(' ')[0]);
         }
       }
       week.push({ date: ds, dayName: DAY_NAMES[dayIdx], shiftType: st || '',
@@ -489,7 +488,7 @@ API.getDashboardData = async (secret) => {
   ]);
 
   const report = await API.getMonthlyReport(now.getFullYear(), now.getMonth() + 1);
-  const myR    = report.find(r => r.empId === emp.id) || { totalDays:0, onTime:0, late:0, pct:0 };
+  const myR    = report.find(r => r.emp_id === emp.id) || { totalDays:0, onTime:0, late:0, pct:0 };
   return {
     streak:          await U.calcStreak(emp.id, emp.dept),
     dept:            emp.dept,
@@ -516,28 +515,28 @@ API.logLunch = async (enteredPin, clientIp, lunchType) => {
 
   const ts       = new Date();
   const todayStr = U.getLogicalDateStr(ts);
-  const { data: attLogs } = await sb.from('attendance').select('*').eq('empId', String(matched.id));
+  const { data: attLogs } = await sb.from('attendance').select('*').eq('emp_id', String(matched.id));
   const hasTodayGelis = (attLogs || []).some(r => U.getLogicalDateStr(new Date(r.timestamp)) === todayStr && r.type === 'GƏLİŞ');
   const hasTodayCixis = (attLogs || []).some(r => U.getLogicalDateStr(new Date(r.timestamp)) === todayStr && r.type === 'CIXIS');
   if (!hasTodayGelis) return { valid: false, reason: 'Əvvəlcə giriş qeydə alınmalıdır!' };
   if (hasTodayCixis)  return { valid: false, reason: 'Artıq smen çıxışı qeydə alınıb!' };
 
-  const { data: naharLogs } = await sb.from('nahar').select('*').eq('empId', String(matched.id));
+  const { data: naharLogs } = await sb.from('nahar').select('*').eq('emp_id', String(matched.id));
   const naharGet = (naharLogs || []).filter(r => U.getLogicalDateStr(new Date(r.timestamp)) === todayStr && r.type === 'NAHAR_GET');
   const naharQay = (naharLogs || []).filter(r => U.getLogicalDateStr(new Date(r.timestamp)) === todayStr && r.type === 'NAHAR_QAY');
 
   if (lunchType === 'NAHAR_GET') {
     if (naharGet.length > 0) return { valid: false, reason: 'Artıq nahara çıxmısınız!' };
-    await sb.from('nahar').insert({ naharId: 'NH-' + Date.now().toString(36).toUpperCase(), empId: matched.id, empName: matched.name, dept: matched.dept, timestamp: ts.toISOString(), type: 'NAHAR_GET' });
+    await sb.from('nahar').insert({ nahar_id: 'NH-' + Date.now().toString(36).toUpperCase(), emp_id: matched.id, emp_name: matched.name, dept: matched.dept, timestamp: ts.toISOString(), type: 'NAHAR_GET' });
     await U.sendTelegramMsg(`<b>${matched.name}</b>\n<b>Naharda</b>\n${U.fmtTime(ts)}`, matched.dept);
-    return { valid: true, empName: matched.name, dept: matched.dept, type: 'NAHAR_GET' };
+    return { valid: true, emp_name: matched.name, dept: matched.dept, type: 'NAHAR_GET' };
   }
   if (naharGet.length === 0) return { valid: false, reason: 'Əvvəlcə nahara çıxış qeydə alınmalıdır!' };
   if (naharQay.length > 0)   return { valid: false, reason: 'Nahardan qayıdışınız artıq qeydə alınıb!' };
   const diffMin = Math.round((ts.getTime() - new Date(naharGet[0].timestamp).getTime()) / 60000);
-  await sb.from('nahar').insert({ naharId: 'NH-' + Date.now().toString(36).toUpperCase(), empId: matched.id, empName: matched.name, dept: matched.dept, timestamp: ts.toISOString(), type: 'NAHAR_QAY' });
+  await sb.from('nahar').insert({ nahar_id: 'NH-' + Date.now().toString(36).toUpperCase(), emp_id: matched.id, emp_name: matched.name, dept: matched.dept, timestamp: ts.toISOString(), type: 'NAHAR_QAY' });
   await U.sendTelegramMsg(`<b>${matched.name}</b>\n<b>Nahar bitdi</b>\n${U.fmtTime(ts)}\nNahar müddəti: <b>${diffMin} dəq</b>`, matched.dept);
-  return { valid: true, empName: matched.name, dept: matched.dept, type: 'NAHAR_QAY', duration: diffMin };
+  return { valid: true, emp_name: matched.name, dept: matched.dept, type: 'NAHAR_QAY', duration: diffMin };
 };
 
 // ── MENECER DAVAMİYYƏTİ ──────────────────────────────────────────
@@ -550,12 +549,12 @@ API.logManagerCheckin = async (branchKey, type) => {
   const mgrName = 'Menecer (' + dept + ')';
   const ts      = new Date();
   const todayStr = U.getLogicalDateStr(ts);
-  const { data: all } = await sb.from('attendance').select('*').eq('empId', MGR_ID);
+  const { data: all } = await sb.from('attendance').select('*').eq('emp_id', MGR_ID);
   const todayLogs = (all || []).filter(r => U.getLogicalDateStr(new Date(r.timestamp)) === todayStr);
 
   if (type === 'GELIS') {
     if (todayLogs.some(r => r.type === 'GELIS' || r.type === 'GƏLİŞ')) return { valid: false, reason: 'Giriş artıq qeydə alınıb!' };
-    await sb.from('attendance').insert({ empId: MGR_ID, empName: mgrName, dept, timestamp: ts.toISOString(), type: 'GELIS', overtime: '', shiftType: '' });
+    await sb.from('attendance').insert({ empId: MGR_ID, empName: mgrName, dept, timestamp: ts.toISOString(), type: 'GELIS', overtime: '', shift_type: '' });
     await U.sendTelegramMsg(`<b>Menecer işdə</b>\n${U.fmtTime(ts)}`, dept);
     return { valid: true, type: 'GELIS', time: U.fmtTime(ts) };
   }
@@ -566,7 +565,7 @@ API.logManagerCheckin = async (branchKey, type) => {
     const diffMs = ts.getTime() - new Date(gelisRow.timestamp).getTime();
     const dh = Math.floor(diffMs / 3600000), dm = Math.floor((diffMs % 3600000) / 60000);
     const dur = `${dh} saat ${dm} dəq`;
-    await sb.from('attendance').insert({ empId: MGR_ID, empName: mgrName, dept, timestamp: ts.toISOString(), type: 'CIXIS', overtime: dur, shiftType: '' });
+    await sb.from('attendance').insert({ empId: MGR_ID, empName: mgrName, dept, timestamp: ts.toISOString(), type: 'CIXIS', overtime: dur, shift_type: '' });
     await U.sendTelegramMsg(`<b>Menecer Çıxdı</b>\n${U.fmtTime(ts)}\nİş müddəti: <b>${dur}</b>`, dept);
     return { valid: true, type: 'CIXIS', time: U.fmtTime(ts), duration: dur };
   }
@@ -581,7 +580,7 @@ API.getManagersLiveStatus = async () => {
   for (const dept of DEPTS) {
     const slug    = U.deptToSlug(dept);
     const mgrId   = 'MGR-' + dept.replace(/\s+/g, '');
-    const deptLogs = (logs || []).filter(r => r.empId === mgrId && U.getLogicalDateStr(new Date(r.timestamp)) === todayStr);
+    const deptLogs = (logs || []).filter(r => r.emp_id === mgrId && U.getLogicalDateStr(new Date(r.timestamp)) === todayStr);
     let gelisDate = null, cixisDate = null;
     for (const r of deptLogs) {
       const rd = new Date(r.timestamp);
@@ -678,15 +677,15 @@ API.saveBranchIPs = async (data) => {
 // ── ÇEKLİST ─────────────────────────────────────────────────────
 
 API.getChecklistItems = async () => {
-  const { data } = await sb.from('checklistItems').select('*').order('sortOrder');
+  const { data } = await sb.from('checklist_items').select('*').order('sort_order');
   return (data || []).map(r => ({ ...r, active: !!r.active }));
 };
 
 API.saveChecklistItems = async (items) => {
-  await sb.from('checklistItems').delete().neq('itemId', '');
+  await sb.from('checklist_items').delete().neq('itemId', '');
   if (items.length) {
-    await sb.from('checklistItems').insert(
-      items.map((item, i) => ({ itemId: item.itemId, text: item.text, category: item.category, sortOrder: i + 1, active: !!item.active }))
+    await sb.from('checklist_items').insert(
+      items.map((item, i) => ({ item_id: item.item_id, text: item.text, category: item.category, sort_order: i + 1, active: !!item.active }))
     );
   }
   return { success: true };
@@ -697,14 +696,14 @@ API.getChecklistForBranch = async (branchKey) => {
   if (!check.valid) return { valid: false, reason: 'İcazəsiz giriş.' };
   const today = U.toYMD(new Date());
   const [{ data: items }, { data: logs }] = await Promise.all([
-    sb.from('checklistItems').select('*').eq('active', true).order('sortOrder'),
-    sb.from('checklistLogs').select('*').eq('date', today).eq('dept', check.dept),
+    sb.from('checklist_items').select('*').eq('active', true).order('sort_order'),
+    sb.from('checklist_logs').select('*').eq('date', today).eq('dept', check.dept),
   ]);
   const logMap = {};
-  for (const r of logs || []) logMap[r.itemId] = r;
+  for (const r of logs || []) logMap[r.item_id] = r;
   return { valid: true, dept: check.dept, date: today, items: (items || []).map(item => {
-    const log = logMap[item.itemId] || {};
-    return { ...item, active: !!item.active, checked: !!log.checked, checkedAt: log.checkedAt || '', mgrNote: log.mgrNote || '', adminNote: log.adminNote || '' };
+    const log = logMap[item.item_id] || {};
+    return { ...item, active: !!item.active, checked: !!log.checked, checked_at: log.checked_at || '', mgr_note: log.mgr_note || '', admin_note: log.admin_note || '' };
   }) };
 };
 
@@ -713,31 +712,31 @@ API.submitChecklistItem = async (branchKey, itemId, checked, mgrNote) => {
   if (!check.valid) return { valid: false, reason: 'İcazəsiz giriş.' };
   const today = U.toYMD(new Date());
   const ts    = new Date();
-  const { data: existing } = await sb.from('checklistLogs').select('logId').eq('date', today).eq('dept', check.dept).eq('itemId', String(itemId)).single();
+  const { data: existing } = await sb.from('checklist_logs').select('logId').eq('date', today).eq('dept', check.dept).eq('item_id', String(itemId)).single();
   if (existing) {
-    await sb.from('checklistLogs').update({ checked: !!checked, checkedAt: checked ? U.fmtTime(ts) : '', mgrNote: mgrNote || '' }).eq('logId', existing.logId);
+    await sb.from('checklist_logs').update({ checked: !!checked, checked_at: checked ? U.fmtTime(ts) : '', mgr_note: mgrNote || '' }).eq('log_id', existing.log_id);
   } else {
-    const { data: itemRow } = await sb.from('checklistItems').select('text').eq('itemId', String(itemId)).single();
-    await sb.from('checklistLogs').insert({ logId: 'CL-' + Date.now().toString(36).toUpperCase(), date: today, dept: check.dept, itemId, itemText: itemRow?.text || '', checked: !!checked, checkedAt: checked ? U.fmtTime(ts) : '', mgrNote: mgrNote || '', adminNote: '' });
+    const { data: itemRow } = await sb.from('checklist_items').select('text').eq('item_id', String(itemId)).single();
+    await sb.from('checklist_logs').insert({ log_id: 'CL-' + Date.now().toString(36).toUpperCase(), date: today, dept: check.dept, itemId, item_text: itemRow?.text || '', checked: !!checked, checked_at: checked ? U.fmtTime(ts) : '', mgr_note: mgrNote || '', admin_note: '' });
   }
-  return { valid: true, checkedAt: checked ? U.fmtTime(ts) : '' };
+  return { valid: true, checked_at: checked ? U.fmtTime(ts) : '' };
 };
 
 API.getChecklistReport = async (dateStr) => {
   const date  = dateStr || U.toYMD(new Date());
   const DEPTS = ['Ağ Şəhər','Gənclik','Elmlər','Sahil'];
   const [{ data: items }, { data: logs }] = await Promise.all([
-    sb.from('checklistItems').select('*').eq('active', true).order('sortOrder'),
-    sb.from('checklistLogs').select('*').eq('date', date),
+    sb.from('checklist_items').select('*').eq('active', true).order('sort_order'),
+    sb.from('checklist_logs').select('*').eq('date', date),
   ]);
   const report = {};
   for (const dept of DEPTS) {
     report[dept] = {};
-    for (const item of items || []) report[dept][item.itemId] = { checked: false, checkedAt: '', mgrNote: '', adminNote: '' };
+    for (const item of items || []) report[dept][item.item_id] = { checked: false, checked_at: '', mgr_note: '', admin_note: '' };
   }
   for (const r of logs || []) {
-    if (report[r.dept]?.[r.itemId] !== undefined) {
-      report[r.dept][r.itemId] = { checked: !!r.checked, checkedAt: r.checkedAt || '', mgrNote: r.mgrNote || '', adminNote: r.adminNote || '' };
+    if (report[r.dept]?.[r.item_id] !== undefined) {
+      report[r.dept][r.item_id] = { checked: !!r.checked, checked_at: r.checked_at || '', mgr_note: r.mgr_note || '', admin_note: r.admin_note || '' };
     }
   }
   return { date, items: (items || []).map(i => ({ ...i, active: !!i.active })), report };
@@ -745,12 +744,12 @@ API.getChecklistReport = async (dateStr) => {
 
 API.saveAdminNote = async (dateStr, dept, itemId, adminNote) => {
   const date = dateStr || U.toYMD(new Date());
-  const { data: existing } = await sb.from('checklistLogs').select('logId').eq('date', date).eq('dept', dept).eq('itemId', String(itemId)).single();
+  const { data: existing } = await sb.from('checklist_logs').select('logId').eq('date', date).eq('dept', dept).eq('item_id', String(itemId)).single();
   if (existing) {
-    await sb.from('checklistLogs').update({ adminNote: adminNote || '' }).eq('logId', existing.logId);
+    await sb.from('checklist_logs').update({ admin_note: adminNote || '' }).eq('log_id', existing.log_id);
   } else {
-    const { data: itemRow } = await sb.from('checklistItems').select('text').eq('itemId', String(itemId)).single();
-    await sb.from('checklistLogs').insert({ logId: 'CL-' + Date.now().toString(36).toUpperCase(), date, dept, itemId, itemText: itemRow?.text || '', checked: false, checkedAt: '', mgrNote: '', adminNote: adminNote || '' });
+    const { data: itemRow } = await sb.from('checklist_items').select('text').eq('item_id', String(itemId)).single();
+    await sb.from('checklist_logs').insert({ log_id: 'CL-' + Date.now().toString(36).toUpperCase(), date, dept, itemId, item_text: itemRow?.text || '', checked: false, checked_at: '', mgr_note: '', admin_note: adminNote || '' });
   }
   return { success: true };
 };
@@ -760,21 +759,21 @@ API.saveAdminNote = async (dateStr, dept, itemId, adminNote) => {
 API.getMgrAckStatus = async (branchKey) => {
   const check = U.validateBranchScheduleKey(branchKey);
   if (!check.valid) return null;
-  const { data } = await sb.from('mgrAcks').select('*').eq('date', U.toYMD(new Date())).eq('dept', check.dept).single();
-  if (!data) return { globalAcked: false, globalAckedAt: '', branchAcked: false, branchAckedAt: '' };
-  return { globalAcked: !!data.globalAcked, globalAckedAt: data.globalAckedAt || '', branchAcked: !!data.branchAcked, branchAckedAt: data.branchAckedAt || '' };
+  const { data } = await sb.from('mgr_acks').select('*').eq('date', U.toYMD(new Date())).eq('dept', check.dept).single();
+  if (!data) return { global_acked: false, global_acked_at: '', branch_acked: false, branch_acked_at: '' };
+  return { global_acked: !!data.global_acked, global_acked_at: data.global_ackedAt || '', branch_acked: !!data.branch_acked, branch_acked_at: data.branch_ackedAt || '' };
 };
 
 API.ackMgrMessage = async (branchKey, msgType) => {
   const check = U.validateBranchScheduleKey(branchKey);
   if (!check.valid) return { success: false };
   const today = U.toYMD(new Date()), ts = U.fmtTime(new Date());
-  const { data: existing } = await sb.from('mgrAcks').select('ackId').eq('date', today).eq('dept', check.dept).single();
-  const upd = msgType === 'global' ? { globalAcked: true, globalAckedAt: ts } : { branchAcked: true, branchAckedAt: ts };
+  const { data: existing } = await sb.from('mgr_acks').select('ackId').eq('date', today).eq('dept', check.dept).single();
+  const upd = msgType === 'global' ? { global_acked: true, global_acked_at: ts } : { branch_acked: true, branch_acked_at: ts };
   if (existing) {
-    await sb.from('mgrAcks').update(upd).eq('ackId', existing.ackId);
+    await sb.from('mgr_acks').update(upd).eq('ack_id', existing.ack_id);
   } else {
-    await sb.from('mgrAcks').insert({ ackId: 'ACK-' + Date.now().toString(36).toUpperCase(), date: today, dept: check.dept, ...upd });
+    await sb.from('mgr_acks').insert({ ack_id: 'ACK-' + Date.now().toString(36).toUpperCase(), date: today, dept: check.dept, ...upd });
   }
   return { success: true, time: ts };
 };
@@ -782,11 +781,11 @@ API.ackMgrMessage = async (branchKey, msgType) => {
 API.getMgrAcksForAdmin = async (dateStr) => {
   const date  = dateStr || U.toYMD(new Date());
   const DEPTS = ['Ağ Şəhər','Gənclik','Elmlər','Sahil'];
-  const { data } = await sb.from('mgrAcks').select('*').eq('date', date);
+  const { data } = await sb.from('mgr_acks').select('*').eq('date', date);
   const result = {};
-  for (const d of DEPTS) result[d] = { globalAcked: false, globalAckedAt: '', branchAcked: false, branchAckedAt: '' };
+  for (const d of DEPTS) result[d] = { global_acked: false, global_acked_at: '', branch_acked: false, branch_acked_at: '' };
   for (const r of data || []) {
-    if (result[r.dept]) result[r.dept] = { globalAcked: !!r.globalAcked, globalAckedAt: r.globalAckedAt || '', branchAcked: !!r.branchAcked, branchAckedAt: r.branchAckedAt || '' };
+    if (result[r.dept]) result[r.dept] = { global_acked: !!r.global_acked, global_acked_at: r.global_ackedAt || '', branch_acked: !!r.branch_acked, branch_acked_at: r.branch_ackedAt || '' };
   }
   return { date, acks: result };
 };
@@ -798,18 +797,18 @@ function getWasteLimit(dept) { return WASTE_LIMITS[dept] ?? 3.0; }
 
 API.getProducts = async () => {
   const { data } = await sb.from('products').select('*').eq('active', true).order('name');
-  return (data || []).map(p => ({ productId: p.productId, name: p.name, unit: p.unit }));
+  return (data || []).map(p => ({ product_id: p.product_id, name: p.name, unit: p.unit }));
 };
 
 API.addProduct = async (name, unit) => {
   if (!name?.trim()) return { success: false, reason: 'Ad boş ola bilməz.' };
   const id = 'PRD-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substring(2,4).toUpperCase();
-  const { error } = await sb.from('products').insert({ productId: id, name: name.trim(), unit: unit || 'ədəd', active: true });
-  return { success: !error, productId: id };
+  const { error } = await sb.from('products').insert({ product_id: id, name: name.trim(), unit: unit || 'ədəd', active: true });
+  return { success: !error, product_id: id };
 };
 
 API.deleteProduct = async (productId) => {
-  const { error } = await sb.from('products').update({ active: false }).eq('productId', productId);
+  const { error } = await sb.from('products').update({ active: false }).eq('product_id', productId);
   return error ? { success: false, reason: 'Tapılmadı.' } : { success: true };
 };
 
@@ -817,18 +816,18 @@ API.getProductLogsForBranch = async (branchKey, monthStr) => {
   const check = U.validateBranchScheduleKey(branchKey);
   if (!check.valid) return { valid: false };
   const { data: products } = await sb.from('products').select('*').eq('active', true);
-  const { data: logs } = await sb.from('productLogs').select('*').eq('dept', check.dept).like('dateStr', monthStr + '%');
+  const { data: logs } = await sb.from('product_logs').select('*').eq('dept', check.dept).like('dateStr', monthStr + '%');
   const totals = {};
   for (const r of logs || []) {
-    if (!totals[r.productId]) totals[r.productId] = { incoming: 0, wasted: 0 };
-    totals[r.productId].incoming += Number(r.incoming) || 0;
-    totals[r.productId].wasted   += Number(r.wasted)   || 0;
+    if (!totals[r.product_id]) totals[r.product_id] = { incoming: 0, wasted: 0 };
+    totals[r.product_id].incoming += Number(r.incoming) || 0;
+    totals[r.product_id].wasted   += Number(r.wasted)   || 0;
   }
   let totalIn = 0, totalWasted = 0;
   const items = (products || []).map(p => {
-    const t = totals[p.productId] || { incoming:0, wasted:0 };
+    const t = totals[p.product_id] || { incoming:0, wasted:0 };
     totalIn += t.incoming; totalWasted += t.wasted;
-    return { productId: p.productId, name: p.name, unit: p.unit, totalIncoming: t.incoming, totalWasted: t.wasted };
+    return { product_id: p.product_id, name: p.name, unit: p.unit, totalIncoming: t.incoming, totalWasted: t.wasted };
   });
   const limit = getWasteLimit(check.dept);
   const pct   = totalIn > 0 ? Math.round(totalWasted / totalIn * 1000) / 10 : 0;
@@ -839,13 +838,13 @@ API.saveProductLogs = async (branchKey, monthStr, logs) => {
   const check = U.validateBranchScheduleKey(branchKey);
   if (!check.valid) return { valid: false };
   const todayYMD = U.toYMD(new Date());
-  const toInsert = (logs || []).filter(l => l.productId && (Number(l.incoming) || Number(l.wasted))).map(l => ({
-    logId: 'PL-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substring(2,4).toUpperCase(),
-    dateStr: todayYMD, dept: check.dept, productId: l.productId, productName: l.name || '',
+  const toInsert = (logs || []).filter(l => l.product_id && (Number(l.incoming) || Number(l.wasted))).map(l => ({
+    log_id: 'PL-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substring(2,4).toUpperCase(),
+    dateStr: todayYMD, dept: check.dept, product_id: l.product_id, product_name: l.name || '',
     incoming: Number(l.incoming) || 0, wasted: Number(l.wasted) || 0,
   }));
-  if (toInsert.length) await sb.from('productLogs').insert(toInsert);
-  const { data: allLogs } = await sb.from('productLogs').select('*').eq('dept', check.dept).like('dateStr', monthStr + '%');
+  if (toInsert.length) await sb.from('product_logs').insert(toInsert);
+  const { data: allLogs } = await sb.from('product_logs').select('*').eq('dept', check.dept).like('dateStr', monthStr + '%');
   let totalIn = 0, totalWasted = 0;
   for (const r of allLogs || []) { totalIn += Number(r.incoming)||0; totalWasted += Number(r.wasted)||0; }
   const limit = getWasteLimit(check.dept);
@@ -855,14 +854,14 @@ API.saveProductLogs = async (branchKey, monthStr, logs) => {
 
 API.getWasteStatsForAdmin = async (dateStr) => {
   const DEPTS  = ['Elmlər','Sahil','Gənclik','Ağ Şəhər'];
-  const { data: logs } = await sb.from('productLogs').select('*').like('dateStr', dateStr + '%');
+  const { data: logs } = await sb.from('product_logs').select('*').like('dateStr', dateStr + '%');
   const deptMap = {};
   for (const d of DEPTS) deptMap[d] = { dept: d, totalIn:0, totalWasted:0, products:[], limit: getWasteLimit(d) };
   for (const r of logs || []) {
     if (!deptMap[r.dept] || (!r.incoming && !r.wasted)) continue;
     deptMap[r.dept].totalIn     += Number(r.incoming)||0;
     deptMap[r.dept].totalWasted += Number(r.wasted)  ||0;
-    deptMap[r.dept].products.push({ name: r.productName, incoming: Number(r.incoming)||0, wasted: Number(r.wasted)||0 });
+    deptMap[r.dept].products.push({ name: r.product_name, incoming: Number(r.incoming)||0, wasted: Number(r.wasted)||0 });
   }
   return DEPTS.map(d => {
     const s = deptMap[d], pct = s.totalIn > 0 ? Math.round(s.totalWasted/s.totalIn*1000)/10 : 0;
@@ -877,9 +876,9 @@ API.getMgrWeekSchedule = async (branchKey, weekStart) => {
   if (!check.valid) return null;
   const start = new Date(weekStart);
   const dates = Array.from({length:7}, (_, d) => U.toYMD(new Date(start.getTime()+d*86400000)));
-  const { data } = await sb.from('mgrSchedule').select('*').eq('dept', check.dept).in('dateStr', dates);
+  const { data } = await sb.from('mgr_schedule').select('*').eq('dept', check.dept).in('date_str', dates);
   const map = {};
-  for (const r of data || []) map[r.dateStr] = r.shiftType;
+  for (const r of data || []) map[r.date_str] = r.shift_type;
   return { dept: check.dept, schedule: dates.map(ds => ({ date: ds, shiftType: map[ds] || '' })) };
 };
 
@@ -887,12 +886,12 @@ API.saveMgrWeekSchedule = async (branchKey, entries) => {
   const check = U.validateBranchScheduleKey(branchKey);
   if (!check.valid) return { success: false, reason: 'İcazəsiz.' };
   const dates = entries.map(e => e.dateStr).filter(Boolean);
-  if (dates.length) await sb.from('mgrSchedule').delete().eq('dept', check.dept).in('dateStr', dates);
+  if (dates.length) await sb.from('mgr_schedule').delete().eq('dept', check.dept).in('date_str', dates);
   const toInsert = entries.filter(e => e.dateStr && e.shiftType).map(e => ({
-    schedId: 'MS-' + Date.now().toString(36).toUpperCase() + Math.floor(Math.random()*1000).toString(36).toUpperCase(),
-    dept: check.dept, dateStr: e.dateStr, shiftType: e.shiftType,
+    sched_id: 'MS-' + Date.now().toString(36).toUpperCase() + Math.floor(Math.random()*1000).toString(36).toUpperCase(),
+    dept: check.dept, dateStr: e.dateStr, shift_type: e.shiftType,
   }));
-  if (toInsert.length) await sb.from('mgrSchedule').insert(toInsert);
+  if (toInsert.length) await sb.from('mgr_schedule').insert(toInsert);
   return { success: true };
 };
 
@@ -900,10 +899,10 @@ API.getMgrScheduleForAdmin = async (weekStart) => {
   const DEPTS = ['Ağ Şəhər','Gənclik','Elmlər','Sahil'];
   const start = new Date(weekStart);
   const dates = Array.from({length:7}, (_, d) => U.toYMD(new Date(start.getTime()+d*86400000)));
-  const { data } = await sb.from('mgrSchedule').select('*').in('dateStr', dates);
+  const { data } = await sb.from('mgr_schedule').select('*').in('date_str', dates);
   const map = {};
   for (const dept of DEPTS) map[dept] = {};
-  for (const r of data || []) { if (map[r.dept]) map[r.dept][r.dateStr] = r.shiftType; }
+  for (const r of data || []) { if (map[r.dept]) map[r.dept][r.date_str] = r.shift_type; }
   const DAY_NAMES = ['B.e.','Ç.a.','Çər.','C.a.','Cüm.','Şən.','Baz.'];
   return {
     dates: dates.map(ds => { const dd=new Date(ds); return {date:ds,dayName:DAY_NAMES[dd.getDay()===0?6:dd.getDay()-1]}; }),
@@ -919,17 +918,17 @@ API.requestLatePerm = async (secret, dateStr, requestedTime) => {
   if (!/^\d{2}:\d{2}$/.test(requestedTime)) return { success:false, reason:'Vaxt formatı yanlışdır.' };
   const { data: emp } = await sb.from('employees').select('*').eq('secret', secret).single();
   if (!emp) return { success:false, reason:'İşçi tapılmadı.' };
-  const { data: existing } = await sb.from('latePerms').select('status').eq('empId', String(emp.id)).eq('dateStr', dateStr).single();
+  const { data: existing } = await sb.from('late_perms').select('status').eq('emp_id', String(emp.id)).eq('dateStr', dateStr).single();
   if (existing && (existing.status==='pending'||existing.status==='approved')) return { success:false, reason:'Bu tarix üçün artıq icazəniz mövcuddur.' };
   const permId = 'LP-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substring(2,5).toUpperCase();
-  await sb.from('latePerms').insert({ permId, empId:emp.id, empName:emp.name, dept:emp.dept, dateStr, requestedTime, status:'pending' });
+  await sb.from('late_perms').insert({ permId, empId:emp.id, empName:emp.name, dept:emp.dept, dateStr, requestedTime, status:'pending' });
   return { success:true, permId };
 };
 
 API.getLatePermsForManager = async (branchKey) => {
   const check = U.validateBranchScheduleKey(branchKey);
   if (!check.valid) return [];
-  const { data } = await sb.from('latePerms').select('*').eq('dept', check.dept).order('createdAt',{ascending:false}).limit(30);
+  const { data } = await sb.from('late_perms').select('*').eq('dept', check.dept).order('createdAt',{ascending:false}).limit(30);
   return (data||[]).sort((a,b)=>{
     if(a.status==='pending'&&b.status!=='pending')return -1;
     if(a.status!=='pending'&&b.status==='pending')return 1;
@@ -941,7 +940,7 @@ API.approveLatePerm = async (branchKey, permId, action) => {
   const check = U.validateBranchScheduleKey(branchKey);
   if (!check.valid) return { success:false, reason:'İcazəsiz.' };
   if (action!=='approved'&&action!=='rejected') return { success:false, reason:'Yanlış əməliyyat.' };
-  const { error } = await sb.from('latePerms').update({ status:action, approvedAt:new Date().toISOString() }).eq('permId', permId).eq('dept', check.dept);
+  const { error } = await sb.from('late_perms').update({ status:action, approved_at:new Date().toISOString() }).eq('perm_id', permId).eq('dept', check.dept);
   return { success:!error };
 };
 
@@ -950,7 +949,7 @@ API.getMyLatePerms = async (secret) => {
   const { data:emp } = await sb.from('employees').select('id').eq('secret',secret).single();
   if (!emp) return [];
   const today = U.toYMD(new Date());
-  const { data } = await sb.from('latePerms').select('permId,dateStr,requestedTime,status').eq('empId',String(emp.id)).gte('dateStr',today).order('dateStr').limit(5);
+  const { data } = await sb.from('late_perms').select('permId,dateStr,requestedTime,status').eq('emp_id',String(emp.id)).gte('dateStr',today).order('dateStr').limit(5);
   return data || [];
 };
 
