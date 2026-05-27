@@ -932,7 +932,7 @@ function loadBranchLinks(){
     if(!keys)return;
     var bColors={'\u0190\u0259nclik':'#bbf7d0','A\u011F \u015e\u0259h\u0259r':'#fef08a','Elml\u0259r':'#bfdbfe','Sahil':'#fbcfe8'};
     document.getElementById('branchLinks').innerHTML=Object.keys(keys).map(function(dept){
-      var url = SCRIPT_URL + '?page=manager&key=' + keys[dept];
+      var url = SCRIPT_URL + '/manager?key=' + keys[dept];
       return '<div class="link-row"><div class="link-dept"><span style="width:10px;height:10px;border-radius:3px;background:'+(bColors[dept]||'#e2e8f0')+';display:inline-block;"></span>'+dept+'</div>'+
         '<div style="font-family:monospace;font-size:0.75rem;color:var(--text-muted);flex:2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+url+'</div>'+
         '<button class="btn sm" onclick="navigator.clipboard.writeText(\''+url+'\');alert(\'Link kopyalandı!\')"><i class="fa-solid fa-copy"></i> Kopyala</button></div>';

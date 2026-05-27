@@ -376,7 +376,7 @@ var TODAY_YMD  = toYMD(new Date());
 var SCRIPT_URL = '<?= scriptUrl ?>';
 
 // ── Çeklist link (köməkçi üçün) ─────────────────────────────────
-var _clShareUrl = SCRIPT_URL + '?page=checklist&key=' + BRANCH_KEY;
+var _clShareUrl = SCRIPT_URL + '/checklist?key=' + BRANCH_KEY;
 document.getElementById('shareUrlBox').textContent = _clShareUrl;
 
 function copyClLink() {
