@@ -3,71 +3,724 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mənim Kodum</title>
+<title>Coffeemoon İşçi Kartı</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { background: #1a1a2e; color: #fff; font-family: 'Segoe UI', sans-serif;
-         display: flex; align-items: center; justify-content: center; min-height: 100vh; }
-  .card { background: #16213e; border-radius: 20px; padding: 40px 30px;
-          width: 320px; text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
-  .logo { font-size: 2.5rem; margin-bottom: 8px; }
-  .name { font-size: 1.3rem; font-weight: bold; color: #e2b96f; margin-bottom: 4px; }
-  .dept { font-size: .9rem; color: #aaa; margin-bottom: 30px; }
-  .pin  { font-size: 3.5rem; font-weight: bold; letter-spacing: 14px;
-          color: #e2b96f; background: #0f3460; border-radius: 14px;
-          padding: 20px 10px; margin-bottom: 16px; }
-  .timer { font-size: .85rem; color: #aaa; margin-bottom: 6px; }
-  .bar-wrap { background: #0f3460; border-radius: 10px; height: 6px; overflow: hidden; }
-  .bar { height: 100%; background: #e2b96f; transition: width .9s linear; border-radius: 10px; }
-  .err { color: #e74c3c; margin-top: 20px; }
+  :root { 
+    --bg: #f8fafc; --card-bg: rgba(255,255,255,0.75); 
+    --primary: #6366f1; --primary-light: rgba(99,102,241,0.08);
+    --success: #10b981; --success-light: rgba(16,185,129,0.08);
+    --danger: #ef4444;  --danger-light: rgba(239,68,68,0.08);
+    --warning: #f59e0b; --warning-light: rgba(245,158,11,0.08);
+    --text-main: #0f172a; --text-muted: #64748b; --border: rgba(255,255,255,0.6);
+    --card-shadow: 0 20px 40px -15px rgba(15,23,42,0.08), 0 0 0 1px rgba(15,23,42,0.04);
+  }
+  * { box-sizing:border-box; font-family:'Inter',sans-serif; -webkit-font-smoothing:antialiased; }
+  body { background:var(--bg); color:var(--text-main); display:flex; flex-direction:column; align-items:center; min-height:100vh; margin:0; padding:1.5rem; overflow-x:hidden; justify-content:center; position:relative; }
+  .glow-circle-1 { position:fixed; top:-5%; left:-10%; width:60vw; height:60vw; background:#e0e7ff; border-radius:50%; filter:blur(100px); opacity:0.7; z-index:0; }
+  .glow-circle-2 { position:fixed; bottom:-5%; right:-10%; width:60vw; height:60vw; background:#fed7aa; border-radius:50%; filter:blur(100px); opacity:0.5; z-index:0; }
+  .card-container { width:100%; max-width:360px; position:relative; z-index:1; display:flex; flex-direction:column; gap:1.2rem; }
+  .ticket { background:var(--card-bg); backdrop-filter:blur(30px); -webkit-backdrop-filter:blur(30px); border-radius:32px; box-shadow:var(--card-shadow); border:1px solid var(--border); overflow:hidden; }
+  .ticket-header { padding:2.5rem 1.7rem 1.7rem; border-bottom:2px dashed rgba(15,23,42,0.06); position:relative; text-align:center; }
+  .ticket-header::before,.ticket-header::after { content:''; position:absolute; bottom:-10px; width:20px; height:20px; background:var(--bg); border-radius:50%; z-index:2; }
+  .ticket-header::before { left:-10px; } .ticket-header::after { right:-10px; }
+  .brand { font-size:0.95rem; font-weight:800; color:var(--text-main); letter-spacing:4px; margin-bottom:1.5rem; display:flex; justify-content:center; align-items:center; gap:8px; opacity:0.85; }
+  .brand i { color:#854d0e; }
+  .avatar { width:72px; height:72px; border-radius:24px; background:linear-gradient(135deg,#4f46e5,#6366f1); color:#fff; font-size:1.6rem; font-weight:600; display:flex; align-items:center; justify-content:center; margin:0 auto 14px; box-shadow:0 10px 20px rgba(99,102,241,0.15); border:2px solid #fff; }
+  .card-title { font-size:0.72rem; color:var(--primary); text-transform:uppercase; letter-spacing:2px; margin-bottom:5px; font-weight:700; }
+  .name { font-size:1.4rem; font-weight:700; color:var(--text-main); margin-bottom:5px; letter-spacing:-0.4px; }
+  .dept-badge { font-size:0.82rem; color:var(--text-muted); display:flex; align-items:center; justify-content:center; gap:6px; font-weight:500; }
+  .dept-badge i { color:var(--primary); font-size:0.85rem; }
+  .streak-badge { display:inline-flex; align-items:center; gap:5px; background:var(--warning-light); border:1px solid rgba(245,158,11,0.15); color:#b45309; padding:6px 14px; border-radius:100px; font-size:0.8rem; font-weight:600; margin-top:14px; }
+  .ticket-body { padding:2.2rem 1.7rem 1.7rem; text-align:center; display:none; }
+  .msg-box { background:var(--primary-light); border:1px solid rgba(99,102,241,0.12); border-radius:16px; padding:1rem; margin-bottom:1.5rem; text-align:left; display:none; }
+  .msg-title { font-size:0.75rem; color:var(--primary); font-weight:700; text-transform:uppercase; margin-bottom:5px; display:flex; gap:6px; align-items:center; }
+  .msg-text { color:var(--text-main); font-weight:500; }
+  .late-warning-box { display:none; background:var(--danger-light); border:1px solid rgba(239,68,68,0.12); border-radius:16px; padding:12px; margin-bottom:1.5rem; color:#b91c1c; font-size:0.82rem; font-weight:600; align-items:center; justify-content:center; gap:6px; }
+  .pin-lbl-container { display:flex; justify-content:center; align-items:center; gap:8px; margin-bottom:10px; }
+  .pin-lbl { font-size:0.75rem; color:var(--text-muted); font-weight:600; letter-spacing:1.5px; text-transform:uppercase; }
+  .ten-sec-timer { font-size:0.75rem; font-weight:700; color:var(--success); background:var(--success-light); border:1px solid rgba(16,185,129,0.1); padding:3px 8px; border-radius:8px; font-family:monospace; min-width:52px; }
+  .pin { font-size:4.2rem; font-weight:800; letter-spacing:12px; color:var(--text-main); font-family:monospace; line-height:1; margin:12px 0; margin-left:12px; transition:color 0.3s; }
+  .progress-bg { width:100%; height:5px; background:rgba(15,23,42,0.03); border-radius:10px; overflow:hidden; margin-top:24px; }
+  .progress-fill { height:100%; background:var(--success); width:100%; border-radius:10px; }
+  .ticket-footer { border-top:1px solid rgba(15,23,42,0.04); padding:1.1rem 1.7rem; display:flex; justify-content:space-between; align-items:center; font-size:0.78rem; color:var(--text-muted); background:rgba(255,255,255,0.3); font-weight:500; }
+  .session-timer { font-weight:600; display:flex; align-items:center; gap:5px; color:var(--text-muted); background:rgba(15,23,42,0.03); padding:4px 10px; border-radius:8px; transition:all 0.3s; }
+  .loader-box { padding:6rem 2rem; text-align:center; }
+  .loader-box i { color:var(--primary); }
+  .timeout-box { display:none; padding:4.5rem 1.7rem; text-align:center; animation:fadeIn 0.5s cubic-bezier(0.16,1,0.3,1); }
+  .timeout-box i { color:var(--warning); margin-bottom:20px; background:var(--warning-light); width:64px; height:64px; display:inline-flex; align-items:center; justify-content:center; border-radius:20px; }
+  .timeout-title { font-size:1.25rem; font-weight:700; margin-bottom:10px; color:var(--text-main); letter-spacing:-0.3px; }
+  .timeout-desc { font-size:0.85rem; color:var(--text-muted); margin-bottom:30px; line-height:1.5; padding:0 10px; }
+  .btn-refresh { padding:14px 24px; background:var(--primary); color:#fff; border:none; border-radius:14px; font-weight:600; font-size:0.9rem; cursor:pointer; display:inline-flex; align-items:center; gap:8px; transition:all 0.2s; width:100%; justify-content:center; box-shadow:0 8px 20px rgba(99,102,241,0.2); }
+  .btn-refresh:hover { background:#4f46e5; }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+
+  /* ── HƏFTƏ TAB-LARI ── */
+  .week-tabs { display:flex; gap:4px; margin-left:auto; }
+  .week-tab { padding:5px 13px; border:1px solid rgba(15,23,42,0.08); border-radius:10px; font-size:0.75rem; font-weight:700; cursor:pointer; background:transparent; color:var(--text-muted); font-family:'Inter',sans-serif; transition:all 0.18s; }
+  .week-tab.active { background:var(--primary); color:#fff; border-color:var(--primary); }
+  .week-tab:active { transform:scale(0.95); }
+
+  /* ── HƏFTƏLIK CƏDVƏL ── */
+  .week-card { background:var(--card-bg); backdrop-filter:blur(30px); -webkit-backdrop-filter:blur(30px); border-radius:24px; box-shadow:var(--card-shadow); border:1px solid var(--border); overflow:hidden; display:none; }
+  .week-card-header { padding:1.1rem 1.4rem 0.8rem; border-bottom:1px solid rgba(15,23,42,0.05); display:flex; align-items:center; gap:8px; }
+  .week-card-header i { color:var(--primary); }
+  .week-card-title { font-size:0.75rem; font-weight:700; text-transform:uppercase; letter-spacing:1.5px; color:var(--text-muted); }
+  .week-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; padding:1rem 1rem 1.2rem; }
+  .day-cell { text-align:center; border-radius:12px; padding:8px 4px; transition:all 0.2s; }
+  .day-cell.today { background:rgba(99,102,241,0.08); border:1px solid rgba(99,102,241,0.15); }
+  .day-name { font-size:0.65rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:5px; }
+  .day-cell.today .day-name { color:var(--primary); }
+  .day-shift { width:32px; height:32px; border-radius:9px; display:flex; align-items:center; justify-content:center; font-size:0.75rem; font-weight:800; margin:0 auto 4px; }
+  .day-shift.sehersm  { background:#dbeafe; color:#1e40af; }
+  .day-shift.axsamsm  { background:#ede9fe; color:#5b21b6; }
+  .day-shift.fullsm   { background:#ffedd5; color:#9a3412; }
+  .day-shift.seherfullsm { background:#d1fae5; color:#065f46; }
+  .day-shift.istirahetsm { background:#fee2e2; color:#991b1b; }
+  .day-shift.empty    { background:rgba(15,23,42,0.04); color:var(--text-muted); }
+  .day-shift-lbl { font-size:0.6rem; color:var(--text-muted); font-weight:600; line-height:1.2; }
+
+  /* ── AYLIK STATİSTİKA ── */
+  .stats-card { background:var(--card-bg); backdrop-filter:blur(30px); -webkit-backdrop-filter:blur(30px); border-radius:24px; box-shadow:var(--card-shadow); border:1px solid var(--border); overflow:hidden; display:none; }
+  .stats-card-header { padding:1.1rem 1.4rem 0.8rem; border-bottom:1px solid rgba(15,23,42,0.05); display:flex; align-items:center; gap:8px; }
+  .stats-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; padding:1rem 1.2rem 1.3rem; }
+  .stat-box { background:rgba(15,23,42,0.02); border:1px solid rgba(15,23,42,0.04); border-radius:14px; padding:0.9rem; text-align:center; }
+  .stat-num { font-size:1.8rem; font-weight:800; line-height:1; margin-bottom:4px; }
+  .stat-lbl2 { font-size:0.72rem; color:var(--text-muted); font-weight:600; text-transform:uppercase; letter-spacing:0.8px; }
+  .pct-ring-wrap { grid-column:span 2; display:flex; align-items:center; justify-content:center; gap:1.2rem; padding-top:0.3rem; }
+  .pct-bar-track { flex:1; height:8px; background:rgba(15,23,42,0.05); border-radius:8px; overflow:hidden; }
+  .pct-bar-fill { height:100%; border-radius:8px; transition:width 0.8s ease; }
+
+  /* ── NAHAR KARTI ── */
+  .lunch-card { background:var(--card-bg); backdrop-filter:blur(30px); -webkit-backdrop-filter:blur(30px); border-radius:24px; box-shadow:var(--card-shadow); border:1px solid var(--border); overflow:hidden; display:none; }
+  .lunch-card-header { padding:1.1rem 1.4rem 0.8rem; border-bottom:1px solid rgba(15,23,42,0.05); display:flex; align-items:center; gap:8px; }
+  .lunch-card-header i { color:#f59e0b; }
+  .lunch-btns { display:grid; grid-template-columns:1fr 1fr; gap:10px; padding:1rem 1.2rem 0.8rem; }
+  .lunch-btn { padding:16px 10px; border:none; border-radius:18px; font-size:0.85rem; font-weight:600; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:7px; transition:all 0.2s cubic-bezier(0.16,1,0.3,1); font-family:'Inter',sans-serif; line-height:1.3; }
+  .lunch-btn:active { transform:scale(0.95); }
+  .lunch-btn i { font-size:1.5rem; }
+  .lunch-btn.go  { background:rgba(245,158,11,0.1); color:#92400e; border:1px solid rgba(245,158,11,0.2); }
+  .lunch-btn.go:hover { background:rgba(245,158,11,0.18); }
+  .lunch-btn.back { background:rgba(16,185,129,0.1); color:#065f46; border:1px solid rgba(16,185,129,0.2); }
+  .lunch-btn.back:hover { background:rgba(16,185,129,0.18); }
+  .lunch-btn:disabled { opacity:0.45; cursor:not-allowed; transform:none; }
+  .lunch-status { padding:0.5rem 1.2rem 1.1rem; text-align:center; font-size:0.82rem; color:var(--text-muted); font-weight:500; min-height:30px; display:flex; align-items:center; justify-content:center; gap:6px; }
+  .lunch-timer { display:none; margin:0 1.2rem 1rem; background:rgba(245,158,11,0.08); border:1px solid rgba(245,158,11,0.2); border-radius:16px; padding:1rem; text-align:center; }
+  .lunch-timer-label { font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:#92400e; margin-bottom:6px; }
+  .lunch-timer-count { font-size:2.2rem; font-weight:800; font-family:monospace; color:#92400e; line-height:1; }
+  .lunch-timer-bar-bg { height:5px; background:rgba(245,158,11,0.15); border-radius:10px; overflow:hidden; margin-top:10px; }
+  .lunch-timer-bar-fill { height:100%; background:#f59e0b; border-radius:10px; transition:width 1s linear; }
+  .lunch-timer.over .lunch-timer-count, .lunch-timer.over .lunch-timer-label { color:var(--danger); }
+  .lunch-timer.over .lunch-timer-bar-fill { background:var(--danger); }
+  /* ── SMEN DETALı ── */
+  .day-cell { cursor:pointer; transition:all 0.15s; }
+  .day-cell:active { transform:scale(0.94); }
+  .day-cell.selected:not(.today) { background:rgba(99,102,241,0.07); border:1px solid rgba(99,102,241,0.18); }
+  .day-cell.today.selected { background:rgba(99,102,241,0.13); border:1px solid rgba(99,102,241,0.28); }
+  .colleague-dot { font-size:0.58rem; font-weight:700; color:var(--primary); margin-top:2px; min-height:10px; }
+  .day-detail { padding:0.8rem 1rem 1.1rem; border-top:1px solid rgba(15,23,42,0.05); animation:fadeIn 0.2s ease; }
+  .day-detail-head { font-size:0.7rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px; margin-bottom:0.5rem; }
+  .shift-pill { display:inline-flex; align-items:center; gap:6px; padding:5px 13px; border-radius:10px; font-size:0.8rem; font-weight:700; margin-bottom:0.75rem; }
+  .shift-pill .shift-time { font-weight:500; font-size:0.73rem; opacity:0.72; }
+  .colleagues-head { font-size:0.68rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px; margin-bottom:0.4rem; }
+  .colleague-chips { display:flex; flex-wrap:wrap; gap:5px; }
+  .colleague-chip { background:rgba(99,102,241,0.07); border:1px solid rgba(99,102,241,0.13); color:var(--primary); border-radius:8px; padding:4px 10px; font-size:0.78rem; font-weight:600; }
+  .no-colleague { font-size:0.8rem; color:var(--text-muted); font-weight:500; }
+  /* ── YENİLİKLƏR KARTI ── */
+.announce-card{background:var(--card-bg);backdrop-filter:blur(30px);-webkit-backdrop-filter:blur(30px);border-radius:24px;box-shadow:var(--card-shadow);border:1px solid var(--border);overflow:hidden;display:none;}
+.announce-header{padding:1.1rem 1.4rem 0.9rem;border-bottom:1px solid rgba(15,23,42,0.05);display:flex;align-items:center;gap:10px;}
+.announce-header-icon{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,#4f46e5,#7c3aed);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.announce-header-icon i{color:#fff;font-size:0.9rem;}
+.announce-header-text{flex:1;}
+.announce-header-title{font-size:0.8rem;font-weight:800;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-main);}
+.announce-header-sub{font-size:0.7rem;color:var(--text-muted);font-weight:500;margin-top:1px;}
+.announce-count{font-size:0.7rem;font-weight:700;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;padding:3px 9px;border-radius:20px;margin-left:auto;}
+.announce-list{padding:0.9rem 1rem 1rem;display:flex;flex-direction:column;gap:8px;}
+.announce-item{border-radius:14px;padding:1rem 1.1rem;position:relative;overflow:hidden;border:1px solid transparent;}
+.announce-item.type-new{background:rgba(99,102,241,0.06);border-color:rgba(99,102,241,0.12);}
+.announce-item.type-info{background:rgba(14,165,233,0.06);border-color:rgba(14,165,233,0.1);}
+.announce-item.type-success{background:rgba(16,185,129,0.06);border-color:rgba(16,185,129,0.1);}
+.announce-item.type-warning{background:rgba(245,158,11,0.07);border-color:rgba(245,158,11,0.12);}
+.announce-item-top{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+.announce-badge{display:inline-flex;align-items:center;gap:5px;font-size:0.68rem;font-weight:800;text-transform:uppercase;letter-spacing:0.8px;padding:3px 9px;border-radius:8px;}
+.announce-badge.type-new{background:rgba(99,102,241,0.12);color:#4f46e5;}
+.announce-badge.type-info{background:rgba(14,165,233,0.1);color:#0369a1;}
+.announce-badge.type-success{background:rgba(16,185,129,0.1);color:#059669;}
+.announce-badge.type-warning{background:rgba(245,158,11,0.1);color:#b45309;}
+.announce-pin-mark{font-size:0.65rem;color:var(--text-muted);margin-left:auto;display:flex;align-items:center;gap:3px;font-weight:600;}
+.announce-title{font-size:0.9rem;font-weight:700;color:var(--text-main);line-height:1.3;margin-bottom:5px;}
+.announce-body{font-size:0.8rem;color:var(--text-muted);line-height:1.55;font-weight:500;}
+.announce-date{font-size:0.7rem;color:var(--text-muted);margin-top:8px;font-weight:600;opacity:0.7;}
+.announce-accent{position:absolute;left:0;top:0;bottom:0;width:3px;border-radius:3px 0 0 3px;}
+.announce-accent.type-new{background:linear-gradient(180deg,#4f46e5,#7c3aed);}
+.announce-accent.type-info{background:#0ea5e9;}
+.announce-accent.type-success{background:#10b981;}
+.announce-accent.type-warning{background:#f59e0b;}
 </style>
 </head>
 <body>
-<div class="card">
-  <div class="logo">☕</div>
-  <div class="name" id="name">Yüklənir...</div>
-  <div class="dept" id="dept"></div>
-  <div class="pin"  id="pin">—</div>
-  <div class="timer" id="timer"></div>
-  <div class="bar-wrap"><div class="bar" id="bar"></div></div>
-  <div class="err"  id="err"></div>
+<div class="glow-circle-1"></div><div class="glow-circle-2"></div>
+
+<div class="card-container">
+  
+  <div class="announce-card" id="announceCard">
+   <div class="announce-header">
+    <div class="announce-header-icon"><i class="fa-solid fa-bell-concierge"></i></div>
+    <div class="announce-header-text">
+      <div class="announce-header-title">Yeniliklər</div>
+      <div class="announce-header-sub">Rəhbərlikdən məlumatlar</div>
+    </div>
+    <div class="announce-count" id="announceCount">0</div>
+   </div>
+   <div class="announce-list" id="announceList"></div>
+  </div>
+
+  <!-- ANA KAD -->
+  <div class="ticket">
+    <div class="ticket-header">
+      <div class="brand"><i class="fa-solid fa-mug-hot"></i> COFFEEMOON</div>
+      <div class="avatar" id="avatarDiv">--</div>
+      <div class="card-title">RƏQƏMSAL İŞÇİ KARTI</div>
+      <div class="name" id="nameDisplay"><?= empName ?></div>
+      <div class="dept-badge" id="deptDisplay"><i class="fa-solid fa-briefcase"></i> Filial yüklənir...</div>
+      <div class="streak-badge" id="streakBox" style="display:none;"><i class="fa-solid fa-fire"></i> <span id="streakCount">0</span> Gün Ardıcıl Vaxtında</div>
+    </div>
+    <div class="loader-box" id="loaderBox"><i class="fa-solid fa-circle-notch fa-spin fa-2x"></i></div>
+    <div class="ticket-body" id="ticketBody">
+      <div class="msg-box" id="adminMsgBox">
+        <div class="msg-title"><i class="fa-solid fa-bell"></i> Rəhbərlikdən Mesaj</div>
+        <div class="msg-text" id="adminMsgText"></div>
+      </div>
+      <div class="late-warning-box" id="lateWarningBox"><i class="fa-solid fa-triangle-exclamation"></i> Smenə gecikmisiniz!</div>
+      <div class="pin-lbl-container">
+        <div class="pin-lbl">Dinamik Kod</div>
+        <div class="ten-sec-timer" id="tenSecTimer">10.0s</div>
+      </div>
+      <div class="pin" id="pinDisplay">----</div>
+      <div class="progress-bg"><div class="progress-fill" id="pFill"></div></div>
+    </div>
+    <div class="ticket-footer" id="ticketFooter" style="display:none;">
+      <div style="display:flex;align-items:center;gap:5px;"><span style="width:7px;height:7px;background:var(--success);border-radius:50%;display:inline-block;"></span> Sistem aktivdir</div>
+    </div>
+    <div class="timeout-box" id="timeoutBox">
+      <i class="fa-solid fa-hourglass-end fa-2x"></i>
+      <div class="timeout-title">Təhlükəsizlik Sessiyası Bitdi</div>
+      <div class="timeout-desc">Kart 5 dəqiqədən sonra avtomatik kilidləndi.</div>
+      <button class="btn-refresh" onclick="window.location.reload()"><i class="fa-solid fa-rotate-right"></i> Yenidən Aktivləşdir</button>
+    </div>
+  </div>
+
+  <!-- NAHAR KARTI (YENİ) -->
+  <div class="lunch-card" id="lunchCard">
+    <div class="lunch-card-header">
+      <i class="fa-solid fa-utensils"></i>
+      <div class="week-card-title">Nahar Fasiləsi</div>
+    </div>
+    <div class="lunch-btns">
+      <button class="lunch-btn go" id="btnNaharGet" onclick="lunchAction('NAHAR_GET')">
+        <i class="fa-solid fa-bowl-food"></i>
+        Nahara<br>Getdim
+      </button>
+      <button class="lunch-btn back" id="btnNaharQay" onclick="lunchAction('NAHAR_QAY')">
+        <i class="fa-solid fa-mug-hot"></i>
+        Nahardan<br>Qayıtdım
+      </button>
+    </div>
+    <div class="lunch-timer" id="lunchTimer">
+      <div class="lunch-timer-label"><i class="fa-solid fa-utensils"></i> Nahar Fasiləsi</div>
+      <div class="lunch-timer-count" id="lunchTimerCount">30:00</div>
+      <div class="lunch-timer-bar-bg">
+        <div class="lunch-timer-bar-fill" id="lunchTimerBar" style="width:100%"></div>
+      </div>
+    </div>
+    <div class="lunch-status" id="lunchStatus"></div>
+  </div>
+
+  <!-- HƏFTƏLIK CƏDVƏL -->
+  <div class="week-card" id="weekCard">
+    <div class="week-card-header">
+      <i class="fa-solid fa-calendar-week"></i>
+      <div class="week-card-title" id="weekCardTitle">Bu Həftənin Cədvəli</div>
+      <div class="week-tabs">
+        <button class="week-tab active" id="tabThis" onclick="switchWeekTab('this')">Bu Həftə</button>
+        <button class="week-tab" id="tabNext" onclick="switchWeekTab('next')">Gələn Həftə</button>
+      </div>
+    </div>
+    <div class="week-grid" id="weekGrid"></div>
+    <div class="week-grid" id="nextWeekGrid" style="display:none;"></div>
+    <!-- Seçilmiş günün detalı -->
+    <div class="day-detail" id="dayDetail" style="display:none;">
+      <div id="dayDetailHead"></div>
+      <div id="dayDetailShift"></div>
+      <div id="dayDetailColleagues"></div>
+    </div>
+  </div>
+
+  <!-- GEC GƏLİŞ İCAZƏSİ KARTI -->
+  <div class="week-card" id="latePermCard" style="display:none;">
+    <div class="week-card-header">
+      <i class="fa-solid fa-clock" style="color:var(--warning);"></i>
+      <div class="week-card-title">Gec Gəliş İcazəsi</div>
+    </div>
+    <div style="padding:1rem 1.2rem 0.6rem;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:0.8rem;">
+        <div>
+          <div style="font-size:0.7rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:5px;">Tarix</div>
+          <select id="lpDate" style="width:100%;padding:9px 8px;border:1px solid rgba(15,23,42,0.1);border-radius:10px;font-size:0.86rem;font-weight:600;background:#fff;color:var(--text-main);font-family:'Inter',sans-serif;"></select>
+        </div>
+        <div>
+          <div style="font-size:0.7rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:5px;">Gəliş vaxtı</div>
+          <input type="time" id="lpTime" style="width:100%;padding:9px 8px;border:1px solid rgba(15,23,42,0.1);border-radius:10px;font-size:0.86rem;font-weight:600;background:#fff;color:var(--text-main);font-family:'Inter',sans-serif;">
+        </div>
+      </div>
+      <button onclick="submitLatePerm()" style="width:100%;padding:11px;background:var(--warning);color:#fff;border:none;border-radius:12px;font-size:0.88rem;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-family:'Inter',sans-serif;box-shadow:0 4px 12px rgba(245,158,11,0.25);">
+        <i class="fa-solid fa-paper-plane"></i> İcazə Tələbi Göndər
+      </button>
+      <div id="lpStatus" style="margin-top:0.6rem;font-size:0.82rem;font-weight:600;min-height:18px;text-align:center;"></div>
+    </div>
+    <div id="lpList" style="padding:0 1.2rem 1rem;"></div>
+  </div>
+
+  <!-- AYLIK STATİSTİKA -->
+  <div class="stats-card" id="statsCard">
+    <div class="stats-card-header">
+      <i class="fa-solid fa-chart-bar" style="color:var(--primary);"></i>
+      <div class="week-card-title" id="statsMonthLabel">Bu Ayki Statistika</div>
+    </div>
+    <div class="stats-grid" id="statsGrid"></div>
+  </div>
+
 </div>
 
+<script src="/gsr-shim.js"></script>
 <script>
-const secret = new URLSearchParams(location.search).get('secret');
-const STEP = 10;
+  var SECRET     = "<?= secret ?>";
+  var EMP_NAME   = "<?= empName ?>";
+  var TIME_STEP  = 10000;
+  var isSessionActive = true;
+  var userDept   = "";
 
-async function load() {
-  if (!secret) { document.getElementById('err').textContent = 'Link səhvdir'; return; }
-  try {
-    const r = await fetch('/api/mycode?secret=' + secret);
-    const d = await r.json();
-    if (d.error) { document.getElementById('err').textContent = d.error; return; }
-    document.getElementById('name').textContent = d.name;
-    document.getElementById('dept').textContent = d.dept;
-    document.getElementById('pin').textContent  = d.pin.split('').join(' ');
-    startTimer(d.remaining);
-  } catch(e) {
-    document.getElementById('err').textContent = 'Server xətası';
+  document.getElementById('avatarDiv').innerText = EMP_NAME.split(' ').map(function(n){return n[0];}).join('').substring(0,2).toUpperCase() || 'CM';
+
+  function generateDynamicPin(secret, timeWindow) {
+    var str = secret.toString() + timeWindow.toString(), hash = 0;
+    for (var i = 0; i < str.length; i++) { hash = (hash << 5) - hash + str.charCodeAt(i); hash |= 0; }
+    hash ^= (hash << 13); hash ^= (hash >>> 17); hash ^= (hash << 5);
+    return (Math.abs(Math.imul(hash, 1664525) + 1013904223) % 10000).toString().padStart(4, '0');
   }
-}
 
-function startTimer(remaining) {
-  let r = remaining;
-  const timer = document.getElementById('timer');
-  const bar   = document.getElementById('bar');
+  var myDeviceId = localStorage.getItem("emp_device_id_v1");
+  if (!myDeviceId) { myDeviceId = "DEV-" + Math.random().toString(36).substring(2, 10).toUpperCase(); localStorage.setItem("emp_device_id_v1", myDeviceId); }
 
-  function tick() {
-    timer.textContent = r + ' saniyə sonra yenilənir';
-    bar.style.width = (r / STEP * 100) + '%';
-    if (r <= 0) { load(); return; }
-    r--;
-    setTimeout(tick, 1000);
+  if (SECRET) {
+    google.script.run
+    .withSuccessHandler(function(res) {
+      if (res && res.success) {
+        document.getElementById('loaderBox').style.display = 'none';
+        document.getElementById('ticketBody').style.display = 'block';
+        document.getElementById('ticketFooter').style.display = 'flex';
+        // ── Nahar kartını göstər ──────────────────────────────────
+        document.getElementById('lunchCard').style.display = 'block';
+        // ── Gec gəliş icazəsi kartını göstər ─────────────────────
+        document.getElementById('latePermCard').style.display = 'block';
+        initLatePermCard();
+        // ─────────────────────────────────────────────────────────
+        if (res.message) { document.getElementById('adminMsgBox').style.display = 'block'; document.getElementById('adminMsgText').innerText = res.message; }
+
+        // ── Telefon IP-sini serverə qeydiyyatdan keçir ──────────────
+        function sendIpToServer() {
+          fetch('https://api.ipify.org?format=json')
+            .then(function(r) { return r.json(); })
+            .then(function(d) { google.script.run.registerEmployeeSession(SECRET, d.ip || ''); })
+            .catch(function()  { google.script.run.registerEmployeeSession(SECRET, ''); });
+        }
+        sendIpToServer();
+        setInterval(sendIpToServer, 240000); // hər 4 dəqiqədə bir yenilə
+        // ────────────────────────────────────────────────────────────
+
+        setInterval(updateApp, 40);
+        updateApp();
+
+        google.script.run.withSuccessHandler(function(dash) {
+          if (!dash) return;
+          userDept = dash.dept || "";
+          document.getElementById('deptDisplay').innerHTML = '<i class="fa-solid fa-briefcase"></i> ' + (userDept || 'Filial');
+          if (dash.streak > 0) { document.getElementById('streakBox').style.display = 'inline-flex'; document.getElementById('streakCount').innerText = dash.streak; }
+          checkLateStatus();
+          // Həftəlik cədvəl
+          if (dash.weekSchedule && dash.weekSchedule.length) renderWeekSchedule(dash.weekSchedule, dash.nextWeekSchedule || []);
+          // Aylıq statistika
+          if (dash.monthStats) renderMonthStats(dash.monthStats);
+          if (dash.announcements && dash.announcements.length) renderAnnouncements(dash.announcements);
+        }).getDashboardData(SECRET);
+
+      } else {
+        document.getElementById('loaderBox').innerHTML = '<i class="fa-solid fa-lock fa-3x" style="color:var(--danger)"></i><br><br>' + (res ? res.reason : 'Giriş rədd edildi.');
+      }
+    })
+    .withFailureHandler(function(err) {
+      document.getElementById('loaderBox').innerHTML =
+        '<i class="fa-solid fa-triangle-exclamation fa-3x" style="color:var(--warning)"></i>' +
+        '<br><br><span style="color:var(--danger);font-size:0.85rem;font-weight:600;">' +
+        (err && err.message ? err.message : 'Serverlə əlaqə xətası.') + '</span>' +
+        '<br><br><button onclick="location.reload()" style="padding:10px 20px;background:#6366f1;' +
+        'color:#fff;border:none;border-radius:12px;font-weight:600;cursor:pointer;">Yenidən cəhd et</button>';
+    })
+    .bindDevice(SECRET, myDeviceId);
   }
-  tick();
-}
 
-load();
+  // ── HƏFTƏLIK CƏDVƏL ─────────────────────────────────────────────
+  var SHIFT_LABELS = { sehersm:'S', axsamsm:'A', fullsm:'AF', seherfullsm:'SF', istirahetsm:'İ' };
+  var SHIFT_SUBLBL = { sehersm:'Səhər', axsamsm:'Axşam', fullsm:'Ax.Full', seherfullsm:'Seh.Full', istirahetsm:'İstir.' };
+  var SHIFT_STYLE  = {
+    sehersm:     { bg:'#dbeafe', color:'#1e40af', icon:'fa-sun',                label:'Səhər smeni'      },
+    axsamsm:     { bg:'#ede9fe', color:'#5b21b6', icon:'fa-moon',               label:'Axşam smeni'      },
+    fullsm:      { bg:'#ffedd5', color:'#9a3412', icon:'fa-circle-half-stroke', label:'Axşam Full smen'  },
+    seherfullsm: { bg:'#d1fae5', color:'#065f46', icon:'fa-sun',                label:'Səhər Full smen'  },
+    istirahetsm: { bg:'#fee2e2', color:'#991b1b', icon:'fa-couch',              label:'İstirahət'    }
+  };
+  var _weekData = [], _nextWeekData = [], _activeTab = 'this';
+
+  function activeData() { return _activeTab === 'this' ? _weekData : _nextWeekData; }
+
+  function buildGrid(schedule, gridId) {
+    var grid = document.getElementById(gridId);
+    grid.innerHTML = schedule.map(function(day, idx) {
+      var st = day.shiftType;
+      var shiftClass = st || 'empty';
+      var shiftLbl   = st ? (SHIFT_LABELS[st] || st) : '–';
+      var hasColl    = day.colleagues && day.colleagues.length > 0;
+      return '<div class="day-cell' + (day.isToday ? ' today' : '') + '" id="' + gridId + '-' + idx + '" onclick="selectDay(' + idx + ')">' +
+        '<div class="day-name">' + day.dayName + '</div>' +
+        '<div class="day-shift ' + shiftClass + '">' + shiftLbl + '</div>' +
+        '<div class="colleague-dot">' + (hasColl ? '+' + day.colleagues.length : '') + '</div>' +
+        '</div>';
+    }).join('');
+  }
+
+  function renderWeekSchedule(thisWeek, nextWeek) {
+    _weekData = thisWeek || [];
+    _nextWeekData = nextWeek || [];
+    document.getElementById('weekCard').style.display = 'block';
+
+    buildGrid(_weekData, 'weekGrid');
+    if (_nextWeekData.length) buildGrid(_nextWeekData, 'nextWeekGrid');
+
+    // Bu günü avtomatik seç
+    var todayIdx = 0;
+    for (var i = 0; i < _weekData.length; i++) { if (_weekData[i].isToday) { todayIdx = i; break; } }
+    selectDay(todayIdx);
+  }
+
+  function switchWeekTab(tab) {
+    _activeTab = tab;
+    document.getElementById('tabThis').classList.toggle('active', tab === 'this');
+    document.getElementById('tabNext').classList.toggle('active', tab === 'next');
+    document.getElementById('weekGrid').style.display     = tab === 'this' ? '' : 'none';
+    document.getElementById('nextWeekGrid').style.display = tab === 'next' ? '' : 'none';
+    document.getElementById('dayDetail').style.display = 'none';
+    // Aktiv tabda ilk günü seç
+    var data = activeData();
+    var defaultIdx = 0;
+    if (tab === 'this') {
+      for (var i = 0; i < data.length; i++) { if (data[i].isToday) { defaultIdx = i; break; } }
+    }
+    selectDay(defaultIdx);
+  }
+
+  function selectDay(idx) {
+    var data = activeData();
+    var gridId = _activeTab === 'this' ? 'weekGrid' : 'nextWeekGrid';
+    // Əvvəlki seçimi sil
+    data.forEach(function(_, i) {
+      var c = document.getElementById(gridId + '-' + i);
+      if (c) c.classList.remove('selected');
+    });
+    var cell = document.getElementById(gridId + '-' + idx);
+    if (cell) cell.classList.add('selected');
+
+    var day = data[idx];
+    var detail = document.getElementById('dayDetail');
+    if (!day) { detail.style.display = 'none'; return; }
+    detail.style.display = 'block';
+
+    // Gün başlığı
+    document.getElementById('dayDetailHead').innerHTML =
+      '<div class="day-detail-head">' + day.dayName +
+      (day.isToday ? ' <span style="color:var(--primary);">· Bu gün</span>' : '') + '</div>';
+
+    // Smen pill
+    var st = day.shiftType, ss = SHIFT_STYLE[st] || null;
+    var shiftHtml = '';
+    if (ss) {
+      var timeStr = (day.label && day.label !== '-') ? '<span class="shift-time">· ' + day.label + '</span>' : '';
+      shiftHtml = '<div class="shift-pill" style="background:' + ss.bg + ';color:' + ss.color + ';">' +
+        '<i class="fa-solid ' + ss.icon + '"></i>' + ss.label + timeStr + '</div>';
+    } else {
+      shiftHtml = '<div style="font-size:0.82rem;color:var(--text-muted);margin-bottom:0.75rem;">Cədvəl qeyd edilməyib</div>';
+    }
+    document.getElementById('dayDetailShift').innerHTML = shiftHtml;
+
+    // Smendəşlər
+    var collHtml = '';
+    if (st && st !== 'istirahetsm') {
+      if (day.colleagues && day.colleagues.length) {
+        collHtml = '<div class="colleagues-head"><i class="fa-solid fa-users" style="margin-right:4px;"></i>Smendə olanlar</div>' +
+          '<div class="colleague-chips">' +
+          day.colleagues.map(function(n) {
+            return '<span class="colleague-chip">' + n + '</span>';
+          }).join('') + '</div>';
+      } else {
+        collHtml = '<div class="no-colleague"><i class="fa-regular fa-face-meh" style="margin-right:5px;"></i>Bu gün tək smendəsiniz</div>';
+      }
+    }
+    document.getElementById('dayDetailColleagues').innerHTML = collHtml;
+  }
+
+  // ── GEC GƏLİŞ İCAZƏSİ ──────────────────────────────────────────
+  function toYMDClient(d) {
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  }
+
+  function initLatePermCard() {
+    var sel = document.getElementById('lpDate');
+    sel.innerHTML = '';
+    var now = new Date();
+    var lbls = ['Bu gün','Sabah','Birisi gün'];
+    for (var i = 0; i < 3; i++) {
+      var d = new Date(now.getTime() + i*86400000);
+      var ds = toYMDClient(d);
+      var opt = document.createElement('option');
+      opt.value = ds;
+      opt.text  = lbls[i] + ' (' + String(d.getDate()).padStart(2,'0') + '.' + String(d.getMonth()+1).padStart(2,'0') + ')';
+      sel.appendChild(opt);
+    }
+    loadMyLatePerms();
+  }
+
+  function loadMyLatePerms() {
+    google.script.run.withSuccessHandler(renderMyLatePerms).getMyLatePerms(SECRET);
+  }
+
+  function renderMyLatePerms(list) {
+    var el = document.getElementById('lpList');
+    if (!list || !list.length) { el.innerHTML = ''; return; }
+    var ST = {
+      pending:  {icon:'fa-hourglass-half', color:'var(--warning)', lbl:'Gözləyir'},
+      approved: {icon:'fa-check-circle',   color:'var(--success)', lbl:'Təsdiqləndi'},
+      rejected: {icon:'fa-times-circle',   color:'var(--danger)',  lbl:'Rədd edildi'}
+    };
+    el.innerHTML =
+      '<div style="font-size:0.7rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px;padding-top:6px;border-top:1px solid rgba(15,23,42,0.06);">Tələblərim</div>' +
+      list.map(function(p) {
+        var s = ST[p.status] || ST.pending;
+        var dd = p.dateStr.slice(8)+'.'+p.dateStr.slice(5,7);
+        return '<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid rgba(15,23,42,0.04);">' +
+          '<div style="font-size:0.84rem;font-weight:600;">'+dd+' &nbsp;·&nbsp; '+p.requestedTime+'</div>' +
+          '<div style="font-size:0.78rem;font-weight:700;color:'+s.color+';display:flex;align-items:center;gap:4px;"><i class="fa-solid '+s.icon+'"></i> '+s.lbl+'</div>' +
+        '</div>';
+      }).join('');
+  }
+
+  function submitLatePerm() {
+    var dateStr = document.getElementById('lpDate').value;
+    var time    = document.getElementById('lpTime').value;
+    var stEl    = document.getElementById('lpStatus');
+    if (!time) { stEl.style.color='var(--danger)'; stEl.innerText='Gəliş vaxtını seçin.'; return; }
+    stEl.style.color = 'var(--text-muted)';
+    stEl.innerHTML   = '<i class="fa-solid fa-circle-notch fa-spin"></i> Göndərilir...';
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (res.success) {
+          stEl.style.color = 'var(--success)';
+          stEl.innerHTML   = '<i class="fa-solid fa-check"></i> Göndərildi! Menecer təsdiq gözlənilir.';
+          document.getElementById('lpTime').value = '';
+          loadMyLatePerms();
+          setTimeout(function(){ stEl.innerText=''; }, 4000);
+        } else {
+          stEl.style.color = 'var(--danger)';
+          stEl.innerText   = res.reason || 'Xəta baş verdi.';
+        }
+      })
+      .requestLatePerm(SECRET, dateStr, time);
+  }
+
+  // ── YENİLİKLƏR ──────────────────────────────────────────────────
+  var AN_META = {
+    new:     { label:'Yenilik' },
+    info:    { label:'Məlumat' },
+    success: { label:'Müsbət'  },
+    warning: { label:'Diqqət'  }
+  };
+
+  function renderAnnouncements(list) {
+    var card  = document.getElementById('announceCard');
+    var listEl = document.getElementById('announceList');
+    document.getElementById('announceCount').innerText = list.length;
+    listEl.innerHTML = list.map(function(yn) {
+      var m = AN_META[yn.type] || AN_META.info;
+      return '<div class="announce-item type-' + yn.type + '">' +
+        '<div class="announce-accent type-' + yn.type + '"></div>' +
+        '<div class="announce-item-top">' +
+          '<div class="announce-badge type-' + yn.type + '">' +
+            '<i class="fa-solid ' + m.icon + '"></i> ' + m.label +
+          '</div>' +
+          (yn.pinned ? '<div class="announce-pin-mark"><i class="fa-solid fa-thumbtack"></i> Sabitlənib</div>' : '') +
+        '</div>' +
+        '<div class="announce-title">' + yn.title + '</div>' +
+        '<div class="announce-body">' + yn.body + '</div>' +
+        '<div class="announce-date"><i class="fa-regular fa-calendar"></i> ' + yn.date + '</div>' +
+      '</div>';
+    }).join('');
+    card.style.display = 'block';
+  }
+
+  // ── AYLIK STATİSTİKA ─────────────────────────────────────────────
+
+  // ── AYLIK STATİSTİKA ────────────────────────────────────────────
+  function renderMonthStats(s) {
+    var card = document.getElementById('statsCard'), grid = document.getElementById('statsGrid');
+    card.style.display = 'block';
+    var now = new Date();
+    var months = ['Yanvar','Fevral','Mart','Aprel','May','İyun','İyul','Avqust','Sentyabr','Oktyabr','Noyabr','Dekabr'];
+    document.getElementById('statsMonthLabel').innerText = months[now.getMonth()] + ' Statistikası';
+
+    var pctColor = s.pct >= 90 ? 'var(--success)' : (s.pct >= 70 ? 'var(--warning)' : 'var(--danger)');
+    grid.innerHTML =
+      '<div class="stat-box"><div class="stat-num" style="color:var(--primary);">' + s.days + '</div><div class="stat-lbl2">İş günü</div></div>' +
+      '<div class="stat-box"><div class="stat-num" style="color:var(--success);">' + s.onTime + '</div><div class="stat-lbl2">Vaxtında</div></div>' +
+      '<div class="stat-box"><div class="stat-num" style="color:var(--danger);">' + s.late + '</div><div class="stat-lbl2">Gecikmə</div></div>' +
+      '<div class="stat-box"><div class="stat-num" style="color:' + pctColor + ';">' + s.pct + '%</div><div class="stat-lbl2">Dəqiqlik</div></div>' +
+      '<div class="pct-ring-wrap">' +
+        '<div class="stat-lbl2" style="white-space:nowrap;">Aylıq dəqiqlik</div>' +
+        '<div class="pct-bar-track"><div class="pct-bar-fill" style="width:' + s.pct + '%;background:' + pctColor + ';"></div></div>' +
+        '<div style="font-weight:800;font-size:0.9rem;color:' + pctColor + ';min-width:36px;text-align:right;">' + s.pct + '%</div>' +
+      '</div>';
+  }
+
+  // ── GECİKMƏ YOXLAMASI ───────────────────────────────────────────
+  function checkLateStatus() {
+    if (!userDept) return;
+    var d = new Date(), h = d.getHours(), m = d.getMinutes();
+    if (h < 3) return;
+    var tot = h * 60 + m;
+    var lim = (h < 13) ? (7*60+35) : ((userDept==='Ağ Şəhər'||userDept==='Gənclik') ? 16*60+5 : 15*60+5);
+    document.getElementById('lateWarningBox').style.display = (tot > lim) ? 'flex' : 'none';
+  }
+
+  // ── PİN & SESSION ────────────────────────────────────────────────
+  function updateApp() {
+    if (!SECRET || !isSessionActive) return;
+    var now = Date.now();
+    var cW = Math.floor(now/TIME_STEP);
+    document.getElementById('pinDisplay').innerText = generateDynamicPin(SECRET, cW);
+    var msLeftPin = TIME_STEP - (now % TIME_STEP), secLeft = msLeftPin / 1000;
+    document.getElementById('tenSecTimer').innerText = secLeft.toFixed(1) + 's';
+    var fill = document.getElementById('pFill');
+    fill.style.width = ((msLeftPin/TIME_STEP)*100) + '%';
+    if (secLeft <= 3) {
+      fill.style.background = 'var(--danger)';
+      document.getElementById('pinDisplay').style.color = 'var(--danger)';
+      document.getElementById('tenSecTimer').style.color = 'var(--danger)';
+      document.getElementById('tenSecTimer').style.background = 'var(--danger-light)';
+    } else {
+      fill.style.background = 'var(--success)';
+      document.getElementById('pinDisplay').style.color = 'var(--text-main)';
+      document.getElementById('tenSecTimer').style.color = 'var(--success)';
+      document.getElementById('tenSecTimer').style.background = 'var(--success-light)';
+    }
+  }
+
+  // ══════════════════════════════════════════════════════════════════
+  //  NAHAR MƏNTIQI (YENİ)
+  // ══════════════════════════════════════════════════════════════════
+  var isLunchProcessing = false;
+  var LUNCH_MINS = 30;
+  var lunchTimerInterval = null;
+
+  function startLunchTimer() {
+    var timerEl  = document.getElementById('lunchTimer');
+    var countEl  = document.getElementById('lunchTimerCount');
+    var barEl    = document.getElementById('lunchTimerBar');
+    var total    = LUNCH_MINS * 60;
+    var remaining = total;
+    timerEl.classList.remove('over');
+    timerEl.style.display = 'block';
+    if (lunchTimerInterval) clearInterval(lunchTimerInterval);
+    lunchTimerInterval = setInterval(function() {
+      remaining--;
+      var m = Math.floor(Math.abs(remaining) / 60);
+      var s = Math.abs(remaining) % 60;
+      var prefix = remaining < 0 ? '+' : '';
+      countEl.innerText = prefix + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+      barEl.style.width = Math.max(0, (remaining / total) * 100) + '%';
+      if (remaining <= 0) timerEl.classList.add('over');
+    }, 1000);
+  }
+
+  function lunchAction(type) {
+    if (!isSessionActive || isLunchProcessing) return;
+    isLunchProcessing = true;
+    var statusEl = document.getElementById('lunchStatus');
+    statusEl.innerHTML = "<i class='fa-solid fa-circle-notch fa-spin'></i> Yoxlanılır...";
+    statusEl.style.color = "var(--primary)";
+    document.getElementById('btnNaharGet').disabled = true;
+    document.getElementById('btnNaharQay').disabled = true;
+
+    var cW = Math.floor(Date.now() / TIME_STEP);
+    var currentPin = generateDynamicPin(SECRET, cW);
+
+    var ipTimeout = setTimeout(function() { doLunch(currentPin, '', type); }, 3000);
+    fetch('https://api.ipify.org?format=json')
+      .then(function(r) { return r.json(); })
+      .then(function(d) { clearTimeout(ipTimeout); doLunch(currentPin, d.ip || '', type); })
+      .catch(function() { clearTimeout(ipTimeout); doLunch(currentPin, '', type); });
+  }
+
+  function doLunch(pin, ip, type) {
+    google.script.run
+      .withSuccessHandler(function(res) { showLunchResult(res); })
+      .withFailureHandler(function() { showLunchError('Sistem xətası baş verdi.'); })
+      .logLunch(pin, ip, type);
+  }
+
+  function showLunchResult(res) {
+    isLunchProcessing = false;
+    document.getElementById('btnNaharGet').disabled = false;
+    document.getElementById('btnNaharQay').disabled = false;
+    var statusEl = document.getElementById('lunchStatus');
+    if (!res || !res.valid) {
+      statusEl.innerHTML = "<i class='fa-solid fa-circle-xmark'></i> " + (res ? res.reason : 'Xəta baş verdi');
+      statusEl.style.color = "var(--danger)";
+      return;
+    }
+    var isGo = res.type === 'NAHAR_GET';
+    if (isGo) {
+      statusEl.innerHTML = "<i class='fa-solid fa-check-circle'></i> Nahar fasiləsi başladı";
+      statusEl.style.color = "#92400e";
+      startLunchTimer();
+    } else {
+      if (lunchTimerInterval) clearInterval(lunchTimerInterval);
+      document.getElementById('lunchTimer').style.display = 'none';
+      var durText = res.duration ? ' (' + res.duration + ' dəq)' : '';
+      statusEl.innerHTML = "<i class='fa-solid fa-check-circle'></i> Qayıdış qeydə alındı" + durText;
+      statusEl.style.color = "var(--success)";
+    }
+    setTimeout(function() {
+      document.getElementById('lunchStatus').innerHTML = '';
+      document.getElementById('lunchStatus').style.color = '';
+    }, 4000);
+  }
+
+  function showLunchError(msg) {
+    isLunchProcessing = false;
+    document.getElementById('btnNaharGet').disabled = false;
+    document.getElementById('btnNaharQay').disabled = false;
+    var statusEl = document.getElementById('lunchStatus');
+    statusEl.innerHTML = "<i class='fa-solid fa-triangle-exclamation'></i> " + msg;
+    statusEl.style.color = "var(--danger)";
+  }
 </script>
 </body>
 </html>
