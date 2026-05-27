@@ -8,7 +8,7 @@ const U       = require('./utils');
 
 const app       = express();
 const PORT      = process.env.PORT || 3000;
-const ADMIN_KEY = process.env.ADMIN_KEY || 'moC7O5F2F6E3E8on';
+const ADMIN_KEY = process.env.ADMIN_KEY || 'coffeemoon';
 
 app.use(express.json({ limit: '5mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
