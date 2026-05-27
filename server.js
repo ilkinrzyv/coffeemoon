@@ -360,10 +360,8 @@ API.validateAndLog = async (enteredPin, clientIp) => {
   const wc = U.checkWifiIp(matched.dept, clientIp || '');
   if (!wc.ok) return { valid: false, reason: wc.reason };
 
-  const empIp = U.cacheGet('EMP_IP_' + matched.secret);
-  if (empIp === null) return { valid: false, reason: 'Mobil kartınız açıq deyil. Əvvəlcə kartı açın.' };
-  const empWc = U.checkWifiIp(matched.dept, empIp || '');
-  if (!empWc.ok) return { valid: false, reason: 'Telefonunuz filial WiFi-ına qoşulmayıb!' };
+  // IP yoxlaması deaktivdir (iOS uyğunsuzluğu səbəbindən)
+  // Cihaz kilidi (bindDevice) aktiv qalır
 
   const ts       = new Date();
   const todayStr = U.getLogicalDateStr(ts);

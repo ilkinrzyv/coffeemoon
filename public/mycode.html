@@ -328,16 +328,7 @@
         // ─────────────────────────────────────────────────────────
         if (res.message) { document.getElementById('adminMsgBox').style.display = 'block'; document.getElementById('adminMsgText').innerText = res.message; }
 
-        // ── Telefon IP-sini serverə qeydiyyatdan keçir ──────────────
-        function sendIpToServer() {
-          fetch('https://api.ipify.org?format=json')
-            .then(function(r) { return r.json(); })
-            .then(function(d) { google.script.run.registerEmployeeSession(SECRET, d.ip || ''); })
-            .catch(function()  { google.script.run.registerEmployeeSession(SECRET, ''); });
-        }
-        sendIpToServer();
-        setInterval(sendIpToServer, 240000); // hər 4 dəqiqədə bir yenilə
-        // ────────────────────────────────────────────────────────────
+        // IP qeydiyyatı deaktivdir (iOS uyğunsuzluğu səbəbindən)
 
         setInterval(updateApp, 40);
         updateApp();
@@ -675,11 +666,7 @@
     var cW = Math.floor(Date.now() / TIME_STEP);
     var currentPin = generateDynamicPin(SECRET, cW);
 
-    var ipTimeout = setTimeout(function() { doLunch(currentPin, '', type); }, 3000);
-    fetch('https://api.ipify.org?format=json')
-      .then(function(r) { return r.json(); })
-      .then(function(d) { clearTimeout(ipTimeout); doLunch(currentPin, d.ip || '', type); })
-      .catch(function() { clearTimeout(ipTimeout); doLunch(currentPin, '', type); });
+    doLunch(currentPin, '', type);
   }
 
   function doLunch(pin, ip, type) {
