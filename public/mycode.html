@@ -310,8 +310,25 @@
     return (Math.abs(Math.imul(hash, 1664525) + 1013904223) % 10000).toString().padStart(4, '0');
   }
 
-  var myDeviceId = localStorage.getItem("emp_device_id_v1");
-  if (!myDeviceId) { myDeviceId = "DEV-" + Math.random().toString(36).substring(2, 10).toUpperCase(); localStorage.setItem("emp_device_id_v1", myDeviceId); }
+  // Deterministik device ID — localStorage silinəndə də eyni qalır
+  function buildDeviceId() {
+    var raw = [
+      SECRET,
+      navigator.userAgent,
+      screen.width + 'x' + screen.height,
+      navigator.language || '',
+      navigator.platform || '',
+    ].join('|');
+    var hash = 0;
+    for (var i = 0; i < raw.length; i++) {
+      hash = Math.imul(31, hash) + raw.charCodeAt(i) | 0;
+    }
+    hash ^= (hash << 13); hash ^= (hash >>> 17); hash ^= (hash << 5);
+    return 'DEV-' + Math.abs(hash).toString(36).toUpperCase().slice(0, 8);
+  }
+  var myDeviceId = buildDeviceId();
+  // localStorage-da da saxla (köhnə versiya uyğunluğu üçün)
+  try { localStorage.setItem('emp_device_id_v1', myDeviceId); } catch(e) {}
 
   if (SECRET) {
     google.script.run
