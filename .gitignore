@@ -1,2 +1,19 @@
-node_modules
+# Mühit dəyişənləri (Supabase key-ləri burada!)
 .env
+
+# Node.js asılılıqları
+node_modules/
+
+# Verilənlər bazası (köhnə sql.js versiyası üçün)
+*.db
+
+# OS faylları
+.DS_Store
+Thumbs.db
+
+# VS Code
+.vscode/
+
+# Loglar
+*.log
+npm-debug.log*
