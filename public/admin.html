@@ -806,7 +806,7 @@ function renderEmps(){
       '<div class="emp-name"><b>'+e.name+'</b>'+sb+'<span><i class="fa-solid fa-briefcase"></i>'+e.dept+'</span></div>'+
       '<div class="live-pin">'+generateDynamicPin(e.secret,cW)+'</div>'+
       '<div class="btn-group">'+
-        '<button class="action-btn" onclick="copyLink(\''+SCRIPT_URL+'?page=mycode&name='+encodeURIComponent(e.name)+'&secret='+e.secret+'\')"><i class="fa-solid fa-link"></i> Kart</button>'+
+        '<button class="action-btn" onclick="copyLink(\''+SCRIPT_URL+'/mycode?name='+encodeURIComponent(e.name)+'&secret='+e.secret+'\')"><i class="fa-solid fa-link"></i> Kart</button>'+
         '<button class="action-btn" style="'+(e.message?'color:var(--primary);font-weight:600;':'')+'" onclick="sendMsg(\''+e.id+'\',\''+e.name+'\')"><i class="fa-regular fa-envelope"></i></button>'+
         '<button class="action-btn" style="color:var(--warning)" onclick="resetDev(\''+e.id+'\',\''+e.name+'\')"><i class="fa-solid fa-mobile"></i></button>'+
         '<button class="action-btn" style="color:var(--danger)" onclick="delEmp(\''+e.id+'\',\''+e.name+'\')"><i class="fa-solid fa-trash"></i></button>'+
