@@ -10,6 +10,10 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
 
+app.get('/', (req, res) => {
+  res.redirect('/admin.html');
+});
+
 const ADMIN_KEY = process.env.ADMIN_KEY || 'coffeemoon';
 const TIME_STEP = 10000;
 
