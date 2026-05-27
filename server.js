@@ -682,10 +682,10 @@ API.getChecklistItems = async () => {
 };
 
 API.saveChecklistItems = async (items) => {
-  await sb.from('checklist_items').delete().neq('itemId', '');
+  await sb.from('checklist_items').delete().neq('item_id', '');
   if (items.length) {
     await sb.from('checklist_items').insert(
-      items.map((item, i) => ({ item_id: item.item_id, text: item.text, category: item.category, sort_order: i + 1, active: !!item.active }))
+      items.map((item, i) => ({ item_id: item.itemId || item.item_id, text: item.text, category: item.category, sort_order: i + 1, active: !!item.active }))
     );
   }
   return { success: true };
@@ -712,12 +712,12 @@ API.submitChecklistItem = async (branchKey, itemId, checked, mgrNote) => {
   if (!check.valid) return { valid: false, reason: 'İcazəsiz giriş.' };
   const today = U.toYMD(new Date());
   const ts    = new Date();
-  const { data: existing } = await sb.from('checklist_logs').select('logId').eq('date', today).eq('dept', check.dept).eq('item_id', String(itemId)).single();
+  const { data: existing } = await sb.from('checklist_logs').select('log_id').eq('date', today).eq('dept', check.dept).eq('item_id', String(itemId)).single();
   if (existing) {
     await sb.from('checklist_logs').update({ checked: !!checked, checked_at: checked ? U.fmtTime(ts) : '', mgr_note: mgrNote || '' }).eq('log_id', existing.log_id);
   } else {
     const { data: itemRow } = await sb.from('checklist_items').select('text').eq('item_id', String(itemId)).single();
-    await sb.from('checklist_logs').insert({ log_id: 'CL-' + Date.now().toString(36).toUpperCase(), date: today, dept: check.dept, itemId, item_text: itemRow?.text || '', checked: !!checked, checked_at: checked ? U.fmtTime(ts) : '', mgr_note: mgrNote || '', admin_note: '' });
+    await sb.from('checklist_logs').insert({ log_id: 'CL-' + Date.now().toString(36).toUpperCase(), date: today, dept: check.dept, item_id: itemId, item_text: itemRow?.text || '', checked: !!checked, checked_at: checked ? U.fmtTime(ts) : '', mgr_note: mgrNote || '', admin_note: '' });
   }
   return { valid: true, checked_at: checked ? U.fmtTime(ts) : '' };
 };
@@ -744,12 +744,12 @@ API.getChecklistReport = async (dateStr) => {
 
 API.saveAdminNote = async (dateStr, dept, itemId, adminNote) => {
   const date = dateStr || U.toYMD(new Date());
-  const { data: existing } = await sb.from('checklist_logs').select('logId').eq('date', date).eq('dept', dept).eq('item_id', String(itemId)).single();
+  const { data: existing } = await sb.from('checklist_logs').select('log_id').eq('date', date).eq('dept', dept).eq('item_id', String(itemId)).single();
   if (existing) {
     await sb.from('checklist_logs').update({ admin_note: adminNote || '' }).eq('log_id', existing.log_id);
   } else {
     const { data: itemRow } = await sb.from('checklist_items').select('text').eq('item_id', String(itemId)).single();
-    await sb.from('checklist_logs').insert({ log_id: 'CL-' + Date.now().toString(36).toUpperCase(), date, dept, itemId, item_text: itemRow?.text || '', checked: false, checked_at: '', mgr_note: '', admin_note: adminNote || '' });
+    await sb.from('checklist_logs').insert({ log_id: 'CL-' + Date.now().toString(36).toUpperCase(), date, dept, item_id: itemId, item_text: itemRow?.text || '', checked: false, checked_at: '', mgr_note: '', admin_note: adminNote || '' });
   }
   return { success: true };
 };
