@@ -173,10 +173,10 @@ API.checkScanDevice = async (deviceId) => {
 };
 
 API.getScanDevices = async () => {
-  const { data } = await sb.from('scan_devices').select('*').order('createdAt', { ascending: false });
+  const { data } = await sb.from('scan_devices').select('*').order('created_at', { ascending: false });
   return (data || []).map(d => ({
-    id: d.device_id, branch: d.branch || '', status: d.status || 'pending',
-    createdAt: d.createdAt || '', label: d.label || '',
+    id: d.device_id, deviceId: d.device_id, branch: d.branch || '', status: d.status || 'pending',
+    createdAt: d.created_at || '', label: d.label || '',
   }));
 };
 
@@ -254,12 +254,12 @@ API.saveCedvelForManager = async (key, entries) => {
 // ── İZİN ─────────────────────────────────────────────────────────
 
 API.getIzinList = async () => {
-  const { data } = await sb.from('izin').select('*').order('createdAt', { ascending: false });
+  const { data } = await sb.from('izin').select('*').order('created_at', { ascending: false });
   return (data || []).map(r => ({
     id: r.izin_id, empId: r.emp_id, empName: r.emp_name, dept: r.dept,
     startDate: r.start_date, endDate: r.end_date,
     type: r.type || '', note: r.note || '', status: r.status || '',
-    createdAt: r.createdAt || '',
+    createdAt: r.created_at || '', izinId: r.izin_id,
   }));
 };
 
@@ -395,10 +395,10 @@ API.validateAndLog = async (enteredPin, clientIp) => {
       : '\n✅ Vaxtında';
     await sb.from('attendance').insert({
       emp_id: matched.id, emp_name: matched.name, dept: matched.dept,
-      timestamp: ts.toISOString(), type: 'GƏLİŞ', overtime: '', shift_type: todayShift || '' || '',
+      timestamp: ts.toISOString(), type: 'GƏLİŞ', overtime: '', shift_type: todayShift || '',
     });
     await U.sendTelegramMsg(`<b>Smendə</b>\n <b>${matched.name}</b>\n${lateStr}\n ${U.fmtTime(ts)}`, matched.dept);
-    return { valid: true, emp_name: matched.name, dept: matched.dept, type: 'GƏLİŞ', overtime: '' };
+    return { valid: true, empName: matched.name, dept: matched.dept, type: 'GƏLİŞ', overtime: '' };
 
   } else if (todayLogs.length === 1) {
     const reqH = shiftInfo ? shiftInfo.durH
@@ -410,11 +410,11 @@ API.validateAndLog = async (enteredPin, clientIp) => {
       : `${diffMs >= 0 ? '+' : '-'}${dh} saat ${dm} dəq`;
     await sb.from('attendance').insert({
       emp_id: matched.id, emp_name: matched.name, dept: matched.dept,
-      timestamp: ts.toISOString(), type: 'CIXIS', overtime: overtimeStr, shift_type: todayShift || '' || '',
+      timestamp: ts.toISOString(), type: 'CIXIS', overtime: overtimeStr, shift_type: todayShift || '',
     });
     const otE = diffMs > 0 ? '🟢' : diffMs < 0 ? '🔴' : '⚪';
     await U.sendTelegramMsg(`<b>Smen bitdi</b>\n <b>${matched.name}</b>\n ${U.fmtTime(ts)}\n${otE} Fərq: <b>${overtimeStr}</b>`, matched.dept);
-    return { valid: true, emp_name: matched.name, dept: matched.dept, type: 'CIXIS', overtime: overtimeStr };
+    return { valid: true, empName: matched.name, dept: matched.dept, type: 'CIXIS', overtime: overtimeStr };
   }
   return { valid: false, reason: 'Bu gün üçün artıq qeyd var' };
 };
@@ -427,7 +427,7 @@ API.getOnlineEmployees = async () => {
     if (!row.emp_id || String(row.emp_id).startsWith('MGR-')) continue;
     const rd = new Date(row.timestamp);
     if (U.getLogicalDateStr(rd) !== todayStr) continue;
-    if (!empMap[row.emp_id]) empMap[row.emp_id] = { name: row.empName, dept: row.dept, gelis: null, cixis: false };
+    if (!empMap[row.emp_id]) empMap[row.emp_id] = { name: row.emp_name, dept: row.dept, gelis: null, cixis: false };
     if (row.type === 'GƏLİŞ') empMap[row.emp_id].gelis = rd;
     if (row.type === 'CIXIS') empMap[row.emp_id].cixis = true;
   }
@@ -466,11 +466,11 @@ API.getDashboardData = async (secret) => {
       const colleagues = [];
       if (st && st !== 'istirahetsm') {
         for (const other of deptSched) {
-          if (other.emp_id === emp.id) continue;
+          if (other.empId === emp.id) continue;
           const od = other.schedule[d];
           if (!od?.shiftType || od.shiftType === 'istirahetsm') continue;
           const tg = (od.shiftType === 'axsamsm' || od.shiftType === 'fullsm') ? 'evening' : 'morning';
-          if (tg === myGroup) colleagues.push(other.emp_name.split(' ')[0]);
+          if (tg === myGroup) colleagues.push(other.empName.split(' ')[0]);
         }
       }
       week.push({ date: ds, dayName: DAY_NAMES[dayIdx], shiftType: st || '',
@@ -488,7 +488,7 @@ API.getDashboardData = async (secret) => {
   ]);
 
   const report = await API.getMonthlyReport(now.getFullYear(), now.getMonth() + 1);
-  const myR    = report.find(r => r.emp_id === emp.id) || { totalDays:0, onTime:0, late:0, pct:0 };
+  const myR    = report.find(r => r.empId === emp.id) || { totalDays:0, onTime:0, late:0, pct:0 };
   return {
     streak:          await U.calcStreak(emp.id, emp.dept),
     dept:            emp.dept,
@@ -529,14 +529,14 @@ API.logLunch = async (enteredPin, clientIp, lunchType) => {
     if (naharGet.length > 0) return { valid: false, reason: 'Artıq nahara çıxmısınız!' };
     await sb.from('nahar').insert({ nahar_id: 'NH-' + Date.now().toString(36).toUpperCase(), emp_id: matched.id, emp_name: matched.name, dept: matched.dept, timestamp: ts.toISOString(), type: 'NAHAR_GET' });
     await U.sendTelegramMsg(`<b>${matched.name}</b>\n<b>Naharda</b>\n${U.fmtTime(ts)}`, matched.dept);
-    return { valid: true, emp_name: matched.name, dept: matched.dept, type: 'NAHAR_GET' };
+    return { valid: true, empName: matched.name, dept: matched.dept, type: 'NAHAR_GET' };
   }
   if (naharGet.length === 0) return { valid: false, reason: 'Əvvəlcə nahara çıxış qeydə alınmalıdır!' };
   if (naharQay.length > 0)   return { valid: false, reason: 'Nahardan qayıdışınız artıq qeydə alınıb!' };
   const diffMin = Math.round((ts.getTime() - new Date(naharGet[0].timestamp).getTime()) / 60000);
   await sb.from('nahar').insert({ nahar_id: 'NH-' + Date.now().toString(36).toUpperCase(), emp_id: matched.id, emp_name: matched.name, dept: matched.dept, timestamp: ts.toISOString(), type: 'NAHAR_QAY' });
   await U.sendTelegramMsg(`<b>${matched.name}</b>\n<b>Nahar bitdi</b>\n${U.fmtTime(ts)}\nNahar müddəti: <b>${diffMin} dəq</b>`, matched.dept);
-  return { valid: true, emp_name: matched.name, dept: matched.dept, type: 'NAHAR_QAY', duration: diffMin };
+  return { valid: true, empName: matched.name, dept: matched.dept, type: 'NAHAR_QAY', duration: diffMin };
 };
 
 // ── MENECER DAVAMİYYƏTİ ──────────────────────────────────────────
@@ -554,7 +554,7 @@ API.logManagerCheckin = async (branchKey, type) => {
 
   if (type === 'GELIS') {
     if (todayLogs.some(r => r.type === 'GELIS' || r.type === 'GƏLİŞ')) return { valid: false, reason: 'Giriş artıq qeydə alınıb!' };
-    await sb.from('attendance').insert({ empId: MGR_ID, empName: mgrName, dept, timestamp: ts.toISOString(), type: 'GELIS', overtime: '', shift_type: '' });
+    await sb.from('attendance').insert({ emp_id: MGR_ID, emp_name: mgrName, dept, timestamp: ts.toISOString(), type: 'GELIS', overtime: '', shift_type: '' });
     await U.sendTelegramMsg(`<b>Menecer işdə</b>\n${U.fmtTime(ts)}`, dept);
     return { valid: true, type: 'GELIS', time: U.fmtTime(ts) };
   }
@@ -565,7 +565,7 @@ API.logManagerCheckin = async (branchKey, type) => {
     const diffMs = ts.getTime() - new Date(gelisRow.timestamp).getTime();
     const dh = Math.floor(diffMs / 3600000), dm = Math.floor((diffMs % 3600000) / 60000);
     const dur = `${dh} saat ${dm} dəq`;
-    await sb.from('attendance').insert({ empId: MGR_ID, empName: mgrName, dept, timestamp: ts.toISOString(), type: 'CIXIS', overtime: dur, shift_type: '' });
+    await sb.from('attendance').insert({ emp_id: MGR_ID, emp_name: mgrName, dept, timestamp: ts.toISOString(), type: 'CIXIS', overtime: dur, shift_type: '' });
     await U.sendTelegramMsg(`<b>Menecer Çıxdı</b>\n${U.fmtTime(ts)}\nİş müddəti: <b>${dur}</b>`, dept);
     return { valid: true, type: 'CIXIS', time: U.fmtTime(ts), duration: dur };
   }
@@ -678,7 +678,7 @@ API.saveBranchIPs = async (data) => {
 
 API.getChecklistItems = async () => {
   const { data } = await sb.from('checklist_items').select('*').order('sort_order');
-  return (data || []).map(r => ({ ...r, active: !!r.active }));
+  return (data || []).map(r => ({ ...r, itemId: r.item_id, active: !!r.active }));
 };
 
 API.saveChecklistItems = async (items) => {
@@ -703,7 +703,18 @@ API.getChecklistForBranch = async (branchKey) => {
   for (const r of logs || []) logMap[r.item_id] = r;
   return { valid: true, dept: check.dept, date: today, items: (items || []).map(item => {
     const log = logMap[item.item_id] || {};
-    return { ...item, active: !!item.active, checked: !!log.checked, checked_at: log.checked_at || '', mgr_note: log.mgr_note || '', admin_note: log.admin_note || '' };
+    return {
+      ...item,
+      itemId:    item.item_id,
+      active:    !!item.active,
+      checked:   !!log.checked,
+      checkedAt: log.checked_at || '',
+      checked_at:log.checked_at || '',
+      mgrNote:   log.mgr_note  || '',
+      mgr_note:  log.mgr_note  || '',
+      adminNote: log.admin_note|| '',
+      admin_note:log.admin_note|| '',
+    };
   }) };
 };
 
@@ -719,7 +730,7 @@ API.submitChecklistItem = async (branchKey, itemId, checked, mgrNote) => {
     const { data: itemRow } = await sb.from('checklist_items').select('text').eq('item_id', String(itemId)).single();
     await sb.from('checklist_logs').insert({ log_id: 'CL-' + Date.now().toString(36).toUpperCase(), date: today, dept: check.dept, item_id: itemId, item_text: itemRow?.text || '', checked: !!checked, checked_at: checked ? U.fmtTime(ts) : '', mgr_note: mgrNote || '', admin_note: '' });
   }
-  return { valid: true, checked_at: checked ? U.fmtTime(ts) : '' };
+  return { valid: true, checkedAt: checked ? U.fmtTime(ts) : '', checked_at: checked ? U.fmtTime(ts) : '' };
 };
 
 API.getChecklistReport = async (dateStr) => {
@@ -736,10 +747,15 @@ API.getChecklistReport = async (dateStr) => {
   }
   for (const r of logs || []) {
     if (report[r.dept]?.[r.item_id] !== undefined) {
-      report[r.dept][r.item_id] = { checked: !!r.checked, checked_at: r.checked_at || '', mgr_note: r.mgr_note || '', admin_note: r.admin_note || '' };
+      report[r.dept][r.item_id] = {
+        checked:    !!r.checked,
+        checkedAt:  r.checked_at  || '', checked_at:  r.checked_at  || '',
+        mgrNote:    r.mgr_note    || '', mgr_note:    r.mgr_note    || '',
+        adminNote:  r.admin_note  || '', admin_note:  r.admin_note  || '',
+      };
     }
   }
-  return { date, items: (items || []).map(i => ({ ...i, active: !!i.active })), report };
+  return { date, items: (items || []).map(i => ({ ...i, itemId: i.item_id, active: !!i.active })), report };
 };
 
 API.saveAdminNote = async (dateStr, dept, itemId, adminNote) => {
@@ -760,15 +776,15 @@ API.getMgrAckStatus = async (branchKey) => {
   const check = U.validateBranchScheduleKey(branchKey);
   if (!check.valid) return null;
   const { data } = await sb.from('mgr_acks').select('*').eq('date', U.toYMD(new Date())).eq('dept', check.dept).single();
-  if (!data) return { global_acked: false, global_acked_at: '', branch_acked: false, branch_acked_at: '' };
-  return { global_acked: !!data.global_acked, global_acked_at: data.global_ackedAt || '', branch_acked: !!data.branch_acked, branch_acked_at: data.branch_ackedAt || '' };
+  if (!data) return { globalAcked: false, globalAckedAt: '', branchAcked: false, branchAckedAt: '' };
+  return { globalAcked: !!data.global_acked, globalAckedAt: data.global_acked_at || '', branchAcked: !!data.branch_acked, branchAckedAt: data.branch_acked_at || '' };
 };
 
 API.ackMgrMessage = async (branchKey, msgType) => {
   const check = U.validateBranchScheduleKey(branchKey);
   if (!check.valid) return { success: false };
   const today = U.toYMD(new Date()), ts = U.fmtTime(new Date());
-  const { data: existing } = await sb.from('mgr_acks').select('ackId').eq('date', today).eq('dept', check.dept).single();
+  const { data: existing } = await sb.from('mgr_acks').select('ack_id').eq('date', today).eq('dept', check.dept).single();
   const upd = msgType === 'global' ? { global_acked: true, global_acked_at: ts } : { branch_acked: true, branch_acked_at: ts };
   if (existing) {
     await sb.from('mgr_acks').update(upd).eq('ack_id', existing.ack_id);
@@ -783,9 +799,9 @@ API.getMgrAcksForAdmin = async (dateStr) => {
   const DEPTS = ['Ağ Şəhər','Gənclik','Elmlər','Sahil'];
   const { data } = await sb.from('mgr_acks').select('*').eq('date', date);
   const result = {};
-  for (const d of DEPTS) result[d] = { global_acked: false, global_acked_at: '', branch_acked: false, branch_acked_at: '' };
+  for (const d of DEPTS) result[d] = { globalAcked: false, globalAckedAt: '', branchAcked: false, branchAckedAt: '' };
   for (const r of data || []) {
-    if (result[r.dept]) result[r.dept] = { global_acked: !!r.global_acked, global_acked_at: r.global_ackedAt || '', branch_acked: !!r.branch_acked, branch_acked_at: r.branch_ackedAt || '' };
+    if (result[r.dept]) result[r.dept] = { globalAcked: !!r.global_acked, globalAckedAt: r.global_acked_at || '', branchAcked: !!r.branch_acked, branchAckedAt: r.branch_acked_at || '' };
   }
   return { date, acks: result };
 };
@@ -797,14 +813,14 @@ function getWasteLimit(dept) { return WASTE_LIMITS[dept] ?? 3.0; }
 
 API.getProducts = async () => {
   const { data } = await sb.from('products').select('*').eq('active', true).order('name');
-  return (data || []).map(p => ({ product_id: p.product_id, name: p.name, unit: p.unit }));
+  return (data || []).map(p => ({ productId: p.product_id, product_id: p.product_id, name: p.name, unit: p.unit }));
 };
 
 API.addProduct = async (name, unit) => {
   if (!name?.trim()) return { success: false, reason: 'Ad boş ola bilməz.' };
   const id = 'PRD-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substring(2,4).toUpperCase();
   const { error } = await sb.from('products').insert({ product_id: id, name: name.trim(), unit: unit || 'ədəd', active: true });
-  return { success: !error, product_id: id };
+  return { success: !error, productId: id, product_id: id };
 };
 
 API.deleteProduct = async (productId) => {
@@ -816,7 +832,7 @@ API.getProductLogsForBranch = async (branchKey, monthStr) => {
   const check = U.validateBranchScheduleKey(branchKey);
   if (!check.valid) return { valid: false };
   const { data: products } = await sb.from('products').select('*').eq('active', true);
-  const { data: logs } = await sb.from('product_logs').select('*').eq('dept', check.dept).like('dateStr', monthStr + '%');
+  const { data: logs } = await sb.from('product_logs').select('*').eq('dept', check.dept).like('date_str', monthStr + '%');
   const totals = {};
   for (const r of logs || []) {
     if (!totals[r.product_id]) totals[r.product_id] = { incoming: 0, wasted: 0 };
@@ -827,7 +843,7 @@ API.getProductLogsForBranch = async (branchKey, monthStr) => {
   const items = (products || []).map(p => {
     const t = totals[p.product_id] || { incoming:0, wasted:0 };
     totalIn += t.incoming; totalWasted += t.wasted;
-    return { product_id: p.product_id, name: p.name, unit: p.unit, totalIncoming: t.incoming, totalWasted: t.wasted };
+    return { productId: p.product_id, product_id: p.product_id, name: p.name, unit: p.unit, totalIncoming: t.incoming, totalWasted: t.wasted };
   });
   const limit = getWasteLimit(check.dept);
   const pct   = totalIn > 0 ? Math.round(totalWasted / totalIn * 1000) / 10 : 0;
@@ -838,13 +854,13 @@ API.saveProductLogs = async (branchKey, monthStr, logs) => {
   const check = U.validateBranchScheduleKey(branchKey);
   if (!check.valid) return { valid: false };
   const todayYMD = U.toYMD(new Date());
-  const toInsert = (logs || []).filter(l => l.product_id && (Number(l.incoming) || Number(l.wasted))).map(l => ({
+  const toInsert = (logs || []).filter(l => (l.product_id||l.productId) && (Number(l.incoming) || Number(l.wasted))).map(l => ({
     log_id: 'PL-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substring(2,4).toUpperCase(),
-    dateStr: todayYMD, dept: check.dept, product_id: l.product_id, product_name: l.name || '',
+    date_str: todayYMD, dept: check.dept, product_id: l.product_id||l.productId, product_name: l.name||l.productName||'',
     incoming: Number(l.incoming) || 0, wasted: Number(l.wasted) || 0,
   }));
   if (toInsert.length) await sb.from('product_logs').insert(toInsert);
-  const { data: allLogs } = await sb.from('product_logs').select('*').eq('dept', check.dept).like('dateStr', monthStr + '%');
+  const { data: allLogs } = await sb.from('product_logs').select('*').eq('dept', check.dept).like('date_str', monthStr + '%');
   let totalIn = 0, totalWasted = 0;
   for (const r of allLogs || []) { totalIn += Number(r.incoming)||0; totalWasted += Number(r.wasted)||0; }
   const limit = getWasteLimit(check.dept);
@@ -854,7 +870,7 @@ API.saveProductLogs = async (branchKey, monthStr, logs) => {
 
 API.getWasteStatsForAdmin = async (dateStr) => {
   const DEPTS  = ['Elmlər','Sahil','Gənclik','Ağ Şəhər'];
-  const { data: logs } = await sb.from('product_logs').select('*').like('dateStr', dateStr + '%');
+  const { data: logs } = await sb.from('product_logs').select('*').like('date_str', dateStr + '%');
   const deptMap = {};
   for (const d of DEPTS) deptMap[d] = { dept: d, totalIn:0, totalWasted:0, products:[], limit: getWasteLimit(d) };
   for (const r of logs || []) {
@@ -889,7 +905,7 @@ API.saveMgrWeekSchedule = async (branchKey, entries) => {
   if (dates.length) await sb.from('mgr_schedule').delete().eq('dept', check.dept).in('date_str', dates);
   const toInsert = entries.filter(e => e.dateStr && e.shiftType).map(e => ({
     sched_id: 'MS-' + Date.now().toString(36).toUpperCase() + Math.floor(Math.random()*1000).toString(36).toUpperCase(),
-    dept: check.dept, dateStr: e.dateStr, shift_type: e.shiftType,
+    dept: check.dept, date_str: e.dateStr, shift_type: e.shiftType,
   }));
   if (toInsert.length) await sb.from('mgr_schedule').insert(toInsert);
   return { success: true };
@@ -918,18 +934,27 @@ API.requestLatePerm = async (secret, dateStr, requestedTime) => {
   if (!/^\d{2}:\d{2}$/.test(requestedTime)) return { success:false, reason:'Vaxt formatı yanlışdır.' };
   const { data: emp } = await sb.from('employees').select('*').eq('secret', secret).single();
   if (!emp) return { success:false, reason:'İşçi tapılmadı.' };
-  const { data: existing } = await sb.from('late_perms').select('status').eq('emp_id', String(emp.id)).eq('dateStr', dateStr).single();
+  const { data: existing } = await sb.from('late_perms').select('status').eq('emp_id', String(emp.id)).eq('date_str', dateStr).single();
   if (existing && (existing.status==='pending'||existing.status==='approved')) return { success:false, reason:'Bu tarix üçün artıq icazəniz mövcuddur.' };
   const permId = 'LP-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substring(2,5).toUpperCase();
-  await sb.from('late_perms').insert({ permId, empId:emp.id, empName:emp.name, dept:emp.dept, dateStr, requestedTime, status:'pending' });
+  await sb.from('late_perms').insert({ perm_id: permId, emp_id:emp.id, emp_name:emp.name, dept:emp.dept, date_str:dateStr, requested_time:requestedTime, status:'pending' });
   return { success:true, permId };
 };
 
 API.getLatePermsForManager = async (branchKey) => {
   const check = U.validateBranchScheduleKey(branchKey);
   if (!check.valid) return [];
-  const { data } = await sb.from('late_perms').select('*').eq('dept', check.dept).order('createdAt',{ascending:false}).limit(30);
-  return (data||[]).sort((a,b)=>{
+  const { data } = await sb.from('late_perms').select('*').eq('dept', check.dept).order('created_at',{ascending:false}).limit(30);
+  return (data||[]).map(r => ({
+    permId:        r.perm_id,
+    empId:         r.emp_id,
+    empName:       r.emp_name,
+    dept:          r.dept,
+    dateStr:       r.date_str,
+    requestedTime: r.requested_time,
+    status:        r.status,
+    createdAt:     r.created_at,
+  })).sort((a,b)=>{
     if(a.status==='pending'&&b.status!=='pending')return -1;
     if(a.status!=='pending'&&b.status==='pending')return 1;
     return b.dateStr.localeCompare(a.dateStr);
@@ -949,8 +974,13 @@ API.getMyLatePerms = async (secret) => {
   const { data:emp } = await sb.from('employees').select('id').eq('secret',secret).single();
   if (!emp) return [];
   const today = U.toYMD(new Date());
-  const { data } = await sb.from('late_perms').select('permId,dateStr,requestedTime,status').eq('emp_id',String(emp.id)).gte('dateStr',today).order('dateStr').limit(5);
-  return data || [];
+  const { data } = await sb.from('late_perms').select('perm_id,date_str,requested_time,status').eq('emp_id',String(emp.id)).gte('date_str',today).order('date_str').limit(5);
+  return (data || []).map(r => ({
+    permId:        r.perm_id,
+    dateStr:       r.date_str,
+    requestedTime: r.requested_time,
+    status:        r.status,
+  }));
 };
 
 // ── YENİLİKLƏR ───────────────────────────────────────────────────
