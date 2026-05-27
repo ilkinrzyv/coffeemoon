@@ -135,7 +135,20 @@ API.bindDevice = async (secret, deviceId) => {
   if (!secret) return { success: false, reason: 'Xətalı link!' };
   const { data: emp } = await sb.from('employees').select('*').eq('secret', secret).single();
   if (!emp) return { success: false, reason: 'İşçi tapılmadı.' };
-  if (!emp.deviceId) await sb.from('employees').update({ deviceId }).eq('secret', secret);
+
+  if (!emp.deviceId) {
+    await sb.from('employees').update({ deviceId }).eq('secret', secret);
+    return { success: true, message: emp.message || '' };
+  }
+
+  if (emp.deviceId !== deviceId) {
+    return {
+      success: false,
+      reason: 'Bu kart başqa cihazda qeydiyyatlıdır. Dəyişdirmək üçün adminə müraciət edin.',
+      deviceLocked: true,
+    };
+  }
+
   return { success: true, message: emp.message || '' };
 };
 

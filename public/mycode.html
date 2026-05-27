@@ -356,7 +356,11 @@
         }).getDashboardData(SECRET);
 
       } else {
-        document.getElementById('loaderBox').innerHTML = '<i class="fa-solid fa-lock fa-3x" style="color:var(--danger)"></i><br><br>' + (res ? res.reason : 'Giriş rədd edildi.');
+        var icon = res && res.deviceLocked
+          ? '<i class="fa-solid fa-mobile-screen-button fa-3x" style="color:var(--warning)"></i>'
+          : '<i class="fa-solid fa-lock fa-3x" style="color:var(--danger)"></i>';
+        var msg = res ? res.reason : 'Giriş rədd edildi.';
+        document.getElementById('loaderBox').innerHTML = icon + '<br><br>' + msg;
       }
     })
     .withFailureHandler(function(err) {
