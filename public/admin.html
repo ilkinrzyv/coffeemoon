@@ -1425,7 +1425,7 @@ function clSaveItems() {
     if (t) item.text     = t.value;
     if (c) item.category = c.value;
     if (a) item.active   = a.checked;
-    item.sortOrder = idx + 1;
+    item.sort_order = idx + 1; item.itemId = item.itemId || item.item_id || ('CI-' + Date.now().toString().slice(-6));
   });
   google.script.run
     .withSuccessHandler(function(res) {
