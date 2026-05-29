@@ -347,7 +347,7 @@ API.getWarnings = async () => {
 
 // ── DAVAMIYYƏT ────────────────────────────────────────────────────
 
-API.validateAndLog = async (enteredPin, clientIp) => {
+API.validateAndLog = async (enteredPin, clientIp, forceMode) => {
   if (!enteredPin) return { valid: false, reason: 'Kod daxil edilməyib' };
   const { data: emps } = await sb.from('employees').select('*');
   const cW = Math.floor(Date.now() / U.TIME_STEP);
@@ -373,6 +373,25 @@ API.validateAndLog = async (enteredPin, clientIp) => {
   const shiftInfo = todayShift ? U.getShiftInfo(matched.dept, todayShift) : null;
 
   if (todayLogs.length === 0) {
+    // Əvvəlki smendə bağlanmamış giriş yoxla (forceMode keçilmədikdə)
+    if (!forceMode) {
+      const byDay = {};
+      for (const r of allLogs || []) {
+        const ds = U.getLogicalDateStr(new Date(r.timestamp));
+        if (ds === todayStr) continue;
+        if (!byDay[ds]) byDay[ds] = { gelis: false, cixis: false };
+        if (r.type === 'GƏLİŞ') byDay[ds].gelis = true;
+        if (r.type === 'CIXIS') byDay[ds].cixis = true;
+      }
+      const unclosedCount = Object.values(byDay).filter(d => d.gelis && !d.cixis).length;
+      if (unclosedCount >= 2) {
+        return { valid: false, warningType: 'UNCLOSED_PENALTY', empName: matched.name, penaltyNum: unclosedCount };
+      }
+      if (unclosedCount === 1) {
+        return { valid: false, warningType: 'UNCLOSED_WARNING', empName: matched.name };
+      }
+    }
+
     const nowMins = ts.getHours() * 60 + ts.getMinutes() +
       (ts.getHours() < 3 && shiftInfo && shiftInfo.startH >= 12 ? 24 * 60 : 0);
     let late = shiftInfo
@@ -396,6 +415,16 @@ API.validateAndLog = async (enteredPin, clientIp) => {
     return { valid: true, empName: matched.name, dept: matched.dept, type: 'GƏLİŞ', overtime: '' };
 
   } else if (todayLogs.length === 1) {
+    // Nahar açıq qalmışsa xəbərdar et (forceMode keçilmədikdə)
+    if (!forceMode) {
+      const { data: naharLogs } = await sb.from('nahar').select('*').eq('emp_id', String(matched.id));
+      const naharGet = (naharLogs || []).filter(r => U.getLogicalDateStr(new Date(r.timestamp)) === todayStr && r.type === 'NAHAR_GET');
+      const naharQay = (naharLogs || []).filter(r => U.getLogicalDateStr(new Date(r.timestamp)) === todayStr && r.type === 'NAHAR_QAY');
+      if (naharGet.length > 0 && naharQay.length === 0) {
+        return { valid: false, warningType: 'UNCLOSED_LUNCH', empName: matched.name };
+      }
+    }
+
     const reqH = shiftInfo ? shiftInfo.durH
       : ((matched.dept === 'Ağ Şəhər' || matched.dept === 'Gənclik') ? 9 : 8);
     const diffMs = ts.getTime() - new Date(todayLogs[0].timestamp).getTime() - reqH * 3600000;
@@ -676,11 +705,18 @@ API.getChecklistItems = async () => {
 };
 
 API.saveChecklistItems = async (items) => {
-  await sb.from('checklist_items').delete().neq('item_id', '');
-  if (items.length) {
-    await sb.from('checklist_items').insert(
-      items.map((item, i) => ({ item_id: item.itemId || item.item_id, text: item.text, category: item.category, sort_order: i + 1, active: !!item.active }))
-    );
+  const incoming = items.map((item, i) => ({
+    item_id: item.itemId || item.item_id, text: item.text,
+    category: item.category, sort_order: i + 1, active: !!item.active,
+  }));
+  if (incoming.length) {
+    const { error } = await sb.from('checklist_items')
+      .upsert(incoming, { onConflict: 'item_id' });
+    if (error) return { success: false, reason: error.message };
+    const keepIds = incoming.map(r => r.item_id);
+    await sb.from('checklist_items').delete().not('item_id', 'in', `(${keepIds.map(id => `'${id}'`).join(',')})`);
+  } else {
+    await sb.from('checklist_items').delete().neq('item_id', '');
   }
   return { success: true };
 };
