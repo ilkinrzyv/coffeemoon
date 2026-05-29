@@ -360,9 +360,6 @@ API.validateAndLog = async (enteredPin, clientIp) => {
   const wc = U.checkWifiIp(matched.dept, clientIp || '');
   if (!wc.ok) return { valid: false, reason: wc.reason };
 
-  // IP yoxlaması deaktivdir (iOS uyğunsuzluğu səbəbindən)
-  // Cihaz kilidi (bindDevice) aktiv qalır
-
   const ts       = new Date();
   const todayStr = U.getLogicalDateStr(ts);
   const todayYMD = U.getLogicalYMD(ts);
@@ -384,7 +381,7 @@ API.validateAndLog = async (enteredPin, clientIp) => {
     if (late) {
       const perm = await U.getApprovedLatePerm(matched.id, todayYMD);
       if (perm) {
-        const [ph, pm] = perm.requested_time.split(':').map(Number);
+        const [ph, pm] = perm.requestedTime.split(':').map(Number);
         if ((ts.getHours() * 60 + ts.getMinutes()) <= ph * 60 + pm + 5) late = false;
       }
     }
@@ -435,9 +432,8 @@ API.getOnlineEmployees = async () => {
     .sort((a, b) => a.checkInMs - b.checkInMs);
 };
 
-API.registerEmployeeSession = (secret, clientIp) => {
+API.registerEmployeeSession = (secret) => {
   if (!secret) return { ok: false };
-  U.cacheSet('EMP_IP_' + secret, clientIp || '', 1800);
   return { ok: true };
 };
 

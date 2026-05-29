@@ -1,152 +1,183 @@
 -- ══════════════════════════════════════════════════════
---  Coffeemoon — Supabase SQL Sxemi
---  Supabase Dashboard → SQL Editor → bu faylı yapışdır
+--  Coffeemoon — Supabase SQL Sxemi (Düzəldilmiş)
+--  Bütün sütun adları snake_case — tırnak problemi yoxdur
 -- ══════════════════════════════════════════════════════
 
-CREATE TABLE IF NOT EXISTS employees (
-  id        TEXT PRIMARY KEY,
-  name      TEXT NOT NULL,
-  dept      TEXT DEFAULT '',
-  secret    TEXT UNIQUE,
-  "deviceId" TEXT DEFAULT '',
-  message   TEXT DEFAULT '',
-  "createdAt" TIMESTAMPTZ DEFAULT NOW()
+DROP TABLE IF EXISTS attendance CASCADE;
+DROP TABLE IF EXISTS nahar CASCADE;
+DROP TABLE IF EXISTS scan_devices CASCADE;
+DROP TABLE IF EXISTS cedvel CASCADE;
+DROP TABLE IF EXISTS izin CASCADE;
+DROP TABLE IF EXISTS checklist_items CASCADE;
+DROP TABLE IF EXISTS checklist_logs CASCADE;
+DROP TABLE IF EXISTS mgr_acks CASCADE;
+DROP TABLE IF EXISTS products CASCADE;
+DROP TABLE IF EXISTS product_logs CASCADE;
+DROP TABLE IF EXISTS mgr_schedule CASCADE;
+DROP TABLE IF EXISTS late_perms CASCADE;
+DROP TABLE IF EXISTS announcements CASCADE;
+DROP TABLE IF EXISTS employees CASCADE;
+DROP TABLE IF EXISTS settings CASCADE;
+
+-- İşçilər
+CREATE TABLE employees (
+  id          TEXT PRIMARY KEY,
+  name        TEXT NOT NULL,
+  dept        TEXT DEFAULT '',
+  secret      TEXT UNIQUE,
+  device_id   TEXT DEFAULT '',
+  message     TEXT DEFAULT '',
+  created_at  TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS attendance (
-  id        BIGSERIAL PRIMARY KEY,
-  "empId"   TEXT NOT NULL,
-  "empName" TEXT,
-  dept      TEXT,
-  timestamp TIMESTAMPTZ NOT NULL,
-  type      TEXT,
-  overtime  TEXT DEFAULT '',
-  "shiftType" TEXT DEFAULT ''
-);
-
-CREATE TABLE IF NOT EXISTS nahar (
-  "naharId" TEXT PRIMARY KEY,
-  "empId"   TEXT NOT NULL,
-  "empName" TEXT,
-  dept      TEXT,
-  timestamp TIMESTAMPTZ NOT NULL,
-  type      TEXT
-);
-
-CREATE TABLE IF NOT EXISTS "scanDevices" (
-  "deviceId" TEXT PRIMARY KEY,
-  branch    TEXT DEFAULT '',
-  status    TEXT DEFAULT 'pending',
-  "createdAt" TIMESTAMPTZ DEFAULT NOW(),
-  label     TEXT DEFAULT ''
-);
-
-CREATE TABLE IF NOT EXISTS cedvel (
-  "cedvelId" TEXT PRIMARY KEY,
-  "empId"    TEXT NOT NULL,
-  "empName"  TEXT,
-  dept       TEXT,
-  "dateStr"  TEXT NOT NULL,
-  "shiftType" TEXT DEFAULT ''
-);
-
-CREATE TABLE IF NOT EXISTS izin (
-  "izinId"    TEXT PRIMARY KEY,
-  "empId"     TEXT,
-  "empName"   TEXT,
+-- Davamiyyət
+CREATE TABLE attendance (
+  id          BIGSERIAL PRIMARY KEY,
+  emp_id      TEXT NOT NULL,
+  emp_name    TEXT,
   dept        TEXT,
-  "startDate" TEXT,
-  "endDate"   TEXT,
+  timestamp   TIMESTAMPTZ NOT NULL,
+  type        TEXT,
+  overtime    TEXT DEFAULT '',
+  shift_type  TEXT DEFAULT ''
+);
+
+-- Nahar
+CREATE TABLE nahar (
+  nahar_id    TEXT PRIMARY KEY,
+  emp_id      TEXT NOT NULL,
+  emp_name    TEXT,
+  dept        TEXT,
+  timestamp   TIMESTAMPTZ NOT NULL,
+  type        TEXT
+);
+
+-- Scan cihazları
+CREATE TABLE scan_devices (
+  device_id   TEXT PRIMARY KEY,
+  branch      TEXT DEFAULT '',
+  status      TEXT DEFAULT 'pending',
+  created_at  TIMESTAMPTZ DEFAULT NOW(),
+  label       TEXT DEFAULT ''
+);
+
+-- Cədvəl (həftəlik iş qrafiki)
+CREATE TABLE cedvel (
+  cedvel_id   TEXT PRIMARY KEY,
+  emp_id      TEXT NOT NULL,
+  emp_name    TEXT,
+  dept        TEXT,
+  date_str    TEXT NOT NULL,
+  shift_type  TEXT DEFAULT ''
+);
+
+-- İzin
+CREATE TABLE izin (
+  izin_id     TEXT PRIMARY KEY,
+  emp_id      TEXT,
+  emp_name    TEXT,
+  dept        TEXT,
+  start_date  TEXT,
+  end_date    TEXT,
   type        TEXT DEFAULT 'İzin',
   note        TEXT DEFAULT '',
   status      TEXT DEFAULT 'pending',
-  "createdAt" TIMESTAMPTZ DEFAULT NOW()
+  created_at  TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS "checklistItems" (
-  "itemId"    TEXT PRIMARY KEY,
+-- Çeklist elementləri
+CREATE TABLE checklist_items (
+  item_id     TEXT PRIMARY KEY,
   text        TEXT,
   category    TEXT,
-  "sortOrder" INTEGER DEFAULT 0,
+  sort_order  INTEGER DEFAULT 0,
   active      BOOLEAN DEFAULT TRUE
 );
 
-CREATE TABLE IF NOT EXISTS "checklistLogs" (
-  "logId"     TEXT PRIMARY KEY,
+-- Çeklist logları
+CREATE TABLE checklist_logs (
+  log_id      TEXT PRIMARY KEY,
   date        TEXT,
   dept        TEXT,
-  "itemId"    TEXT,
-  "itemText"  TEXT,
+  item_id     TEXT,
+  item_text   TEXT,
   checked     BOOLEAN DEFAULT FALSE,
-  "checkedAt" TEXT DEFAULT '',
-  "mgrNote"   TEXT DEFAULT '',
-  "adminNote" TEXT DEFAULT ''
+  checked_at  TEXT DEFAULT '',
+  mgr_note    TEXT DEFAULT '',
+  admin_note  TEXT DEFAULT ''
 );
 
-CREATE TABLE IF NOT EXISTS "mgrAcks" (
-  "ackId"         TEXT PRIMARY KEY,
+-- Menecer təsdiqləri
+CREATE TABLE mgr_acks (
+  ack_id          TEXT PRIMARY KEY,
   date            TEXT,
   dept            TEXT,
-  "globalAcked"   BOOLEAN DEFAULT FALSE,
-  "globalAckedAt" TEXT DEFAULT '',
-  "branchAcked"   BOOLEAN DEFAULT FALSE,
-  "branchAckedAt" TEXT DEFAULT ''
+  global_acked    BOOLEAN DEFAULT FALSE,
+  global_acked_at TEXT DEFAULT '',
+  branch_acked    BOOLEAN DEFAULT FALSE,
+  branch_acked_at TEXT DEFAULT ''
 );
 
-CREATE TABLE IF NOT EXISTS products (
-  "productId" TEXT PRIMARY KEY,
+-- Məhsullar
+CREATE TABLE products (
+  product_id  TEXT PRIMARY KEY,
   name        TEXT,
   unit        TEXT DEFAULT 'ədəd',
   active      BOOLEAN DEFAULT TRUE,
-  "createdAt" TIMESTAMPTZ DEFAULT NOW()
+  created_at  TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS "productLogs" (
-  "logId"       TEXT PRIMARY KEY,
-  "dateStr"     TEXT,
+-- Məhsul logları
+CREATE TABLE product_logs (
+  log_id        TEXT PRIMARY KEY,
+  date_str      TEXT,
   dept          TEXT,
-  "productId"   TEXT,
-  "productName" TEXT,
+  product_id    TEXT,
+  product_name  TEXT,
   incoming      NUMERIC DEFAULT 0,
   wasted        NUMERIC DEFAULT 0,
-  "savedAt"     TIMESTAMPTZ DEFAULT NOW()
+  saved_at      TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS "mgrSchedule" (
-  "schedId"   TEXT PRIMARY KEY,
+-- Menecer həftəlik qrafik
+CREATE TABLE mgr_schedule (
+  sched_id    TEXT PRIMARY KEY,
   dept        TEXT,
-  "dateStr"   TEXT,
-  "shiftType" TEXT DEFAULT ''
+  date_str    TEXT,
+  shift_type  TEXT DEFAULT ''
 );
 
-CREATE TABLE IF NOT EXISTS "latePerms" (
-  "permId"        TEXT PRIMARY KEY,
-  "empId"         TEXT,
-  "empName"       TEXT,
+-- Gec gəliş icazəsi
+CREATE TABLE late_perms (
+  perm_id         TEXT PRIMARY KEY,
+  emp_id          TEXT,
+  emp_name        TEXT,
   dept            TEXT,
-  "dateStr"       TEXT,
-  "requestedTime" TEXT,
+  date_str        TEXT,
+  requested_time  TEXT,
   status          TEXT DEFAULT 'pending',
-  "createdAt"     TIMESTAMPTZ DEFAULT NOW(),
-  "approvedAt"    TIMESTAMPTZ
+  created_at      TIMESTAMPTZ DEFAULT NOW(),
+  approved_at     TIMESTAMPTZ
 );
 
-CREATE TABLE IF NOT EXISTS announcements (
-  id     TEXT PRIMARY KEY,
-  title  TEXT,
-  body   TEXT,
-  type   TEXT DEFAULT 'info',
-  pinned BOOLEAN DEFAULT FALSE,
-  date   TIMESTAMPTZ DEFAULT NOW()
+-- Yeniliklər / elanlar
+CREATE TABLE announcements (
+  id      TEXT PRIMARY KEY,
+  title   TEXT,
+  body    TEXT,
+  type    TEXT DEFAULT 'info',
+  pinned  BOOLEAN DEFAULT FALSE,
+  date    TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS settings (
+-- Parametrlər
+CREATE TABLE settings (
   key   TEXT PRIMARY KEY,
   value TEXT DEFAULT ''
 );
 
--- ── Default çeklist elementləri ────────────────────────────────
-INSERT INTO "checklistItems" ("itemId", text, category, "sortOrder", active) VALUES
+-- Default çeklist elementləri
+INSERT INTO checklist_items (item_id, text, category, sort_order, active) VALUES
   ('CI-001', 'Açılış hazırlığı (stol, stul, avadanlıq)',    'Açılış',   1, TRUE),
   ('CI-002', 'Kassa balansının yoxlanması',                  'Açılış',   2, TRUE),
   ('CI-003', 'Temperatur jurnalının doldurulması',           'Gigiyena', 3, TRUE),
@@ -155,5 +186,4 @@ INSERT INTO "checklistItems" ("itemId", text, category, "sortOrder", active) VAL
   ('CI-006', 'Personalın geyim / görünüş yoxlaması',         'Personal', 6, TRUE),
   ('CI-007', 'Müştəri şikayətlərinin nəzərdən keçirilməsi',  'Xidmət',   7, TRUE),
   ('CI-008', 'Günün hesabatının hazırlanması',               'Bağlanış', 8, TRUE),
-  ('CI-009', 'Bağlanış yoxlaması (qapı, işıq, avadanlıq)',   'Bağlanış', 9, TRUE)
-ON CONFLICT ("itemId") DO NOTHING;
+  ('CI-009', 'Bağlanış yoxlaması (qapı, işıq, avadanlıq)',   'Bağlanış', 9, TRUE);

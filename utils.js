@@ -20,18 +20,6 @@ async function setSetting(key, value) {
   await sb.from('settings').upsert({ key, value: String(value) }, { onConflict: 'key' });
 }
 
-// ── Sadə TTL cache (telefon IP-ləri üçün) ───────────────────────
-const _cache = new Map();
-function cacheSet(key, value, ttlSeconds = 1800) {
-  _cache.set(key, { value, expires: Date.now() + ttlSeconds * 1000 });
-}
-function cacheGet(key) {
-  const e = _cache.get(key);
-  if (!e) return null;
-  if (Date.now() > e.expires) { _cache.delete(key); return null; }
-  return e.value;
-}
-
 // ── Tarix köməkçiləri ────────────────────────────────────────────
 function toYMD(d) {
   return d.getFullYear() + '-' +
@@ -218,7 +206,6 @@ async function sendTelegramMsg(text, dept) {
 
 module.exports = {
   loadSettings, getSetting, setSetting,
-  cacheSet, cacheGet,
   toYMD, fmtTime, getLogicalYMD, getLogicalDateStr,
   generateDynamicPin, TIME_STEP,
   getShiftInfo, isLate, SHIFT_TABLE,
