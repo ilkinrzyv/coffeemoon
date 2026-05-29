@@ -196,6 +196,22 @@
 
 <div class="card-container">
 
+    <!-- TAB BAR (auth sonrası görünür) -->
+  <div class="main-tab-bar" id="mainTabBar">
+    <button class="main-tab active" id="tabBtnGundelik" onclick="showTab('gundelik')">
+      <i class="fa-solid fa-key"></i>
+      Gündəlik
+    </button>
+    <button class="main-tab" id="tabBtnCedvel" onclick="showTab('cedvel')">
+      <i class="fa-solid fa-calendar-week"></i>
+      Cədvəl
+    </button>
+    <button class="main-tab" id="tabBtnIcaze" onclick="showTab('icaze')">
+      <i class="fa-solid fa-clock"></i>
+      İcazə
+    </button>
+  </div>
+  
   <!-- ANA KAD (həmişə görünür) -->
   <div class="ticket">
     <div class="ticket-header">
@@ -229,22 +245,6 @@
       <div class="timeout-desc">Kart 5 dəqiqədən sonra avtomatik kilidləndi.</div>
       <button class="btn-refresh" onclick="window.location.reload()"><i class="fa-solid fa-rotate-right"></i> Yenidən Aktivləşdir</button>
     </div>
-  </div>
-
-  <!-- TAB BAR (auth sonrası görünür) -->
-  <div class="main-tab-bar" id="mainTabBar">
-    <button class="main-tab active" id="tabBtnGundelik" onclick="showTab('gundelik')">
-      <i class="fa-solid fa-key"></i>
-      Gündəlik
-    </button>
-    <button class="main-tab" id="tabBtnCedvel" onclick="showTab('cedvel')">
-      <i class="fa-solid fa-calendar-week"></i>
-      Cədvəl
-    </button>
-    <button class="main-tab" id="tabBtnIcaze" onclick="showTab('icaze')">
-      <i class="fa-solid fa-clock"></i>
-      İcazə
-    </button>
   </div>
 
   <!-- PANEL 1: GÜNDƏLİK (Nahar + Yeniliklər) -->
