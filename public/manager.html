@@ -391,22 +391,30 @@ header {
 .product-input.waste-input:focus { border-color:var(--danger); box-shadow:0 0 0 3px rgba(240,69,80,0.08); }
 
 /* ── Məhsullar compact cədvəl ── */
-.waste-table-wrap { background:rgba(255,255,255,0.88); backdrop-filter:blur(30px); border:1px solid rgba(255,255,255,0.82); border-radius:22px; box-shadow:var(--card-shadow); overflow:hidden; margin-bottom:0.7rem; }
-.waste-table { width:100%; border-collapse:collapse; }
-.waste-table thead th { font-size:0.67rem; font-weight:800; color:var(--text-muted); text-transform:uppercase; letter-spacing:1.2px; padding:0.75rem 0.8rem; background:rgba(15,23,42,0.02); border-bottom:1px solid rgba(15,23,42,0.06); }
-.waste-table thead th:first-child { text-align:left; padding-left:1.2rem; }
-.waste-table thead th:not(:first-child) { text-align:center; }
+.waste-table-wrap { background:rgba(255,255,255,0.88); backdrop-filter:blur(30px); border:1px solid rgba(255,255,255,0.82); border-radius:22px; box-shadow:var(--card-shadow); overflow:hidden; margin-bottom:0.7rem; width:100%; }
+.waste-table { width:100%; border-collapse:collapse; table-layout:fixed; }
+.waste-table thead th { font-size:0.67rem; font-weight:800; color:var(--text-muted); text-transform:uppercase; letter-spacing:1.2px; padding:0.7rem 0.5rem; background:rgba(15,23,42,0.02); border-bottom:1px solid rgba(15,23,42,0.06); text-align:center; }
+.waste-table thead th:first-child { text-align:left; padding-left:1rem; width:38%; }
+.waste-table thead th:nth-child(2) { width:22%; }
+.waste-table thead th:nth-child(3), .waste-table thead th:nth-child(4) { width:20%; }
 .waste-tr { border-top:1px solid rgba(15,23,42,0.045); transition:background 0.12s; }
 .waste-tr:first-child { border-top:none; }
-.waste-tr:hover { background:rgba(91,94,244,0.025); }
-.waste-td-name { padding:0.6rem 0.8rem 0.6rem 1.2rem; min-width:120px; }
-.waste-td-name-txt { font-size:0.86rem; font-weight:700; color:var(--text-main); line-height:1.2; }
-.waste-td-unit { font-size:0.66rem; color:var(--text-muted); font-weight:700; margin-top:1px; text-transform:uppercase; letter-spacing:0.5px; }
-.waste-td-accum { padding:0.6rem 0.8rem; text-align:center; font-size:0.78rem; font-weight:700; white-space:nowrap; }
-.waste-td-inp { padding:0.45rem 0.5rem; text-align:center; }
-.waste-compact-inp { width:70px; border:1.5px solid rgba(15,23,42,0.09); border-radius:10px; padding:6px 4px; font-size:0.9rem; font-weight:800; font-family:'SF Mono','Fira Code',monospace; text-align:center; background:#fff; outline:none; color:var(--text-main); transition:all 0.18s; box-shadow:0 1px 3px rgba(15,23,42,0.04); }
-.waste-compact-inp:focus { border-color:var(--primary); box-shadow:0 0 0 3px rgba(91,94,244,0.09); }
-.waste-compact-inp.ww:focus { border-color:var(--danger); box-shadow:0 0 0 3px rgba(240,69,80,0.08); }
+.waste-tr:hover { background:rgba(91,94,244,0.02); }
+.waste-td-name { padding:0.55rem 0.5rem 0.55rem 1rem; }
+.waste-td-name-txt { font-size:0.84rem; font-weight:700; color:var(--text-main); line-height:1.2; }
+.waste-td-unit { font-size:0.64rem; color:var(--text-muted); font-weight:700; margin-top:1px; text-transform:uppercase; letter-spacing:0.5px; }
+.waste-td-accum { padding:0.5rem 0.4rem; text-align:center; font-size:0.78rem; font-weight:700; white-space:nowrap; }
+.waste-td-inp { padding:0.4rem 0.4rem; text-align:center; }
+.waste-spin-wrap { display:inline-flex; align-items:center; border:1.5px solid rgba(15,23,42,0.09); border-radius:10px; background:#fff; overflow:hidden; box-shadow:0 1px 3px rgba(15,23,42,0.04); width:100%; }
+.waste-spin-wrap.ww { border-color:rgba(240,69,80,0.15); }
+.waste-spin-wrap.ww:focus-within { border-color:var(--danger); box-shadow:0 0 0 3px rgba(240,69,80,0.08); }
+.waste-spin-wrap:focus-within { border-color:var(--primary); box-shadow:0 0 0 3px rgba(91,94,244,0.09); }
+.waste-spin-btn { flex-shrink:0; width:28px; height:34px; border:none; background:transparent; cursor:pointer; font-size:0.95rem; font-weight:800; color:var(--text-muted); display:flex; align-items:center; justify-content:center; transition:all 0.15s; user-select:none; -webkit-user-select:none; }
+.waste-spin-btn:hover { background:rgba(15,23,42,0.05); color:var(--text-main); }
+.waste-spin-btn:active { background:rgba(15,23,42,0.09); transform:scale(0.93); }
+.waste-compact-inp { flex:1; min-width:0; border:none; padding:6px 2px; font-size:0.88rem; font-weight:800; font-family:'SF Mono','Fira Code',monospace; text-align:center; background:transparent; outline:none; color:var(--text-main); }
+.waste-compact-inp::-webkit-inner-spin-button, .waste-compact-inp::-webkit-outer-spin-button { -webkit-appearance:none; margin:0; }
+.waste-compact-inp { -moz-appearance:textfield; }
 
 .waste-save-btn {
   width:100%; padding:0.95rem;
@@ -1394,9 +1402,16 @@ function renderWasteItems() {
       'Hələ məhsul əlavə edilməyib.</div>';
     return;
   }
+  function spinInp(id, cls) {
+    return '<div class="waste-spin-wrap ' + cls + '">' +
+      '<button type="button" class="waste-spin-btn" onclick="wSpin(\'' + id + '\',-1)">−</button>' +
+      '<input type="number" min="0" step="1" class="waste-compact-inp" id="' + id + '" value="0">' +
+      '<button type="button" class="waste-spin-btn" onclick="wSpin(\'' + id + '\',1)">+</button>' +
+    '</div>';
+  }
   var rows = wasteItems.map(function(item, idx) {
     var accum = '<span style="color:var(--success);">' + item.totalIncoming + '</span>' +
-                '<span style="opacity:0.35;margin:0 3px;">/</span>' +
+                '<span style="opacity:0.3;margin:0 2px;">/</span>' +
                 '<span style="color:var(--danger);">' + item.totalWasted + '</span>';
     return '<tr class="waste-tr">' +
       '<td class="waste-td-name">' +
@@ -1404,8 +1419,8 @@ function renderWasteItems() {
         '<div class="waste-td-unit">' + escHtml(item.unit) + '</div>' +
       '</td>' +
       '<td class="waste-td-accum">' + accum + '</td>' +
-      '<td class="waste-td-inp"><input type="number" min="0" step="any" class="waste-compact-inp" id="in-' + idx + '" value="0"></td>' +
-      '<td class="waste-td-inp"><input type="number" min="0" step="any" class="waste-compact-inp ww" id="wst-' + idx + '" value="0"></td>' +
+      '<td class="waste-td-inp">' + spinInp('in-' + idx, '') + '</td>' +
+      '<td class="waste-td-inp">' + spinInp('wst-' + idx, 'ww') + '</td>' +
     '</tr>';
   }).join('');
   wrap.innerHTML =
@@ -1413,13 +1428,20 @@ function renderWasteItems() {
       '<table class="waste-table">' +
         '<thead><tr>' +
           '<th>Məhsul</th>' +
-          '<th>Aylıq (gələn/atılan)</th>' +
-          '<th style="color:var(--success);">↓ Gələn</th>' +
-          '<th style="color:var(--danger);">↑ Atılan</th>' +
+          '<th>Aylıq cəm</th>' +
+          '<th style="color:var(--success);">Gələn</th>' +
+          '<th style="color:var(--danger);">Atılan</th>' +
         '</tr></thead>' +
         '<tbody>' + rows + '</tbody>' +
       '</table>' +
     '</div>';
+}
+
+function wSpin(id, delta) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  var v = parseFloat(el.value) || 0;
+  el.value = Math.max(0, v + delta);
 }
 
 function saveWaste() {
