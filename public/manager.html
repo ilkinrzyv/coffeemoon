@@ -390,6 +390,24 @@ header {
 .product-input:focus       { border-color:var(--primary); box-shadow:0 0 0 3px rgba(91,94,244,0.09); }
 .product-input.waste-input:focus { border-color:var(--danger); box-shadow:0 0 0 3px rgba(240,69,80,0.08); }
 
+/* ── Məhsullar compact cədvəl ── */
+.waste-table-wrap { background:rgba(255,255,255,0.88); backdrop-filter:blur(30px); border:1px solid rgba(255,255,255,0.82); border-radius:22px; box-shadow:var(--card-shadow); overflow:hidden; margin-bottom:0.7rem; }
+.waste-table { width:100%; border-collapse:collapse; }
+.waste-table thead th { font-size:0.67rem; font-weight:800; color:var(--text-muted); text-transform:uppercase; letter-spacing:1.2px; padding:0.75rem 0.8rem; background:rgba(15,23,42,0.02); border-bottom:1px solid rgba(15,23,42,0.06); }
+.waste-table thead th:first-child { text-align:left; padding-left:1.2rem; }
+.waste-table thead th:not(:first-child) { text-align:center; }
+.waste-tr { border-top:1px solid rgba(15,23,42,0.045); transition:background 0.12s; }
+.waste-tr:first-child { border-top:none; }
+.waste-tr:hover { background:rgba(91,94,244,0.025); }
+.waste-td-name { padding:0.6rem 0.8rem 0.6rem 1.2rem; min-width:120px; }
+.waste-td-name-txt { font-size:0.86rem; font-weight:700; color:var(--text-main); line-height:1.2; }
+.waste-td-unit { font-size:0.66rem; color:var(--text-muted); font-weight:700; margin-top:1px; text-transform:uppercase; letter-spacing:0.5px; }
+.waste-td-accum { padding:0.6rem 0.8rem; text-align:center; font-size:0.78rem; font-weight:700; white-space:nowrap; }
+.waste-td-inp { padding:0.45rem 0.5rem; text-align:center; }
+.waste-compact-inp { width:70px; border:1.5px solid rgba(15,23,42,0.09); border-radius:10px; padding:6px 4px; font-size:0.9rem; font-weight:800; font-family:'SF Mono','Fira Code',monospace; text-align:center; background:#fff; outline:none; color:var(--text-main); transition:all 0.18s; box-shadow:0 1px 3px rgba(15,23,42,0.04); }
+.waste-compact-inp:focus { border-color:var(--primary); box-shadow:0 0 0 3px rgba(91,94,244,0.09); }
+.waste-compact-inp.ww:focus { border-color:var(--danger); box-shadow:0 0 0 3px rgba(240,69,80,0.08); }
+
 .waste-save-btn {
   width:100%; padding:0.95rem;
   background:linear-gradient(135deg,var(--primary),var(--primary-dark));
@@ -1368,44 +1386,40 @@ function updateWasteSummary(res) {
 }
 
 function renderWasteItems() {
+  var wrap = document.getElementById('wasteItemsWrap');
   if (!wasteItems.length) {
-    document.getElementById('wasteItemsWrap').innerHTML =
-      '<div style="text-align:center;padding:2rem;color:var(--text-muted);font-size:0.9rem;font-weight:600;">' +
-      '<i class="fa-solid fa-box-open" style="font-size:2rem;display:block;margin-bottom:0.8rem;opacity:0.25;"></i>' +
+    wrap.innerHTML =
+      '<div style="text-align:center;padding:2rem;color:var(--text-muted);font-size:0.88rem;font-weight:600;">' +
+      '<i class="fa-solid fa-box-open" style="font-size:1.8rem;display:block;margin-bottom:0.7rem;opacity:0.2;"></i>' +
       'Hələ məhsul əlavə edilməyib.</div>';
     return;
   }
-  var html = wasteItems.map(function(item, idx) {
-    var hasAccum = item.totalIncoming > 0 || item.totalWasted > 0;
-    return '<div class="product-card">' +
-      '<div class="product-name-row">' +
-        '<div class="product-name-txt">' + escHtml(item.name) + '</div>' +
-        '<div class="product-unit">' + escHtml(item.unit) + '</div>' +
-      '</div>' +
-      // Aylıq cəm (oxunur, dəyişmir)
-      '<div style="display:flex;align-items:center;gap:8px;padding:0 1.1rem 0.6rem;font-size:0.78rem;font-weight:600;">' +
-        '<span style="color:var(--text-muted);">Aylıq cəm:</span>' +
-        '<span style="color:var(--success);">' + item.totalIncoming + ' gələn</span>' +
-        '<span style="color:var(--text-muted);">·</span>' +
-        '<span style="color:var(--danger);">' + item.totalWasted + ' atılan</span>' +
-      '</div>' +
-      // Ayırıcı
-      '<div style="height:1px;background:rgba(15,23,42,0.05);margin:0 1.1rem 0.6rem;"></div>' +
-      // Yeni əlavə inputları — həmişə 0-dan başlayır
-      '<div style="padding:0 1.1rem 0.3rem;font-size:0.7rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;">Yeni əlavə et</div>' +
-      '<div class="product-inputs">' +
-        '<div class="product-input-wrap">' +
-          '<div class="product-input-lbl in-lbl"><i class="fa-solid fa-arrow-down"></i> Gələn</div>' +
-          '<input type="number" min="0" step="any" class="product-input" id="in-' + idx + '" value="0">' +
-        '</div>' +
-        '<div class="product-input-wrap">' +
-          '<div class="product-input-lbl waste-lbl"><i class="fa-solid fa-trash"></i> Atılan</div>' +
-          '<input type="number" min="0" step="any" class="product-input waste-input" id="wst-' + idx + '" value="0">' +
-        '</div>' +
-      '</div>' +
-    '</div>';
+  var rows = wasteItems.map(function(item, idx) {
+    var accum = '<span style="color:var(--success);">' + item.totalIncoming + '</span>' +
+                '<span style="opacity:0.35;margin:0 3px;">/</span>' +
+                '<span style="color:var(--danger);">' + item.totalWasted + '</span>';
+    return '<tr class="waste-tr">' +
+      '<td class="waste-td-name">' +
+        '<div class="waste-td-name-txt">' + escHtml(item.name) + '</div>' +
+        '<div class="waste-td-unit">' + escHtml(item.unit) + '</div>' +
+      '</td>' +
+      '<td class="waste-td-accum">' + accum + '</td>' +
+      '<td class="waste-td-inp"><input type="number" min="0" step="any" class="waste-compact-inp" id="in-' + idx + '" value="0"></td>' +
+      '<td class="waste-td-inp"><input type="number" min="0" step="any" class="waste-compact-inp ww" id="wst-' + idx + '" value="0"></td>' +
+    '</tr>';
   }).join('');
-  document.getElementById('wasteItemsWrap').innerHTML = html;
+  wrap.innerHTML =
+    '<div class="waste-table-wrap">' +
+      '<table class="waste-table">' +
+        '<thead><tr>' +
+          '<th>Məhsul</th>' +
+          '<th>Aylıq (gələn/atılan)</th>' +
+          '<th style="color:var(--success);">↓ Gələn</th>' +
+          '<th style="color:var(--danger);">↑ Atılan</th>' +
+        '</tr></thead>' +
+        '<tbody>' + rows + '</tbody>' +
+      '</table>' +
+    '</div>';
 }
 
 function saveWaste() {
