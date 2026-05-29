@@ -63,6 +63,28 @@ app.get('/checklist', (req, res) => {
   }));
 });
 
+app.get('/manager-manifest', (req, res) => {
+  const { key = '' } = req.query;
+  const check = U.validateBranchScheduleKey(key);
+  const dept = check.valid ? check.dept : 'Menecer';
+  const startUrl = `/manager?key=${encodeURIComponent(key)}`;
+  res.setHeader('Content-Type', 'application/manifest+json');
+  res.json({
+    name: `Coffeemoon · ${dept}`,
+    short_name: dept,
+    description: 'Coffeemoon menecer paneli',
+    start_url: startUrl,
+    display: 'standalone',
+    background_color: '#f0f2f8',
+    theme_color: '#5b5ef4',
+    orientation: 'portrait',
+    icons: [
+      { src: '/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
+      { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
+    ],
+  });
+});
+
 app.get('/manager', (req, res) => {
   const { key = '' } = req.query;
   const check = U.validateBranchScheduleKey(key);
