@@ -975,20 +975,29 @@ API.getLatePermsForManager = async (branchKey) => {
   const check = U.validateBranchScheduleKey(branchKey);
   if (!check.valid) return [];
 
-  // Həm dept adına, həm də bu filialın işçi ID-lərinə görə filtrə et
+  // İki ayrı sorğu: dept adına görə VƏ filialın işçi ID-lərinə görə
+  // (dept string-ində xüsusi hərflər olduğu üçün .or() işlətmirik)
   const { data: empRows } = await sb.from('employees').select('id').eq('dept', check.dept);
   const empIds = (empRows || []).map(e => String(e.id));
 
-  let query = sb.from('late_perms').select('*').order('created_at', { ascending: false }).limit(50);
-  if (empIds.length) {
-    // dept adı VEYA empId ilə uyğun gəlsə qəbul et
-    query = query.or(`dept.eq.${check.dept},emp_id.in.(${empIds.join(',')})`);
-  } else {
-    query = query.eq('dept', check.dept);
-  }
+  const [{ data: byDept }, { data: byEmpId }] = await Promise.all([
+    sb.from('late_perms').select('*').eq('dept', check.dept)
+      .order('created_at', { ascending: false }).limit(50),
+    empIds.length
+      ? sb.from('late_perms').select('*').in('emp_id', empIds)
+          .order('created_at', { ascending: false }).limit(50)
+      : Promise.resolve({ data: [] }),
+  ]);
 
-  const { data } = await query;
-  return (data||[]).map(r => ({
+  // Birləşdir, təkrarları sil (perm_id-ə görə)
+  const seen = new Set();
+  const merged = [...(byDept || []), ...(byEmpId || [])].filter(r => {
+    if (seen.has(r.perm_id)) return false;
+    seen.add(r.perm_id);
+    return true;
+  });
+
+  return merged.map(r => ({
     permId:        r.perm_id,
     empId:         r.emp_id,
     empName:       r.emp_name,
@@ -997,19 +1006,22 @@ API.getLatePermsForManager = async (branchKey) => {
     requestedTime: r.requested_time,
     status:        r.status,
     createdAt:     r.created_at,
-  })).sort((a,b)=>{
-    if(a.status==='pending'&&b.status!=='pending')return -1;
-    if(a.status!=='pending'&&b.status==='pending')return 1;
-    return b.dateStr.localeCompare(a.dateStr);
+  })).sort((a, b) => {
+    if (a.status === 'pending' && b.status !== 'pending') return -1;
+    if (a.status !== 'pending' && b.status === 'pending') return  1;
+    return (b.createdAt || '').localeCompare(a.createdAt || '');
   });
 };
 
 API.approveLatePerm = async (branchKey, permId, action) => {
   const check = U.validateBranchScheduleKey(branchKey);
-  if (!check.valid) return { success:false, reason:'İcazəsiz.' };
-  if (action!=='approved'&&action!=='rejected') return { success:false, reason:'Yanlış əməliyyat.' };
-  const { error } = await sb.from('late_perms').update({ status:action, approved_at:new Date().toISOString() }).eq('perm_id', permId).eq('dept', check.dept);
-  return { success:!error };
+  if (!check.valid) return { success: false, reason: 'İcazəsiz.' };
+  if (action !== 'approved' && action !== 'rejected') return { success: false, reason: 'Yanlış əməliyyat.' };
+  // dept şərti olmadan yalnız perm_id-ə görə yenilə
+  const { error, count } = await sb.from('late_perms')
+    .update({ status: action, approved_at: new Date().toISOString() })
+    .eq('perm_id', permId);
+  return { success: !error, updated: count };
 };
 
 API.getMyLatePerms = async (secret) => {
@@ -1103,8 +1115,9 @@ API.getAvansList = async () => {
 
 // Admin üçün: avans statusunu dəyişdir
 API.updateAvansStatus = async (avansId, status) => {
-  if (!['approved','rejected','paid'].includes(status))
+  if (!['approved', 'rejected', 'paid'].includes(status))
     return { success: false, reason: 'Yanlış status.' };
+  // Yalnız avans_id-ə görə yenilə — dept şərti yoxdur
   const { error } = await sb.from('avans').update({ status }).eq('avans_id', avansId);
   return { success: !error };
 };
@@ -1143,15 +1156,23 @@ API.getAvansForManager = async (branchKey) => {
   const { data: empRows } = await sb.from('employees').select('id').eq('dept', check.dept);
   const empIds = (empRows || []).map(e => String(e.id));
 
-  let query = sb.from('avans').select('*').order('created_at', { ascending: false }).limit(50);
-  if (empIds.length) {
-    query = query.or(`dept.eq.${check.dept},emp_id.in.(${empIds.join(',')})`);
-  } else {
-    query = query.eq('dept', check.dept);
-  }
+  const [{ data: byDept }, { data: byEmpId }] = await Promise.all([
+    sb.from('avans').select('*').eq('dept', check.dept)
+      .order('created_at', { ascending: false }).limit(50),
+    empIds.length
+      ? sb.from('avans').select('*').in('emp_id', empIds)
+          .order('created_at', { ascending: false }).limit(50)
+      : Promise.resolve({ data: [] }),
+  ]);
 
-  const { data } = await query;
-  return (data || []).map(r => ({
+  const seen = new Set();
+  const merged = [...(byDept || []), ...(byEmpId || [])].filter(r => {
+    if (seen.has(r.avans_id)) return false;
+    seen.add(r.avans_id);
+    return true;
+  });
+
+  return merged.map(r => ({
     avansId:   r.avans_id,
     empName:   r.emp_name,
     dept:      r.dept,
@@ -1170,15 +1191,23 @@ API.getAvansForManager = async (branchKey) => {
 API.getManagerDashboard = async (branchKey, weekStart) => {
   const check = U.validateBranchScheduleKey(branchKey);
   if (!check.valid) return null;
+  const safe = (p) => p.catch(() => null);
   const [cedvel, mgrInfo, ackStatus, mgrSched, latePerms, avansList] = await Promise.all([
-    API.getCedvel(check.dept, weekStart),
+    safe(API.getCedvel(check.dept, weekStart)),
     Promise.resolve(API.getMgrInfoForBranch(branchKey)),
-    API.getMgrAckStatus(branchKey),
-    API.getMgrWeekSchedule(branchKey, weekStart),
-    API.getLatePermsForManager(branchKey),
-    API.getAvansForManager(branchKey),
+    safe(API.getMgrAckStatus(branchKey)),
+    safe(API.getMgrWeekSchedule(branchKey, weekStart)),
+    safe(API.getLatePermsForManager(branchKey)),
+    safe(API.getAvansForManager(branchKey)),
   ]);
-  return { cedvel, mgrInfo, ackStatus, mgrSched, latePerms, avansList };
+  return {
+    cedvel:    cedvel    || [],
+    mgrInfo:   mgrInfo   || null,
+    ackStatus: ackStatus || null,
+    mgrSched:  mgrSched  || null,
+    latePerms: latePerms || [],
+    avansList: avansList || [],
+  };
 };
 
 // ══════════════════════════════════════════════════════════════════
