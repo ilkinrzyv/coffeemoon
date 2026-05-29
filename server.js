@@ -1123,17 +1123,40 @@ API.deleteAnnouncement = async (id) => {
 
 // ── MENECER DASHBOARD ─────────────────────────────────────────────
 
+API.getAvansForManager = async (branchKey) => {
+  const check = U.validateBranchScheduleKey(branchKey);
+  if (!check.valid) return [];
+  const { data } = await sb.from('avans')
+    .select('*').eq('dept', check.dept)
+    .order('created_at', { ascending: false }).limit(50);
+  return (data || []).map(r => ({
+    avansId:   r.avans_id,
+    empName:   r.emp_name,
+    dept:      r.dept,
+    amount:    r.amount,
+    note:      r.note      || '',
+    status:    r.status,
+    dateStr:   r.date_str,
+    createdAt: r.created_at || '',
+  })).sort((a, b) => {
+    if (a.status === 'pending' && b.status !== 'pending') return -1;
+    if (a.status !== 'pending' && b.status === 'pending') return  1;
+    return b.createdAt.localeCompare(a.createdAt);
+  });
+};
+
 API.getManagerDashboard = async (branchKey, weekStart) => {
   const check = U.validateBranchScheduleKey(branchKey);
   if (!check.valid) return null;
-  const [cedvel, mgrInfo, ackStatus, mgrSched, latePerms] = await Promise.all([
+  const [cedvel, mgrInfo, ackStatus, mgrSched, latePerms, avansList] = await Promise.all([
     API.getCedvel(check.dept, weekStart),
     Promise.resolve(API.getMgrInfoForBranch(branchKey)),
     API.getMgrAckStatus(branchKey),
     API.getMgrWeekSchedule(branchKey, weekStart),
     API.getLatePermsForManager(branchKey),
+    API.getAvansForManager(branchKey),
   ]);
-  return { cedvel, mgrInfo, ackStatus, mgrSched, latePerms };
+  return { cedvel, mgrInfo, ackStatus, mgrSched, latePerms, avansList };
 };
 
 // ══════════════════════════════════════════════════════════════════

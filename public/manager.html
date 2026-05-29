@@ -197,6 +197,28 @@ header{background:var(--surface);backdrop-filter:blur(30px);border:1px solid var
 .waste-loader{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:200px;gap:1rem;}
 .waste-loader i{font-size:2rem;color:var(--primary);}
 .waste-loader p{color:var(--text-muted);font-size:0.9rem;font-weight:500;}
+
+/* ── Avans & İcazə siyahısı ── */
+.req-row{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid rgba(15,23,42,0.04);}
+.req-row:last-child{border-bottom:none;}
+.req-row-left{display:flex;flex-direction:column;gap:2px;flex:1;}
+.req-row-name{font-size:0.88rem;font-weight:700;color:var(--text-main);}
+.req-row-sub{font-size:0.76rem;color:var(--text-muted);font-weight:500;}
+.req-row-note{font-size:0.74rem;color:var(--text-muted);font-style:italic;margin-top:1px;}
+.req-badge{font-size:0.72rem;font-weight:700;display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:8px;white-space:nowrap;flex-shrink:0;}
+.req-badge.pending {background:rgba(245,158,11,0.1); color:#92400e;}
+.req-badge.approved{background:rgba(16,185,129,0.1); color:#065f46;}
+.req-badge.rejected{background:rgba(239,68,68,0.08);  color:#991b1b;}
+.req-badge.paid    {background:rgba(99,102,241,0.1);   color:#4338ca;}
+.req-act-btns{display:flex;gap:5px;margin-top:7px;}
+.req-act-btn{padding:5px 12px;border-radius:8px;font-size:0.78rem;font-weight:700;cursor:pointer;border:none;font-family:'Inter',sans-serif;transition:all 0.15s;}
+.req-act-btn.approve{background:rgba(16,185,129,0.1);color:#065f46;border:1px solid rgba(16,185,129,0.2);}
+.req-act-btn.approve:hover{background:rgba(16,185,129,0.2);}
+.req-act-btn.reject{background:rgba(239,68,68,0.07);color:#991b1b;border:1px solid rgba(239,68,68,0.15);}
+.req-act-btn.reject:hover{background:rgba(239,68,68,0.14);}
+.req-act-btn.paid{background:rgba(99,102,241,0.08);color:#4338ca;border:1px solid rgba(99,102,241,0.15);}
+.req-act-btn.paid:hover{background:rgba(99,102,241,0.15);}
+.req-empty{text-align:center;padding:1rem;color:var(--text-muted);font-size:0.85rem;}
 </style>
 </head>
 <body>
@@ -304,7 +326,19 @@ header{background:var(--surface);backdrop-filter:blur(30px);border:1px solid var
       </div>
       <button class="btn" style="font-size:0.78rem;padding:5px 12px;background:rgba(15,23,42,0.04);border:1px solid rgba(15,23,42,0.07);" onclick="loadLatePerms()"><i class="fa-solid fa-rotate"></i></button>
     </div>
-    <div id="latePermList"><div style="text-align:center;padding:1rem;color:var(--text-muted);font-size:0.85rem;"><i class="fa-solid fa-circle-notch fa-spin"></i></div></div>
+    <div id="latePermList"><div class="req-empty"><i class="fa-solid fa-circle-notch fa-spin"></i></div></div>
+  </div>
+
+  <!-- Avans Tələbləri -->
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.9rem;">
+      <div style="font-size:0.78rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1.5px;">
+        <i class="fa-solid fa-money-bill-wave" style="color:var(--success);"></i> Avans Tələbləri
+        <span id="avansBadge" style="display:none;background:var(--danger);color:#fff;border-radius:100px;font-size:0.65rem;padding:1px 7px;margin-left:4px;vertical-align:middle;font-weight:800;"></span>
+      </div>
+      <button class="btn" style="font-size:0.78rem;padding:5px 12px;background:rgba(15,23,42,0.04);border:1px solid rgba(15,23,42,0.07);" onclick="loadAvans()"><i class="fa-solid fa-rotate"></i></button>
+    </div>
+    <div id="avansList"><div class="req-empty"><i class="fa-solid fa-circle-notch fa-spin"></i></div></div>
   </div>
 
 </div><!-- /panelSched -->
@@ -540,6 +574,9 @@ function loadManagerDashboard() {
 
       // 4. Gec gəliş icazələri
       renderLatePerms(data.latePerms || []);
+
+      // 5. Avans tələbləri
+      renderAvans(data.avansList || []);
     })
     .withFailureHandler(function() {
       loadSched();  // xəta olsa köhnə sistem işləyir
@@ -555,6 +592,7 @@ function loadSched() {
   google.script.run.withSuccessHandler(function(d){ schedData=d||[]; renderTable(); }).getCedvelForManager(BRANCH_KEY, weekStart);
   loadMgrSched();
   loadLatePerms();
+  loadAvans();
 }
 
 // ── Menecer öz qrafiki ───────────────────────────────────────────
@@ -636,33 +674,26 @@ function renderLatePerms(list) {
   var el    = document.getElementById('latePermList');
   var badge = document.getElementById('latePermBadge');
   if (!list || !list.length) {
-    el.innerHTML = '<div style="text-align:center;padding:1rem;color:var(--text-muted);font-size:0.85rem;"><i class="fa-regular fa-calendar-check"></i> Gözləyən icazə tələbi yoxdur.</div>';
+    el.innerHTML = '<div class="req-empty"><i class="fa-regular fa-calendar-check"></i> Gözləyən icazə tələbi yoxdur.</div>';
     badge.style.display = 'none'; return;
   }
   var pending = list.filter(function(p){ return p.status==='pending'; }).length;
   badge.style.display = pending ? 'inline' : 'none';
   if (pending) badge.innerText = pending;
 
-  var ST = {
-    pending:  {bg:'rgba(245,158,11,0.08)',  cl:'#92400e', brd:'rgba(245,158,11,0.2)',  lbl:'Gözləyir'},
-    approved: {bg:'rgba(16,185,129,0.07)',  cl:'#065f46', brd:'rgba(16,185,129,0.15)', lbl:'Təsdiqləndi'},
-    rejected: {bg:'rgba(239,68,68,0.07)',   cl:'#991b1b', brd:'rgba(239,68,68,0.15)',  lbl:'Rədd edildi'}
-  };
+  var ST_LBL = { pending:'Gözləyir', approved:'Təsdiqləndi', rejected:'Rədd edildi' };
   el.innerHTML = list.map(function(p) {
-    var s = ST[p.status] || ST.pending;
-    var btns = p.status==='pending' ?
-      '<div style="display:flex;gap:6px;margin-top:8px;">' +
-        '<button onclick="actLatePerm(\''+p.permId+'\',\'approved\')" style="flex:1;padding:7px;background:rgba(16,185,129,0.1);color:#065f46;border:1px solid rgba(16,185,129,0.2);border-radius:9px;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:\'Inter\',sans-serif;"><i class="fa-solid fa-check"></i> Təsdiqlə</button>' +
-        '<button onclick="actLatePerm(\''+p.permId+'\',\'rejected\')" style="flex:1;padding:7px;background:rgba(239,68,68,0.07);color:#991b1b;border:1px solid rgba(239,68,68,0.15);border-radius:9px;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:\'Inter\',sans-serif;"><i class="fa-solid fa-xmark"></i> Rədd et</button>' +
-      '</div>' : '';
-    return '<div style="background:'+s.bg+';border:1px solid '+s.brd+';border-radius:12px;padding:0.75rem;margin-bottom:7px;">' +
-      '<div style="display:flex;justify-content:space-between;align-items:flex-start;">' +
-        '<div>' +
-          '<div style="font-weight:700;font-size:0.9rem;margin-bottom:2px;">'+p.empName+'</div>' +
-          '<div style="font-size:0.8rem;color:var(--text-muted);">📅 '+p.dateStr+'&nbsp;&nbsp;🕐 '+p.requestedTime+'</div>' +
-        '</div>' +
-        '<div style="font-size:0.75rem;font-weight:700;color:'+s.cl+';white-space:nowrap;margin-left:8px;">'+s.lbl+'</div>' +
-      '</div>' + btns +
+    var cls  = p.status === 'approved' ? 'approved' : p.status === 'rejected' ? 'rejected' : 'pending';
+    var btns = p.status === 'pending'
+      ? '<div class="req-act-btns">' +
+          '<button class="req-act-btn approve" onclick="actLatePerm(\''+p.permId+'\',\'approved\')"><i class="fa-solid fa-check"></i> Təsdiqlə</button>' +
+          '<button class="req-act-btn reject"  onclick="actLatePerm(\''+p.permId+'\',\'rejected\')"><i class="fa-solid fa-xmark"></i> Rədd et</button>' +
+        '</div>' : '';
+    return '<div class="req-row"><div class="req-row-left">' +
+      '<div class="req-row-name">' + p.empName + '</div>' +
+      '<div class="req-row-sub">📅 ' + p.dateStr + ' &nbsp;·&nbsp; 🕐 ' + p.requestedTime + '</div>' +
+      btns + '</div>' +
+      '<span class="req-badge ' + cls + '">' + (ST_LBL[p.status] || p.status) + '</span>' +
     '</div>';
   }).join('');
 }
@@ -671,6 +702,54 @@ function actLatePerm(permId, action) {
   google.script.run
     .withSuccessHandler(function(res) { if (res.success) loadLatePerms(); })
     .approveLatePerm(BRANCH_KEY, permId, action);
+}
+
+// ── Avans Tələbləri ──────────────────────────────────────────────
+function loadAvans() {
+  google.script.run.withSuccessHandler(renderAvans).getAvansForManager(BRANCH_KEY);
+}
+
+function renderAvans(list) {
+  var el    = document.getElementById('avansList');
+  var badge = document.getElementById('avansBadge');
+  if (!list || !list.length) {
+    el.innerHTML = '<div class="req-empty"><i class="fa-solid fa-money-bill-wave" style="opacity:0.25;display:block;font-size:1.5rem;margin-bottom:0.5rem;"></i>Avans tələbi yoxdur.</div>';
+    badge.style.display = 'none'; return;
+  }
+  var pending = list.filter(function(a){ return a.status === 'pending'; }).length;
+  badge.style.display = pending ? 'inline' : 'none';
+  if (pending) badge.innerText = pending;
+
+  var ST_LBL = { pending:'Gözləyir', approved:'Təsdiqləndi', rejected:'Rədd edildi', paid:'Ödənildi' };
+  el.innerHTML = list.map(function(a) {
+    var cls = a.status === 'approved' ? 'approved'
+            : a.status === 'rejected' ? 'rejected'
+            : a.status === 'paid'     ? 'paid'
+            : 'pending';
+    var dd = a.createdAt ? a.createdAt.slice(0,10).split('-').reverse().join('.') : a.dateStr;
+    var btns = a.status === 'pending'
+      ? '<div class="req-act-btns">' +
+          '<button class="req-act-btn approve" onclick="actAvans(\''+a.avansId+'\',\'approved\')"><i class="fa-solid fa-check"></i> Təsdiqlə</button>' +
+          '<button class="req-act-btn reject"  onclick="actAvans(\''+a.avansId+'\',\'rejected\')"><i class="fa-solid fa-xmark"></i> Rədd et</button>' +
+        '</div>'
+      : a.status === 'approved'
+        ? '<div class="req-act-btns"><button class="req-act-btn paid" onclick="actAvans(\''+a.avansId+'\',\'paid\')"><i class="fa-solid fa-money-bill-wave"></i> Ödənildi</button></div>'
+        : '';
+    return '<div class="req-row"><div class="req-row-left">' +
+      '<div class="req-row-name">' + a.empName + ' &nbsp;<span style="font-size:0.95rem;font-weight:800;color:var(--success);">' + a.amount + ' ₼</span></div>' +
+      (a.note ? '<div class="req-row-note">' + a.note + '</div>' : '') +
+      '<div class="req-row-sub">📅 ' + dd + '</div>' +
+      btns + '</div>' +
+      '<span class="req-badge ' + cls + '">' + (ST_LBL[a.status] || a.status) + '</span>' +
+    '</div>';
+  }).join('');
+}
+
+function actAvans(avansId, action) {
+  google.script.run
+    .withSuccessHandler(function(res) { if (res && res.success) loadAvans(); })
+    .withFailureHandler(function() {})
+    .updateAvansStatus(avansId, action);
 }
 
 function renderTable() {
