@@ -194,123 +194,36 @@ header{background:var(--surface);backdrop-filter:blur(30px);border:1px solid var
   <div class="dept-badge" id="deptBadge"><i class="fa-solid fa-briefcase"></i> <?= dept ?> — Menecer Paneli</div>
 </header>
 
-<!-- Tab bar -->
-<div class="tab-bar">
-  <button class="tab-btn" id="tabBtnSched" onclick="switchTab('sched')">
-    <i class="fa-solid fa-calendar-days"></i> Cədvəl
-  </button>
-  <button class="tab-btn active" id="tabBtnChecklist" onclick="switchTab('checklist')">
-    <i class="fa-solid fa-clipboard-check"></i> Çeklist
-  </button>
-  <button class="tab-btn" id="tabBtnWaste" onclick="switchTab('waste')">
-    <i class="fa-solid fa-box-archive"></i> Məhsullar
-  </button>
+<!-- Köməkçi üçün link paylaş -->
+<div class="share-card" id="shareCard">
+  <div class="share-card-hdr"><i class="fa-solid fa-share-nodes"></i> Köməkçiyə göndər</div>
+  <div class="share-url-row">
+    <div class="share-url-box" id="shareUrlBox"><i class="fa-solid fa-circle-notch fa-spin" style="color:var(--text-muted);font-size:0.8rem;"></i></div>
+    <button class="share-copy-btn" id="shareCopyBtn" onclick="copyClLink()" title="Kopyala">
+      <i class="fa-regular fa-copy" id="shareCopyIcon"></i>
+    </button>
+  </div>
+  <div class="share-hint"><i class="fa-solid fa-circle-info"></i> Bu link ilə köməkçiniz bilavasitə çeklisti idarə edə bilər</div>
 </div>
 
-<!-- ═══ TAB 1: CƏDVƏL ═══ -->
-<div class="tab-panel" id="panelSched">
+<div id="clLoader" class="cl-loader">
+  <i class="fa-solid fa-circle-notch fa-spin"></i>
+  <p>Çeklist yüklənir...</p>
+</div>
 
-  <!-- Menecer Mesajları -->
-  <div class="msg-card" id="mgrMsgCard">
-    <div class="msg-card-hdr"><i class="fa-solid fa-envelope-open-text"></i> Admindan Mesajlar</div>
-    <div id="mgrMsgGlobal"></div>
-    <div id="mgrMsgBranch"></div>
-  </div>
-
-  <!-- Menecer Davamiyyəti -->
-  <div class="mgr-card">
-    <div class="mgr-header"><i class="fa-solid fa-user-tie"></i> Menecer Davamiyyəti</div>
-    <div class="mgr-btns">
-      <button class="mgr-btn gelis" id="btnMgrGelis" onclick="mgrCheckin('GELIS')">
-        <i class="fa-solid fa-right-to-bracket"></i>
-        Gəldim
-      </button>
-      <button class="mgr-btn cixis" id="btnMgrCixis" onclick="mgrCheckin('CIXIS')">
-        <i class="fa-solid fa-right-from-bracket"></i>
-        Çıxdım
-      </button>
+<div id="clContent" style="display:none;">
+  <div class="cl-progress-card">
+    <div class="prog-header">
+      <div class="prog-label"><i class="fa-solid fa-chart-simple"></i> Günlük irəliləyiş</div>
+      <div class="prog-count"><span id="checkedCount">0</span> <span>/ <span id="totalCount">0</span></span></div>
     </div>
-    <div class="mgr-status" id="mgrStatus"></div>
+    <div class="prog-bar-wrap"><div class="prog-bar" id="progBar" style="width:0%"></div></div>
   </div>
+  <div id="clItemsWrap"></div>
+</div>
 
-  <!-- Smen məlumatları -->
-  <div class="card">
-    <div style="font-size:0.78rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:0.9rem;"><i class="fa-solid fa-clock"></i> Bu Filialın Smen Saatları</div>
-    <div class="shift-info-grid" id="shiftInfoGrid"></div>
-  </div>
-
-  <!-- Cədvəl -->
-  <div class="card">
-    <div class="sched-header">
-      <div class="week-nav">
-        <button onclick="changeWeek(-1)"><i class="fa-solid fa-chevron-left"></i></button>
-        <div class="week-label" id="weekLabel">—</div>
-        <button onclick="changeWeek(1)"><i class="fa-solid fa-chevron-right"></i></button>
-      </div>
-      <button class="btn" onclick="saveSched()"><i class="fa-solid fa-floppy-disk"></i> Saxla</button>
-    </div>
-    <div class="shift-legend">
-      <div class="leg-item"><span style="background:#dbeafe;color:#1e40af;padding:2px 7px;border-radius:5px;font-weight:700;">S</span> Səhər</div>
-      <div class="leg-item"><span style="background:#ede9fe;color:#5b21b6;padding:2px 7px;border-radius:5px;font-weight:700;">A</span> Axşam</div>
-      <div class="leg-item"><span style="background:#ffedd5;color:#9a3412;padding:2px 7px;border-radius:5px;font-weight:700;">F</span> Full</div>
-      <div class="leg-item"><span style="background:#fee2e2;color:#991b1b;padding:2px 7px;border-radius:5px;font-weight:700;">İ</span> İstirahət</div>
-    </div>
-    <div style="overflow-x:auto;">
-      <table class="sched-table" id="schedTable">
-        <thead><tr><th style="text-align:left;">İşçi</th></tr></thead>
-        <tbody></tbody>
-      </table>
-    </div>
-    <div class="result-box" id="resultBox"></div>
-  </div>
-
-</div><!-- /panelSched -->
-
-<!-- ═══ TAB 2: ÇEKELİST ═══ -->
-<div class="tab-panel active" id="panelChecklist">
-
-  <!-- Köməkçi üçün link paylaş -->
-  <div class="share-card" id="shareCard">
-    <div class="share-card-hdr"><i class="fa-solid fa-share-nodes"></i> Köməkçiyə göndər</div>
-    <div class="share-url-row">
-      <div class="share-url-box" id="shareUrlBox"><i class="fa-solid fa-circle-notch fa-spin" style="color:var(--text-muted);font-size:0.8rem;"></i></div>
-      <button class="share-copy-btn" id="shareCopyBtn" onclick="copyClLink()" title="Kopyala">
-        <i class="fa-regular fa-copy" id="shareCopyIcon"></i>
-      </button>
-    </div>
-    <div class="share-hint"><i class="fa-solid fa-circle-info"></i> Bu link ilə köməkçiniz bilavasitə çeklisti idarə edə bilər</div>
-  </div>
-
-  <div id="clLoader" class="cl-loader">
-    <i class="fa-solid fa-circle-notch fa-spin"></i>
-    <p>Çeklist yüklənir...</p>
-  </div>
-
-  <div id="clContent" style="display:none;">
-    <!-- İrəliləyiş -->
-    <div class="cl-progress-card">
-      <div class="prog-header">
-        <div class="prog-label"><i class="fa-solid fa-chart-simple"></i> Günlük irəliləyiş</div>
-        <div class="prog-count"><span id="checkedCount">0</span> <span>/ <span id="totalCount">0</span></span></div>
-      </div>
-      <div class="prog-bar-wrap"><div class="prog-bar" id="progBar" style="width:0%"></div></div>
-    </div>
-
-    <!-- Tapşırıqlar -->
-    <div id="clItemsWrap"></div>
-  </div>
-
-</div><!-- /panelChecklist -->
-
-<!-- ═══ TAB 3: MƏHSULLAR ═══ -->
-<div class="tab-panel" id="panelWaste">
-
-  <!-- Yükləyici -->
-  <div id="wasteLoader" class="waste-loader">
-    <i class="fa-solid fa-circle-notch fa-spin"></i>
-    <p>Məhsullar yüklənir...</p>
-  </div>
-
+<div style="display:none;" id="panelWaste">
+  <div id="wasteLoader"></div>
   <div id="wasteContent" style="display:none;">
 
     <!-- Xülasə + Tarix -->
