@@ -974,7 +974,20 @@ API.requestLatePerm = async (secret, dateStr, requestedTime) => {
 API.getLatePermsForManager = async (branchKey) => {
   const check = U.validateBranchScheduleKey(branchKey);
   if (!check.valid) return [];
-  const { data } = await sb.from('late_perms').select('*').eq('dept', check.dept).order('created_at',{ascending:false}).limit(30);
+
+  // Həm dept adına, həm də bu filialın işçi ID-lərinə görə filtrə et
+  const { data: empRows } = await sb.from('employees').select('id').eq('dept', check.dept);
+  const empIds = (empRows || []).map(e => String(e.id));
+
+  let query = sb.from('late_perms').select('*').order('created_at', { ascending: false }).limit(50);
+  if (empIds.length) {
+    // dept adı VEYA empId ilə uyğun gəlsə qəbul et
+    query = query.or(`dept.eq.${check.dept},emp_id.in.(${empIds.join(',')})`);
+  } else {
+    query = query.eq('dept', check.dept);
+  }
+
+  const { data } = await query;
   return (data||[]).map(r => ({
     permId:        r.perm_id,
     empId:         r.emp_id,
@@ -1126,9 +1139,18 @@ API.deleteAnnouncement = async (id) => {
 API.getAvansForManager = async (branchKey) => {
   const check = U.validateBranchScheduleKey(branchKey);
   if (!check.valid) return [];
-  const { data } = await sb.from('avans')
-    .select('*').eq('dept', check.dept)
-    .order('created_at', { ascending: false }).limit(50);
+
+  const { data: empRows } = await sb.from('employees').select('id').eq('dept', check.dept);
+  const empIds = (empRows || []).map(e => String(e.id));
+
+  let query = sb.from('avans').select('*').order('created_at', { ascending: false }).limit(50);
+  if (empIds.length) {
+    query = query.or(`dept.eq.${check.dept},emp_id.in.(${empIds.join(',')})`);
+  } else {
+    query = query.eq('dept', check.dept);
+  }
+
+  const { data } = await query;
   return (data || []).map(r => ({
     avansId:   r.avans_id,
     empName:   r.emp_name,
