@@ -638,14 +638,23 @@
     if (!window.isSecureContext) {
       alert('Kamera yalnız HTTPS bağlantısında işləyir.'); return;
     }
+    // Əvvəlki stream varsa bağla
+    if (_camStream) { _camStream.getTracks().forEach(function(t){ t.stop(); }); _camStream = null; }
+    clearInterval(_camInterval);
+
     navigator.mediaDevices.getUserMedia({
-      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }
+      video: { facingMode: { ideal: 'environment' } }
     }).then(function(stream) {
       _camStream = stream;
       var v = document.getElementById('qrCamVideo');
-      v.srcObject = stream; v.play();
+      v.srcObject = stream;
       document.getElementById('qrCamOverlay').classList.add('active');
-      _camInterval = setInterval(scanQRFrame, 250);
+      // Video tamamilə yüklənəndən sonra scan başlat
+      v.oncanplay = function() {
+        v.play();
+        clearInterval(_camInterval);
+        _camInterval = setInterval(scanQRFrame, 200);
+      };
     }).catch(function(err) {
       var msg = err.name === 'NotAllowedError' ? 'Kamera icazəsi rədd edildi.'
               : err.name === 'NotFoundError'   ? 'Kamera tapılmadı.'
@@ -657,22 +666,37 @@
   function stopQRScan() {
     clearInterval(_camInterval); _camInterval = null;
     if (_camStream) { _camStream.getTracks().forEach(function(t){ t.stop(); }); _camStream = null; }
+    var v = document.getElementById('qrCamVideo');
+    v.oncanplay = null; v.srcObject = null;
     document.getElementById('qrCamOverlay').classList.remove('active');
   }
 
   function scanQRFrame() {
     var v = document.getElementById('qrCamVideo');
-    if (v.readyState < v.HAVE_ENOUGH_DATA) return;
+    // Video hələ hazır deyilsə keç
+    if (!v.videoWidth || !v.videoHeight || v.paused || v.ended) return;
+
     var c = document.getElementById('qrCamCanvas');
-    c.width = v.videoWidth; c.height = v.videoHeight;
-    c.getContext('2d').drawImage(v, 0, 0);
-    var img = c.getContext('2d').getImageData(0, 0, c.width, c.height);
-    var code = jsQR(img.data, img.width, img.height, { inversionAttempts: 'dontInvert' });
-    if (!code) return;
+    if (c.width !== v.videoWidth || c.height !== v.videoHeight) {
+      c.width = v.videoWidth;
+      c.height = v.videoHeight;
+    }
+    var ctx = c.getContext('2d');
+    ctx.drawImage(v, 0, 0);
+    var img = ctx.getImageData(0, 0, c.width, c.height);
+    // attemptBoth — hər iki istiqaməti yoxla (ağ üstündə qara və ya əksi)
+    var code = jsQR(img.data, img.width, img.height, { inversionAttempts: 'attemptBoth' });
+    if (!code || !code.data) return;
+
     // Format: CM:Elmlər:1748521234567
-    var parts = code.data.split(':');
-    if (parts.length !== 3 || parts[0] !== 'CM') return;
-    var dept = parts[1], ts = parts[2];
+    var idx1 = code.data.indexOf(':');
+    var idx2 = code.data.indexOf(':', idx1 + 1);
+    if (idx1 < 0 || idx2 < 0) return;
+    var prefix = code.data.substring(0, idx1);
+    var dept   = code.data.substring(idx1 + 1, idx2);
+    var ts     = code.data.substring(idx2 + 1);
+    if (prefix !== 'CM' || !dept || !ts) return;
+
     stopQRScan();
     submitQRAttendance(dept, ts);
   }
