@@ -1013,6 +1013,89 @@ API.getMyLatePerms = async (secret) => {
   }));
 };
 
+// ── AVANS ────────────────────────────────────────────────────────
+
+API.requestAvans = async (secret, amount, note) => {
+  if (!secret) return { success: false, reason: 'İcazəsiz giriş.' };
+  const amt = parseFloat(amount);
+  if (!amt || amt <= 0 || amt > 1000) return { success: false, reason: 'Məbləğ 1–1000 AZN aralığında olmalıdır.' };
+
+  const { data: emp } = await sb.from('employees').select('id,name,dept').eq('secret', secret).single();
+  if (!emp) return { success: false, reason: 'İşçi tapılmadı.' };
+
+  // Eyni gün artıq tələb göndərilib?
+  const today = U.toYMD(new Date());
+  const { data: existing } = await sb.from('avans')
+    .select('status').eq('emp_id', String(emp.id)).eq('date_str', today).single();
+  if (existing && (existing.status === 'pending' || existing.status === 'approved')) {
+    return { success: false, reason: 'Bu gün üçün artıq avans tələbiniz mövcuddur.' };
+  }
+
+  const id = 'AV-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substring(2, 5).toUpperCase();
+  const { error } = await sb.from('avans').insert({
+    avans_id:   id,
+    emp_id:     String(emp.id),
+    emp_name:   emp.name,
+    dept:       emp.dept,
+    amount:     amt,
+    note:       (note || '').slice(0, 120),
+    status:     'pending',
+    date_str:   today,
+  });
+  if (error) { sbErr('requestAvans', error); return { success: false, reason: 'Xəta baş verdi.' }; }
+
+  await U.sendTelegramMsg(
+    `💵 <b>Avans Tələbi</b>\n\n👤 <b>${emp.name}</b> (${emp.dept})\n💰 Məbləğ: <b>${amt} AZN</b>` +
+    (note ? `\n📝 Qeyd: ${note}` : ''),
+    emp.dept
+  );
+  return { success: true };
+};
+
+API.getMyAvansList = async (secret) => {
+  if (!secret) return [];
+  const { data: emp } = await sb.from('employees').select('id').eq('secret', secret).single();
+  if (!emp) return [];
+  const { data } = await sb.from('avans')
+    .select('avans_id,amount,note,status,date_str,created_at')
+    .eq('emp_id', String(emp.id))
+    .order('created_at', { ascending: false })
+    .limit(10);
+  return (data || []).map(r => ({
+    avansId:   r.avans_id,
+    amount:    r.amount,
+    note:      r.note      || '',
+    status:    r.status,
+    dateStr:   r.date_str,
+    createdAt: r.created_at || '',
+  }));
+};
+
+// Admin üçün: bütün avans tələblərini al
+API.getAvansList = async () => {
+  const { data } = await sb.from('avans')
+    .select('*').order('created_at', { ascending: false }).limit(100);
+  return (data || []).map(r => ({
+    avansId:   r.avans_id,
+    empId:     r.emp_id,
+    empName:   r.emp_name,
+    dept:      r.dept,
+    amount:    r.amount,
+    note:      r.note      || '',
+    status:    r.status,
+    dateStr:   r.date_str,
+    createdAt: r.created_at || '',
+  }));
+};
+
+// Admin üçün: avans statusunu dəyişdir
+API.updateAvansStatus = async (avansId, status) => {
+  if (!['approved','rejected','paid'].includes(status))
+    return { success: false, reason: 'Yanlış status.' };
+  const { error } = await sb.from('avans').update({ status }).eq('avans_id', avansId);
+  return { success: !error };
+};
+
 // ── YENİLİKLƏR ───────────────────────────────────────────────────
 
 API.getAnnouncements = async () => {

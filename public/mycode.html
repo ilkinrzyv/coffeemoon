@@ -189,6 +189,36 @@
   .announce-accent.type-info    { background:#0ea5e9; }
   .announce-accent.type-success { background:#10b981; }
   .announce-accent.type-warning { background:#f59e0b; }
+
+  /* ── AVANS KARTI ── */
+  .avans-card { background:var(--card-bg); backdrop-filter:blur(30px); -webkit-backdrop-filter:blur(30px); border-radius:24px; box-shadow:var(--card-shadow); border:1px solid var(--border); overflow:hidden; }
+  .avans-card-header { padding:1.1rem 1.4rem 0.8rem; border-bottom:1px solid rgba(15,23,42,0.05); display:flex; align-items:center; gap:10px; }
+  .avans-header-icon { width:34px; height:34px; border-radius:10px; background:linear-gradient(135deg,#10b981,#059669); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .avans-header-icon i { color:#fff; font-size:0.9rem; }
+  .avans-card-body { padding:1.1rem 1.2rem 1.3rem; display:flex; flex-direction:column; gap:0.85rem; }
+  .avans-chips { display:grid; grid-template-columns:repeat(4,1fr); gap:7px; }
+  .avans-chip { padding:10px 4px; border:1.5px solid rgba(16,185,129,0.2); border-radius:12px; background:rgba(16,185,129,0.06); color:#065f46; font-size:0.88rem; font-weight:700; cursor:pointer; text-align:center; font-family:'Inter',sans-serif; transition:all 0.18s cubic-bezier(0.16,1,0.3,1); }
+  .avans-chip:hover { background:rgba(16,185,129,0.13); border-color:rgba(16,185,129,0.35); }
+  .avans-chip:active { transform:scale(0.94); }
+  .avans-chip.selected { background:rgba(16,185,129,0.15); border-color:#10b981; box-shadow:0 0 0 3px rgba(16,185,129,0.12); }
+  .avans-chip.other-chip { border-color:rgba(99,102,241,0.2); background:rgba(99,102,241,0.06); color:var(--primary); }
+  .avans-chip.other-chip:hover { background:rgba(99,102,241,0.13); border-color:rgba(99,102,241,0.35); }
+  .avans-chip.other-chip.selected { background:rgba(99,102,241,0.13); border-color:var(--primary); box-shadow:0 0 0 3px rgba(99,102,241,0.1); }
+  .avans-custom-wrap { display:none; }
+  .avans-custom-wrap.show { display:block; }
+  .avans-submit { width:100%; padding:12px; background:linear-gradient(135deg,#10b981,#059669); color:#fff; border:none; border-radius:12px; font-size:0.9rem; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:7px; font-family:'Inter',sans-serif; box-shadow:0 4px 14px rgba(16,185,129,0.3); transition:all 0.2s; }
+  .avans-submit:hover { box-shadow:0 6px 18px rgba(16,185,129,0.4); transform:translateY(-1px); }
+  .avans-submit:active { transform:translateY(0); }
+  .avans-submit:disabled { opacity:0.5; cursor:not-allowed; transform:none; box-shadow:none; }
+  .avans-status { font-size:0.82rem; font-weight:600; min-height:18px; text-align:center; }
+  .avans-history { margin-top:0.4rem; padding-top:0.8rem; border-top:1px solid rgba(15,23,42,0.06); }
+  .avans-history-title { font-size:0.68rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.8px; margin-bottom:8px; }
+  .avans-row { display:flex; align-items:center; justify-content:space-between; padding:8px 0; border-bottom:1px solid rgba(15,23,42,0.04); }
+  .avans-row:last-child { border-bottom:none; }
+  .avans-row-left { display:flex; flex-direction:column; gap:2px; }
+  .avans-row-amount { font-size:0.92rem; font-weight:700; color:var(--text-main); }
+  .avans-row-date { font-size:0.73rem; color:var(--text-muted); font-weight:500; }
+  .avans-row-note { font-size:0.75rem; color:var(--text-muted); font-weight:500; font-style:italic; margin-top:1px; }
 </style>
 </head>
 <body>
@@ -320,7 +350,7 @@
 
   </div>
 
-  <!-- PANEL 3: İCAZƏ (Gec gəliş icazəsi) -->
+  <!-- PANEL 3: İCAZƏ (Gec gəliş icazəsi + Avans) -->
   <div class="tab-panel" id="panel-icaze">
 
     <div class="icaze-card" id="latePermCard">
@@ -347,6 +377,48 @@
         </button>
         <div class="icaze-status" id="lpStatus"></div>
         <div class="icaze-history" id="lpList"></div>
+      </div>
+    </div>
+
+    <!-- Avans İstəyi -->
+    <div class="avans-card" id="avansCard">
+      <div class="avans-card-header">
+        <div class="avans-header-icon"><i class="fa-solid fa-money-bill-wave"></i></div>
+        <div>
+          <div class="week-card-title" style="font-size:0.8rem;color:var(--text-main);letter-spacing:0.5px;">Avans İstəyi</div>
+          <div style="font-size:0.72rem;color:var(--text-muted);font-weight:500;margin-top:2px;">Menecerə göndərilir</div>
+        </div>
+      </div>
+      <div class="avans-card-body">
+
+        <div>
+          <div class="icaze-field-label" style="margin-bottom:8px;">Məbləğ seçin (AZN)</div>
+          <div class="avans-chips">
+            <button class="avans-chip" onclick="selectAvansChip(this, 50)">50 ₼</button>
+            <button class="avans-chip" onclick="selectAvansChip(this, 100)">100 ₼</button>
+            <button class="avans-chip" onclick="selectAvansChip(this, 150)">150 ₼</button>
+            <button class="avans-chip other-chip" onclick="selectAvansChip(this, 'other')">Digər</button>
+          </div>
+        </div>
+
+        <div class="avans-custom-wrap" id="avansCustomWrap">
+          <div class="icaze-field-label">Məbləği daxil edin (AZN)</div>
+          <input type="number" id="avansCustomAmt" class="icaze-input" min="1" max="1000"
+                 placeholder="məs. 200" oninput="onAvansCustomInput()">
+        </div>
+
+        <div>
+          <div class="icaze-field-label">Qeyd (istəyə bağlı)</div>
+          <input type="text" id="avansNote" class="icaze-input" maxlength="120"
+                 placeholder="Səbəb və ya qısa məlumat...">
+        </div>
+
+        <button class="avans-submit" id="avansSubmitBtn" onclick="submitAvans()" disabled>
+          <i class="fa-solid fa-paper-plane"></i> Avans Tələbi Göndər
+        </button>
+        <div class="avans-status" id="avansStatus"></div>
+        <div class="avans-history" id="avansList"></div>
+
       </div>
     </div>
 
@@ -411,6 +483,7 @@
         }
 
         initLatePermCard();
+        loadMyAvans();
         setInterval(updateApp, 40);
         updateApp();
 
@@ -688,6 +761,117 @@
           '<div class="icaze-row-left">' + dd + ' &nbsp;·&nbsp; ' + p.requestedTime + '</div>' +
           '<div class="icaze-badge" style="color:' + s.color + ';"><i class="fa-solid ' + s.icon + '"></i> ' + s.lbl + '</div>' +
           '</div>';
+      }).join('');
+  }
+
+  // ── AVANS ────────────────────────────────────────────────────────
+  var _avansAmount = null;   // seçilmiş məbləğ (rəqəm və ya null)
+
+  function selectAvansChip(el, val) {
+    // hamısını sıfırla
+    document.querySelectorAll('.avans-chip').forEach(function(c){ c.classList.remove('selected'); });
+    el.classList.add('selected');
+
+    var customWrap = document.getElementById('avansCustomWrap');
+    var customInp  = document.getElementById('avansCustomAmt');
+    var submitBtn  = document.getElementById('avansSubmitBtn');
+
+    if (val === 'other') {
+      _avansAmount = null;
+      customWrap.classList.add('show');
+      customInp.focus();
+      submitBtn.disabled = true;
+    } else {
+      _avansAmount = val;
+      customWrap.classList.remove('show');
+      customInp.value = '';
+      submitBtn.disabled = false;
+    }
+  }
+
+  function onAvansCustomInput() {
+    var v = parseFloat(document.getElementById('avansCustomAmt').value);
+    var submitBtn = document.getElementById('avansSubmitBtn');
+    if (v > 0 && v <= 1000) {
+      _avansAmount = v;
+      submitBtn.disabled = false;
+    } else {
+      _avansAmount = null;
+      submitBtn.disabled = true;
+    }
+  }
+
+  function submitAvans() {
+    var stEl = document.getElementById('avansStatus');
+    if (!_avansAmount || _avansAmount <= 0) {
+      stEl.style.color = 'var(--danger)';
+      stEl.innerText   = 'Məbləği seçin.';
+      return;
+    }
+    var note    = (document.getElementById('avansNote').value || '').trim();
+    var btn     = document.getElementById('avansSubmitBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Göndərilir...';
+    stEl.innerText = '';
+    google.script.run
+      .withSuccessHandler(function(res) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Avans Tələbi Göndər';
+        if (res && res.success) {
+          stEl.style.color = 'var(--success)';
+          stEl.innerHTML   = '<i class="fa-solid fa-check"></i> Göndərildi! Menecer təsdiq gözlənilir.';
+          // formu sıfırla
+          _avansAmount = null;
+          document.querySelectorAll('.avans-chip').forEach(function(c){ c.classList.remove('selected'); });
+          document.getElementById('avansCustomWrap').classList.remove('show');
+          document.getElementById('avansCustomAmt').value = '';
+          document.getElementById('avansNote').value      = '';
+          btn.disabled = true;
+          loadMyAvans();
+          setTimeout(function(){ stEl.innerText = ''; }, 5000);
+        } else {
+          stEl.style.color = 'var(--danger)';
+          stEl.innerText   = (res && res.reason) || 'Xəta baş verdi.';
+          btn.disabled = (_avansAmount == null);
+        }
+      })
+      .withFailureHandler(function() {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Avans Tələbi Göndər';
+        stEl.style.color = 'var(--danger)';
+        stEl.innerText   = 'Sistem xətası.';
+      })
+      .requestAvans(SECRET, _avansAmount, note);
+  }
+
+  function loadMyAvans() {
+    google.script.run
+      .withSuccessHandler(renderMyAvans)
+      .withFailureHandler(function(){})
+      .getMyAvansList(SECRET);
+  }
+
+  function renderMyAvans(list) {
+    var el = document.getElementById('avansList');
+    if (!list || !list.length) { el.innerHTML = ''; return; }
+    var ST = {
+      pending:  { color:'var(--warning)', lbl:'Gözləyir',    icon:'fa-hourglass-half' },
+      approved: { color:'var(--success)', lbl:'Təsdiqləndi', icon:'fa-check-circle'   },
+      rejected: { color:'var(--danger)',  lbl:'Rədd edildi', icon:'fa-times-circle'   },
+      paid:     { color:'var(--primary)', lbl:'Ödənildi',    icon:'fa-money-bill-wave'}
+    };
+    el.innerHTML = '<div class="avans-history-title">Əvvəlki tələblər</div>' +
+      list.map(function(a) {
+        var s  = ST[a.status] || ST.pending;
+        var dd = a.createdAt ? a.createdAt.slice(0,10).split('-').reverse().join('.') : '';
+        return '<div class="avans-row">' +
+          '<div class="avans-row-left">' +
+            '<div class="avans-row-amount">' + a.amount + ' ₼</div>' +
+            (a.note ? '<div class="avans-row-note">' + a.note + '</div>' : '') +
+            '<div class="avans-row-date">' + dd + '</div>' +
+          '</div>' +
+          '<div class="icaze-badge" style="color:' + s.color + ';"><i class="fa-solid ' + s.icon + '"></i> ' + s.lbl + '</div>' +
+        '</div>';
       }).join('');
   }
 

@@ -18,6 +18,7 @@ DROP TABLE IF EXISTS late_perms CASCADE;
 DROP TABLE IF EXISTS announcements CASCADE;
 DROP TABLE IF EXISTS employees CASCADE;
 DROP TABLE IF EXISTS settings CASCADE;
+DROP TABLE IF EXISTS avans CASCADE;
 
 -- İşçilər
 CREATE TABLE employees (
@@ -174,6 +175,19 @@ CREATE TABLE announcements (
 CREATE TABLE settings (
   key   TEXT PRIMARY KEY,
   value TEXT DEFAULT ''
+);
+
+-- Avans tələbləri
+CREATE TABLE avans (
+  avans_id   TEXT PRIMARY KEY,
+  emp_id     TEXT NOT NULL,
+  emp_name   TEXT NOT NULL,
+  dept       TEXT DEFAULT '',
+  amount     NUMERIC(8,2) NOT NULL,
+  note       TEXT DEFAULT '',
+  status     TEXT DEFAULT 'pending',   -- pending | approved | rejected | paid
+  date_str   TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- Default çeklist elementləri
