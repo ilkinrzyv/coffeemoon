@@ -6,7 +6,28 @@
 <title>Coffeemoon - Giriş Paneli</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <style>
+  /* ── QR KAMERA OVERLAY ── */
+  .qr-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:#000;z-index:200;display:none;flex-direction:column;align-items:center;justify-content:center;}
+  .qr-overlay.active{display:flex;}
+  .qr-video{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;}
+  .qr-shade{position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);}
+  .qr-frame{position:relative;width:230px;height:230px;z-index:1;}
+  .qr-frame-box{width:100%;height:100%;border-radius:18px;box-shadow:0 0 0 9999px rgba(0,0,0,0.52);}
+  .qr-corner{position:absolute;width:28px;height:28px;border-color:#fff;border-style:solid;}
+  .qr-corner.tl{top:0;left:0;border-width:3px 0 0 3px;border-radius:6px 0 0 0;}
+  .qr-corner.tr{top:0;right:0;border-width:3px 3px 0 0;border-radius:0 6px 0 0;}
+  .qr-corner.bl{bottom:0;left:0;border-width:0 0 3px 3px;border-radius:0 0 0 6px;}
+  .qr-corner.br{bottom:0;right:0;border-width:0 3px 3px 0;border-radius:0 0 6px 0;}
+  .qr-scan-line{position:absolute;left:6px;right:6px;height:2px;background:linear-gradient(90deg,transparent,#6366f1,transparent);animation:scanLine 2s linear infinite;}
+  @keyframes scanLine{0%{top:6px}100%{top:calc(100% - 8px)}}
+  .qr-hint{position:relative;z-index:1;margin-top:24px;color:rgba(255,255,255,0.85);font-size:0.88rem;font-weight:600;text-align:center;letter-spacing:0.3px;}
+  .qr-cancel-btn{position:relative;z-index:1;margin-top:20px;padding:12px 32px;background:rgba(255,255,255,0.12);color:#fff;border:1px solid rgba(255,255,255,0.25);border-radius:14px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;backdrop-filter:blur(10px);}
+  /* ── QR SCAN DÜYMƏSİ ── */
+  .btn-qr{margin-top:16px;width:100%;padding:14px;background:rgba(99,102,241,0.06);color:var(--primary);border:1.5px solid rgba(99,102,241,0.2);border-radius:18px;font-size:0.9rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:9px;font-family:'Inter',sans-serif;transition:all 0.2s;}
+  .btn-qr:hover{background:rgba(99,102,241,0.1);}
+  .btn-qr:active{transform:scale(0.97);}
   :root{--bg:#f8fafc;--card-bg:rgba(255,255,255,0.75);--primary:#6366f1;--primary-light:rgba(99,102,241,0.08);--success:#10b981;--success-light:rgba(16,185,129,0.08);--danger:#ef4444;--danger-light:rgba(239,68,68,0.08);--warning:#f59e0b;--warning-light:rgba(245,158,11,0.08);--text-main:#0f172a;--text-muted:#64748b;--border:rgba(255,255,255,0.6);--card-shadow:0 30px 60px -15px rgba(15,23,42,0.08),0 0 0 1px rgba(15,23,42,0.04);}
   *{box-sizing:border-box;margin:0;padding:0;touch-action:manipulation;font-family:'Inter',sans-serif;-webkit-font-smoothing:antialiased;}
   body{background:var(--bg);color:var(--text-main);display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:20px;overflow:hidden;position:relative;}
@@ -87,7 +108,23 @@
       <button class="num-btn" onclick="press('0')">0</button>
       <button class="num-btn action ok" onclick="submitPin()"><i class="fa-solid fa-check"></i></button>
     </div>
+    <button class="btn-qr" onclick="startQRScan()"><i class="fa-solid fa-qrcode"></i> QR Kamera ilə Tara</button>
   </div>
+</div>
+
+<!-- QR Kamera Overlay -->
+<div class="qr-overlay" id="qrOverlay">
+  <video id="qrVideo" playsinline autoplay muted></video>
+  <canvas id="qrCanvas" style="display:none;"></canvas>
+  <div class="qr-shade"></div>
+  <div class="qr-frame">
+    <div class="qr-frame-box"></div>
+    <div class="qr-corner tl"></div><div class="qr-corner tr"></div>
+    <div class="qr-corner bl"></div><div class="qr-corner br"></div>
+    <div class="qr-scan-line"></div>
+  </div>
+  <div class="qr-hint" id="qrHint"><i class="fa-solid fa-mobile-screen-button"></i> İşçinin telefon ekranını göstərin</div>
+  <button class="qr-cancel-btn" onclick="stopQRScan()"><i class="fa-solid fa-xmark"></i> Ləğv et</button>
 </div>
 <div class="result-overlay" id="resOverlay">
   <div class="res-icon" id="resIcon"></div>
@@ -278,6 +315,63 @@ function confirmWarning(){
 function cancelWarning(){
   document.getElementById('warnOverlay').classList.remove('show');
   resetAll();
+}
+
+// ── QR KAMERA ────────────────────────────────────────────────────
+var _qrStream=null, _qrInterval=null;
+
+function startQRScan(){
+  if(isProcessing)return;
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
+    showError('Bu cihaz kamera dəstəkləmir.');return;
+  }
+  if(!window.isSecureContext){
+    showError('Kamera yalnız HTTPS bağlantısında işləyir.');return;
+  }
+  navigator.mediaDevices.getUserMedia({
+    video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}}
+  }).then(function(stream){
+    _qrStream=stream;
+    var v=document.getElementById('qrVideo');
+    v.srcObject=stream;
+    v.play();
+    document.getElementById('qrOverlay').classList.add('active');
+    _qrInterval=setInterval(scanQRFrame,250);
+  }).catch(function(err){
+    var msg=err.name==='NotAllowedError'?'Kamera icazəsi rədd edildi.'
+          :err.name==='NotFoundError'?'Kamera tapılmadı.'
+          :'Kamera xətası: '+err.message;
+    showError(msg);
+  });
+}
+
+function stopQRScan(){
+  clearInterval(_qrInterval);_qrInterval=null;
+  if(_qrStream){_qrStream.getTracks().forEach(function(t){t.stop();});_qrStream=null;}
+  document.getElementById('qrOverlay').classList.remove('active');
+}
+
+function scanQRFrame(){
+  var v=document.getElementById('qrVideo');
+  if(v.readyState<v.HAVE_ENOUGH_DATA)return;
+  var c=document.getElementById('qrCanvas');
+  c.width=v.videoWidth;c.height=v.videoHeight;
+  c.getContext('2d').drawImage(v,0,0);
+  var img=c.getContext('2d').getImageData(0,0,c.width,c.height);
+  var code=jsQR(img.data,img.width,img.height,{inversionAttempts:'dontInvert'});
+  if(code&&/^\d{4}$/.test(code.data)){
+    stopQRScan();
+    currentPin=code.data;
+    updateDisplay();
+    isProcessing=true;
+    statusEl.innerHTML="<i class='fa-solid fa-circle-notch fa-spin'></i> Şəbəkə yoxlanılır...";
+    statusEl.style.color='var(--primary)';
+    var t=setTimeout(function(){doValidate('',false);},3000);
+    fetch('https://api.ipify.org?format=json')
+      .then(function(r){return r.json();})
+      .then(function(d){clearTimeout(t);doValidate(d.ip||'',false);})
+      .catch(function(){clearTimeout(t);doValidate('',false);});
+  }
 }
 </script>
 </body>

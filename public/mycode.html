@@ -6,7 +6,10 @@
 <title>Coffeemoon İşçi Kartı</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
+  #qrContainer { display:flex; justify-content:center; margin:10px 0 6px; }
+  #qrContainer canvas, #qrContainer img { border-radius:14px; box-shadow:0 4px 16px rgba(15,23,42,0.08); }
   :root {
     --bg: #f8fafc; --card-bg: rgba(255,255,255,0.75);
     --primary: #6366f1; --primary-light: rgba(99,102,241,0.08);
@@ -230,10 +233,11 @@
       </div>
       <div class="late-warning-box" id="lateWarningBox"><i class="fa-solid fa-triangle-exclamation"></i> Smenə gecikmisiniz!</div>
       <div class="pin-lbl-container">
-        <div class="pin-lbl">Dinamik Kod</div>
+        <div class="pin-lbl">Dinamik QR Kod</div>
         <div class="ten-sec-timer" id="tenSecTimer">10.0s</div>
       </div>
-      <div class="pin" id="pinDisplay">----</div>
+      <div id="qrContainer"></div>
+      <div class="pin" id="pinDisplay" style="font-size:2rem;letter-spacing:8px;margin:4px 0 0 8px;opacity:0.45;"></div>
       <div class="progress-bg"><div class="progress-fill" id="pFill"></div></div>
     </div>
     <div class="ticket-footer" id="ticketFooter" style="display:none;">
@@ -563,11 +567,27 @@
     document.getElementById('lateWarningBox').style.display = (tot > lim) ? 'flex' : 'none';
   }
 
+  // ── QR KOD ───────────────────────────────────────────────────────
+  var _lastQrTw = -1;
+
+  function updateQR(pin) {
+    var el = document.getElementById('qrContainer');
+    el.innerHTML = '';
+    new QRCode(el, {
+      text: pin,
+      width: 190, height: 190,
+      colorDark: '#0f172a', colorLight: '#ffffff',
+      correctLevel: QRCode.CorrectLevel.M,
+    });
+  }
+
   // ── PİN & SESSION ────────────────────────────────────────────────
   function updateApp() {
     if (!SECRET || !isSessionActive) return;
     var now = Date.now(), cW = Math.floor(now / TIME_STEP);
-    document.getElementById('pinDisplay').innerText = generateDynamicPin(SECRET, cW);
+    var pin = generateDynamicPin(SECRET, cW);
+    document.getElementById('pinDisplay').innerText = pin;
+    if (cW !== _lastQrTw) { _lastQrTw = cW; updateQR(pin); }
     var msLeftPin = TIME_STEP - (now % TIME_STEP), secLeft = msLeftPin / 1000;
     document.getElementById('tenSecTimer').innerText = secLeft.toFixed(1) + 's';
     var fill = document.getElementById('pFill');
