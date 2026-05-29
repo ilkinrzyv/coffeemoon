@@ -967,29 +967,37 @@ API.requestLatePerm = async (secret, dateStr, requestedTime) => {
   const { data: existing } = await sb.from('late_perms').select('status').eq('emp_id', String(emp.id)).eq('date_str', dateStr).single();
   if (existing && (existing.status==='pending'||existing.status==='approved')) return { success:false, reason:'Bu tarix üçün artıq icazəniz mövcuddur.' };
   const permId = 'LP-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substring(2,5).toUpperCase();
-  await sb.from('late_perms').insert({ perm_id: permId, emp_id:emp.id, emp_name:emp.name, dept:emp.dept, date_str:dateStr, requested_time:requestedTime, status:'pending' });
+  const deptNorm = U.slugToDept(U.deptToSlug(emp.dept)) || emp.dept;
+  await sb.from('late_perms').insert({ perm_id: permId, emp_id:emp.id, emp_name:emp.name, dept:deptNorm, date_str:dateStr, requested_time:requestedTime, status:'pending' });
   return { success:true, permId };
 };
+
+// Filialın bütün işçi ID-lərini topla — həm exact, həm prefix match
+async function getBranchEmpIds(dept) {
+  const prefix = dept.substring(0, 5);  // "Gəncl" ← "Gənclik" / "Gənclk" hər ikisini tutur
+  const { data } = await sb.from('employees').select('id,dept');
+  return (data || [])
+    .filter(e => e.dept === dept || (e.dept && e.dept.startsWith(prefix)))
+    .map(e => String(e.id));
+}
 
 API.getLatePermsForManager = async (branchKey) => {
   const check = U.validateBranchScheduleKey(branchKey);
   if (!check.valid) return [];
 
-  // İki ayrı sorğu: dept adına görə VƏ filialın işçi ID-lərinə görə
-  // (dept string-ində xüsusi hərflər olduğu üçün .or() işlətmirik)
-  const { data: empRows } = await sb.from('employees').select('id').eq('dept', check.dept);
-  const empIds = (empRows || []).map(e => String(e.id));
+  const empIds = await getBranchEmpIds(check.dept);
 
   const [{ data: byDept }, { data: byEmpId }] = await Promise.all([
+    // 1) Exact dept match
     sb.from('late_perms').select('*').eq('dept', check.dept)
       .order('created_at', { ascending: false }).limit(50),
+    // 2) emp_id üzrə — dept string fərqi olsa belə işləyir
     empIds.length
       ? sb.from('late_perms').select('*').in('emp_id', empIds)
           .order('created_at', { ascending: false }).limit(50)
       : Promise.resolve({ data: [] }),
   ]);
 
-  // Birləşdir, təkrarları sil (perm_id-ə görə)
   const seen = new Set();
   const merged = [...(byDept || []), ...(byEmpId || [])].filter(r => {
     if (seen.has(r.perm_id)) return false;
@@ -1057,11 +1065,12 @@ API.requestAvans = async (secret, amount, note) => {
   }
 
   const id = 'AV-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substring(2, 5).toUpperCase();
+  const deptNorm = U.slugToDept(U.deptToSlug(emp.dept)) || emp.dept;
   const { error } = await sb.from('avans').insert({
     avans_id:   id,
     emp_id:     String(emp.id),
     emp_name:   emp.name,
-    dept:       emp.dept,
+    dept:       deptNorm,
     amount:     amt,
     note:       (note || '').slice(0, 120),
     status:     'pending',
@@ -1153,8 +1162,7 @@ API.getAvansForManager = async (branchKey) => {
   const check = U.validateBranchScheduleKey(branchKey);
   if (!check.valid) return [];
 
-  const { data: empRows } = await sb.from('employees').select('id').eq('dept', check.dept);
-  const empIds = (empRows || []).map(e => String(e.id));
+  const empIds = await getBranchEmpIds(check.dept);
 
   const [{ data: byDept }, { data: byEmpId }] = await Promise.all([
     sb.from('avans').select('*').eq('dept', check.dept)
