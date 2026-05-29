@@ -631,6 +631,11 @@
   // ── QR KAMERA (filial QR-ini skan et) ───────────────────────────
   var _camStream = null, _camInterval = null;
 
+  function setQrHint(html) {
+    var el = document.getElementById('qrCamHint');
+    if (el) el.innerHTML = html;
+  }
+
   function startQRScan() {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       alert('Bu cihaz kamera dəstəkləmir.'); return;
@@ -638,27 +643,35 @@
     if (!window.isSecureContext) {
       alert('Kamera yalnız HTTPS bağlantısında işləyir.'); return;
     }
+    if (typeof jsQR === 'undefined') {
+      alert('jsQR kitabxanası yüklənməyib. Səhifəni bağlayıb yenidən açın.'); return;
+    }
     if (_camStream) { _camStream.getTracks().forEach(function(t){ t.stop(); }); _camStream = null; }
     clearInterval(_camInterval);
-
     setQrHint('<i class="fa-solid fa-circle-notch fa-spin"></i> Kamera açılır...');
 
-    navigator.mediaDevices.getUserMedia({
-      video: { facingMode: { ideal: 'environment' } }
-    }).then(function(stream) {
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } } })
+    .then(function(stream) {
       _camStream = stream;
       var v = document.getElementById('qrCamVideo');
       v.srcObject = stream;
       v.play().catch(function(){});
       document.getElementById('qrCamOverlay').classList.add('active');
-      // oncanplay-ə gözləmə yox — birbaşa interval, guard içəridə
-      _camInterval = setInterval(scanQRFrame, 150);
-      setQrHint('<i class="fa-solid fa-tv"></i> Filial ekranındakı QR koda tuşlayın');
+      var frameCount = 0;
+      _camInterval = setInterval(function() {
+        frameCount++;
+        // Hər 20 frame-də bir (3 saniyə) hazırlıq vəziyyətini göstər
+        if (frameCount % 20 === 0) {
+          var vw = v.videoWidth, vh = v.videoHeight;
+          setQrHint('<i class="fa-solid fa-tv"></i> QR axtarılır… (' + (vw||'?') + 'x' + (vh||'?') + ')');
+        }
+        scanQRFrame(v, frameCount);
+      }, 150);
     }).catch(function(err) {
-      var msg = err.name === 'NotAllowedError' ? 'Kamera icazəsi rədd edildi.'
-              : err.name === 'NotFoundError'   ? 'Kamera tapılmadı.'
-              : 'Kamera xətası: ' + err.message;
-      setQrHint('<i class="fa-solid fa-triangle-exclamation"></i> ' + msg);
+      setQrHint('<i class="fa-solid fa-triangle-exclamation"></i> ' +
+        (err.name === 'NotAllowedError' ? 'Kamera icazəsi rədd edildi.'
+       : err.name === 'NotFoundError'   ? 'Kamera tapılmadı.'
+       : 'Xəta: ' + err.message));
     });
   }
 
@@ -668,55 +681,50 @@
     var v = document.getElementById('qrCamVideo');
     v.srcObject = null;
     document.getElementById('qrCamOverlay').classList.remove('active');
-    // Çərçivə rəngini sıfırla
     document.getElementById('qrCamFrame').style.filter = '';
     document.getElementById('qrCamLine').style.display = '';
   }
 
-  function setQrHint(html) {
-    var el = document.getElementById('qrCamHint');
-    if (el) el.innerHTML = html;
-  }
+  function scanQRFrame(v, frameCount) {
+    try {
+      if (!v.videoWidth || !v.videoHeight) return;
 
-  function scanQRFrame() {
-    var v = document.getElementById('qrCamVideo');
-    if (!v.videoWidth || !v.videoHeight) return;
+      var c = document.getElementById('qrCamCanvas');
+      c.width  = v.videoWidth;
+      c.height = v.videoHeight;
+      var ctx = c.getContext('2d');
+      ctx.drawImage(v, 0, 0);
+      var img  = ctx.getImageData(0, 0, c.width, c.height);
+      var code = jsQR(img.data, img.width, img.height, { inversionAttempts: 'attemptBoth' });
 
-    var c = document.getElementById('qrCamCanvas');
-    c.width  = v.videoWidth;
-    c.height = v.videoHeight;
-    var ctx = c.getContext('2d');
-    ctx.drawImage(v, 0, 0);
+      if (!code || !code.data) return;
 
-    var img  = ctx.getImageData(0, 0, c.width, c.height);
-    var code = jsQR(img.data, img.width, img.height, { inversionAttempts: 'attemptBoth' });
+      // Hər hansı QR aşkar edildi
+      setQrHint('<i class="fa-solid fa-check-circle" style="color:#10b981"></i> QR oxundu...');
+      document.getElementById('qrCamFrame').style.filter = 'drop-shadow(0 0 12px #10b981)';
+      document.getElementById('qrCamLine').style.display = 'none';
 
-    if (!code || !code.data) return;
+      var idx1 = code.data.indexOf(':');
+      var idx2 = code.data.lastIndexOf(':');
+      if (idx1 < 0 || idx2 <= idx1 || code.data.substring(0, idx1) !== 'CM') {
+        // Bizim olmayan QR
+        setTimeout(function() {
+          document.getElementById('qrCamFrame').style.filter = '';
+          document.getElementById('qrCamLine').style.display = '';
+          setQrHint('<i class="fa-solid fa-tv"></i> QR axtarılır...');
+        }, 600);
+        return;
+      }
 
-    // QR aşkar edildi — vizual feedback
-    var frame = document.getElementById('qrCamFrame');
-    frame.style.filter = 'drop-shadow(0 0 12px #10b981)';
-    document.getElementById('qrCamLine').style.display = 'none';
-    setQrHint('<i class="fa-solid fa-check-circle" style="color:#10b981"></i> QR oxundu, yoxlanılır...');
+      var dept = code.data.substring(idx1 + 1, idx2);
+      var ts   = code.data.substring(idx2 + 1);
+      stopQRScan();
+      submitQRAttendance(dept, ts);
 
-    // Format: CM:dept:timestamp
-    var idx1 = code.data.indexOf(':');
-    var idx2 = code.data.indexOf(':', idx1 + 1);
-    if (idx1 < 0 || idx2 < 0 || code.data.substring(0, idx1) !== 'CM') {
-      // Bizim QR deyil — sıfırla
-      setTimeout(function(){
-        if (frame) frame.style.filter = '';
-        document.getElementById('qrCamLine').style.display = '';
-        setQrHint('<i class="fa-solid fa-tv"></i> Filial ekranındakı QR koda tuşlayın');
-      }, 800);
-      return;
+    } catch(e) {
+      // Xətanı görünür et — interval öldürülmür, amma problem göstərilir
+      setQrHint('<i class="fa-solid fa-triangle-exclamation"></i> Xəta: ' + e.message);
     }
-
-    var dept = code.data.substring(idx1 + 1, idx2);
-    var ts   = code.data.substring(idx2 + 1);
-
-    stopQRScan();
-    submitQRAttendance(dept, ts);
   }
 
   function submitQRAttendance(dept, ts) {
