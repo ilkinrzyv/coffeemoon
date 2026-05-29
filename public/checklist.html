@@ -196,10 +196,10 @@ header{background:var(--surface);backdrop-filter:blur(30px);border:1px solid var
 
 <!-- Tab bar -->
 <div class="tab-bar">
-  <button class="tab-btn active" id="tabBtnSched" onclick="switchTab('sched')">
+  <button class="tab-btn" id="tabBtnSched" onclick="switchTab('sched')">
     <i class="fa-solid fa-calendar-days"></i> Cədvəl
   </button>
-  <button class="tab-btn" id="tabBtnChecklist" onclick="switchTab('checklist')">
+  <button class="tab-btn active" id="tabBtnChecklist" onclick="switchTab('checklist')">
     <i class="fa-solid fa-clipboard-check"></i> Çeklist
   </button>
   <button class="tab-btn" id="tabBtnWaste" onclick="switchTab('waste')">
@@ -208,7 +208,7 @@ header{background:var(--surface);backdrop-filter:blur(30px);border:1px solid var
 </div>
 
 <!-- ═══ TAB 1: CƏDVƏL ═══ -->
-<div class="tab-panel active" id="panelSched">
+<div class="tab-panel" id="panelSched">
 
   <!-- Menecer Mesajları -->
   <div class="msg-card" id="mgrMsgCard">
@@ -267,7 +267,7 @@ header{background:var(--surface);backdrop-filter:blur(30px);border:1px solid var
 </div><!-- /panelSched -->
 
 <!-- ═══ TAB 2: ÇEKELİST ═══ -->
-<div class="tab-panel" id="panelChecklist">
+<div class="tab-panel active" id="panelChecklist">
 
   <!-- Köməkçi üçün link paylaş -->
   <div class="share-card" id="shareCard">
@@ -936,8 +936,8 @@ function saveWaste() {
 }
 
 // ── İlkin yükləmə ────────────────────────────────────────────────
-renderShiftInfo();
-loadSched();
+_clLoaded = true;
+loadChecklist();
 </script>
 </body>
 </html>
