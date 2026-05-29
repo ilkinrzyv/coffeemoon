@@ -6,48 +6,18 @@
 <title>Coffeemoon - Giriş Paneli</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
-  /* ── QR KAMERA OVERLAY ── */
-  .qr-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:#000;z-index:200;display:none;flex-direction:column;align-items:center;justify-content:center;}
-  .qr-overlay.active{display:flex;}
-  .qr-video{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;}
-  .qr-shade{position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);}
-  .qr-frame{position:relative;width:230px;height:230px;z-index:1;}
-  .qr-frame-box{width:100%;height:100%;border-radius:18px;box-shadow:0 0 0 9999px rgba(0,0,0,0.52);}
-  .qr-corner{position:absolute;width:28px;height:28px;border-color:#fff;border-style:solid;}
-  .qr-corner.tl{top:0;left:0;border-width:3px 0 0 3px;border-radius:6px 0 0 0;}
-  .qr-corner.tr{top:0;right:0;border-width:3px 3px 0 0;border-radius:0 6px 0 0;}
-  .qr-corner.bl{bottom:0;left:0;border-width:0 0 3px 3px;border-radius:0 0 0 6px;}
-  .qr-corner.br{bottom:0;right:0;border-width:0 3px 3px 0;border-radius:0 0 6px 0;}
-  .qr-scan-line{position:absolute;left:6px;right:6px;height:2px;background:linear-gradient(90deg,transparent,#6366f1,transparent);animation:scanLine 2s linear infinite;}
-  @keyframes scanLine{0%{top:6px}100%{top:calc(100% - 8px)}}
-  .qr-hint{position:relative;z-index:1;margin-top:24px;color:rgba(255,255,255,0.85);font-size:0.88rem;font-weight:600;text-align:center;letter-spacing:0.3px;}
-  .qr-cancel-btn{position:relative;z-index:1;margin-top:20px;padding:12px 32px;background:rgba(255,255,255,0.12);color:#fff;border:1px solid rgba(255,255,255,0.25);border-radius:14px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;backdrop-filter:blur(10px);}
-  /* ── QR SCAN DÜYMƏSİ ── */
-  .btn-qr{margin-top:16px;width:100%;padding:14px;background:rgba(99,102,241,0.06);color:var(--primary);border:1.5px solid rgba(99,102,241,0.2);border-radius:18px;font-size:0.9rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:9px;font-family:'Inter',sans-serif;transition:all 0.2s;}
-  .btn-qr:hover{background:rgba(99,102,241,0.1);}
-  .btn-qr:active{transform:scale(0.97);}
   :root{--bg:#f8fafc;--card-bg:rgba(255,255,255,0.75);--primary:#6366f1;--primary-light:rgba(99,102,241,0.08);--success:#10b981;--success-light:rgba(16,185,129,0.08);--danger:#ef4444;--danger-light:rgba(239,68,68,0.08);--warning:#f59e0b;--warning-light:rgba(245,158,11,0.08);--text-main:#0f172a;--text-muted:#64748b;--border:rgba(255,255,255,0.6);--card-shadow:0 30px 60px -15px rgba(15,23,42,0.08),0 0 0 1px rgba(15,23,42,0.04);}
   *{box-sizing:border-box;margin:0;padding:0;touch-action:manipulation;font-family:'Inter',sans-serif;-webkit-font-smoothing:antialiased;}
   body{background:var(--bg);color:var(--text-main);display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:20px;overflow:hidden;position:relative;}
   .glow-1{position:fixed;top:-15%;left:-10%;width:60vw;height:60vw;background:#e0e7ff;border-radius:50%;filter:blur(120px);opacity:0.7;z-index:0;}
   .glow-2{position:fixed;bottom:-15%;right:-10%;width:60vw;height:60vw;background:#fae8ff;border-radius:50%;filter:blur(120px);opacity:0.6;z-index:0;}
-  .terminal{background:var(--card-bg);backdrop-filter:blur(30px);-webkit-backdrop-filter:blur(30px);border:1px solid var(--border);padding:3rem 2.5rem;border-radius:36px;box-shadow:var(--card-shadow);width:100%;max-width:400px;text-align:center;position:relative;z-index:1;}
-  .brand-logo{font-size:1.15rem;font-weight:800;color:var(--text-main);letter-spacing:4px;margin-bottom:2.5rem;display:flex;justify-content:center;align-items:center;gap:10px;text-transform:uppercase;}
+  .terminal{background:var(--card-bg);backdrop-filter:blur(30px);-webkit-backdrop-filter:blur(30px);border:1px solid var(--border);padding:2.5rem 2rem;border-radius:36px;box-shadow:var(--card-shadow);width:100%;max-width:400px;text-align:center;position:relative;z-index:1;}
+  .brand-logo{font-size:1.15rem;font-weight:800;color:var(--text-main);letter-spacing:4px;margin-bottom:2rem;display:flex;justify-content:center;align-items:center;gap:10px;text-transform:uppercase;}
   .brand-logo i{color:#854d0e;}
-  .display-box{margin-bottom:2.5rem;}
-  .pin-display{font-size:3.5rem;letter-spacing:16px;font-weight:700;color:var(--text-main);height:60px;display:flex;justify-content:center;align-items:center;margin-left:16px;}
-  .status-text{font-size:0.85rem;color:var(--text-muted);min-height:20px;margin-top:15px;font-weight:500;letter-spacing:0.5px;transition:0.3s ease;}
-  .numpad{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;}
-  .num-btn{background:#fff;border:1px solid rgba(15,23,42,0.05);color:var(--text-main);font-size:1.7rem;font-weight:600;height:80px;border-radius:24px;cursor:pointer;transition:all 0.2s cubic-bezier(0.16,1,0.3,1);user-select:none;box-shadow:0 4px 10px rgba(15,23,42,0.02);}
-  .num-btn:active{transform:scale(0.94);}
-  .num-btn.action{font-size:1.3rem;}
-  .num-btn.clear{color:var(--text-muted);}
-  .num-btn.clear:active{color:var(--danger);background:var(--danger-light);}
-  .num-btn.ok{background:var(--primary);color:#fff;font-weight:600;border:none;box-shadow:0 8px 20px rgba(99,102,241,0.2);}
-  .num-btn.ok:active{background:#4f46e5;}
-  /* Device screens */
+
+  /* ── Loader / Pending ── */
   .loader-screen{text-align:center;padding:2rem 0;}
   .loader-screen i{color:var(--primary);}
   .loader-screen p{margin-top:1rem;color:var(--text-muted);font-size:0.9rem;font-weight:500;}
@@ -62,8 +32,32 @@
   .device-id-val{font-family:monospace;font-size:0.9rem;font-weight:600;color:var(--text-main);word-break:break-all;}
   .btn-check{margin-top:1.5rem;width:100%;padding:14px;background:var(--primary);color:#fff;border:none;border-radius:16px;font-size:0.95rem;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 8px 20px rgba(99,102,241,0.2);transition:all 0.2s;}
   .btn-check:hover{background:#4f46e5;}
-  .pin-pad{display:none;}
-  /* Result overlay */
+
+  /* ── QR Rejimi ── */
+  .qr-mode{display:none;}
+  .qr-box{display:flex;justify-content:center;margin:0 auto 1.2rem;}
+  .qr-box canvas,.qr-box img{border-radius:16px;box-shadow:0 8px 24px rgba(15,23,42,0.1);}
+  .qr-hint{font-size:0.82rem;color:var(--text-muted);font-weight:600;margin-bottom:0.8rem;display:flex;align-items:center;justify-content:center;gap:6px;}
+  .qr-countdown{display:inline-flex;align-items:center;gap:6px;background:rgba(99,102,241,0.07);border:1px solid rgba(99,102,241,0.15);border-radius:10px;padding:5px 12px;font-size:0.8rem;font-weight:700;color:var(--primary);margin-bottom:1.2rem;}
+  .qr-countdown.warn{background:rgba(239,68,68,0.07);border-color:rgba(239,68,68,0.2);color:var(--danger);}
+  .btn-toggle{width:100%;padding:11px;background:transparent;color:var(--text-muted);border:1px solid rgba(15,23,42,0.08);border-radius:14px;font-size:0.85rem;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;font-family:'Inter',sans-serif;transition:all 0.2s;}
+  .btn-toggle:hover{background:rgba(15,23,42,0.03);color:var(--text-main);}
+
+  /* ── Manuel Rejim (numpad) ── */
+  .manual-mode{display:none;}
+  .display-box{margin-bottom:1.8rem;}
+  .pin-display{font-size:3.5rem;letter-spacing:16px;font-weight:700;color:var(--text-main);height:60px;display:flex;justify-content:center;align-items:center;margin-left:16px;}
+  .status-text{font-size:0.85rem;color:var(--text-muted);min-height:20px;margin-top:15px;font-weight:500;letter-spacing:0.5px;transition:0.3s ease;}
+  .numpad{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:1rem;}
+  .num-btn{background:#fff;border:1px solid rgba(15,23,42,0.05);color:var(--text-main);font-size:1.7rem;font-weight:600;height:76px;border-radius:22px;cursor:pointer;transition:all 0.2s cubic-bezier(0.16,1,0.3,1);user-select:none;box-shadow:0 4px 10px rgba(15,23,42,0.02);}
+  .num-btn:active{transform:scale(0.94);}
+  .num-btn.action{font-size:1.3rem;}
+  .num-btn.clear{color:var(--text-muted);}
+  .num-btn.clear:active{color:var(--danger);background:var(--danger-light);}
+  .num-btn.ok{background:var(--primary);color:#fff;font-weight:600;border:none;box-shadow:0 8px 20px rgba(99,102,241,0.2);}
+  .num-btn.ok:active{background:#4f46e5;}
+
+  /* ── Result / Warning overlays ── */
   .result-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(255,255,255,0.92);backdrop-filter:blur(25px);-webkit-backdrop-filter:blur(25px);display:flex;flex-direction:column;justify-content:center;align-items:center;opacity:0;pointer-events:none;transition:all 0.4s cubic-bezier(0.16,1,0.3,1);z-index:50;}
   .result-overlay.show{opacity:1;pointer-events:all;}
   .res-icon{font-size:2.2rem;margin-bottom:1.5rem;animation:pop 0.5s cubic-bezier(0.34,1.56,0.64,1);width:80px;height:80px;border-radius:26px;display:inline-flex;align-items:center;justify-content:center;}
@@ -78,18 +72,35 @@
 <div class="glow-1"></div><div class="glow-2"></div>
 <div class="terminal">
   <div class="brand-logo"><i class="fa-solid fa-mug-hot"></i> COFFEEMOON</div>
+
+  <!-- Yüklənir -->
   <div class="loader-screen" id="loaderScreen">
     <i class="fa-solid fa-circle-notch fa-spin fa-2x"></i>
     <p>Cihaz yoxlanılır...</p>
   </div>
+
+  <!-- Gözləmə -->
   <div class="pending-screen" id="pendingScreen">
     <div class="status-icon warning" id="statusIcon"><i class="fa-solid fa-hourglass-half"></i></div>
     <div class="status-title" id="statusTitle">Admin Təsdiqi Gözlənilir</div>
     <div class="status-desc" id="statusDesc">Bu cihaz admin tərəfindən hələ təsdiqlənməyib.</div>
-    <div class="device-id-box"><div class="device-id-lbl"><i class="fa-solid fa-microchip"></i> Cihaz ID</div><div class="device-id-val" id="deviceIdVal">—</div></div>
+    <div class="device-id-box">
+      <div class="device-id-lbl"><i class="fa-solid fa-microchip"></i> Cihaz ID</div>
+      <div class="device-id-val" id="deviceIdVal">—</div>
+    </div>
     <button class="btn-check" onclick="checkDevice()"><i class="fa-solid fa-rotate"></i> Yenidən Yoxla</button>
   </div>
-  <div class="pin-pad" id="pinPad">
+
+  <!-- QR Rejimi (əsas) -->
+  <div class="qr-mode" id="qrMode">
+    <div class="qr-box" id="qrBox"></div>
+    <div class="qr-hint"><i class="fa-solid fa-mobile-screen-button"></i> Telefonda mycode-u açıb kameranı QR-a tuşlayın</div>
+    <div class="qr-countdown" id="qrCountdown"><i class="fa-solid fa-rotate"></i> <span id="qrTimer">30</span>s-də yenilənir</div>
+    <button class="btn-toggle" onclick="showManual()"><i class="fa-solid fa-keyboard"></i> Manuel PIN girişi</button>
+  </div>
+
+  <!-- Manuel Rejim (ehtiyat) -->
+  <div class="manual-mode" id="manualMode">
     <div class="display-box">
       <div class="pin-display" id="pinDisplay">_ _ _ _</div>
       <div class="status-text" id="statusText">Smen giriş və ya çıxış kodunuzu daxil edin</div>
@@ -108,69 +119,54 @@
       <button class="num-btn" onclick="press('0')">0</button>
       <button class="num-btn action ok" onclick="submitPin()"><i class="fa-solid fa-check"></i></button>
     </div>
-    <button class="btn-qr" onclick="startQRScan()"><i class="fa-solid fa-qrcode"></i> QR Kamera ilə Tara</button>
+    <button class="btn-toggle" onclick="showQR()"><i class="fa-solid fa-qrcode"></i> QR Rejiminə qayıt</button>
   </div>
 </div>
 
-<!-- QR Kamera Overlay -->
-<div class="qr-overlay" id="qrOverlay">
-  <video id="qrVideo" playsinline autoplay muted></video>
-  <canvas id="qrCanvas" style="display:none;"></canvas>
-  <div class="qr-shade"></div>
-  <div class="qr-frame">
-    <div class="qr-frame-box"></div>
-    <div class="qr-corner tl"></div><div class="qr-corner tr"></div>
-    <div class="qr-corner bl"></div><div class="qr-corner br"></div>
-    <div class="qr-scan-line"></div>
-  </div>
-  <div class="qr-hint" id="qrHint"><i class="fa-solid fa-mobile-screen-button"></i> İşçinin telefon ekranını göstərin</div>
-  <button class="qr-cancel-btn" onclick="stopQRScan()"><i class="fa-solid fa-xmark"></i> Ləğv et</button>
-</div>
 <div class="result-overlay" id="resOverlay">
   <div class="res-icon" id="resIcon"></div>
   <div class="res-title" id="resTitle"></div>
   <div class="res-subtitle" id="resSub"></div>
 </div>
-<!-- Warning Overlay -->
 <div class="result-overlay" id="warnOverlay" style="background:rgba(255,255,255,0.95);">
   <div class="res-icon" id="warnIcon"></div>
   <div class="res-title" id="warnTitle"></div>
   <div class="res-subtitle" id="warnSub"></div>
   <div style="display:flex;gap:10px;margin-top:1.2rem;width:100%;max-width:320px;">
-    <button onclick="cancelWarning()"
-      style="flex:1;padding:13px;border:1px solid rgba(15,23,42,0.1);background:#fff;
-             border-radius:14px;font-size:0.9rem;font-weight:700;cursor:pointer;
-             font-family:'Inter',sans-serif;color:var(--text-muted);">
+    <button onclick="cancelWarning()" style="flex:1;padding:13px;border:1px solid rgba(15,23,42,0.1);background:#fff;border-radius:14px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;color:var(--text-muted);">
       <i class="fa-solid fa-xmark"></i> Ləğv et
     </button>
-    <button onclick="confirmWarning()"
-      style="flex:2;padding:13px;border:none;background:var(--primary);color:#fff;
-             border-radius:14px;font-size:0.9rem;font-weight:700;cursor:pointer;
-             font-family:'Inter',sans-serif;box-shadow:0 6px 14px rgba(99,102,241,0.25);">
+    <button onclick="confirmWarning()" style="flex:2;padding:13px;border:none;background:var(--primary);color:#fff;border-radius:14px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;box-shadow:0 6px 14px rgba(99,102,241,0.25);">
       <i class="fa-solid fa-check"></i> Anladım, Davam et
     </button>
   </div>
 </div>
+
 <script src="/gsr-shim.js"></script>
 <script>
 var myDeviceId=localStorage.getItem('scan_device_id_v1');
 if(!myDeviceId){myDeviceId='SCN-'+Date.now().toString(36).toUpperCase()+'-'+Math.random().toString(36).substring(2,6).toUpperCase();localStorage.setItem('scan_device_id_v1',myDeviceId);}
 document.getElementById('deviceIdVal').innerText=myDeviceId;
 
+var _approvedBranch='';
+
 function checkDevice(){
   document.getElementById('loaderScreen').style.display='block';
   document.getElementById('pendingScreen').style.display='none';
-  document.getElementById('pinPad').style.display='none';
+  document.getElementById('qrMode').style.display='none';
+  document.getElementById('manualMode').style.display='none';
   google.script.run
     .withSuccessHandler(function(res){
       document.getElementById('loaderScreen').style.display='none';
-      if(res&&res.allowed){document.getElementById('pinPad').style.display='block';}
-      else{
-        var ip=res&&res.pending;
+      if(res&&res.allowed){
+        _approvedBranch=res.branch||'';
+        showQR();
+      } else {
+        var pending=res&&res.pending;
         var icon=document.getElementById('statusIcon');
-        icon.className='status-icon '+(ip?'warning':'danger');
-        icon.innerHTML=ip?"<i class='fa-solid fa-hourglass-half'></i>":"<i class='fa-solid fa-ban'></i>";
-        document.getElementById('statusTitle').innerText=ip?'Admin Təsdiqi Gözlənilir':'Giriş Qadağandır';
+        icon.className='status-icon '+(pending?'warning':'danger');
+        icon.innerHTML=pending?"<i class='fa-solid fa-hourglass-half'></i>":"<i class='fa-solid fa-ban'></i>";
+        document.getElementById('statusTitle').innerText=pending?'Admin Təsdiqi Gözlənilir':'Giriş Qadağandır';
         document.getElementById('statusDesc').innerText=res?res.reason:'Bu cihaza giriş icazəsi verilməyib.';
         document.getElementById('pendingScreen').style.display='block';
       }
@@ -188,6 +184,59 @@ function checkDevice(){
 checkDevice();
 setInterval(function(){if(document.getElementById('pendingScreen').style.display==='block')checkDevice();},30000);
 
+// ── QR KOD GENERASİYASI ─────────────────────────────────────────
+var _qrObj=null, _qrCountInterval=null, _qrRefreshTimeout=null;
+var QR_TTL=30; // saniyə
+
+function buildQRPayload(){
+  return 'CM:'+_approvedBranch+':'+Date.now();
+}
+
+function generateQR(){
+  var box=document.getElementById('qrBox');
+  box.innerHTML='';
+  _qrObj=new QRCode(box,{
+    text: buildQRPayload(),
+    width:220, height:220,
+    colorDark:'#0f172a', colorLight:'#ffffff',
+    correctLevel: QRCode.CorrectLevel.M
+  });
+  startCountdown();
+}
+
+function startCountdown(){
+  clearInterval(_qrCountInterval);
+  clearTimeout(_qrRefreshTimeout);
+  var remaining=QR_TTL;
+  var el=document.getElementById('qrTimer');
+  var wrap=document.getElementById('qrCountdown');
+  el.innerText=remaining;
+  wrap.className='qr-countdown';
+  _qrCountInterval=setInterval(function(){
+    remaining--;
+    el.innerText=remaining;
+    if(remaining<=5) wrap.className='qr-countdown warn';
+    if(remaining<=0){
+      clearInterval(_qrCountInterval);
+      generateQR();
+    }
+  },1000);
+}
+
+function showQR(){
+  document.getElementById('manualMode').style.display='none';
+  document.getElementById('qrMode').style.display='block';
+  generateQR();
+}
+
+function showManual(){
+  clearInterval(_qrCountInterval);
+  clearTimeout(_qrRefreshTimeout);
+  document.getElementById('qrMode').style.display='none';
+  document.getElementById('manualMode').style.display='block';
+}
+
+// ── MANUEL PİN (ehtiyat) ─────────────────────────────────────────
 var currentPin='', isProcessing=false, _pendingIp='';
 var statusEl=document.getElementById('statusText');
 
@@ -195,7 +244,6 @@ function press(num){if(isProcessing||currentPin.length>=4)return;currentPin+=num
 function clearPin(){if(isProcessing)return;currentPin='';updateDisplay();statusEl.innerHTML="Smen giriş və ya çıxış kodunuzu daxil edin";statusEl.style.color="var(--text-muted)";}
 function updateDisplay(){document.getElementById('pinDisplay').innerText=currentPin.padEnd(4,'_').split('').join(' ');}
 
-// ── IP alındıqdan sonra server çağırışı ─────────────────────────
 function submitPin(){
   if(currentPin.length!==4||isProcessing)return;
   isProcessing=true;
@@ -208,26 +256,20 @@ function submitPin(){
     .catch(function(){clearTimeout(ipTimeout);doValidate('',false);});
 }
 
-// ── Servərə göndər (forceMode: warning keçdikdən sonra true olur) ─
-function doValidate(clientIp, forceMode){
+function doValidate(clientIp,forceMode){
   _pendingIp=clientIp;
   google.script.run
     .withSuccessHandler(function(res){handleValidateResult(res);})
     .withFailureHandler(function(){showError("Sistem xətası.");})
-    .validateAndLog(currentPin, clientIp, forceMode||false);
+    .validateAndLog(currentPin,clientIp,forceMode||false);
 }
 
-// ── Cavabı idarə et ──────────────────────────────────────────────
+// ── NƏTİCƏ ──────────────────────────────────────────────────────
 function handleValidateResult(res){
-  if(!res.valid && res.warningType){
-    isProcessing=false;
-    showWarning(res);
-    return;
-  }
+  if(!res.valid&&res.warningType){isProcessing=false;showWarning(res);return;}
   showResult(res);
 }
 
-// ── Uğurlu / uğursuz nəticə (mövcud kod, dəyişməyib) ────────────
 function showResult(res){
   if(!res.valid){showError(res.reason);return;}
   var isG=res.type!=='CIXIS';
@@ -247,7 +289,7 @@ function showError(msg){
   document.getElementById('resTitle').innerText='Rədd Edildi';
   document.getElementById('resSub').innerHTML='<span style="font-weight:600;color:#991b1b;">'+msg+'</span>';
   document.getElementById('resOverlay').classList.add('show');
-  setTimeout(resetAll,3500);
+  setTimeout(function(){resetAll();showQR();},3500);
 }
 
 function resetAll(){
@@ -258,120 +300,39 @@ function resetAll(){
   statusEl.style.color="var(--text-muted)";
 }
 
-// ══════════════════════════════════════════════════════════════════
-//  WARNING SİSTEMİ (YENİ)
-// ══════════════════════════════════════════════════════════════════
-
+// ── XƏBƏRDARLIQ ─────────────────────────────────────────────────
 function showWarning(res){
-  var wIcon  = document.getElementById('warnIcon');
-  var wTitle = document.getElementById('warnTitle');
-  var wSub   = document.getElementById('warnSub');
-
+  var wIcon=document.getElementById('warnIcon'),wTitle=document.getElementById('warnTitle'),wSub=document.getElementById('warnSub');
   if(res.warningType==='UNCLOSED_LUNCH'){
-    wIcon.innerHTML = "<i class='fa-solid fa-bowl-food'></i>";
-    wIcon.style.cssText = 'background:rgba(245,158,11,0.1);color:#f59e0b;border:1px solid rgba(245,158,11,0.25);';
-    wTitle.innerText = 'Nahar Çıxışı Yoxdur';
-    wSub.innerHTML   =
-      '<b style="font-size:1.1rem;color:var(--text-main);">'+res.empName+'</b><br>'+
-      '<span style="color:var(--text-muted);font-size:0.85rem;line-height:1.6;">'+
-      'Nahardan qayıdış qeydə alınmayıb.<br>'+
-      'Davam etsəniz nahar qayıdışı sistemdə qeyd edilməyəcək.</span>';
-
+    wIcon.innerHTML="<i class='fa-solid fa-bowl-food'></i>";
+    wIcon.style.cssText='background:rgba(245,158,11,0.1);color:#f59e0b;border:1px solid rgba(245,158,11,0.25);';
+    wTitle.innerText='Nahar Çıxışı Yoxdur';
+    wSub.innerHTML='<b style="font-size:1.1rem;color:var(--text-main);">'+res.empName+'</b><br><span style="color:var(--text-muted);font-size:0.85rem;line-height:1.6;">Nahardan qayıdış qeydə alınmayıb.<br>Davam etsəniz nahar qayıdışı sistemdə qeyd edilməyəcək.</span>';
   } else if(res.warningType==='UNCLOSED_PENALTY'){
-    wIcon.innerHTML = "<i class='fa-solid fa-gavel'></i>";
-    wIcon.style.cssText = 'background:rgba(239,68,68,0.1);color:#ef4444;border:1px solid rgba(239,68,68,0.25);';
-    wTitle.innerText = 'CƏRİMƏ — '+res.penaltyNum+'-ci hal';
-    wSub.innerHTML   =
-      '<b style="font-size:1.1rem;color:#991b1b;">'+res.empName+'</b><br>'+
-      '<span style="color:var(--text-muted);font-size:0.85rem;line-height:1.6;">'+
-      'Əvvəlki smendən çıxış edilməyib.<br>'+
-      'Bu, '+res.penaltyNum+'-ci cərimə halıdır — qeydə alındı.</span>';
-
+    wIcon.innerHTML="<i class='fa-solid fa-gavel'></i>";
+    wIcon.style.cssText='background:rgba(239,68,68,0.1);color:#ef4444;border:1px solid rgba(239,68,68,0.25);';
+    wTitle.innerText='CƏRİMƏ — '+res.penaltyNum+'-ci hal';
+    wSub.innerHTML='<b style="font-size:1.1rem;color:#991b1b;">'+res.empName+'</b><br><span style="color:var(--text-muted);font-size:0.85rem;line-height:1.6;">Əvvəlki smendən çıxış edilməyib.<br>Bu, '+res.penaltyNum+'-ci cərimə halıdır — qeydə alındı.</span>';
   } else {
-    // UNCLOSED_WARNING (1-ci hal)
-    wIcon.innerHTML = "<i class='fa-solid fa-triangle-exclamation'></i>";
-    wIcon.style.cssText = 'background:rgba(245,158,11,0.1);color:#f59e0b;border:1px solid rgba(245,158,11,0.25);';
-    wTitle.innerText = 'Xəbərdarlıq';
-    wSub.innerHTML   =
-      '<b style="font-size:1.1rem;color:var(--text-main);">'+res.empName+'</b><br>'+
-      '<span style="color:var(--text-muted);font-size:0.85rem;line-height:1.6;">'+
-      'Əvvəlki smendən çıxış edilməyib.<br>'+
-      'Davam etsəniz bu hal qeydə alınacaq.</span>';
+    wIcon.innerHTML="<i class='fa-solid fa-triangle-exclamation'></i>";
+    wIcon.style.cssText='background:rgba(245,158,11,0.1);color:#f59e0b;border:1px solid rgba(245,158,11,0.25);';
+    wTitle.innerText='Xəbərdarlıq';
+    wSub.innerHTML='<b style="font-size:1.1rem;color:var(--text-main);">'+res.empName+'</b><br><span style="color:var(--text-muted);font-size:0.85rem;line-height:1.6;">Əvvəlki smendən çıxış edilməyib.<br>Davam etsəniz bu hal qeydə alınacaq.</span>';
   }
-
   document.getElementById('warnOverlay').classList.add('show');
 }
 
-// "Anladım, Davam et" düyməsi
 function confirmWarning(){
   document.getElementById('warnOverlay').classList.remove('show');
   isProcessing=true;
   statusEl.innerHTML="<i class='fa-solid fa-circle-notch fa-spin'></i> Qeyd edilir...";
-  statusEl.style.color="var(--primary)";
-  doValidate(_pendingIp, true);
+  statusEl.style.color='var(--primary)';
+  doValidate(_pendingIp,true);
 }
 
-// "Ləğv et" düyməsi
 function cancelWarning(){
   document.getElementById('warnOverlay').classList.remove('show');
   resetAll();
-}
-
-// ── QR KAMERA ────────────────────────────────────────────────────
-var _qrStream=null, _qrInterval=null;
-
-function startQRScan(){
-  if(isProcessing)return;
-  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
-    showError('Bu cihaz kamera dəstəkləmir.');return;
-  }
-  if(!window.isSecureContext){
-    showError('Kamera yalnız HTTPS bağlantısında işləyir.');return;
-  }
-  navigator.mediaDevices.getUserMedia({
-    video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}}
-  }).then(function(stream){
-    _qrStream=stream;
-    var v=document.getElementById('qrVideo');
-    v.srcObject=stream;
-    v.play();
-    document.getElementById('qrOverlay').classList.add('active');
-    _qrInterval=setInterval(scanQRFrame,250);
-  }).catch(function(err){
-    var msg=err.name==='NotAllowedError'?'Kamera icazəsi rədd edildi.'
-          :err.name==='NotFoundError'?'Kamera tapılmadı.'
-          :'Kamera xətası: '+err.message;
-    showError(msg);
-  });
-}
-
-function stopQRScan(){
-  clearInterval(_qrInterval);_qrInterval=null;
-  if(_qrStream){_qrStream.getTracks().forEach(function(t){t.stop();});_qrStream=null;}
-  document.getElementById('qrOverlay').classList.remove('active');
-}
-
-function scanQRFrame(){
-  var v=document.getElementById('qrVideo');
-  if(v.readyState<v.HAVE_ENOUGH_DATA)return;
-  var c=document.getElementById('qrCanvas');
-  c.width=v.videoWidth;c.height=v.videoHeight;
-  c.getContext('2d').drawImage(v,0,0);
-  var img=c.getContext('2d').getImageData(0,0,c.width,c.height);
-  var code=jsQR(img.data,img.width,img.height,{inversionAttempts:'dontInvert'});
-  if(code&&/^\d{4}$/.test(code.data)){
-    stopQRScan();
-    currentPin=code.data;
-    updateDisplay();
-    isProcessing=true;
-    statusEl.innerHTML="<i class='fa-solid fa-circle-notch fa-spin'></i> Şəbəkə yoxlanılır...";
-    statusEl.style.color='var(--primary)';
-    var t=setTimeout(function(){doValidate('',false);},3000);
-    fetch('https://api.ipify.org?format=json')
-      .then(function(r){return r.json();})
-      .then(function(d){clearTimeout(t);doValidate(d.ip||'',false);})
-      .catch(function(){clearTimeout(t);doValidate('',false);});
-  }
 }
 </script>
 </body>

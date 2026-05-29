@@ -6,10 +6,24 @@
 <title>Coffeemoon İşçi Kartı</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <style>
-  #qrContainer { display:flex; justify-content:center; margin:10px 0 6px; }
-  #qrContainer canvas, #qrContainer img { border-radius:14px; box-shadow:0 4px 16px rgba(15,23,42,0.08); }
+  /* ── QR KAMERA OVERLAY ── */
+  .qr-cam-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:#000;z-index:200;display:none;flex-direction:column;align-items:center;justify-content:center;}
+  .qr-cam-overlay.active{display:flex;}
+  .qr-cam-video{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;}
+  .qr-cam-shade{position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);}
+  .qr-cam-frame{position:relative;width:240px;height:240px;z-index:1;}
+  .qr-cam-box{width:100%;height:100%;border-radius:18px;box-shadow:0 0 0 9999px rgba(0,0,0,0.52);}
+  .qr-cam-corner{position:absolute;width:30px;height:30px;border-color:#fff;border-style:solid;}
+  .qr-cam-corner.tl{top:0;left:0;border-width:3px 0 0 3px;border-radius:6px 0 0 0;}
+  .qr-cam-corner.tr{top:0;right:0;border-width:3px 3px 0 0;border-radius:0 6px 0 0;}
+  .qr-cam-corner.bl{bottom:0;left:0;border-width:0 0 3px 3px;border-radius:0 0 0 6px;}
+  .qr-cam-corner.br{bottom:0;right:0;border-width:0 3px 3px 0;border-radius:0 0 6px 0;}
+  .qr-cam-line{position:absolute;left:8px;right:8px;height:2px;background:linear-gradient(90deg,transparent,#6366f1,transparent);animation:camScan 2s linear infinite;}
+  @keyframes camScan{0%{top:8px}100%{top:calc(100% - 10px)}}
+  .qr-cam-hint{position:relative;z-index:1;margin-top:22px;color:rgba(255,255,255,0.9);font-size:0.88rem;font-weight:600;text-align:center;}
+  .qr-cam-cancel{position:relative;z-index:1;margin-top:18px;padding:12px 32px;background:rgba(255,255,255,0.1);color:#fff;border:1px solid rgba(255,255,255,0.25);border-radius:14px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;}
   :root {
     --bg: #f8fafc; --card-bg: rgba(255,255,255,0.75);
     --primary: #6366f1; --primary-light: rgba(99,102,241,0.08);
@@ -233,12 +247,14 @@
       </div>
       <div class="late-warning-box" id="lateWarningBox"><i class="fa-solid fa-triangle-exclamation"></i> Smenə gecikmisiniz!</div>
       <div class="pin-lbl-container">
-        <div class="pin-lbl">Dinamik QR Kod</div>
+        <div class="pin-lbl">Dinamik Kod</div>
         <div class="ten-sec-timer" id="tenSecTimer">10.0s</div>
       </div>
-      <div id="qrContainer"></div>
-      <div class="pin" id="pinDisplay" style="font-size:2rem;letter-spacing:8px;margin:4px 0 0 8px;opacity:0.45;"></div>
+      <div class="pin" id="pinDisplay">----</div>
       <div class="progress-bg"><div class="progress-fill" id="pFill"></div></div>
+      <button onclick="startQRScan()" style="margin-top:1.2rem;width:100%;padding:13px;background:linear-gradient(135deg,#4f46e5,#6366f1);color:#fff;border:none;border-radius:14px;font-size:0.9rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;font-family:'Inter',sans-serif;box-shadow:0 6px 18px rgba(99,102,241,0.3);transition:all 0.2s;">
+        <i class="fa-solid fa-qrcode"></i> Filial QR Kodunu Tara
+      </button>
     </div>
     <div class="ticket-footer" id="ticketFooter" style="display:none;">
       <div style="display:flex;align-items:center;gap:5px;"><span style="width:7px;height:7px;background:var(--success);border-radius:50%;display:inline-block;"></span> Sistem aktivdir</div>
@@ -356,6 +372,28 @@
 
   </div>
 
+</div>
+
+<!-- QR Kamera Overlay -->
+<div class="qr-cam-overlay" id="qrCamOverlay">
+  <video id="qrCamVideo" playsinline autoplay muted></video>
+  <canvas id="qrCamCanvas" style="display:none;"></canvas>
+  <div class="qr-cam-shade"></div>
+  <div class="qr-cam-frame">
+    <div class="qr-cam-box"></div>
+    <div class="qr-cam-corner tl"></div><div class="qr-cam-corner tr"></div>
+    <div class="qr-cam-corner bl"></div><div class="qr-cam-corner br"></div>
+    <div class="qr-cam-line"></div>
+  </div>
+  <div class="qr-cam-hint"><i class="fa-solid fa-tv"></i> Filial ekranındakı QR koda tuşlayın</div>
+  <button class="qr-cam-cancel" onclick="stopQRScan()"><i class="fa-solid fa-xmark"></i> Ləğv et</button>
+</div>
+
+<!-- Giriş nəticəsi overlay -->
+<div style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(255,255,255,0.92);backdrop-filter:blur(25px);display:flex;flex-direction:column;justify-content:center;align-items:center;opacity:0;pointer-events:none;transition:all 0.4s cubic-bezier(0.16,1,0.3,1);z-index:100;" id="qrResOverlay">
+  <div id="qrResIcon" style="font-size:2.2rem;margin-bottom:1.5rem;width:80px;height:80px;border-radius:26px;display:inline-flex;align-items:center;justify-content:center;animation:fadeIn 0.4s ease;"></div>
+  <div id="qrResTitle" style="font-size:1.6rem;font-weight:700;margin-bottom:0.8rem;color:#0f172a;"></div>
+  <div id="qrResSub" style="font-size:1rem;color:#64748b;text-align:center;line-height:1.5;background:#fff;padding:22px 35px;border-radius:22px;font-weight:500;border:1px solid rgba(15,23,42,0.05);max-width:320px;"></div>
 </div>
 
 <script src="/gsr-shim.js"></script>
@@ -567,27 +605,12 @@
     document.getElementById('lateWarningBox').style.display = (tot > lim) ? 'flex' : 'none';
   }
 
-  // ── QR KOD ───────────────────────────────────────────────────────
-  var _lastQrTw = -1;
-
-  function updateQR(pin) {
-    var el = document.getElementById('qrContainer');
-    el.innerHTML = '';
-    new QRCode(el, {
-      text: pin,
-      width: 190, height: 190,
-      colorDark: '#0f172a', colorLight: '#ffffff',
-      correctLevel: QRCode.CorrectLevel.M,
-    });
-  }
-
   // ── PİN & SESSION ────────────────────────────────────────────────
   function updateApp() {
     if (!SECRET || !isSessionActive) return;
     var now = Date.now(), cW = Math.floor(now / TIME_STEP);
     var pin = generateDynamicPin(SECRET, cW);
     document.getElementById('pinDisplay').innerText = pin;
-    if (cW !== _lastQrTw) { _lastQrTw = cW; updateQR(pin); }
     var msLeftPin = TIME_STEP - (now % TIME_STEP), secLeft = msLeftPin / 1000;
     document.getElementById('tenSecTimer').innerText = secLeft.toFixed(1) + 's';
     var fill = document.getElementById('pFill');
@@ -603,6 +626,99 @@
       document.getElementById('tenSecTimer').style.color = 'var(--success)';
       document.getElementById('tenSecTimer').style.background = 'var(--success-light)';
     }
+  }
+
+  // ── QR KAMERA (filial QR-ini skan et) ───────────────────────────
+  var _camStream = null, _camInterval = null;
+
+  function startQRScan() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      alert('Bu cihaz kamera dəstəkləmir.'); return;
+    }
+    if (!window.isSecureContext) {
+      alert('Kamera yalnız HTTPS bağlantısında işləyir.'); return;
+    }
+    navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }
+    }).then(function(stream) {
+      _camStream = stream;
+      var v = document.getElementById('qrCamVideo');
+      v.srcObject = stream; v.play();
+      document.getElementById('qrCamOverlay').classList.add('active');
+      _camInterval = setInterval(scanQRFrame, 250);
+    }).catch(function(err) {
+      var msg = err.name === 'NotAllowedError' ? 'Kamera icazəsi rədd edildi.'
+              : err.name === 'NotFoundError'   ? 'Kamera tapılmadı.'
+              : 'Kamera xətası: ' + err.message;
+      alert(msg);
+    });
+  }
+
+  function stopQRScan() {
+    clearInterval(_camInterval); _camInterval = null;
+    if (_camStream) { _camStream.getTracks().forEach(function(t){ t.stop(); }); _camStream = null; }
+    document.getElementById('qrCamOverlay').classList.remove('active');
+  }
+
+  function scanQRFrame() {
+    var v = document.getElementById('qrCamVideo');
+    if (v.readyState < v.HAVE_ENOUGH_DATA) return;
+    var c = document.getElementById('qrCamCanvas');
+    c.width = v.videoWidth; c.height = v.videoHeight;
+    c.getContext('2d').drawImage(v, 0, 0);
+    var img = c.getContext('2d').getImageData(0, 0, c.width, c.height);
+    var code = jsQR(img.data, img.width, img.height, { inversionAttempts: 'dontInvert' });
+    if (!code) return;
+    // Format: CM:Elmlər:1748521234567
+    var parts = code.data.split(':');
+    if (parts.length !== 3 || parts[0] !== 'CM') return;
+    var dept = parts[1], ts = parts[2];
+    stopQRScan();
+    submitQRAttendance(dept, ts);
+  }
+
+  function submitQRAttendance(dept, ts) {
+    var overlay = document.getElementById('qrResOverlay');
+    overlay.style.opacity = '1';
+    overlay.style.pointerEvents = 'all';
+    document.getElementById('qrResIcon').innerHTML = "<i class='fa-solid fa-circle-notch fa-spin' style='color:#6366f1;'></i>";
+    document.getElementById('qrResIcon').style.cssText = 'font-size:2.2rem;margin-bottom:1.5rem;width:80px;height:80px;border-radius:26px;display:inline-flex;align-items:center;justify-content:center;';
+    document.getElementById('qrResTitle').innerText = 'Yoxlanılır...';
+    document.getElementById('qrResSub').innerText = '';
+
+    google.script.run
+      .withSuccessHandler(function(res) { showQRResult(res); })
+      .withFailureHandler(function() { showQRResult({ valid: false, reason: 'Sistem xətası baş verdi.' }); })
+      .validateByQR(SECRET, dept, ts);
+  }
+
+  function showQRResult(res) {
+    var overlay = document.getElementById('qrResOverlay');
+    var icon = document.getElementById('qrResIcon');
+    var title = document.getElementById('qrResTitle');
+    var sub   = document.getElementById('qrResSub');
+    if (!res || !res.valid) {
+      icon.innerHTML = "<i class='fa-solid fa-shield-halved'></i>";
+      icon.style.cssText = 'font-size:2.2rem;margin-bottom:1.5rem;width:80px;height:80px;border-radius:26px;display:inline-flex;align-items:center;justify-content:center;background:rgba(239,68,68,0.08);color:#ef4444;border:1px solid rgba(239,68,68,0.15);';
+      title.innerText = 'Rədd Edildi';
+      sub.innerHTML = '<span style="font-weight:600;color:#991b1b;">' + (res ? res.reason : 'Xəta baş verdi.') + '</span>';
+    } else {
+      var isG = res.type !== 'CIXIS';
+      icon.innerHTML = isG ? "<i class='fa-solid fa-right-to-bracket'></i>" : "<i class='fa-solid fa-right-from-bracket'></i>";
+      icon.style.cssText = 'font-size:2.2rem;margin-bottom:1.5rem;width:80px;height:80px;border-radius:26px;display:inline-flex;align-items:center;justify-content:center;background:rgba(16,185,129,0.08);color:#10b981;border:1px solid rgba(16,185,129,0.15);';
+      title.innerText = isG ? 'Giriş Qeydə Alındı' : 'Çıxış Qeydə Alındı';
+      var otText = '';
+      if (!isG && res.overtime) {
+        var otColor = res.overtime.startsWith('+') ? '#10b981' : res.overtime.startsWith('-') ? '#ef4444' : '#64748b';
+        otText = '<div style="margin-top:12px;font-size:0.88rem;font-weight:600;">Fərq: <b style="color:' + otColor + ';">' + res.overtime + '</b></div>';
+      }
+      sub.innerHTML = '<b style="font-size:1.2rem;color:#0f172a;">' + res.empName + '</b><br>' +
+        '<span style="font-size:0.85rem;color:#64748b;"><i class="fa-solid fa-briefcase"></i> ' + res.dept + '</span>' + otText;
+    }
+    setTimeout(function() {
+      overlay.style.opacity = '0';
+      overlay.style.pointerEvents = 'none';
+    }, 3000);
   }
 
   // ── NAHAR ────────────────────────────────────────────────────────
