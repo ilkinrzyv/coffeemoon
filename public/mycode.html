@@ -411,7 +411,7 @@
   </div>
   
   <!-- ANA KAD (həmişə görünür) -->
-  <div class="ticket">
+  <div class="ticket" id="ticket">
     <div class="ticket-header">
       <div class="brand"><i class="fa-solid fa-mug-hot"></i> COFFEEMOON</div>
       <div class="avatar" id="avatarDiv">--</div>
@@ -634,6 +634,7 @@
       document.getElementById('panel-' + t).classList.toggle('active', t === tab);
       document.getElementById(btnIds[t]).classList.toggle('active', t === tab);
     });
+    document.getElementById('ticket').style.display = (tab === 'gundelik') ? '' : 'none';
   }
 
   // ── AUTH ─────────────────────────────────────────────────────────
