@@ -786,28 +786,6 @@ function mgrCheckin(type) {
 // ── Menecer məlumatları + mesajlar ───────────────────────────────
 var _mgrInfo = null;
 
-google.script.run
-  .withSuccessHandler(function(info) {
-    if (!info) return;
-    _mgrInfo = info;
-    if (info.mgrName) {
-      document.getElementById('deptBadge').innerHTML =
-        '<i class="fa-solid fa-user-tie"></i> ' + info.mgrName +
-        ' <span style="opacity:0.5;margin:0 4px;">|</span>' +
-        '<i class="fa-solid fa-briefcase"></i> ' + info.dept;
-    }
-    var hasGlobal = info.globalMsg && info.globalMsg.trim();
-    var hasBranch = info.branchMsg && info.branchMsg.trim();
-    if (!hasGlobal && !hasBranch) return;
-    document.getElementById('mgrMsgCard').style.display = 'block';
-    renderMgrMessages(hasGlobal, hasBranch, null);
-    google.script.run
-      .withSuccessHandler(function(ack){ renderMgrMessages(hasGlobal, hasBranch, ack); })
-      .withFailureHandler(function(){ renderMgrMessages(hasGlobal, hasBranch, null); })
-      .getMgrAckStatus(BRANCH_KEY);
-  })
-  .getMgrInfoForBranch(BRANCH_KEY);
-
 function renderMgrMessages(hasGlobal, hasBranch, ack) {
   if (hasGlobal) {
     var gAcked = ack && ack.globalAcked;
@@ -1153,11 +1131,6 @@ function saveWaste() {
         var inEl  = document.getElementById('in-'  + idx);
         var wstEl = document.getElementById('wst-' + idx);
         // Aylıq cəmi yenilə (product card-dakı)
-        var cards = document.getElementById('wasteItemsWrap').querySelectorAll('.product-card');
-        if (cards[idx]) {
-          // accum spans yenilə
-          var spans = cards[idx].querySelectorAll('span[style*="success"], span[style*="danger"]');
-        }
         if (inEl)  inEl.value  = 0;
         if (wstEl) wstEl.value = 0;
       });
