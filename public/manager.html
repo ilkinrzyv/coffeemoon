@@ -1400,12 +1400,12 @@ function renderWasteItems() {
       'Hələ məhsul əlavə edilməyib.</div>';
     return;
   }
-  function spinInp(id, cls) {
+  var spinInp = function(id, cls) {
     return '<div class="waste-spin-wrap ' + cls + '">' +
       '<input type="number" min="0" step="1" class="waste-compact-inp" id="' + id + '" value="0">' +
       '<button type="button" class="waste-spin-btn" onclick="wSpin(\'' + id + '\',1)">+</button>' +
     '</div>';
-  }
+  };
   var rows = wasteItems.map(function(item, idx) {
     var accum = '<span style="color:var(--success);">' + item.totalIncoming + '</span>' +
                 '<span style="opacity:0.3;margin:0 2px;">/</span>' +
