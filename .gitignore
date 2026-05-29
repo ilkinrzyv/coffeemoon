@@ -17,3 +17,6 @@ Thumbs.db
 # Loglar
 *.log
 npm-debug.log*
+
+# claude
+.claude
