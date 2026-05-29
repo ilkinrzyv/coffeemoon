@@ -33,6 +33,26 @@ app.get('/mycode', (req, res) => {
   res.send(replaceVars(readTemplate('mycode.html'), { secret, empName: name }));
 });
 
+app.get('/mycode-manifest', (req, res) => {
+  const { secret = '', name = 'İşçi' } = req.query;
+  const startUrl = `/mycode?secret=${encodeURIComponent(secret)}&name=${encodeURIComponent(name)}`;
+  res.setHeader('Content-Type', 'application/manifest+json');
+  res.json({
+    name: `Coffeemoon · ${name}`,
+    short_name: name,
+    description: 'Coffeemoon işçi qeydiyyat kartı',
+    start_url: startUrl,
+    display: 'standalone',
+    background_color: '#f0f2f8',
+    theme_color: '#5b5ef4',
+    orientation: 'portrait',
+    icons: [
+      { src: '/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
+      { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
+    ],
+  });
+});
+
 app.get('/checklist', (req, res) => {
   const { key = '' } = req.query;
   const check = U.validateBranchScheduleKey(key);
