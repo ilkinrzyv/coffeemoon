@@ -379,14 +379,13 @@
 <div class="qr-cam-overlay" id="qrCamOverlay">
   <video id="qrCamVideo" playsinline autoplay muted></video>
   <canvas id="qrCamCanvas" style="display:none;"></canvas>
-  <div class="qr-cam-shade"></div>
-  <div class="qr-cam-frame">
+  <div class="qr-cam-frame" id="qrCamFrame">
     <div class="qr-cam-box"></div>
     <div class="qr-cam-corner tl"></div><div class="qr-cam-corner tr"></div>
     <div class="qr-cam-corner bl"></div><div class="qr-cam-corner br"></div>
-    <div class="qr-cam-line"></div>
+    <div class="qr-cam-line" id="qrCamLine"></div>
   </div>
-  <div class="qr-cam-hint"><i class="fa-solid fa-tv"></i> Filial ekranındakı QR koda tuşlayın</div>
+  <div class="qr-cam-hint" id="qrCamHint"><i class="fa-solid fa-tv"></i> Filial ekranındakı QR koda tuşlayın</div>
   <button class="qr-cam-cancel" onclick="stopQRScan()"><i class="fa-solid fa-xmark"></i> Ləğv et</button>
 </div>
 
@@ -639,9 +638,10 @@
     if (!window.isSecureContext) {
       alert('Kamera yalnız HTTPS bağlantısında işləyir.'); return;
     }
-    // Əvvəlki stream varsa bağla
     if (_camStream) { _camStream.getTracks().forEach(function(t){ t.stop(); }); _camStream = null; }
     clearInterval(_camInterval);
+
+    setQrHint('<i class="fa-solid fa-circle-notch fa-spin"></i> Kamera açılır...');
 
     navigator.mediaDevices.getUserMedia({
       video: { facingMode: { ideal: 'environment' } }
@@ -649,18 +649,16 @@
       _camStream = stream;
       var v = document.getElementById('qrCamVideo');
       v.srcObject = stream;
+      v.play().catch(function(){});
       document.getElementById('qrCamOverlay').classList.add('active');
-      // Video tamamilə yüklənəndən sonra scan başlat
-      v.oncanplay = function() {
-        v.play();
-        clearInterval(_camInterval);
-        _camInterval = setInterval(scanQRFrame, 200);
-      };
+      // oncanplay-ə gözləmə yox — birbaşa interval, guard içəridə
+      _camInterval = setInterval(scanQRFrame, 150);
+      setQrHint('<i class="fa-solid fa-tv"></i> Filial ekranındakı QR koda tuşlayın');
     }).catch(function(err) {
       var msg = err.name === 'NotAllowedError' ? 'Kamera icazəsi rədd edildi.'
               : err.name === 'NotFoundError'   ? 'Kamera tapılmadı.'
               : 'Kamera xətası: ' + err.message;
-      alert(msg);
+      setQrHint('<i class="fa-solid fa-triangle-exclamation"></i> ' + msg);
     });
   }
 
@@ -668,35 +666,54 @@
     clearInterval(_camInterval); _camInterval = null;
     if (_camStream) { _camStream.getTracks().forEach(function(t){ t.stop(); }); _camStream = null; }
     var v = document.getElementById('qrCamVideo');
-    v.oncanplay = null; v.srcObject = null;
+    v.srcObject = null;
     document.getElementById('qrCamOverlay').classList.remove('active');
+    // Çərçivə rəngini sıfırla
+    document.getElementById('qrCamFrame').style.filter = '';
+    document.getElementById('qrCamLine').style.display = '';
+  }
+
+  function setQrHint(html) {
+    var el = document.getElementById('qrCamHint');
+    if (el) el.innerHTML = html;
   }
 
   function scanQRFrame() {
     var v = document.getElementById('qrCamVideo');
-    // Video hələ hazır deyilsə keç
-    if (!v.videoWidth || !v.videoHeight || v.paused || v.ended) return;
+    if (!v.videoWidth || !v.videoHeight) return;
 
     var c = document.getElementById('qrCamCanvas');
-    if (c.width !== v.videoWidth || c.height !== v.videoHeight) {
-      c.width = v.videoWidth;
-      c.height = v.videoHeight;
-    }
+    c.width  = v.videoWidth;
+    c.height = v.videoHeight;
     var ctx = c.getContext('2d');
     ctx.drawImage(v, 0, 0);
-    var img = ctx.getImageData(0, 0, c.width, c.height);
-    // attemptBoth — hər iki istiqaməti yoxla (ağ üstündə qara və ya əksi)
+
+    var img  = ctx.getImageData(0, 0, c.width, c.height);
     var code = jsQR(img.data, img.width, img.height, { inversionAttempts: 'attemptBoth' });
+
     if (!code || !code.data) return;
 
-    // Format: CM:Elmlər:1748521234567
+    // QR aşkar edildi — vizual feedback
+    var frame = document.getElementById('qrCamFrame');
+    frame.style.filter = 'drop-shadow(0 0 12px #10b981)';
+    document.getElementById('qrCamLine').style.display = 'none';
+    setQrHint('<i class="fa-solid fa-check-circle" style="color:#10b981"></i> QR oxundu, yoxlanılır...');
+
+    // Format: CM:dept:timestamp
     var idx1 = code.data.indexOf(':');
     var idx2 = code.data.indexOf(':', idx1 + 1);
-    if (idx1 < 0 || idx2 < 0) return;
-    var prefix = code.data.substring(0, idx1);
-    var dept   = code.data.substring(idx1 + 1, idx2);
-    var ts     = code.data.substring(idx2 + 1);
-    if (prefix !== 'CM' || !dept || !ts) return;
+    if (idx1 < 0 || idx2 < 0 || code.data.substring(0, idx1) !== 'CM') {
+      // Bizim QR deyil — sıfırla
+      setTimeout(function(){
+        if (frame) frame.style.filter = '';
+        document.getElementById('qrCamLine').style.display = '';
+        setQrHint('<i class="fa-solid fa-tv"></i> Filial ekranındakı QR koda tuşlayın');
+      }, 800);
+      return;
+    }
+
+    var dept = code.data.substring(idx1 + 1, idx2);
+    var ts   = code.data.substring(idx2 + 1);
 
     stopQRScan();
     submitQRAttendance(dept, ts);
