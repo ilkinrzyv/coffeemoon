@@ -1184,6 +1184,17 @@ API.saveAnnouncement = async (data) => {
   return { ok:true, id:newId };
 };
 
+// ── TƏCİLİ BİLDİRİŞ ─────────────────────────────────────────────
+
+API.sendEmergency = async (secret, message) => {
+  if (!secret || !message?.trim()) return { success: false, reason: 'Məlumatlar natamamdır.' };
+  const { data: emp } = await sb.from('employees').select('id,name,dept').eq('secret', secret).single();
+  if (!emp) return { success: false, reason: 'İşçi tapılmadı.' };
+  const text = `🚨 <b>TƏCİLİ BİLDİRİŞ</b>\n\n👤 <b>${emp.name}</b> (${emp.dept})\n\n💬 ${message.trim()}`;
+  await U.sendTelegramMsg(text, emp.dept);
+  return { success: true };
+};
+
 API.deleteAnnouncement = async (id) => {
   const { error } = await sb.from('announcements').delete().eq('id',id);
   return { ok:!error };
