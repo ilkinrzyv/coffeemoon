@@ -231,7 +231,7 @@ input:focus,select:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(7
   <button class="tab" onclick="sw('izin')"><i class="fa-solid fa-umbrella-beach"></i> İcazə</button>
   <button class="tab" onclick="sw('dev')" id="devTab"><i class="fa-solid fa-mobile-screen"></i> Cihazlar</button>
   <button class="tab" onclick="sw('tg')"><i class="fa-brands fa-telegram"></i> Telegram</button>
-  <button class="tab" onclick="sw('mgr')"><i class="fa-solid fa-user-tie"></i> Menecerlər</button>
+  <button class="tab" onclick="sw('mgr')"><i class="fa-solid fa-user-tie"></i> İdarəçilər</button>
   <button class="tab" onclick="sw('wifi')"><i class="fa-solid fa-wifi"></i> WiFi</button>
   <button class="tab" onclick="sw('checklist')"><i class="fa-solid fa-clipboard-check"></i> Çeklist</button>
   <button class="tab" onclick="sw('waste')"><i class="fa-solid fa-box-archive"></i> Tullantılar</button>
@@ -252,7 +252,7 @@ input:focus,select:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(7
 <div id="tab-cedvel" class="page">
 <!-- Menecer Həftəlik Qrafiki (yalnız admin görür) -->
   <div class="card">
-    <div class="tg-section-title" style="margin-bottom:1rem;"><i class="fa-solid fa-user-tie"></i> Menecer Həftəlik Qrafiki</div>
+    <div class="tg-section-title" style="margin-bottom:1rem;"><i class="fa-solid fa-user-tie"></i> İdarəçi Həftəlik Qrafiki</div>
     <div class="shift-legend" style="margin-bottom:1rem;">
       <div class="leg-item"><div class="leg-dot" style="background:#dbeafe;border:1px solid #bfdbfe;"></div>S — Səhər</div>
       <div class="leg-item"><div class="leg-dot" style="background:#ede9fe;border:1px solid #ddd6fe;"></div>A — Axşam</div>
@@ -260,7 +260,7 @@ input:focus,select:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(7
     </div>
     <div style="overflow-x:auto;">
       <table class="sched-table" id="mgrSchedTable">
-        <thead><tr><th style="text-align:left;">Menecer</th></tr></thead>
+        <thead><tr><th style="text-align:left;">İdarəçi</th></tr></thead>
         <tbody><tr><td colspan="8" style="text-align:center;padding:2rem;color:var(--text-muted);">Yüklənir...</td></tr></tbody>
       </table>
     </div>
@@ -293,7 +293,7 @@ input:focus,select:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(7
     <div id="schedResult" class="tg-result" style="margin-top:1rem;"></div>
   </div>
   <div class="card">
-    <div class="tg-section-title" style="margin-bottom:1rem;"><i class="fa-solid fa-link"></i> Filial Menecer Linkləri</div>
+    <div class="tg-section-title" style="margin-bottom:1rem;"><i class="fa-solid fa-link"></i> Filial İdarəçi Linkləri</div>
     <div id="branchLinks">Yüklənir...</div>
   </div>
 </div>
@@ -311,9 +311,9 @@ input:focus,select:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(7
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
       <!-- Legenda -->
       <div style="display:flex;align-items:center;gap:14px;font-size:0.76rem;font-weight:600;color:var(--text-muted);flex-wrap:wrap;">
-        <span style="display:flex;align-items:center;gap:5px;"><span style="width:8px;height:8px;background:#6366f1;border-radius:50%;"></span> Menecer işdə</span>
-        <span style="display:flex;align-items:center;gap:5px;"><span style="width:8px;height:8px;background:#f59e0b;border-radius:50%;"></span> Menecer çıxıb</span>
-        <span style="display:flex;align-items:center;gap:5px;"><span style="width:8px;height:8px;background:#cbd5e1;border-radius:50%;"></span> Menecer gəlməyib</span>
+        <span style="display:flex;align-items:center;gap:5px;"><span style="width:8px;height:8px;background:#6366f1;border-radius:50%;"></span> İdarəçi işdə</span>
+        <span style="display:flex;align-items:center;gap:5px;"><span style="width:8px;height:8px;background:#f59e0b;border-radius:50%;"></span> İdarəçi çıxıb</span>
+        <span style="display:flex;align-items:center;gap:5px;"><span style="width:8px;height:8px;background:#cbd5e1;border-radius:50%;"></span> İdarəçi gəlməyib</span>
       </div>
       <button class="btn primary" onclick="loadAtt()"><i class="fa-solid fa-rotate"></i> Yenilə</button>
     </div>
@@ -382,7 +382,7 @@ input:focus,select:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(7
       </div>
     </div>
     <div class="tg-section">
-      <div class="tg-section-title"><i class="fa-solid fa-briefcase"></i> Filial Chat ID-ləri (isteğe bağlı)</div>
+      <div class="tg-section-title"><i class="fa-solid fa-briefcase"></i> Filial Chat ID-ləri (istəyə bağlı)</div>
       <div class="tg-grid">
         <div class="tg-field"><label><span style="width:9px;height:9px;background:#bfdbfe;border-radius:2px;display:inline-block;margin-right:4px;"></span>Elmlər</label><input id="tgElmler" placeholder="Chat ID"></div>
         <div class="tg-field"><label><span style="width:9px;height:9px;background:#fbcfe8;border-radius:2px;display:inline-block;margin-right:4px;"></span>Sahil</label><input id="tgSahil" placeholder="Chat ID"></div>
@@ -404,23 +404,23 @@ input:focus,select:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(7
   <!-- Menecer adları -->
   <div class="card">
     <div class="tg-section-title" style="margin-bottom:1.1rem;">
-      <i class="fa-solid fa-id-card"></i> Filial Menecer Adları
+      <i class="fa-solid fa-id-card"></i> Filial İdarəçi Adları
     </div>
     <div class="tg-grid">
       <div class="tg-field">
-        <label><span style="width:9px;height:9px;background:#bfdbfe;border-radius:2px;display:inline-block;margin-right:4px;"></span>Elmlər — Menecer</label>
+        <label><span style="width:9px;height:9px;background:#bfdbfe;border-radius:2px;display:inline-block;margin-right:4px;"></span>Elmlər — İdarəçi</label>
         <input id="mgrNameElmler" placeholder="Ad Soyad">
       </div>
       <div class="tg-field">
-        <label><span style="width:9px;height:9px;background:#fbcfe8;border-radius:2px;display:inline-block;margin-right:4px;"></span>Sahil — Menecer</label>
+        <label><span style="width:9px;height:9px;background:#fbcfe8;border-radius:2px;display:inline-block;margin-right:4px;"></span>Sahil — İdarəçi</label>
         <input id="mgrNameSahil" placeholder="Ad Soyad">
       </div>
       <div class="tg-field">
-        <label><span style="width:9px;height:9px;background:#bbf7d0;border-radius:2px;display:inline-block;margin-right:4px;"></span>Gənclik — Menecer</label>
+        <label><span style="width:9px;height:9px;background:#bbf7d0;border-radius:2px;display:inline-block;margin-right:4px;"></span>Gənclik — İdarəçi</label>
         <input id="mgrNameGenclik" placeholder="Ad Soyad">
       </div>
       <div class="tg-field">
-        <label><span style="width:9px;height:9px;background:#fef08a;border-radius:2px;display:inline-block;margin-right:4px;"></span>Ağ Şəhər — Menecer</label>
+        <label><span style="width:9px;height:9px;background:#fef08a;border-radius:2px;display:inline-block;margin-right:4px;"></span>Ağ Şəhər — İdarəçi</label>
         <input id="mgrNameAgseher" placeholder="Ad Soyad">
       </div>
     </div>
@@ -430,18 +430,18 @@ input:focus,select:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(7
   <div class="card">
     <div class="tg-section-title" style="margin-bottom:1.1rem;">
       <i class="fa-solid fa-globe"></i> Ümumi Mesaj
-      <span style="font-size:0.75rem;font-weight:500;color:var(--text-muted);text-transform:none;letter-spacing:0;margin-left:6px;">— bütün filial menecerlərinə görünür</span>
+      <span style="font-size:0.75rem;font-weight:500;color:var(--text-muted);text-transform:none;letter-spacing:0;margin-left:6px;">— bütün filial idarəçilərinə görünür</span>
     </div>
     <textarea id="mgrGlobalMsg" rows="4"
       style="width:100%;padding:0.9rem 1.1rem;border-radius:11px;border:1px solid rgba(15,23,42,0.08);font-size:0.92rem;font-family:inherit;resize:vertical;outline:none;transition:border 0.2s;"
-      placeholder="Bütün menecerlərə ümumi bildiriş, tapşırıq və ya məlumat..."></textarea>
+      placeholder="Bütün idarəçilərə ümumi bildiriş, tapşırıq və ya məlumat..."></textarea>
   </div>
 
   <!-- Fərdi mesajlar -->
   <div class="card">
     <div class="tg-section-title" style="margin-bottom:1.1rem;">
       <i class="fa-solid fa-envelope-open-text"></i> Fərdi Mesajlar
-      <span style="font-size:0.75rem;font-weight:500;color:var(--text-muted);text-transform:none;letter-spacing:0;margin-left:6px;">— hər filialın öz menecerlərinə</span>
+      <span style="font-size:0.75rem;font-weight:500;color:var(--text-muted);text-transform:none;letter-spacing:0;margin-left:6px;">— hər filialın öz idarəçilərinə</span>
     </div>
     <div style="display:flex;flex-direction:column;gap:1rem;">
       <div>
@@ -450,7 +450,7 @@ input:focus,select:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(7
         </div>
         <textarea id="mgrMsgElmler" rows="3"
           style="width:100%;padding:0.9rem 1.1rem;border-radius:11px;border:1px solid rgba(15,23,42,0.08);font-size:0.9rem;font-family:inherit;resize:vertical;outline:none;"
-          placeholder="Elmlər filialı menecerinə mesaj..."></textarea>
+          placeholder="Elmlər filialı idarəçisinə mesaj..."></textarea>
       </div>
       <div>
         <div style="font-size:0.8rem;font-weight:700;color:#9d174d;margin-bottom:6px;display:flex;align-items:center;gap:6px;">
@@ -458,7 +458,7 @@ input:focus,select:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(7
         </div>
         <textarea id="mgrMsgSahil" rows="3"
           style="width:100%;padding:0.9rem 1.1rem;border-radius:11px;border:1px solid rgba(15,23,42,0.08);font-size:0.9rem;font-family:inherit;resize:vertical;outline:none;"
-          placeholder="Sahil filialı menecerinə mesaj..."></textarea>
+          placeholder="Sahil filialı idarəçisinə mesaj..."></textarea>
       </div>
       <div>
         <div style="font-size:0.8rem;font-weight:700;color:#065f46;margin-bottom:6px;display:flex;align-items:center;gap:6px;">
@@ -466,7 +466,7 @@ input:focus,select:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(7
         </div>
         <textarea id="mgrMsgGenclik" rows="3"
           style="width:100%;padding:0.9rem 1.1rem;border-radius:11px;border:1px solid rgba(15,23,42,0.08);font-size:0.9rem;font-family:inherit;resize:vertical;outline:none;"
-          placeholder="Gənclik filialı menecerinə mesaj..."></textarea>
+          placeholder="Gənclik filialı idarəçisinə mesaj..."></textarea>
       </div>
       <div>
         <div style="font-size:0.8rem;font-weight:700;color:#92400e;margin-bottom:6px;display:flex;align-items:center;gap:6px;">
@@ -474,7 +474,7 @@ input:focus,select:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(7
         </div>
         <textarea id="mgrMsgAgseher" rows="3"
           style="width:100%;padding:0.9rem 1.1rem;border-radius:11px;border:1px solid rgba(15,23,42,0.08);font-size:0.9rem;font-family:inherit;resize:vertical;outline:none;"
-          placeholder="Ağ Şəhər filialı menecerinə mesaj..."></textarea>
+          placeholder="Ağ Şəhər filialı idarəçisinə mesaj..."></textarea>
       </div>
     </div>
   </div>
@@ -843,7 +843,7 @@ function loadMgrSchedAdmin() {
     .withSuccessHandler(function(res) {
       if (!res) return;
       var thead = document.getElementById('mgrSchedTable').querySelector('thead tr');
-      thead.innerHTML = '<th style="text-align:left;">Menecer</th>';
+      thead.innerHTML = '<th style="text-align:left;">İdarəçi</th>';
       res.dates.forEach(function(d) {
         var isToday = d.date === TODAY_YMD;
         thead.innerHTML += '<th style="'+(isToday?'color:var(--primary);':'')+'"><div>'+d.dayName+'</div><div style="font-size:0.85rem;">'+d.date.slice(8)+'</div></th>';

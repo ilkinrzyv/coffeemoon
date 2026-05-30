@@ -535,7 +535,7 @@
         <div class="icaze-header-icon"><i class="fa-solid fa-clock"></i></div>
         <div>
           <div class="week-card-title" style="font-size:0.8rem;color:var(--text-main);letter-spacing:0.5px;">Gec Gəliş İcazəsi</div>
-          <div style="font-size:0.72rem;color:var(--text-muted);font-weight:500;margin-top:2px;">Menecerə tələb göndərin</div>
+          <div style="font-size:0.72rem;color:var(--text-muted);font-weight:500;margin-top:2px;">İdarəçiyə tələb göndərin</div>
         </div>
       </div>
       <div class="icaze-card-body">
@@ -563,7 +563,7 @@
         <div class="avans-header-icon"><i class="fa-solid fa-money-bill-wave"></i></div>
         <div>
           <div class="week-card-title" style="font-size:0.8rem;color:var(--text-main);letter-spacing:0.5px;">Avans İstəyi</div>
-          <div style="font-size:0.72rem;color:var(--text-muted);font-weight:500;margin-top:2px;">Menecerə göndərilir</div>
+          <div style="font-size:0.72rem;color:var(--text-muted);font-weight:500;margin-top:2px;">İdarəçiyə göndərilir</div>
         </div>
       </div>
       <div class="avans-card-body">
@@ -997,7 +997,7 @@
         btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Avans Tələbi Göndər';
         if (res && res.success) {
           stEl.style.color = 'var(--success)';
-          stEl.innerHTML   = '<i class="fa-solid fa-check"></i> Göndərildi! Menecer təsdiq gözlənilir.';
+          stEl.innerHTML   = '<i class="fa-solid fa-check"></i> Göndərildi! İdarəçi təsdiq gözlənilir.';
           // formu sıfırla
           _avansAmount = null;
           document.querySelectorAll('.avans-chip').forEach(function(c){ c.classList.remove('selected'); });
@@ -1064,7 +1064,7 @@
       .withSuccessHandler(function(res) {
         if (res.success) {
           stEl.style.color = 'var(--success)';
-          stEl.innerHTML   = '<i class="fa-solid fa-check"></i> Göndərildi! Menecer təsdiq gözlənilir.';
+          stEl.innerHTML   = '<i class="fa-solid fa-check"></i> Göndərildi! İdarəçi təsdiq gözlənilir.';
           document.getElementById('lpTime').value = '';
           loadMyLatePerms();
           setTimeout(function(){ stEl.innerText = ''; }, 4000);
