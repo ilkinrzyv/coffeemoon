@@ -395,6 +395,187 @@
   .avans-row-date { font-size:0.72rem; color:var(--text-muted); font-weight:500; }
   .avans-row-note { font-size:0.74rem; color:var(--text-muted); font-weight:500; font-style:italic; margin-top:1px; }
 
+  /* ── PROFİL TAB ── */
+  .profile-own-card {
+    background:rgba(255,255,255,0.88); backdrop-filter:blur(30px);
+    border-radius:24px; box-shadow:var(--card-shadow); border:1px solid rgba(255,255,255,0.8);
+    overflow:hidden;
+  }
+  .profile-own-header {
+    padding:2rem 1.4rem 1.4rem; text-align:center;
+    background:linear-gradient(160deg,rgba(91,94,244,0.06),transparent);
+    border-bottom:1px solid rgba(15,23,42,0.05);
+  }
+  .profile-avatar-big {
+    width:84px; height:84px; border-radius:24px;
+    display:flex; align-items:center; justify-content:center;
+    margin:0 auto 14px; font-size:2rem;
+    box-shadow:0 12px 28px rgba(0,0,0,0.15), 0 0 0 3px rgba(255,255,255,0.9);
+    overflow:hidden; position:relative;
+  }
+  .profile-avatar-big img { width:100%; height:100%; object-fit:cover; }
+  .profile-own-name { font-size:1.2rem; font-weight:800; color:var(--text-main); margin-bottom:4px; }
+  .profile-own-dept { font-size:0.8rem; color:var(--text-muted); font-weight:600; margin-bottom:10px; }
+  .profile-bio-text {
+    font-size:0.84rem; color:var(--text-muted); font-weight:500;
+    font-style:italic; min-height:18px; margin-bottom:12px; line-height:1.5;
+  }
+  .profile-edit-btn {
+    padding:9px 22px; border-radius:12px; border:1.5px solid rgba(91,94,244,0.2);
+    background:rgba(91,94,244,0.07); color:var(--primary); font-size:0.82rem;
+    font-weight:700; cursor:pointer; font-family:'Inter',sans-serif;
+    transition:all 0.2s; display:inline-flex; align-items:center; gap:6px;
+  }
+  .profile-edit-btn:hover { background:rgba(91,94,244,0.13); }
+
+  /* Edit mode */
+  .profile-edit-section { padding:1.2rem 1.4rem; display:flex; flex-direction:column; gap:1.1rem; }
+  .profile-section-label {
+    font-size:0.68rem; font-weight:800; color:var(--text-soft);
+    text-transform:uppercase; letter-spacing:1.2px; margin-bottom:8px;
+  }
+  .avatar-tabs { display:flex; gap:6px; margin-bottom:10px; }
+  .avatar-tab {
+    flex:1; padding:8px; border:1.5px solid rgba(15,23,42,0.08); border-radius:10px;
+    background:transparent; font-size:0.78rem; font-weight:700; color:var(--text-muted);
+    cursor:pointer; font-family:'Inter',sans-serif; transition:all 0.18s;
+  }
+  .avatar-tab.active { background:var(--primary); color:#fff; border-color:var(--primary); }
+  .avatar-presets { display:grid; grid-template-columns:repeat(8,1fr); gap:7px; }
+  .avatar-preset {
+    width:100%; aspect-ratio:1; border-radius:12px; border:2px solid transparent;
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer; font-size:0.95rem; transition:all 0.18s; color:#fff;
+    box-shadow:0 2px 8px rgba(0,0,0,0.1);
+  }
+  .avatar-preset:active { transform:scale(0.9); }
+  .avatar-preset.selected { border-color:var(--text-main); box-shadow:0 0 0 3px rgba(15,23,42,0.12); transform:scale(1.08); }
+  .color-palette { display:grid; grid-template-columns:repeat(5,1fr); gap:8px; }
+  .color-swatch {
+    aspect-ratio:1; border-radius:50%; border:2px solid transparent;
+    cursor:pointer; transition:all 0.18s; box-shadow:0 2px 6px rgba(0,0,0,0.12);
+  }
+  .color-swatch:active { transform:scale(0.9); }
+  .color-swatch.selected { border-color:#fff; box-shadow:0 0 0 3px rgba(15,23,42,0.2), 0 2px 8px rgba(0,0,0,0.15); transform:scale(1.1); }
+  .bio-input {
+    width:100%; padding:11px 13px; border-radius:12px;
+    border:1.5px solid rgba(15,23,42,0.08); font-size:0.87rem;
+    font-family:'Inter',sans-serif; color:var(--text-main); outline:none;
+    background:#fafbff; transition:border 0.2s; resize:none; font-weight:500;
+  }
+  .bio-input:focus { border-color:var(--primary); background:#fff; }
+  .photo-upload-area {
+    border:2px dashed rgba(15,23,42,0.12); border-radius:14px;
+    padding:1.4rem; text-align:center; cursor:pointer;
+    transition:all 0.2s; background:#fafbff;
+    display:flex; flex-direction:column; align-items:center; gap:8px;
+  }
+  .photo-upload-area:hover { border-color:var(--primary); background:rgba(91,94,244,0.03); }
+  .photo-upload-area i { font-size:1.6rem; color:var(--text-soft); }
+  .photo-upload-area span { font-size:0.8rem; color:var(--text-muted); font-weight:600; }
+  .photo-preview {
+    width:80px; height:80px; border-radius:18px; object-fit:cover;
+    border:2px solid rgba(91,94,244,0.2); display:none; margin:0 auto;
+  }
+  .profile-save-btn {
+    width:100%; padding:13px; border-radius:13px; border:none;
+    background:linear-gradient(135deg,var(--primary),var(--primary-dark));
+    color:#fff; font-size:0.9rem; font-weight:800; cursor:pointer;
+    font-family:'Inter',sans-serif; box-shadow:0 6px 18px rgba(91,94,244,0.28);
+    display:flex; align-items:center; justify-content:center; gap:7px; transition:all 0.2s;
+  }
+  .profile-save-btn:hover { transform:translateY(-2px); }
+  .profile-save-btn:disabled { opacity:0.5; cursor:not-allowed; transform:none; }
+  .profile-save-cancel {
+    width:100%; padding:11px; border-radius:13px;
+    border:1.5px solid rgba(15,23,42,0.08); background:#f8fafc;
+    color:var(--text-muted); font-size:0.88rem; font-weight:700;
+    cursor:pointer; font-family:'Inter',sans-serif;
+  }
+  .profile-save-status { font-size:0.8rem; font-weight:700; text-align:center; min-height:16px; }
+
+  /* Team grid */
+  .team-section {
+    background:rgba(255,255,255,0.88); backdrop-filter:blur(30px);
+    border-radius:24px; box-shadow:var(--card-shadow); border:1px solid rgba(255,255,255,0.8);
+    overflow:hidden;
+  }
+  .team-section-header {
+    padding:1rem 1.2rem 0.9rem;
+    border-bottom:1px solid rgba(15,23,42,0.05);
+    font-size:0.75rem; font-weight:800; color:var(--text-soft);
+    text-transform:uppercase; letter-spacing:1.2px;
+    display:flex; align-items:center; gap:7px;
+  }
+  .team-grid { padding:0.9rem; display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+  .team-card {
+    border-radius:16px; padding:12px 8px; text-align:center; cursor:pointer;
+    background:rgba(255,255,255,0.7); border:1.5px solid rgba(15,23,42,0.05);
+    transition:all 0.2s; display:flex; flex-direction:column; align-items:center; gap:5px;
+  }
+  .team-card:hover { transform:translateY(-2px); box-shadow:0 6px 16px rgba(0,0,0,0.08); }
+  .team-card:active { transform:scale(0.95); }
+  .team-avatar-sm {
+    width:46px; height:46px; border-radius:14px;
+    display:flex; align-items:center; justify-content:center;
+    font-size:1.1rem; color:#fff; flex-shrink:0;
+    box-shadow:0 4px 10px rgba(0,0,0,0.12); overflow:hidden;
+  }
+  .team-avatar-sm img { width:100%; height:100%; object-fit:cover; }
+  .team-name { font-size:0.73rem; font-weight:700; color:var(--text-main); line-height:1.2; }
+  .team-dept { font-size:0.64rem; color:var(--text-soft); font-weight:600; }
+  .team-streak { font-size:0.65rem; font-weight:800; color:#92400e; }
+
+  /* Profile view modal */
+  .pmodal-overlay {
+    display:none; position:fixed; inset:0; z-index:9998;
+    background:rgba(10,15,30,0.6); backdrop-filter:blur(6px);
+    align-items:flex-end; justify-content:center;
+  }
+  .pmodal-overlay.open { display:flex; }
+  .pmodal-sheet {
+    background:#fff; border-radius:28px 28px 0 0;
+    width:100%; max-width:480px;
+    padding:0 0 2rem;
+    box-shadow:0 -8px 40px rgba(15,23,42,0.15);
+    animation:slideUp 0.3s cubic-bezier(0.16,1,0.3,1);
+    max-height:88vh; overflow-y:auto;
+  }
+  .pmodal-hero {
+    padding:2rem 1.6rem 1.4rem; text-align:center;
+    border-bottom:1px solid rgba(15,23,42,0.05);
+  }
+  .pmodal-avatar {
+    width:88px; height:88px; border-radius:24px;
+    display:flex; align-items:center; justify-content:center;
+    margin:0 auto 14px; font-size:2.2rem; color:#fff;
+    box-shadow:0 12px 30px rgba(0,0,0,0.16), 0 0 0 3px rgba(255,255,255,0.9);
+    overflow:hidden;
+  }
+  .pmodal-avatar img { width:100%; height:100%; object-fit:cover; }
+  .pmodal-name { font-size:1.25rem; font-weight:800; color:var(--text-main); margin-bottom:3px; }
+  .pmodal-dept { font-size:0.8rem; color:var(--text-muted); font-weight:600; margin-bottom:10px; }
+  .pmodal-bio { font-size:0.84rem; color:var(--text-muted); font-style:italic; line-height:1.5; margin-bottom:12px; }
+  .pmodal-streak {
+    display:inline-flex; align-items:center; gap:6px;
+    background:linear-gradient(135deg,rgba(245,158,11,0.12),rgba(217,119,6,0.08));
+    border:1px solid rgba(245,158,11,0.2); color:#92400e;
+    padding:5px 14px; border-radius:100px; font-size:0.78rem; font-weight:700;
+  }
+  .pmodal-stats { padding:1.2rem 1.6rem; display:grid; grid-template-columns:repeat(4,1fr); gap:10px; }
+  .pmodal-stat {
+    background:rgba(15,23,42,0.03); border-radius:14px; padding:12px 6px;
+    text-align:center; border:1px solid rgba(15,23,42,0.04);
+  }
+  .pmodal-stat-val { font-size:1.4rem; font-weight:900; color:var(--text-main); line-height:1; }
+  .pmodal-stat-lbl { font-size:0.64rem; color:var(--text-soft); font-weight:700; text-transform:uppercase; letter-spacing:0.8px; margin-top:4px; }
+  .pmodal-close {
+    margin:0.5rem 1.6rem 0; width:calc(100% - 3.2rem);
+    padding:13px; border-radius:14px; border:1.5px solid rgba(15,23,42,0.08);
+    background:#f8fafc; color:var(--text-muted); font-size:0.9rem; font-weight:700;
+    cursor:pointer; font-family:'Inter',sans-serif;
+  }
+
   /* ── EMERGENCY ── */
   .emergency-btn {
     width:100%; padding:14px; margin-top:10px;
@@ -485,6 +666,10 @@
     <button class="main-tab" id="tabBtnIcaze" onclick="showTab('icaze')">
       <i class="fa-solid fa-clock"></i>
       İcazə
+    </button>
+    <button class="main-tab" id="tabBtnProfil" onclick="showTab('profil')">
+      <i class="fa-solid fa-user"></i>
+      Profil
     </button>
   </div>
   
@@ -672,6 +857,91 @@
 
   </div>
 
+  <!-- PANEL 4: PROFİL -->
+  <div class="tab-panel" id="panel-profil">
+
+    <!-- Öz profil kartı -->
+    <div class="profile-own-card" id="profileOwnCard">
+      <!-- Görünüş modu -->
+      <div id="profileViewMode">
+        <div class="profile-own-header">
+          <div class="profile-avatar-big" id="profileAvatarBig"></div>
+          <div class="profile-own-name" id="profileOwnName"></div>
+          <div class="profile-own-dept" id="profileOwnDept"></div>
+          <div class="profile-bio-text" id="profileBioText"></div>
+          <button class="profile-edit-btn" onclick="enterEditMode()">
+            <i class="fa-solid fa-pen"></i> Profili Redaktə Et
+          </button>
+        </div>
+      </div>
+      <!-- Redaktə modu -->
+      <div id="profileEditMode" style="display:none;">
+        <div class="profile-edit-section">
+
+          <!-- Avatar seçimi -->
+          <div>
+            <div class="profile-section-label">Avatar</div>
+            <div class="avatar-tabs">
+              <button class="avatar-tab active" id="avatarTabPreset" onclick="switchAvatarTab('preset')">
+                <i class="fa-solid fa-icons"></i> İkonlar
+              </button>
+              <button class="avatar-tab" id="avatarTabPhoto" onclick="switchAvatarTab('photo')">
+                <i class="fa-solid fa-camera"></i> Şəkil
+              </button>
+            </div>
+            <!-- Preset ikonlar -->
+            <div id="avatarPresetPanel">
+              <div class="avatar-presets" id="avatarPresetsGrid"></div>
+            </div>
+            <!-- Foto yükləmə -->
+            <div id="avatarPhotoPanel" style="display:none;">
+              <img class="photo-preview" id="photoPreview" alt="">
+              <div class="photo-upload-area" onclick="document.getElementById('photoInput').click()">
+                <i class="fa-solid fa-cloud-arrow-up"></i>
+                <span>Telefonunuzdan şəkil seçin</span>
+                <span style="font-size:0.72rem;color:var(--text-soft);">JPG, PNG — max 5MB</span>
+              </div>
+              <input type="file" id="photoInput" accept="image/*" style="display:none" onchange="handlePhotoUpload(event)">
+            </div>
+          </div>
+
+          <!-- Rəng seçimi -->
+          <div>
+            <div class="profile-section-label">Vurğu Rəngi</div>
+            <div class="color-palette" id="colorPalette"></div>
+          </div>
+
+          <!-- Bio -->
+          <div>
+            <div class="profile-section-label">Qısa Məlumat <span style="font-weight:500;text-transform:none;letter-spacing:0;color:var(--text-soft);">(max 80 hərf)</span></div>
+            <textarea class="bio-input" id="bioInput" rows="2" maxlength="80"
+              placeholder="Özünüz haqqında qısa bir şey..."></textarea>
+          </div>
+
+          <!-- Düymələr -->
+          <button class="profile-save-btn" id="profileSaveBtn" onclick="saveProfile()">
+            <i class="fa-solid fa-floppy-disk"></i> Saxla
+          </button>
+          <button class="profile-save-cancel" onclick="exitEditMode()">Ləğv et</button>
+          <div class="profile-save-status" id="profileSaveStatus"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Komanda -->
+    <div class="team-section">
+      <div class="team-section-header">
+        <i class="fa-solid fa-users"></i> Komanda
+      </div>
+      <div class="team-grid" id="teamGrid">
+        <div style="grid-column:1/-1;text-align:center;padding:1.5rem;color:var(--text-muted);font-size:0.84rem;">
+          <i class="fa-solid fa-circle-notch fa-spin"></i>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
   <!-- EMERGENCY DÜYMƏSİ -->
   <button class="emergency-btn" id="emergencyBtn" onclick="openEmergency()" style="display:none;">
     <i class="fa-solid fa-triangle-exclamation"></i> Təcili Bildiriş Göndər
@@ -697,6 +967,23 @@
   </div>
 </div>
 
+<!-- PROFİL MODAL -->
+<div class="pmodal-overlay" id="pmodalOverlay" onclick="closePmodalIfOutside(event)">
+  <div class="pmodal-sheet" id="pmodalSheet">
+    <div class="pmodal-hero">
+      <div class="pmodal-avatar" id="pmodalAvatar"></div>
+      <div class="pmodal-name" id="pmodalName"></div>
+      <div class="pmodal-dept" id="pmodalDept"></div>
+      <div class="pmodal-bio" id="pmodalBio"></div>
+      <div class="pmodal-streak" id="pmodalStreak" style="display:none;">
+        <i class="fa-solid fa-fire"></i> <span id="pmodalStreakVal"></span> Gün Ardıcıl
+      </div>
+    </div>
+    <div class="pmodal-stats" id="pmodalStats"></div>
+    <button class="pmodal-close" onclick="closePmodal()">Bağla</button>
+  </div>
+</div>
+
 <script src="/gsr-shim.js"></script>
 <script>
   var SECRET    = "<?= secret ?>";
@@ -704,6 +991,7 @@
   var TIME_STEP = 10000;
   var isSessionActive = true;
   var userDept  = "";
+  var _profileLoaded = false;
 
   document.getElementById('avatarDiv').innerText = EMP_NAME.split(' ').map(function(n){return n[0];}).join('').substring(0,2).toUpperCase() || 'CM';
 
@@ -729,13 +1017,14 @@
 
   function showTab(tab) {
     _activeMainTab = tab;
-    var tabs   = ['gundelik', 'cedvel', 'icaze'];
-    var btnIds = { gundelik:'tabBtnGundelik', cedvel:'tabBtnCedvel', icaze:'tabBtnIcaze' };
+    var tabs   = ['gundelik', 'cedvel', 'icaze', 'profil'];
+    var btnIds = { gundelik:'tabBtnGundelik', cedvel:'tabBtnCedvel', icaze:'tabBtnIcaze', profil:'tabBtnProfil' };
     tabs.forEach(function(t) {
       document.getElementById('panel-' + t).classList.toggle('active', t === tab);
       document.getElementById(btnIds[t]).classList.toggle('active', t === tab);
     });
     document.getElementById('ticket').style.display = (tab === 'gundelik') ? '' : 'none';
+    if (tab === 'profil' && !_profileLoaded) loadProfileTab();
   }
 
   // ── AUTH ─────────────────────────────────────────────────────────
@@ -1218,6 +1507,319 @@
         sendBtn.disabled = false;
       })
       .sendEmergency(SECRET, msg);
+  }
+
+  // ── PROFİL ────────────────────────────────────────────────────────
+
+  var _myProfile = null;
+  var _editAvatarTab = 'preset';
+  var _editAvatarType = 'preset';
+  var _editAvatarValue = 'mug-hot';
+  var _editAccentColor = '#5b5ef4';
+  var _editPhotoData = '';
+
+  var AVATAR_PRESETS = [
+    { id:'mug-hot',    icon:'fa-mug-hot',    bg:'#92400e' },
+    { id:'star',       icon:'fa-star',       bg:'#b45309' },
+    { id:'fire',       icon:'fa-fire',       bg:'#dc2626' },
+    { id:'moon',       icon:'fa-moon',       bg:'#4f46e5' },
+    { id:'bolt',       icon:'fa-bolt',       bg:'#d97706' },
+    { id:'gem',        icon:'fa-gem',        bg:'#7c3aed' },
+    { id:'crown',      icon:'fa-crown',      bg:'#b45309' },
+    { id:'rocket',     icon:'fa-rocket',     bg:'#0369a1' },
+    { id:'leaf',       icon:'fa-leaf',       bg:'#065f46' },
+    { id:'snowflake',  icon:'fa-snowflake',  bg:'#0284c7' },
+    { id:'heart',      icon:'fa-heart',      bg:'#be185d' },
+    { id:'music',      icon:'fa-music',      bg:'#6d28d9' },
+    { id:'code',       icon:'fa-code',       bg:'#1e40af' },
+    { id:'gamepad',    icon:'fa-gamepad',    bg:'#166534' },
+    { id:'palette',    icon:'fa-palette',    bg:'#9d174d' },
+    { id:'cat',        icon:'fa-cat',        bg:'#78350f' },
+  ];
+
+  var COLOR_PALETTE = [
+    '#5b5ef4','#3b82f6','#0ea5e9','#10b981','#84cc16',
+    '#f59e0b','#f97316','#ef4444','#ec4899','#8b5cf6',
+  ];
+
+  function buildAvatarEl(type, value, photoData, size) {
+    var el = document.createElement('div');
+    el.style.cssText = 'width:'+size+'px;height:'+size+'px;border-radius:'+Math.round(size*0.28)+'px;display:flex;align-items:center;justify-content:center;font-size:'+Math.round(size*0.42)+'px;color:#fff;overflow:hidden;flex-shrink:0;';
+    if (type === 'photo' && photoData) {
+      var img = document.createElement('img');
+      img.src = photoData; img.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+      el.appendChild(img);
+    } else {
+      var preset = AVATAR_PRESETS.find(function(p){ return p.id === value; }) || AVATAR_PRESETS[0];
+      el.style.background = preset.bg;
+      el.innerHTML = '<i class="fa-solid ' + preset.icon + '"></i>';
+    }
+    return el;
+  }
+
+  function renderAvatarEl(container, type, value, photoData) {
+    container.innerHTML = '';
+    container.appendChild(buildAvatarEl(type, value, photoData, parseInt(container.style.width) || 84));
+    if (type !== 'photo') container.style.background = '';
+  }
+
+  function loadProfileTab() {
+    _profileLoaded = true;
+    google.script.run
+      .withSuccessHandler(function(p) {
+        if (!p) return;
+        _myProfile = p;
+        _editAvatarType  = p.avatarType;
+        _editAvatarValue = p.avatarValue;
+        _editAccentColor = p.accentColor;
+        _editPhotoData   = p.photoData;
+        renderOwnProfileView(p);
+      })
+      .getMyProfile(SECRET);
+
+    google.script.run
+      .withSuccessHandler(renderTeamGrid)
+      .getTeamProfiles(SECRET);
+  }
+
+  function renderOwnProfileView(p) {
+    var bigEl = document.getElementById('profileAvatarBig');
+    bigEl.style.cssText = 'width:84px;height:84px;border-radius:24px;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;font-size:2rem;box-shadow:0 12px 28px rgba(0,0,0,0.15),0 0 0 3px rgba(255,255,255,0.9);overflow:hidden;position:relative;';
+    renderAvatarEl(bigEl, p.avatarType, p.avatarValue, p.photoData);
+    document.getElementById('profileOwnName').innerText = p.empName;
+    document.getElementById('profileOwnDept').innerText = p.dept;
+    document.getElementById('profileBioText').innerText = p.bio || 'Bio əlavə edilməyib...';
+  }
+
+  function enterEditMode() {
+    document.getElementById('profileViewMode').style.display = 'none';
+    document.getElementById('profileEditMode').style.display = 'block';
+    _editAvatarType  = _myProfile ? _myProfile.avatarType  : 'preset';
+    _editAvatarValue = _myProfile ? _myProfile.avatarValue : 'mug-hot';
+    _editAccentColor = _myProfile ? _myProfile.accentColor : '#5b5ef4';
+    _editPhotoData   = _myProfile ? _myProfile.photoData   : '';
+    document.getElementById('bioInput').value = _myProfile ? (_myProfile.bio || '') : '';
+    buildPresetsGrid();
+    buildColorPalette();
+    document.getElementById('profileSaveStatus').innerText = '';
+    switchAvatarTab(_editAvatarType === 'photo' ? 'photo' : 'preset');
+    if (_editAvatarType === 'photo' && _editPhotoData) {
+      var prev = document.getElementById('photoPreview');
+      prev.src = _editPhotoData; prev.style.display = 'block';
+    }
+  }
+
+  function exitEditMode() {
+    document.getElementById('profileEditMode').style.display = 'none';
+    document.getElementById('profileViewMode').style.display = 'block';
+  }
+
+  function buildPresetsGrid() {
+    var grid = document.getElementById('avatarPresetsGrid');
+    grid.innerHTML = '';
+    AVATAR_PRESETS.forEach(function(p) {
+      var btn = document.createElement('div');
+      btn.className = 'avatar-preset' + (_editAvatarType === 'preset' && _editAvatarValue === p.id ? ' selected' : '');
+      btn.style.background = p.bg;
+      btn.innerHTML = '<i class="fa-solid ' + p.icon + '" style="font-size:0.9rem;color:#fff;"></i>';
+      btn.onclick = function() {
+        _editAvatarType = 'preset'; _editAvatarValue = p.id;
+        document.querySelectorAll('.avatar-preset').forEach(function(x){ x.classList.remove('selected'); });
+        btn.classList.add('selected');
+      };
+      grid.appendChild(btn);
+    });
+  }
+
+  function buildColorPalette() {
+    var pal = document.getElementById('colorPalette');
+    pal.innerHTML = '';
+    COLOR_PALETTE.forEach(function(c) {
+      var sw = document.createElement('div');
+      sw.className = 'color-swatch' + (_editAccentColor === c ? ' selected' : '');
+      sw.style.background = c;
+      sw.onclick = function() {
+        _editAccentColor = c;
+        document.querySelectorAll('.color-swatch').forEach(function(x){ x.classList.remove('selected'); });
+        sw.classList.add('selected');
+      };
+      pal.appendChild(sw);
+    });
+  }
+
+  function switchAvatarTab(tab) {
+    _editAvatarTab = tab;
+    document.getElementById('avatarTabPreset').classList.toggle('active', tab === 'preset');
+    document.getElementById('avatarTabPhoto').classList.toggle('active', tab === 'photo');
+    document.getElementById('avatarPresetPanel').style.display = tab === 'preset' ? '' : 'none';
+    document.getElementById('avatarPhotoPanel').style.display  = tab === 'photo'  ? '' : 'none';
+  }
+
+  function handlePhotoUpload(event) {
+    var file = event.target.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      var img = new Image();
+      img.onload = function() {
+        var canvas = document.createElement('canvas');
+        var size = 160;
+        canvas.width = size; canvas.height = size;
+        var ctx = canvas.getContext('2d');
+        var sx = 0, sy = 0, sw = img.width, sh = img.height;
+        if (img.width > img.height) { sx = (img.width - img.height) / 2; sw = img.height; }
+        else { sy = (img.height - img.width) / 2; sh = img.width; }
+        ctx.drawImage(img, sx, sy, sw, sh, 0, 0, size, size);
+        _editPhotoData = canvas.toDataURL('image/jpeg', 0.72);
+        _editAvatarType = 'photo'; _editAvatarValue = '';
+        var prev = document.getElementById('photoPreview');
+        prev.src = _editPhotoData; prev.style.display = 'block';
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function saveProfile() {
+    var btn = document.getElementById('profileSaveBtn');
+    var st  = document.getElementById('profileSaveStatus');
+    btn.disabled = true;
+    st.style.color = 'var(--text-muted)';
+    st.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Saxlanılır...';
+    var data = {
+      avatarType:  _editAvatarType,
+      avatarValue: _editAvatarValue,
+      accentColor: _editAccentColor,
+      bio:         document.getElementById('bioInput').value.trim(),
+      photoData:   _editAvatarType === 'photo' ? _editPhotoData : '',
+    };
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (res && res.success) {
+          st.style.color = 'var(--success)';
+          st.innerHTML = '<i class="fa-solid fa-check"></i> Saxlanıldı!';
+          _myProfile = Object.assign(_myProfile || {}, data);
+          renderOwnProfileView(_myProfile);
+          setTimeout(function(){ exitEditMode(); loadTeamGrid(); }, 1000);
+        } else {
+          st.style.color = 'var(--danger)';
+          st.innerText = 'Xəta baş verdi.';
+          btn.disabled = false;
+        }
+      })
+      .withFailureHandler(function(){
+        st.style.color = 'var(--danger)';
+        st.innerText = 'Xəta baş verdi.';
+        btn.disabled = false;
+      })
+      .saveProfile(SECRET, data);
+  }
+
+  function loadTeamGrid() {
+    google.script.run.withSuccessHandler(renderTeamGrid).getTeamProfiles(SECRET);
+  }
+
+  function renderTeamGrid(members) {
+    var grid = document.getElementById('teamGrid');
+    if (!members || !members.length) {
+      grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:1.5rem;color:var(--text-muted);font-size:0.84rem;">Komanda tapılmadı</div>';
+      return;
+    }
+    grid.innerHTML = '';
+    members.forEach(function(m) {
+      var card = document.createElement('div');
+      card.className = 'team-card';
+      card.style.borderColor = m.accentColor + '33';
+
+      var avWrap = document.createElement('div');
+      avWrap.className = 'team-avatar-sm';
+      avWrap.style.cssText = 'width:46px;height:46px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;color:#fff;overflow:hidden;';
+      if (m.avatarType === 'photo' && m.photoData) {
+        var img = document.createElement('img');
+        img.src = m.photoData; img.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+        avWrap.appendChild(img);
+      } else {
+        var pr = AVATAR_PRESETS.find(function(p){ return p.id === m.avatarValue; }) || AVATAR_PRESETS[0];
+        avWrap.style.background = pr.bg;
+        avWrap.innerHTML = '<i class="fa-solid ' + pr.icon + '"></i>';
+      }
+
+      var firstName = m.empName.split(' ')[0];
+      var nameEl = document.createElement('div');
+      nameEl.className = 'team-name';
+      nameEl.innerText = firstName;
+
+      var deptEl = document.createElement('div');
+      deptEl.className = 'team-dept';
+      deptEl.innerText = m.dept;
+
+      card.appendChild(avWrap);
+      card.appendChild(nameEl);
+      card.appendChild(deptEl);
+
+      if (m.streak > 0) {
+        var strEl = document.createElement('div');
+        strEl.className = 'team-streak';
+        strEl.innerHTML = '<i class="fa-solid fa-fire" style="color:#f59e0b;font-size:0.6rem;"></i> ' + m.streak;
+        card.appendChild(strEl);
+      }
+
+      card.onclick = function(){ openPmodal(m.empId); };
+      grid.appendChild(card);
+    });
+  }
+
+  // ── Profil modal ─────────────────────────────────────────────────
+  function openPmodal(empId) {
+    document.getElementById('pmodalStats').innerHTML =
+      '<div style="grid-column:1/-1;text-align:center;padding:1rem;color:var(--text-muted);font-size:0.84rem;"><i class="fa-solid fa-circle-notch fa-spin"></i></div>';
+    document.getElementById('pmodalStreak').style.display = 'none';
+    document.getElementById('pmodalOverlay').classList.add('open');
+    google.script.run
+      .withSuccessHandler(function(p) {
+        if (!p) return;
+        // Avatar
+        var avEl = document.getElementById('pmodalAvatar');
+        avEl.style.cssText = 'width:88px;height:88px;border-radius:24px;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;font-size:2.2rem;color:#fff;box-shadow:0 12px 30px rgba(0,0,0,0.16),0 0 0 3px rgba(255,255,255,0.9);overflow:hidden;';
+        avEl.innerHTML = '';
+        if (p.avatarType === 'photo' && p.photoData) {
+          avEl.innerHTML = '<img src="'+p.photoData+'" style="width:100%;height:100%;object-fit:cover;">';
+        } else {
+          var pr = AVATAR_PRESETS.find(function(x){ return x.id === p.avatarValue; }) || AVATAR_PRESETS[0];
+          avEl.style.background = pr.bg;
+          avEl.innerHTML = '<i class="fa-solid ' + pr.icon + '"></i>';
+        }
+        document.getElementById('pmodalName').innerText = p.empName;
+        document.getElementById('pmodalDept').innerText = p.dept;
+        document.getElementById('pmodalBio').innerText = p.bio || '';
+        if (p.streak > 0) {
+          document.getElementById('pmodalStreakVal').innerText = p.streak;
+          document.getElementById('pmodalStreak').style.display = 'inline-flex';
+        }
+        // Stats
+        var s = p.stats || {};
+        var statsData = [
+          { val: s.days  || 0, lbl: 'Gün' },
+          { val: s.onTime|| 0, lbl: 'Vaxtında' },
+          { val: s.late  || 0, lbl: 'Gecikib' },
+          { val: (s.pct  || 0) + '%', lbl: 'Dəqiqlik' },
+        ];
+        document.getElementById('pmodalStats').innerHTML = statsData.map(function(st){
+          return '<div class="pmodal-stat">'+
+            '<div class="pmodal-stat-val">'+st.val+'</div>'+
+            '<div class="pmodal-stat-lbl">'+st.lbl+'</div>'+
+            '</div>';
+        }).join('');
+      })
+      .getPublicProfile(SECRET, empId);
+  }
+
+  function closePmodal() {
+    document.getElementById('pmodalOverlay').classList.remove('open');
+  }
+
+  function closePmodalIfOutside(e) {
+    if (e.target === document.getElementById('pmodalOverlay')) closePmodal();
   }
 </script>
 <script>

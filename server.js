@@ -1181,6 +1181,84 @@ API.saveAnnouncement = async (data) => {
   return { ok:true, id:newId };
 };
 
+// ── PROFİL ────────────────────────────────────────────────────────
+
+API.getMyProfile = async (secret) => {
+  if (!secret) return null;
+  const { data: emp } = await sb.from('employees').select('id,name,dept').eq('secret', secret).single();
+  if (!emp) return null;
+  const { data: p } = await sb.from('profiles').select('*').eq('emp_id', emp.id).single();
+  return {
+    empId: emp.id, empName: emp.name, dept: emp.dept,
+    avatarType:  p?.avatar_type  || 'preset',
+    avatarValue: p?.avatar_value || 'mug-hot',
+    accentColor: p?.accent_color || '#5b5ef4',
+    bio:         p?.bio          || '',
+    photoData:   p?.photo_data   || '',
+  };
+};
+
+API.saveProfile = async (secret, data) => {
+  if (!secret) return { success: false };
+  const { data: emp } = await sb.from('employees').select('id').eq('secret', secret).single();
+  if (!emp) return { success: false };
+  const { error } = await sb.from('profiles').upsert({
+    emp_id:       emp.id,
+    avatar_type:  data.avatarType  || 'preset',
+    avatar_value: data.avatarValue || 'mug-hot',
+    accent_color: data.accentColor || '#5b5ef4',
+    bio:          (data.bio || '').slice(0, 80),
+    photo_data:   data.photoData   || '',
+    updated_at:   new Date().toISOString(),
+  }, { onConflict: 'emp_id' });
+  sbErr('saveProfile', error);
+  return { success: !error };
+};
+
+API.getTeamProfiles = async (secret) => {
+  if (!secret) return [];
+  const { data: caller } = await sb.from('employees').select('id').eq('secret', secret).single();
+  if (!caller) return [];
+  const { data: emps } = await sb.from('employees').select('id,name,dept').order('name');
+  const { data: profiles } = await sb.from('profiles').select('*');
+  const pm = {};
+  for (const p of profiles || []) pm[p.emp_id] = p;
+  const result = await Promise.all((emps || []).map(async e => ({
+    empId:       e.id,
+    empName:     e.name,
+    dept:        e.dept,
+    streak:      await U.calcStreak(e.id, e.dept),
+    avatarType:  pm[e.id]?.avatar_type  || 'preset',
+    avatarValue: pm[e.id]?.avatar_value || 'mug-hot',
+    accentColor: pm[e.id]?.accent_color || '#5b5ef4',
+    bio:         pm[e.id]?.bio          || '',
+    photoData:   pm[e.id]?.photo_data   || '',
+  })));
+  return result;
+};
+
+API.getPublicProfile = async (secret, targetEmpId) => {
+  if (!secret || !targetEmpId) return null;
+  const { data: caller } = await sb.from('employees').select('id').eq('secret', secret).single();
+  if (!caller) return null;
+  const { data: emp } = await sb.from('employees').select('id,name,dept').eq('id', targetEmpId).single();
+  if (!emp) return null;
+  const { data: p } = await sb.from('profiles').select('*').eq('emp_id', emp.id).single();
+  const streak = await U.calcStreak(emp.id, emp.dept);
+  const now = new Date();
+  const report = await API.getMonthlyReport(now.getFullYear(), now.getMonth() + 1);
+  const myR = report.find(r => r.empId === emp.id) || { totalDays: 0, onTime: 0, late: 0, pct: 0 };
+  return {
+    empId: emp.id, empName: emp.name, dept: emp.dept, streak,
+    avatarType:  p?.avatar_type  || 'preset',
+    avatarValue: p?.avatar_value || 'mug-hot',
+    accentColor: p?.accent_color || '#5b5ef4',
+    bio:         p?.bio          || '',
+    photoData:   p?.photo_data   || '',
+    stats: { days: myR.totalDays, onTime: myR.onTime, late: myR.late, pct: myR.pct },
+  };
+};
+
 // ── TƏCİLİ BİLDİRİŞ ─────────────────────────────────────────────
 
 API.sendEmergency = async (secret, message) => {
