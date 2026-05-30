@@ -446,14 +446,12 @@ API.validateAndLog = async (enteredPin, clientIp, forceMode) => {
         if ((ts.getHours() * 60 + ts.getMinutes()) <= ph * 60 + pm + 5) late = false;
       }
     }
-    const lateStr = late
-      ? `⚠️ Gecikib`
-      : `✅ Vaxtında`;
+    const lateStr = late ? 'Gecikib' : 'Vaxtında';
     await sb.from('attendance').insert({
       emp_id: matched.id, emp_name: matched.name, dept: matched.dept,
       timestamp: ts.toISOString(), type: 'GƏLİŞ', overtime: '', shift_type: todayShift || '',
     });
-    await U.sendTelegramMsg(`▶️ <b>${matched.name}</b> smendə.\n${U.fmtTime(ts)} — ${lateStr}`, matched.dept);
+    await U.sendTelegramMsg(`<b>${matched.name}</b> smendə.\n${U.fmtTime(ts)} — ${lateStr}`, matched.dept);
     return { valid: true, empName: matched.name, dept: matched.dept, type: 'GƏLİŞ', overtime: '' };
 
   } else if (todayLogs.length === 1) {
@@ -478,8 +476,7 @@ API.validateAndLog = async (enteredPin, clientIp, forceMode) => {
       emp_id: matched.id, emp_name: matched.name, dept: matched.dept,
       timestamp: ts.toISOString(), type: 'CIXIS', overtime: overtimeStr, shift_type: todayShift || '',
     });
-    const otE = diffMs > 0 ? '🟢' : diffMs < 0 ? '🔴' : '⚪';
-    await U.sendTelegramMsg(`⏹️ <b>${matched.name}</b> smendən çıxdı.\n${U.fmtTime(ts)} — ${otE} ${overtimeStr}`, matched.dept);
+    await U.sendTelegramMsg(`<b>${matched.name}</b> smendən çıxdı.\n${U.fmtTime(ts)} — ${overtimeStr}`, matched.dept);
     return { valid: true, empName: matched.name, dept: matched.dept, type: 'CIXIS', overtime: overtimeStr };
   }
   return { valid: false, reason: 'Bu gün üçün artıq qeyd var' };
@@ -593,14 +590,14 @@ API.logLunch = async (enteredPin, clientIp, lunchType) => {
   if (lunchType === 'NAHAR_GET') {
     if (naharGet.length > 0) return { valid: false, reason: 'Artıq nahara çıxmısınız!' };
     await sb.from('nahar').insert({ nahar_id: 'NH-' + Date.now().toString(36).toUpperCase(), emp_id: matched.id, emp_name: matched.name, dept: matched.dept, timestamp: ts.toISOString(), type: 'NAHAR_GET' });
-    await U.sendTelegramMsg(`🍽️ <b>${matched.name}</b> naharda.\n${U.fmtTime(ts)}`, matched.dept);
+    await U.sendTelegramMsg(`<b>${matched.name}</b> naharda.\n${U.fmtTime(ts)}`, matched.dept);
     return { valid: true, empName: matched.name, dept: matched.dept, type: 'NAHAR_GET' };
   }
   if (naharGet.length === 0) return { valid: false, reason: 'Əvvəlcə nahara çıxış qeydə alınmalıdır!' };
   if (naharQay.length > 0)   return { valid: false, reason: 'Nahardan qayıdışınız artıq qeydə alınıb!' };
   const diffMin = Math.round((ts.getTime() - new Date(naharGet[0].timestamp).getTime()) / 60000);
   await sb.from('nahar').insert({ nahar_id: 'NH-' + Date.now().toString(36).toUpperCase(), emp_id: matched.id, emp_name: matched.name, dept: matched.dept, timestamp: ts.toISOString(), type: 'NAHAR_QAY' });
-  await U.sendTelegramMsg(`↩️ <b>${matched.name}</b> nahar bitdi.\n${U.fmtTime(ts)} — ${diffMin} dəq`, matched.dept);
+  await U.sendTelegramMsg(`<b>${matched.name}</b> nahar bitdi.\n${U.fmtTime(ts)} — ${diffMin} dəq`, matched.dept);
   return { valid: true, empName: matched.name, dept: matched.dept, type: 'NAHAR_QAY', duration: diffMin };
 };
 
@@ -620,7 +617,7 @@ API.logManagerCheckin = async (branchKey, type) => {
   if (type === 'GELIS') {
     if (todayLogs.some(r => r.type === 'GELIS' || r.type === 'GƏLİŞ')) return { valid: false, reason: 'Giriş artıq qeydə alınıb!' };
     await sb.from('attendance').insert({ emp_id: MGR_ID, emp_name: mgrName, dept, timestamp: ts.toISOString(), type: 'GELIS', overtime: '', shift_type: '' });
-    await U.sendTelegramMsg(`▶️ <b>İdarəçi</b> smendə.\n${U.fmtTime(ts)}`, dept);
+    await U.sendTelegramMsg(`<b>İdarəçi</b> smendə.\n${U.fmtTime(ts)}`, dept);
     return { valid: true, type: 'GELIS', time: U.fmtTime(ts) };
   }
   if (type === 'CIXIS') {
@@ -631,7 +628,7 @@ API.logManagerCheckin = async (branchKey, type) => {
     const dh = Math.floor(diffMs / 3600000), dm = Math.floor((diffMs % 3600000) / 60000);
     const dur = `${dh} saat ${dm} dəq`;
     await sb.from('attendance').insert({ emp_id: MGR_ID, emp_name: mgrName, dept, timestamp: ts.toISOString(), type: 'CIXIS', overtime: dur, shift_type: '' });
-    await U.sendTelegramMsg(`⏹️ <b>İdarəçi</b> smendən çıxdı.\n${U.fmtTime(ts)} — ${dur}`, dept);
+    await U.sendTelegramMsg(`<b>İdarəçi</b> smendən çıxdı.\n${U.fmtTime(ts)} — ${dur}`, dept);
     return { valid: true, type: 'CIXIS', time: U.fmtTime(ts), duration: dur };
   }
   return { valid: false, reason: 'Yanlış əməliyyat.' };
