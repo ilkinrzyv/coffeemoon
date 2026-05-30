@@ -995,6 +995,24 @@
 
   document.getElementById('avatarDiv').innerText = EMP_NAME.split(' ').map(function(n){return n[0];}).join('').substring(0,2).toUpperCase() || 'CM';
 
+  function updateTicketAvatar(p) {
+    var div = document.getElementById('avatarDiv');
+    div.innerHTML = '';
+    if (p.avatarType === 'photo' && p.photoData) {
+      div.style.background = 'none';
+      div.style.padding = '0';
+      var img = document.createElement('img');
+      img.src = p.photoData;
+      img.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:22px;';
+      div.appendChild(img);
+    } else {
+      var preset = AVATAR_PRESETS.find(function(x){ return x.id === p.avatarValue; }) || AVATAR_PRESETS[0];
+      div.style.background = preset.bg;
+      div.style.padding = '';
+      div.innerHTML = '<i class="fa-solid ' + preset.icon + '" style="font-size:1.65rem;color:#fff;"></i>';
+    }
+  }
+
   function generateDynamicPin(secret, timeWindow) {
     var str = secret.toString() + timeWindow.toString(), hash = 0;
     for (var i = 0; i < str.length; i++) { hash = (hash << 5) - hash + str.charCodeAt(i); hash |= 0; }
@@ -1574,6 +1592,7 @@
         _editAccentColor = p.accentColor;
         _editPhotoData   = p.photoData;
         renderOwnProfileView(p);
+        updateTicketAvatar(p);
       })
       .getMyProfile(SECRET);
 
@@ -1700,6 +1719,7 @@
           st.innerHTML = '<i class="fa-solid fa-check"></i> Saxlanıldı!';
           _myProfile = Object.assign(_myProfile || {}, data);
           renderOwnProfileView(_myProfile);
+          updateTicketAvatar(_myProfile);
           setTimeout(function(){ exitEditMode(); loadTeamGrid(); }, 1000);
         } else {
           st.style.color = 'var(--danger)';
