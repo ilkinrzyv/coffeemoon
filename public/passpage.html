@@ -99,20 +99,7 @@
   <div class="res-icon" id="warnIcon"></div>
   <div class="res-title" id="warnTitle"></div>
   <div class="res-subtitle" id="warnSub"></div>
-  <div style="display:flex;gap:10px;margin-top:1.2rem;width:100%;max-width:320px;">
-    <button onclick="cancelWarning()"
-      style="flex:1;padding:13px;border:1px solid rgba(15,23,42,0.1);background:#fff;
-             border-radius:14px;font-size:0.9rem;font-weight:700;cursor:pointer;
-             font-family:'Inter',sans-serif;color:var(--text-muted);">
-      <i class="fa-solid fa-xmark"></i> Ləğv et
-    </button>
-    <button onclick="confirmWarning()"
-      style="flex:2;padding:13px;border:none;background:var(--primary);color:#fff;
-             border-radius:14px;font-size:0.9rem;font-weight:700;cursor:pointer;
-             font-family:'Inter',sans-serif;box-shadow:0 6px 14px rgba(99,102,241,0.25);">
-      <i class="fa-solid fa-check"></i> Anladım, Davam et
-    </button>
-  </div>
+  <div style="margin-top:1.2rem;width:100%;max-width:320px;" id="warnBtns"></div>
 </div>
 <script src="/gsr-shim.js"></script>
 <script>
@@ -222,60 +209,48 @@ function resetAll(){
 }
 
 // ══════════════════════════════════════════════════════════════════
-//  WARNING SİSTEMİ (YENİ)
+//  WARNING SİSTEMİ
 // ══════════════════════════════════════════════════════════════════
+
+var BTN_DISMISS =
+  '<button onclick="dismissWarning()" '+
+  'style="width:100%;padding:14px;border:none;background:var(--primary);color:#fff;'+
+  'border-radius:14px;font-size:0.95rem;font-weight:700;cursor:pointer;'+
+  'font-family:\'Inter\',sans-serif;box-shadow:0 6px 14px rgba(99,102,241,0.25);">'+
+  'Anladım</button>';
 
 function showWarning(res){
   var wIcon  = document.getElementById('warnIcon');
   var wTitle = document.getElementById('warnTitle');
   var wSub   = document.getElementById('warnSub');
+  var wBtns  = document.getElementById('warnBtns');
 
   if(res.warningType==='UNCLOSED_LUNCH'){
-    wIcon.innerHTML = "<i class='fa-solid fa-bowl-food'></i>";
+    wIcon.innerHTML  = "<i class='fa-solid fa-bowl-food'></i>";
     wIcon.style.cssText = 'background:rgba(245,158,11,0.1);color:#f59e0b;border:1px solid rgba(245,158,11,0.25);';
-    wTitle.innerText = 'Nahar Çıxışı Yoxdur';
+    wTitle.innerText = 'Xəbərdarlıq!';
     wSub.innerHTML   =
-      '<b style="font-size:1.1rem;color:var(--text-main);">'+res.empName+'</b><br>'+
-      '<span style="color:var(--text-muted);font-size:0.85rem;line-height:1.6;">'+
-      'Nahardan qayıdış qeydə alınmayıb.<br>'+
-      'Davam etsəniz nahar qayıdışı sistemdə qeyd edilməyəcək.</span>';
-
-  } else if(res.warningType==='UNCLOSED_PENALTY'){
-    wIcon.innerHTML = "<i class='fa-solid fa-gavel'></i>";
-    wIcon.style.cssText = 'background:rgba(239,68,68,0.1);color:#ef4444;border:1px solid rgba(239,68,68,0.25);';
-    wTitle.innerText = 'CƏRİMƏ — '+res.penaltyNum+'-ci hal';
-    wSub.innerHTML   =
-      '<b style="font-size:1.1rem;color:#991b1b;">'+res.empName+'</b><br>'+
-      '<span style="color:var(--text-muted);font-size:0.85rem;line-height:1.6;">'+
-      'Əvvəlki smendən çıxış edilməyib.<br>'+
-      'Bu, '+res.penaltyNum+'-ci cərimə halıdır — qeydə alındı.</span>';
+      '<b style="font-size:1.05rem;color:var(--text-main);">'+res.empName+'</b><br>'+
+      '<span style="color:var(--text-muted);font-size:0.88rem;line-height:1.65;">'+
+      'Nahar müddəti hələ davam edir.<br>Əvvəlcə nahardan çıxış edilməlidir.</span>';
+    wBtns.innerHTML = BTN_DISMISS;
 
   } else {
-    // UNCLOSED_WARNING (1-ci hal)
-    wIcon.innerHTML = "<i class='fa-solid fa-triangle-exclamation'></i>";
-    wIcon.style.cssText = 'background:rgba(245,158,11,0.1);color:#f59e0b;border:1px solid rgba(245,158,11,0.25);';
-    wTitle.innerText = 'Xəbərdarlıq';
+    // UNCLOSED_WARNING və ya UNCLOSED_PENALTY — hər ikisi bloklanır
+    wIcon.innerHTML  = "<i class='fa-solid fa-triangle-exclamation'></i>";
+    wIcon.style.cssText = 'background:rgba(239,68,68,0.1);color:#ef4444;border:1px solid rgba(239,68,68,0.25);';
+    wTitle.innerText = 'Xəbərdarlıq!';
     wSub.innerHTML   =
-      '<b style="font-size:1.1rem;color:var(--text-main);">'+res.empName+'</b><br>'+
-      '<span style="color:var(--text-muted);font-size:0.85rem;line-height:1.6;">'+
-      'Əvvəlki smendən çıxış edilməyib.<br>'+
-      'Davam etsəniz bu hal qeydə alınacaq.</span>';
+      '<b style="font-size:1.05rem;color:var(--text-main);">'+res.empName+'</b><br>'+
+      '<span style="color:var(--text-muted);font-size:0.88rem;line-height:1.65;">'+
+      'Əvvəlki smendən çıxış edilməyib.<br>Zəhmət olmasa idarəçiyə müraciət edin.</span>';
+    wBtns.innerHTML = BTN_DISMISS;
   }
 
   document.getElementById('warnOverlay').classList.add('show');
 }
 
-// "Anladım, Davam et" düyməsi
-function confirmWarning(){
-  document.getElementById('warnOverlay').classList.remove('show');
-  isProcessing=true;
-  statusEl.innerHTML="<i class='fa-solid fa-circle-notch fa-spin'></i> Qeyd edilir...";
-  statusEl.style.color="var(--primary)";
-  doValidate(_pendingIp, true);
-}
-
-// "Ləğv et" düyməsi
-function cancelWarning(){
+function dismissWarning(){
   document.getElementById('warnOverlay').classList.remove('show');
   resetAll();
 }
