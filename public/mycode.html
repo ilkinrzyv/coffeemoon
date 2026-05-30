@@ -585,6 +585,79 @@
     cursor:pointer; font-family:'Inter',sans-serif;
   }
 
+  /* ── QEYDLƏR ── */
+  .notes-add-wrap {
+    background:rgba(255,255,255,0.88); backdrop-filter:blur(30px);
+    border-radius:20px; box-shadow:var(--card-shadow); border:1px solid rgba(255,255,255,0.8);
+    padding:0.9rem 1rem; display:flex; gap:9px; align-items:center;
+  }
+  .notes-input {
+    flex:1; border:none; background:transparent; font-size:0.9rem;
+    font-family:'Inter',sans-serif; color:var(--text-main); outline:none;
+    font-weight:500; min-width:0;
+  }
+  .notes-input::placeholder { color:var(--text-soft); }
+  .notes-add-btn {
+    width:36px; height:36px; border-radius:11px; border:none; flex-shrink:0;
+    background:linear-gradient(135deg,var(--primary),var(--primary-dark));
+    color:#fff; font-size:1.05rem; cursor:pointer; display:flex;
+    align-items:center; justify-content:center;
+    box-shadow:0 4px 12px rgba(91,94,244,0.28); transition:all 0.2s;
+  }
+  .notes-add-btn:active { transform:scale(0.9); }
+
+  .notes-list-card {
+    background:rgba(255,255,255,0.88); backdrop-filter:blur(30px);
+    border-radius:24px; box-shadow:var(--card-shadow); border:1px solid rgba(255,255,255,0.8);
+    overflow:hidden;
+  }
+  .notes-section-hdr {
+    padding:0.85rem 1.1rem 0.6rem;
+    font-size:0.68rem; font-weight:800; color:var(--text-soft);
+    text-transform:uppercase; letter-spacing:1.3px;
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  .notes-clear-done {
+    font-size:0.7rem; font-weight:700; color:var(--danger); cursor:pointer;
+    background:none; border:none; font-family:'Inter',sans-serif; padding:0;
+    text-transform:none; letter-spacing:0;
+  }
+  .notes-empty {
+    padding:2.2rem 1rem; text-align:center;
+    color:var(--text-soft); font-size:0.84rem; font-weight:600;
+  }
+  .notes-empty i { font-size:2rem; display:block; margin-bottom:8px; opacity:0.4; }
+  .note-item {
+    display:flex; align-items:center; gap:10px;
+    padding:12px 1rem; border-bottom:1px solid rgba(15,23,42,0.04);
+    transition:background 0.15s; animation:fadeIn 0.2s ease;
+  }
+  .note-item:last-child { border-bottom:none; }
+  .note-check {
+    width:22px; height:22px; border-radius:7px; flex-shrink:0; cursor:pointer;
+    border:2px solid rgba(15,23,42,0.14); background:transparent;
+    display:flex; align-items:center; justify-content:center;
+    transition:all 0.18s; font-size:0.72rem; color:#fff;
+  }
+  .note-check.done {
+    background:var(--success); border-color:var(--success);
+    box-shadow:0 2px 8px rgba(15,186,125,0.3);
+  }
+  .note-check.done::after { content:'✓'; font-weight:900; }
+  .note-text {
+    flex:1; font-size:0.88rem; font-weight:500; color:var(--text-main);
+    line-height:1.4; word-break:break-word;
+  }
+  .note-text.done { text-decoration:line-through; color:var(--text-soft); }
+  .note-date { font-size:0.65rem; color:var(--text-soft); font-weight:600; white-space:nowrap; }
+  .note-del {
+    width:28px; height:28px; border-radius:8px; flex-shrink:0; cursor:pointer;
+    border:none; background:transparent; color:var(--text-soft); font-size:0.8rem;
+    display:flex; align-items:center; justify-content:center; transition:all 0.15s;
+    font-family:'Inter',sans-serif;
+  }
+  .note-del:hover { background:var(--danger-light); color:var(--danger); }
+
   /* ── EMERGENCY ── */
   .emergency-btn {
     width:100%; padding:14px; margin-top:10px;
@@ -679,6 +752,10 @@
     <button class="main-tab" id="tabBtnProfil" onclick="showTab('profil')">
       <i class="fa-solid fa-user"></i>
       Profil
+    </button>
+    <button class="main-tab" id="tabBtnQeydler" onclick="showTab('qeydler')">
+      <i class="fa-solid fa-list-check"></i>
+      Qeydlər
     </button>
   </div>
   
@@ -951,6 +1028,35 @@
 
   </div>
 
+  <!-- PANEL 5: QEYDLƏR -->
+  <div class="tab-panel" id="panel-qeydler">
+
+    <div class="notes-add-wrap">
+      <input class="notes-input" id="noteInput" placeholder="Yeni qeyd əlavə et..."
+        maxlength="200" onkeydown="if(event.key==='Enter')addNote()">
+      <button class="notes-add-btn" onclick="addNote()">
+        <i class="fa-solid fa-plus"></i>
+      </button>
+    </div>
+
+    <div class="notes-list-card">
+      <div class="notes-section-hdr" id="notesHdrTodo" style="display:none;">
+        <span><i class="fa-solid fa-circle-dot" style="color:var(--primary);margin-right:6px;font-size:0.6rem;"></i>Aktiv</span>
+      </div>
+      <div id="notesTodoList"></div>
+      <div class="notes-section-hdr" id="notesHdrDone" style="display:none;">
+        <span><i class="fa-solid fa-check-circle" style="color:var(--success);margin-right:6px;font-size:0.6rem;"></i>Tamamlandı</span>
+        <button class="notes-clear-done" onclick="clearDoneNotes()">Hamısını sil</button>
+      </div>
+      <div id="notesDoneList"></div>
+      <div class="notes-empty" id="notesEmpty">
+        <i class="fa-solid fa-note-sticky"></i>
+        Hər hansı bir qeyd yoxdur.<br>Yuxarıdan əlavə edə bilərsiniz.
+      </div>
+    </div>
+
+  </div>
+
   <!-- EMERGENCY DÜYMƏSİ -->
   <button class="emergency-btn" id="emergencyBtn" onclick="openEmergency()" style="display:none;">
     <i class="fa-solid fa-triangle-exclamation"></i> Təcili Bildiriş Göndər
@@ -1059,14 +1165,15 @@
 
   function showTab(tab) {
     _activeMainTab = tab;
-    var tabs   = ['gundelik', 'cedvel', 'icaze', 'profil'];
-    var btnIds = { gundelik:'tabBtnGundelik', cedvel:'tabBtnCedvel', icaze:'tabBtnIcaze', profil:'tabBtnProfil' };
+    var tabs   = ['gundelik', 'cedvel', 'icaze', 'profil', 'qeydler'];
+    var btnIds = { gundelik:'tabBtnGundelik', cedvel:'tabBtnCedvel', icaze:'tabBtnIcaze', profil:'tabBtnProfil', qeydler:'tabBtnQeydler' };
     tabs.forEach(function(t) {
       document.getElementById('panel-' + t).classList.toggle('active', t === tab);
       document.getElementById(btnIds[t]).classList.toggle('active', t === tab);
     });
     document.getElementById('ticket').style.display = (tab === 'gundelik') ? '' : 'none';
     if (tab === 'profil' && !_profileLoaded) loadProfileTab();
+    if (tab === 'qeydler') renderNotes();
   }
 
   // ── AUTH ─────────────────────────────────────────────────────────
@@ -1500,6 +1607,87 @@
         }
       })
       .requestLatePerm(SECRET, dateStr, time);
+  }
+
+  // ── QEYDLƏR ──────────────────────────────────────────────────────
+
+  var NOTES_KEY = 'cm_notes_v1_' + SECRET;
+
+  function getNotes() {
+    try { return JSON.parse(localStorage.getItem(NOTES_KEY)) || []; }
+    catch(e) { return []; }
+  }
+  function setNotes(arr) {
+    localStorage.setItem(NOTES_KEY, JSON.stringify(arr));
+  }
+
+  function addNote() {
+    var inp = document.getElementById('noteInput');
+    var text = (inp.value || '').trim();
+    if (!text) { inp.focus(); return; }
+    var notes = getNotes();
+    notes.unshift({
+      id: Date.now().toString(36),
+      text: text,
+      done: false,
+      date: new Date().toLocaleDateString('az-AZ', { day:'2-digit', month:'2-digit' }),
+    });
+    setNotes(notes);
+    inp.value = '';
+    renderNotes();
+    inp.focus();
+  }
+
+  function toggleNote(id) {
+    var notes = getNotes().map(function(n) {
+      return n.id === id ? Object.assign({}, n, { done: !n.done }) : n;
+    });
+    setNotes(notes);
+    renderNotes();
+  }
+
+  function deleteNote(id) {
+    setNotes(getNotes().filter(function(n){ return n.id !== id; }));
+    renderNotes();
+  }
+
+  function clearDoneNotes() {
+    setNotes(getNotes().filter(function(n){ return !n.done; }));
+    renderNotes();
+  }
+
+  function renderNotes() {
+    var notes = getNotes();
+    var todo = notes.filter(function(n){ return !n.done; });
+    var done = notes.filter(function(n){ return n.done; });
+
+    var emptyEl   = document.getElementById('notesEmpty');
+    var hdrTodo   = document.getElementById('notesHdrTodo');
+    var hdrDone   = document.getElementById('notesHdrDone');
+    var todoList  = document.getElementById('notesTodoList');
+    var doneList  = document.getElementById('notesDoneList');
+
+    emptyEl.style.display  = (todo.length + done.length === 0) ? '' : 'none';
+    hdrTodo.style.display  = todo.length > 0 ? '' : 'none';
+    hdrDone.style.display  = done.length > 0 ? '' : 'none';
+
+    todoList.innerHTML = todo.map(noteHTML).join('');
+    doneList.innerHTML = done.map(noteHTML).join('');
+  }
+
+  function noteHTML(n) {
+    return '<div class="note-item" id="ni-' + n.id + '">' +
+      '<div class="note-check ' + (n.done ? 'done' : '') + '" onclick="toggleNote(\'' + n.id + '\')"></div>' +
+      '<div class="note-text ' + (n.done ? 'done' : '') + '">' + escHtml(n.text) + '</div>' +
+      '<div class="note-date">' + (n.date || '') + '</div>' +
+      '<button class="note-del" onclick="deleteNote(\'' + n.id + '\')" title="Sil">' +
+        '<i class="fa-solid fa-xmark"></i>' +
+      '</button>' +
+    '</div>';
+  }
+
+  function escHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
 
   // ── EMERGENCY ────────────────────────────────────────────────────
