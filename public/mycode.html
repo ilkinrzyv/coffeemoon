@@ -676,6 +676,16 @@
   .scan-result-box { display:none; width:100%; padding:14px 16px; border-radius:16px; text-align:center; font-size:0.88rem; font-weight:700; animation:fadeIn 0.3s ease; }
   .scan-result-box.ok { background:var(--success-light); color:#065f46; border:1px solid rgba(15,186,125,0.2); }
   .scan-result-box.err { background:var(--danger-light); color:#991b1b; border:1px solid rgba(240,69,80,0.15); }
+  /* Skan təsdiq overlay */
+  .scan-confirm-overlay { display:none; position:fixed; inset:0; z-index:9997; background:rgba(10,15,30,0.55); backdrop-filter:blur(4px); align-items:flex-end; justify-content:center; }
+  .scan-confirm-overlay.open { display:flex; }
+  .scan-confirm-sheet { background:#fff; border-radius:24px 24px 0 0; width:100%; max-width:480px; padding:1.8rem 1.4rem 2.2rem; box-shadow:0 -8px 40px rgba(15,23,42,0.15); animation:slideUp 0.28s cubic-bezier(0.16,1,0.3,1); }
+  .scan-confirm-icon { width:52px; height:52px; border-radius:50%; background:rgba(91,94,244,0.1); border:2px solid rgba(91,94,244,0.2); display:flex; align-items:center; justify-content:center; color:var(--primary); font-size:1.3rem; margin:0 auto 0.9rem; }
+  .scan-confirm-title { text-align:center; font-size:1rem; font-weight:800; color:var(--text-main); margin-bottom:4px; }
+  .scan-confirm-sub { text-align:center; font-size:0.8rem; color:var(--text-muted); font-weight:500; margin-bottom:1.4rem; line-height:1.5; }
+  .scan-confirm-btns { display:flex; gap:10px; }
+  .scan-confirm-cancel { flex:1; padding:13px; border-radius:13px; border:1.5px solid rgba(15,23,42,0.1); background:#f8fafc; color:var(--text-muted); font-size:0.9rem; font-weight:700; cursor:pointer; font-family:'Inter',sans-serif; }
+  .scan-confirm-ok { flex:2; padding:13px; border-radius:13px; border:none; background:linear-gradient(135deg,var(--primary),var(--primary-dark)); color:#fff; font-size:0.9rem; font-weight:800; cursor:pointer; font-family:'Inter',sans-serif; box-shadow:0 4px 14px rgba(91,94,244,0.28); display:flex; align-items:center; justify-content:center; gap:6px; }
 
   .emergency-btn {
     width:100%; padding:14px; margin-top:10px;
@@ -1111,6 +1121,19 @@
   </div>
 </div>
 
+<!-- SKAN TƏSDİQ OVERLAY -->
+<div class="scan-confirm-overlay" id="scanConfirmOverlay">
+  <div class="scan-confirm-sheet">
+    <div class="scan-confirm-icon"><i class="fa-solid fa-qrcode"></i></div>
+    <div class="scan-confirm-title">QR Kod Oxundu</div>
+    <div class="scan-confirm-sub">Giriş / çıxış əməliyyatını təsdiqləyirsiniz?<br>Səhv skan olarsa "Ləğv et" basın.</div>
+    <div class="scan-confirm-btns">
+      <button class="scan-confirm-cancel" onclick="scanConfirmCancel()">Ləğv et</button>
+      <button class="scan-confirm-ok" id="scanConfirmOkBtn" onclick="scanConfirmOk()"><i class="fa-solid fa-check"></i> Bəli, Davam Et</button>
+    </div>
+  </div>
+</div>
+
 <!-- PROFİL MODAL -->
 <div class="pmodal-overlay" id="pmodalOverlay" onclick="closePmodalIfOutside(event)">
   <div class="pmodal-sheet" id="pmodalSheet">
@@ -1203,6 +1226,9 @@
     document.getElementById('ticket').style.display = (tab === 'gundelik') ? '' : 'none';
     if (tab === 'profil' && !_profileLoaded) loadProfileTab();
     if (tab === 'qeydler') renderNotes();
+    // Kamera: gundelik tabında aç, başqasında bağla
+    if (tab === 'gundelik') { if (!_empScanning && isSessionActive) startEmpScan(); }
+    else { stopEmpScan(); }
   }
 
   // ── AUTH ─────────────────────────────────────────────────────────
@@ -1379,7 +1405,7 @@
 
   // ── PİN & SESSION ────────────────────────────────────────────────
   function updateApp() {
-    if (!SECRET || !isSessionActive) return;
+    if (!SECRET || !isSessionActive) { if (_empScanning) stopEmpScan(); return; }
     var now = Date.now(), cW = Math.floor(now / TIME_STEP);
     document.getElementById('pinDisplay').innerText = generateDynamicPin(SECRET, cW);
     var msLeftPin = TIME_STEP - (now % TIME_STEP), secLeft = msLeftPin / 1000;
@@ -2109,7 +2135,16 @@
   }
 
   var _empQr = null, _empScanning = false, _empScanProcessing = false;
-  var QR_WIN = 30000; // passpage-in window müddəti
+  var QR_WIN = 30000;
+
+  // Brauzer tabi gizlədildikdə kameranı bağla, geri gəldikdə aç
+  document.addEventListener('visibilitychange', function() {
+    if (document.hidden) {
+      stopEmpScan();
+    } else {
+      if (_activeMainTab === 'gundelik' && isSessionActive) startEmpScan();
+    }
+  });
 
   function startEmpScan() {
     if (!isSessionActive) return;
@@ -2138,12 +2173,8 @@
         }
         _empScanProcessing = true;
         stopEmpScan();
-        showScanStatus('<i class="fa-solid fa-circle-notch fa-spin"></i> Yoxlanılır...', null);
-        var pin = generateDynamicPin(SECRET, Math.floor(Date.now() / TIME_STEP));
-        fetch('https://api.ipify.org?format=json')
-          .then(function(r){ return r.json(); })
-          .then(function(d){ empValidate(pin, d.ip || ''); })
-          .catch(function(){ empValidate(pin, ''); });
+        showScanStatus('', null);
+        openScanConfirm();
       },
       function() {}
     ).catch(function() {
@@ -2155,6 +2186,27 @@
   function stopEmpScan() {
     _empScanning = false;
     if (_empQr) { _empQr.stop().catch(function(){}); _empQr = null; }
+  }
+
+  function openScanConfirm() {
+    document.getElementById('scanConfirmOverlay').classList.add('open');
+  }
+
+  function scanConfirmCancel() {
+    document.getElementById('scanConfirmOverlay').classList.remove('open');
+    _empScanProcessing = false;
+    showScanStatus('Ləğv edildi', false);
+    setTimeout(function() { showScanStatus('Passpage QR koduna yönəldin...', null); startEmpScan(); }, 1500);
+  }
+
+  function scanConfirmOk() {
+    document.getElementById('scanConfirmOverlay').classList.remove('open');
+    showScanStatus('<i class="fa-solid fa-circle-notch fa-spin"></i> Yoxlanılır...', null);
+    var pin = generateDynamicPin(SECRET, Math.floor(Date.now() / TIME_STEP));
+    fetch('https://api.ipify.org?format=json')
+      .then(function(r){ return r.json(); })
+      .then(function(d){ empValidate(pin, d.ip || ''); })
+      .catch(function(){ empValidate(pin, ''); });
   }
 
   function empValidate(pin, ip) {
