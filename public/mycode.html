@@ -572,7 +572,7 @@
     border:1px solid rgba(245,158,11,0.2); color:#92400e;
     padding:5px 14px; border-radius:100px; font-size:0.78rem; font-weight:700;
   }
-  .pmodal-stats { padding:1.2rem 1.6rem; display:grid; grid-template-columns:repeat(4,1fr); gap:10px; }
+  .pmodal-stats { padding:1.2rem 1.6rem; display:flex; justify-content:center; }
   .pmodal-stat {
     background:rgba(15,23,42,0.03); border-radius:14px; padding:12px 6px;
     text-align:center; border:1px solid rgba(15,23,42,0.04);
@@ -2077,18 +2077,13 @@
         }
         // Stats
         var s = p.stats || {};
-        var statsData = [
-          { val: s.days  || 0, lbl: 'Gün' },
-          { val: s.onTime|| 0, lbl: 'Vaxtında' },
-          { val: s.late  || 0, lbl: 'Gecikib' },
-          { val: (s.pct  || 0) + '%', lbl: 'Dəqiqlik' },
-        ];
-        document.getElementById('pmodalStats').innerHTML = statsData.map(function(st){
-          return '<div class="pmodal-stat">'+
-            '<div class="pmodal-stat-val">'+st.val+'</div>'+
-            '<div class="pmodal-stat-lbl">'+st.lbl+'</div>'+
-            '</div>';
-        }).join('');
+        var pct = s.pct || 0;
+        var pctColor = pct >= 90 ? 'var(--success)' : pct >= 70 ? 'var(--warning)' : 'var(--danger)';
+        document.getElementById('pmodalStats').innerHTML =
+          '<div class="pmodal-stat" style="min-width:110px;">'+
+            '<div class="pmodal-stat-val" style="color:'+pctColor+';">'+pct+'%</div>'+
+            '<div class="pmodal-stat-lbl">Davamiyyət</div>'+
+          '</div>';
       })
       .getPublicProfile(SECRET, empId);
   }
