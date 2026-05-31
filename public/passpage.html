@@ -317,8 +317,8 @@ function updateQrTimer() {
 var _pinModeActive = false;
 function togglePinMode() {
   _pinModeActive = !_pinModeActive;
-  document.getElementById('qrDisplayArea').style.display = _pinModeActive ? 'none' : '';
-  document.getElementById('pinModeArea').style.display  = _pinModeActive ? ''     : 'none';
+  document.getElementById('qrDisplayArea').style.display = _pinModeActive ? 'none'  : 'flex';
+  document.getElementById('pinModeArea').style.display  = _pinModeActive ? 'block' : 'none';
   if (!_pinModeActive) { currentPin = ''; updateDisplay(); }
 }
 </script>
