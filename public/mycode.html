@@ -795,9 +795,6 @@
       </div>
       <div class="late-warning-box" id="lateWarningBox"><i class="fa-solid fa-triangle-exclamation"></i> Smenə gecikmisiniz!</div>
       <div id="emp-qr-reader"></div>
-      <button class="scan-start-btn" id="scanStartBtn" onclick="toggleEmpScan()">
-        <i class="fa-solid fa-camera"></i> Kameranı Aç
-      </button>
       <div class="scan-status" id="scanStatus"></div>
       <div class="scan-result-box" id="scanResultBox"></div>
       <button class="pin-alt-toggle" id="pinAltToggleBtn" onclick="togglePinAlt()">
@@ -1229,6 +1226,7 @@
         loadMyAvans();
         setInterval(updateApp, 40);
         updateApp();
+        startEmpScan();
 
         google.script.run.withSuccessHandler(function(dash) {
           if (!dash) return;
@@ -2118,18 +2116,11 @@
   var _empQr = null, _empScanning = false, _empScanProcessing = false;
   var QR_WIN = 30000; // passpage-in window müddəti
 
-  function toggleEmpScan() {
-    if (_empScanning) { stopEmpScan(); } else { startEmpScan(); }
-  }
-
   function startEmpScan() {
     if (!isSessionActive) return;
     _empScanning = true;
     _empScanProcessing = false;
-    var readerEl = document.getElementById('emp-qr-reader');
-    readerEl.style.display = 'block';
-    document.getElementById('scanStartBtn').innerHTML = '<i class="fa-solid fa-stop"></i> Kameranı Bağla';
-    document.getElementById('scanStartBtn').classList.add('stop');
+    document.getElementById('emp-qr-reader').style.display = 'block';
     document.getElementById('scanStatus').innerText = 'Passpage QR koduna yönəldin...';
     document.getElementById('scanResultBox').style.display = 'none';
 
@@ -2169,9 +2160,6 @@
   function stopEmpScan() {
     _empScanning = false;
     if (_empQr) { _empQr.stop().catch(function(){}); _empQr = null; }
-    document.getElementById('emp-qr-reader').style.display = 'none';
-    document.getElementById('scanStartBtn').innerHTML = '<i class="fa-solid fa-camera"></i> Kameranı Aç';
-    document.getElementById('scanStartBtn').classList.remove('stop');
   }
 
   function empValidate(pin, ip) {
@@ -2208,7 +2196,7 @@
     box.className = 'scan-result-box ' + (ok ? 'ok' : 'err');
     box.innerHTML = msg;
     box.style.display = 'block';
-    setTimeout(function() { box.style.display = 'none'; document.getElementById('scanStatus').innerHTML = ''; }, 4000);
+    setTimeout(function() { box.style.display = 'none'; document.getElementById('scanStatus').innerHTML = ''; startEmpScan(); }, 4000);
   }
 </script>
 <script>
