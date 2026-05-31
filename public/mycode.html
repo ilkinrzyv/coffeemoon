@@ -13,6 +13,7 @@
 <link rel="apple-touch-icon" href="/icon-192.png">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
   :root {
     --bg: #f0f2f8;
@@ -784,6 +785,12 @@
         <div class="pin" id="pinDisplay">----</div>
       </div>
       <div class="progress-bg"><div class="progress-fill" id="pFill"></div></div>
+      <div style="margin-top:20px;display:flex;flex-direction:column;align-items:center;gap:6px;">
+        <div style="font-size:0.62rem;font-weight:800;text-transform:uppercase;letter-spacing:2.5px;color:var(--text-muted);">QR Kod</div>
+        <div id="qrWrap" style="background:#fff;padding:10px;border-radius:18px;box-shadow:0 4px 18px rgba(15,23,42,0.09);line-height:0;">
+          <div id="qrCodeEl"></div>
+        </div>
+      </div>
     </div>
     <div class="ticket-footer" id="ticketFooter" style="display:none;">
       <div style="display:flex;align-items:center;gap:7px;"><span class="status-dot"></span> Sistem aktivdir</div>
@@ -1198,6 +1205,7 @@
         document.getElementById('emergencyBtn').style.display = 'flex';
         initLatePermCard();
         loadMyAvans();
+        initQr();
         setInterval(updateApp, 40);
         updateApp();
 
@@ -1351,10 +1359,21 @@
   }
 
   // ── PİN & SESSION ────────────────────────────────────────────────
+  var _qrObj = null, _lastQrPin = '';
+  function initQr() {
+    _qrObj = new QRCode(document.getElementById('qrCodeEl'), {
+      text: '0000', width: 210, height: 210,
+      colorDark: '#0d1526', colorLight: '#ffffff',
+      correctLevel: QRCode.CorrectLevel.L
+    });
+  }
+
   function updateApp() {
     if (!SECRET || !isSessionActive) return;
     var now = Date.now(), cW = Math.floor(now / TIME_STEP);
-    document.getElementById('pinDisplay').innerText = generateDynamicPin(SECRET, cW);
+    var _pin = generateDynamicPin(SECRET, cW);
+    document.getElementById('pinDisplay').innerText = _pin;
+    if (_qrObj && _pin !== _lastQrPin) { _lastQrPin = _pin; _qrObj.makeCode(_pin); }
     var msLeftPin = TIME_STEP - (now % TIME_STEP), secLeft = msLeftPin / 1000;
     document.getElementById('tenSecTimer').innerText = secLeft.toFixed(1) + 's';
     var fill = document.getElementById('pFill');
