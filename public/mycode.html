@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="/icon-192.png">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <style>
   :root {
     --bg: #f0f2f8;
@@ -660,6 +660,21 @@
   .note-del:hover { background:var(--danger-light); color:var(--danger); }
 
   /* ── EMERGENCY ── */
+  /* ── KAMERA SKANER KARTI ── */
+  .scan-card { background:rgba(255,255,255,0.88); backdrop-filter:blur(30px); -webkit-backdrop-filter:blur(30px); border-radius:24px; box-shadow:var(--card-shadow); border:1px solid rgba(255,255,255,0.8); overflow:hidden; }
+  .scan-card-header { padding:1rem 1.4rem 0.85rem; border-bottom:1px solid rgba(15,23,42,0.05); display:flex; align-items:center; gap:10px; }
+  .scan-card-header i { color:var(--primary); }
+  .scan-card-body { padding:1rem 1.2rem 1.2rem; display:flex; flex-direction:column; align-items:center; gap:10px; }
+  .scan-start-btn { width:100%; padding:14px; background:linear-gradient(135deg,var(--primary),var(--primary-dark)); color:#fff; border:none; border-radius:16px; font-size:0.92rem; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; font-family:'Inter',sans-serif; box-shadow:0 6px 18px rgba(91,94,244,0.25); transition:all 0.22s; }
+  .scan-start-btn:active { transform:scale(0.97); }
+  .scan-start-btn.stop { background:linear-gradient(135deg,#ef4444,#dc2626); box-shadow:0 6px 18px rgba(239,68,68,0.25); }
+  #emp-qr-reader { width:100%; border-radius:16px; overflow:hidden; background:#111; display:none; }
+  #emp-qr-reader video { width:100%!important; object-fit:cover; }
+  .scan-status { font-size:0.82rem; font-weight:700; text-align:center; min-height:18px; color:var(--text-muted); }
+  .scan-result-box { display:none; width:100%; padding:14px 16px; border-radius:16px; text-align:center; font-size:0.88rem; font-weight:700; animation:fadeIn 0.3s ease; }
+  .scan-result-box.ok { background:var(--success-light); color:#065f46; border:1px solid rgba(15,186,125,0.2); }
+  .scan-result-box.err { background:var(--danger-light); color:#991b1b; border:1px solid rgba(240,69,80,0.15); }
+
   .emergency-btn {
     width:100%; padding:14px; margin-top:10px;
     background:linear-gradient(135deg,#ef4444,#dc2626);
@@ -785,12 +800,6 @@
         <div class="pin" id="pinDisplay">----</div>
       </div>
       <div class="progress-bg"><div class="progress-fill" id="pFill"></div></div>
-      <div style="margin-top:20px;display:flex;flex-direction:column;align-items:center;gap:6px;">
-        <div style="font-size:0.62rem;font-weight:800;text-transform:uppercase;letter-spacing:2.5px;color:var(--text-muted);">QR Kod</div>
-        <div id="qrWrap" style="background:#fff;padding:10px;border-radius:18px;box-shadow:0 4px 18px rgba(15,23,42,0.09);line-height:0;">
-          <div id="qrCodeEl"></div>
-        </div>
-      </div>
     </div>
     <div class="ticket-footer" id="ticketFooter" style="display:none;">
       <div style="display:flex;align-items:center;gap:7px;"><span class="status-dot"></span> Sistem aktivdir</div>
@@ -803,8 +812,23 @@
     </div>
   </div>
 
-  <!-- PANEL 1: GÜNDƏLİK (Nahar + Yeniliklər) -->
+  <!-- PANEL 1: GÜNDƏLİK (Skan + Nahar + Yeniliklər) -->
   <div class="tab-panel" id="panel-gundelik">
+
+    <div class="scan-card" id="scanCard">
+      <div class="scan-card-header">
+        <i class="fa-solid fa-qrcode"></i>
+        <div class="week-card-title">Giriş / Çıxış Skaneri</div>
+      </div>
+      <div class="scan-card-body">
+        <div id="emp-qr-reader"></div>
+        <button class="scan-start-btn" id="scanStartBtn" onclick="toggleEmpScan()">
+          <i class="fa-solid fa-camera"></i> Kameranı Aç
+        </button>
+        <div class="scan-status" id="scanStatus"></div>
+        <div class="scan-result-box" id="scanResultBox"></div>
+      </div>
+    </div>
 
     <div class="lunch-card" id="lunchCard">
       <div class="lunch-card-header">
@@ -1205,7 +1229,6 @@
         document.getElementById('emergencyBtn').style.display = 'flex';
         initLatePermCard();
         loadMyAvans();
-        initQr();
         setInterval(updateApp, 40);
         updateApp();
 
@@ -1359,21 +1382,10 @@
   }
 
   // ── PİN & SESSION ────────────────────────────────────────────────
-  var _qrObj = null, _lastQrPin = '';
-  function initQr() {
-    _qrObj = new QRCode(document.getElementById('qrCodeEl'), {
-      text: '0000', width: 210, height: 210,
-      colorDark: '#0d1526', colorLight: '#ffffff',
-      correctLevel: QRCode.CorrectLevel.L
-    });
-  }
-
   function updateApp() {
     if (!SECRET || !isSessionActive) return;
     var now = Date.now(), cW = Math.floor(now / TIME_STEP);
-    var _pin = generateDynamicPin(SECRET, cW);
-    document.getElementById('pinDisplay').innerText = _pin;
-    if (_qrObj && _pin !== _lastQrPin) { _lastQrPin = _pin; _qrObj.makeCode(_pin); }
+    document.getElementById('pinDisplay').innerText = generateDynamicPin(SECRET, cW);
     var msLeftPin = TIME_STEP - (now % TIME_STEP), secLeft = msLeftPin / 1000;
     document.getElementById('tenSecTimer').innerText = secLeft.toFixed(1) + 's';
     var fill = document.getElementById('pFill');
@@ -2091,6 +2103,105 @@
 
   function closePmodalIfOutside(e) {
     if (e.target === document.getElementById('pmodalOverlay')) closePmodal();
+  }
+
+  // ══════════════════════════════════════════════════════════════════
+  //  KAMERA QR SKANERI (passpage terminalını oxuyur)
+  // ══════════════════════════════════════════════════════════════════
+  var _empQr = null, _empScanning = false, _empScanProcessing = false;
+  var QR_WIN = 30000; // passpage-in window müddəti
+
+  function toggleEmpScan() {
+    if (_empScanning) { stopEmpScan(); } else { startEmpScan(); }
+  }
+
+  function startEmpScan() {
+    if (!isSessionActive) return;
+    _empScanning = true;
+    _empScanProcessing = false;
+    var readerEl = document.getElementById('emp-qr-reader');
+    readerEl.style.display = 'block';
+    document.getElementById('scanStartBtn').innerHTML = '<i class="fa-solid fa-stop"></i> Kameranı Bağla';
+    document.getElementById('scanStartBtn').classList.add('stop');
+    document.getElementById('scanStatus').innerText = 'Passpage QR koduna yönəldin...';
+    document.getElementById('scanResultBox').style.display = 'none';
+
+    _empQr = new Html5Qrcode('emp-qr-reader');
+    _empQr.start(
+      { facingMode: 'environment' },
+      { fps: 12, qrbox: { width: 220, height: 220 } },
+      function(decoded) {
+        if (_empScanProcessing) return;
+        if (!decoded.startsWith('CMQR:')) {
+          showScanStatus('<i class="fa-solid fa-triangle-exclamation"></i> Passpage QR kodu deyil', false);
+          return;
+        }
+        var parts = decoded.split(':');
+        var tw = parseInt(parts[2], 10);
+        var curTw = Math.floor(Date.now() / QR_WIN);
+        if (Math.abs(curTw - tw) > 1) {
+          showScanStatus('<i class="fa-solid fa-clock"></i> QR kodu köhnəlmişdir', false);
+          return;
+        }
+        _empScanProcessing = true;
+        stopEmpScan();
+        showScanStatus('<i class="fa-solid fa-circle-notch fa-spin"></i> Yoxlanılır...', null);
+        var pin = generateDynamicPin(SECRET, Math.floor(Date.now() / TIME_STEP));
+        fetch('https://api.ipify.org?format=json')
+          .then(function(r){ return r.json(); })
+          .then(function(d){ empValidate(pin, d.ip || ''); })
+          .catch(function(){ empValidate(pin, ''); });
+      },
+      function() {}
+    ).catch(function() {
+      showScanStatus('<i class="fa-solid fa-ban"></i> Kamera açıla bilmədi', false);
+      stopEmpScan();
+    });
+  }
+
+  function stopEmpScan() {
+    _empScanning = false;
+    if (_empQr) { _empQr.stop().catch(function(){}); _empQr = null; }
+    document.getElementById('emp-qr-reader').style.display = 'none';
+    document.getElementById('scanStartBtn').innerHTML = '<i class="fa-solid fa-camera"></i> Kameranı Aç';
+    document.getElementById('scanStartBtn').classList.remove('stop');
+  }
+
+  function empValidate(pin, ip) {
+    google.script.run
+      .withSuccessHandler(function(res) {
+        _empScanProcessing = false;
+        if (!res || !res.valid) {
+          showScanStatus('', false);
+          showScanResult(false, res ? res.reason : 'Xəta baş verdi');
+          return;
+        }
+        var isGiris = res.type !== 'CIXIS';
+        showScanStatus('', null);
+        showScanResult(true,
+          (isGiris ? '✓ Giriş qeydə alındı' : '✓ Çıxış qeydə alındı') +
+          ' — <b>' + res.empName + '</b>');
+      })
+      .withFailureHandler(function() {
+        _empScanProcessing = false;
+        showScanStatus('', false);
+        showScanResult(false, 'Sistem xətası baş verdi');
+      })
+      .validateAndLog(pin, ip, false);
+  }
+
+  function showScanStatus(msg, ok) {
+    var el = document.getElementById('scanStatus');
+    el.innerHTML = msg;
+    el.style.color = ok === true ? 'var(--success)' : ok === false ? 'var(--danger)' : 'var(--text-muted)';
+  }
+
+  function showScanResult(ok, msg) {
+    var box = document.getElementById('scanResultBox');
+    box.className = 'scan-result-box ' + (ok ? 'ok' : 'err');
+    box.innerHTML = msg;
+    box.style.display = 'block';
+    setTimeout(function() { box.style.display = 'none'; document.getElementById('scanStatus').innerHTML = ''; }, 4000);
   }
 </script>
 <script>

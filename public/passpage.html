@@ -6,7 +6,7 @@
 <title>Coffeemoon - Giriş Paneli</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
   :root{--bg:#f8fafc;--card-bg:rgba(255,255,255,0.75);--primary:#6366f1;--primary-light:rgba(99,102,241,0.08);--success:#10b981;--success-light:rgba(16,185,129,0.08);--danger:#ef4444;--danger-light:rgba(239,68,68,0.08);--warning:#f59e0b;--warning-light:rgba(245,158,11,0.08);--text-main:#0f172a;--text-muted:#64748b;--border:rgba(255,255,255,0.6);--card-shadow:0 30px 60px -15px rgba(15,23,42,0.08),0 0 0 1px rgba(15,23,42,0.04);}
   *{box-sizing:border-box;margin:0;padding:0;touch-action:manipulation;font-family:'Inter',sans-serif;-webkit-font-smoothing:antialiased;}
@@ -52,15 +52,15 @@
   .success-theme{background:var(--success-light);color:var(--success);border:1px solid rgba(16,185,129,0.15);}
   .error-theme{background:var(--danger-light);color:var(--danger);border:1px solid rgba(239,68,68,0.15);}
   @keyframes pop{0%{transform:scale(0.7);opacity:0}100%{transform:scale(1);opacity:1}}
-  .mode-toggle{display:flex;gap:8px;margin-bottom:18px;}
-  .mode-btn{flex:1;padding:11px 6px;border:1.5px solid rgba(15,23,42,0.1);border-radius:14px;font-size:0.82rem;font-weight:700;cursor:pointer;background:transparent;color:var(--text-muted);font-family:'Inter',sans-serif;transition:all 0.2s;display:flex;align-items:center;justify-content:center;gap:6px;}
-  .mode-btn.active{background:var(--primary);color:#fff;border-color:var(--primary);box-shadow:0 4px 14px rgba(99,102,241,0.25);}
-  .qr-scan-area{display:none;flex-direction:column;align-items:center;gap:10px;}
-  .qr-scan-area.show{display:flex;}
-  #qr-reader{width:270px;height:270px;border-radius:18px;overflow:hidden;background:#111;}
-  #qr-reader video{width:100%!important;height:100%!important;object-fit:cover;}
-  #qr-reader canvas{border-radius:18px;}
-  .qr-hint{font-size:0.8rem;color:var(--text-muted);font-weight:600;text-align:center;}
+  .qr-display-area{display:flex;flex-direction:column;align-items:center;gap:12px;}
+  .qr-box{background:#fff;padding:12px;border-radius:20px;box-shadow:0 6px 24px rgba(15,23,42,0.1);line-height:0;}
+  .qr-label{font-size:0.72rem;font-weight:800;text-transform:uppercase;letter-spacing:2px;color:var(--text-muted);}
+  .qr-timer-bar{width:280px;height:4px;background:rgba(15,23,42,0.07);border-radius:10px;overflow:hidden;margin-top:2px;}
+  .qr-timer-fill{height:100%;background:var(--primary);border-radius:10px;transition:width 1s linear;}
+  .qr-hint-text{font-size:0.8rem;color:var(--text-muted);font-weight:600;}
+  .pin-toggle-btn{margin-top:8px;padding:9px 20px;border:1.5px solid rgba(15,23,42,0.1);border-radius:12px;font-size:0.8rem;font-weight:700;cursor:pointer;background:transparent;color:var(--text-muted);font-family:'Inter',sans-serif;transition:all 0.2s;}
+  .pin-toggle-btn:hover{border-color:var(--primary);color:var(--primary);}
+  .pin-mode-area{display:none;}
 </style>
 </head>
 <body>
@@ -79,31 +79,37 @@
     <button class="btn-check" onclick="checkDevice()"><i class="fa-solid fa-rotate"></i> Yenidən Yoxla</button>
   </div>
   <div class="pin-pad" id="pinPad">
-    <div class="mode-toggle">
-      <button class="mode-btn active" id="btnPinMode" onclick="setScanMode('pin')"><i class="fa-solid fa-keyboard"></i> PIN</button>
-      <button class="mode-btn" id="btnQrMode" onclick="setScanMode('qr')"><i class="fa-solid fa-qrcode"></i> Kamera</button>
+    <!-- QR Göstərmə Rejimi (əsas) -->
+    <div class="qr-display-area" id="qrDisplayArea">
+      <div class="qr-label"><i class="fa-solid fa-qrcode"></i> İşçi Kartı ilə Skan Et</div>
+      <div class="qr-box">
+        <div id="qrPasspage"></div>
+      </div>
+      <div class="qr-timer-bar"><div class="qr-timer-fill" id="qrTimerFill"></div></div>
+      <div class="qr-hint-text" id="qrHintText"><i class="fa-solid fa-mobile-screen-button"></i> MyCode tətbiqini açıb kameranı yönəldin</div>
+      <button class="pin-toggle-btn" onclick="togglePinMode()"><i class="fa-solid fa-keyboard"></i> PIN ilə Giriş</button>
     </div>
-    <div class="qr-scan-area" id="qrScanArea">
-      <div id="qr-reader"></div>
-      <div class="qr-hint" id="qrHint"><i class="fa-solid fa-camera"></i> Kameranı QR koda yönəldin</div>
-    </div>
-    <div id="pinDisplayBox">
-      <div class="pin-display" id="pinDisplay">_ _ _ _</div>
-      <div class="status-text" id="statusText">Smen giriş və ya çıxış kodunuzu daxil edin</div>
-    </div>
-    <div class="numpad" id="numpadGrid">
-      <button class="num-btn" onclick="press('1')">1</button>
-      <button class="num-btn" onclick="press('2')">2</button>
-      <button class="num-btn" onclick="press('3')">3</button>
-      <button class="num-btn" onclick="press('4')">4</button>
-      <button class="num-btn" onclick="press('5')">5</button>
-      <button class="num-btn" onclick="press('6')">6</button>
-      <button class="num-btn" onclick="press('7')">7</button>
-      <button class="num-btn" onclick="press('8')">8</button>
-      <button class="num-btn" onclick="press('9')">9</button>
-      <button class="num-btn action clear" onclick="clearPin()"><i class="fa-solid fa-delete-left"></i></button>
-      <button class="num-btn" onclick="press('0')">0</button>
-      <button class="num-btn action ok" onclick="submitPin()"><i class="fa-solid fa-check"></i></button>
+    <!-- PIN Rejimi (ehtiyat) -->
+    <div class="pin-mode-area" id="pinModeArea">
+      <div class="display-box">
+        <div class="pin-display" id="pinDisplay">_ _ _ _</div>
+        <div class="status-text" id="statusText">Smen giriş və ya çıxış kodunuzu daxil edin</div>
+      </div>
+      <div class="numpad">
+        <button class="num-btn" onclick="press('1')">1</button>
+        <button class="num-btn" onclick="press('2')">2</button>
+        <button class="num-btn" onclick="press('3')">3</button>
+        <button class="num-btn" onclick="press('4')">4</button>
+        <button class="num-btn" onclick="press('5')">5</button>
+        <button class="num-btn" onclick="press('6')">6</button>
+        <button class="num-btn" onclick="press('7')">7</button>
+        <button class="num-btn" onclick="press('8')">8</button>
+        <button class="num-btn" onclick="press('9')">9</button>
+        <button class="num-btn action clear" onclick="clearPin()"><i class="fa-solid fa-delete-left"></i></button>
+        <button class="num-btn" onclick="press('0')">0</button>
+        <button class="num-btn action ok" onclick="submitPin()"><i class="fa-solid fa-check"></i></button>
+      </div>
+      <button class="pin-toggle-btn" style="margin-top:14px;" onclick="togglePinMode()"><i class="fa-solid fa-qrcode"></i> QR Rejimi</button>
     </div>
   </div>
 </div>
@@ -132,7 +138,7 @@ function checkDevice(){
   google.script.run
     .withSuccessHandler(function(res){
       document.getElementById('loaderScreen').style.display='none';
-      if(res&&res.allowed){document.getElementById('pinPad').style.display='block';}
+      if(res&&res.allowed){document.getElementById('pinPad').style.display='block';initPasspageQr();}
       else{
         var ip=res&&res.pending;
         var icon=document.getElementById('statusIcon');
@@ -224,7 +230,6 @@ function resetAll(){
   document.getElementById('warnOverlay').classList.remove('show');
   statusEl.innerHTML="Smen giriş və ya çıxış kodunuzu daxil edin";
   statusEl.style.color="var(--text-muted)";
-  if(_scanMode==='qr'){startQrScanner();}
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -275,50 +280,46 @@ function dismissWarning(){
 }
 
 // ══════════════════════════════════════════════════════════════════
-//  QR KAMERA SİSTEMİ
+//  QR GÖSTƏRMƏ SİSTEMİ (passpage terminalı)
 // ══════════════════════════════════════════════════════════════════
-var _html5Qr = null, _scanMode = 'pin';
+var _ppQr = null, _ppQrTw = 0, _ppQrInterval = null;
+var QR_STEP = 30000; // 30 saniyədə bir yenilənir
 
-function setScanMode(mode) {
-  _scanMode = mode;
-  document.getElementById('btnPinMode').classList.toggle('active', mode === 'pin');
-  document.getElementById('btnQrMode').classList.toggle('active', mode === 'qr');
-  document.getElementById('qrScanArea').classList.toggle('show', mode === 'qr');
-  document.getElementById('pinDisplayBox').style.display = mode === 'pin' ? '' : 'none';
-  document.getElementById('numpadGrid').style.display = mode === 'pin' ? 'grid' : 'none';
-  if (mode === 'qr') { startQrScanner(); } else { stopQrScanner(); }
-}
-
-function startQrScanner() {
-  if (_html5Qr) { _html5Qr.stop().catch(function(){}); _html5Qr = null; }
-  document.getElementById('qrHint').innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Kamera açılır...';
-  _html5Qr = new Html5Qrcode('qr-reader');
-  _html5Qr.start(
-    { facingMode: 'environment' },
-    { fps: 12, qrbox: { width: 220, height: 220 } },
-    function(decoded) {
-      if (isProcessing) return;
-      var pin = decoded.trim();
-      if (!/^\d{4}$/.test(pin)) {
-        document.getElementById('qrHint').innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> Yanlış QR kod';
-        setTimeout(function(){ document.getElementById('qrHint').innerHTML = '<i class="fa-solid fa-camera"></i> Kameranı QR koda yönəldin'; }, 1500);
-        return;
-      }
-      stopQrScanner();
-      currentPin = pin;
-      updateDisplay();
-      submitPin();
-    },
-    function() {}
-  ).then(function() {
-    document.getElementById('qrHint').innerHTML = '<i class="fa-solid fa-camera"></i> Kameranı QR koda yönəldin';
-  }).catch(function(err) {
-    document.getElementById('qrHint').innerHTML = '<i class="fa-solid fa-ban"></i> Kamera açıla bilmədi';
+function initPasspageQr() {
+  var tw = Math.floor(Date.now() / QR_STEP);
+  _ppQrTw = tw;
+  var content = 'CMQR:' + myDeviceId + ':' + tw;
+  _ppQr = new QRCode(document.getElementById('qrPasspage'), {
+    text: content, width: 256, height: 256,
+    colorDark: '#0f172a', colorLight: '#ffffff',
+    correctLevel: QRCode.CorrectLevel.M
   });
+  updateQrTimer();
+  _ppQrInterval = setInterval(tickQr, 1000);
 }
 
-function stopQrScanner() {
-  if (_html5Qr) { _html5Qr.stop().catch(function(){}); _html5Qr = null; }
+function tickQr() {
+  var tw = Math.floor(Date.now() / QR_STEP);
+  if (tw !== _ppQrTw) {
+    _ppQrTw = tw;
+    _ppQr.makeCode('CMQR:' + myDeviceId + ':' + tw);
+  }
+  updateQrTimer();
+}
+
+function updateQrTimer() {
+  var msLeft = QR_STEP - (Date.now() % QR_STEP);
+  var pct = (msLeft / QR_STEP) * 100;
+  var fill = document.getElementById('qrTimerFill');
+  if (fill) fill.style.width = pct + '%';
+}
+
+var _pinModeActive = false;
+function togglePinMode() {
+  _pinModeActive = !_pinModeActive;
+  document.getElementById('qrDisplayArea').style.display = _pinModeActive ? 'none' : '';
+  document.getElementById('pinModeArea').style.display  = _pinModeActive ? ''     : 'none';
+  if (!_pinModeActive) { currentPin = ''; updateDisplay(); }
 }
 </script>
 </body>
