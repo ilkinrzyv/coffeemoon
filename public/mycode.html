@@ -2637,20 +2637,9 @@
       if (tier >= 5) { nameEl.style.color='#78350f'; nameEl.style.animation='streak-name-gold 2s ease-in-out infinite'; }
       else if (tier >= 4) { nameEl.style.color='#92400e'; }
     }
-    // 4) Streak tier badge
+    // 4) Streak tier badge — göstərilmir
     var bdg = document.getElementById('profileStreakBadge');
-    if (!bdg) return;
-    if (tier === 0) { bdg.style.display='none'; bdg.innerHTML=''; return; }
-    var TL = [null,
-      {i:'🔥',lb:'Başlanğıc',c:'#92400e',bg:'rgba(245,158,11,0.12)',br:'rgba(245,158,11,0.28)',an:''},
-      {i:'⚡',lb:'Sabit',c:'#78350f',bg:'rgba(245,158,11,0.16)',br:'rgba(245,158,11,0.32)',an:''},
-      {i:'🥇',lb:'Qızıl',c:'#78350f',bg:'linear-gradient(135deg,rgba(251,191,36,0.22),rgba(245,158,11,0.14))',br:'rgba(251,191,36,0.48)',an:'animation:streak-badge-pulse 2.2s ease-in-out infinite;'},
-      {i:'💎',lb:'Platin',c:'#5b21b6',bg:'linear-gradient(135deg,rgba(139,92,246,0.2),rgba(245,158,11,0.14))',br:'rgba(139,92,246,0.4)',an:'animation:streak-badge-pulse 1.8s ease-in-out infinite;'},
-      {i:'👑',lb:'Əfsanəvi',c:'#78350f',bg:'linear-gradient(135deg,rgba(217,119,6,0.28),rgba(251,191,36,0.22),rgba(245,158,11,0.16))',br:'rgba(217,119,6,0.52)',an:'animation:streak-badge-pulse 1.4s ease-in-out infinite;'}
-    ];
-    var t = TL[tier];
-    bdg.style.cssText = 'display:inline-flex;align-items:center;gap:6px;margin-top:10px;padding:6px 16px;border-radius:100px;font-size:0.77rem;font-weight:800;letter-spacing:0.3px;background:'+t.bg+';border:1.5px solid '+t.br+';color:'+t.c+';'+t.an;
-    bdg.innerHTML = t.i+' '+t.lb+' &nbsp;·&nbsp; '+streakVal+' gün';
+    if (bdg) { bdg.style.display='none'; bdg.innerHTML=''; }
   }
 
   function renderOwnProfileView(p) {
@@ -2997,21 +2986,12 @@
         document.getElementById('pmodalDept').innerText = p.dept;
         document.getElementById('pmodalBio').innerText = p.bio || '';
         if (p.streak > 0) {
-          var pmTier = getStreakTier(p.streak);
-          var pmIcons = ['🔥','🔥','⚡','🥇','💎','👑'];
           var streakEl = document.getElementById('pmodalStreak');
-          streakEl.innerHTML = '<span>'+pmIcons[pmTier]+'</span> <span>'+p.streak+' Gün Ardıcıl</span>';
-          if (pmTier >= 3) {
-            streakEl.style.background = 'linear-gradient(135deg,rgba(251,191,36,0.22),'+hexToRgba(accent,0.09)+')';
-            streakEl.style.borderColor = 'rgba(251,191,36,0.48)';
-            streakEl.style.color = '#78350f';
-            streakEl.style.animation = 'streak-badge-pulse '+(pmTier>=5?'1.4s':pmTier>=4?'1.8s':'2.2s')+' ease-in-out infinite';
-          } else {
-            streakEl.style.background = 'linear-gradient(135deg,'+hexToRgba(accent,0.14)+','+hexToRgba(accent,0.07)+')';
-            streakEl.style.borderColor = hexToRgba(accent,0.28);
-            streakEl.style.color = shadeColor(accent,-25);
-            streakEl.style.animation = '';
-          }
+          streakEl.innerHTML = '<span>🔥</span> <span>'+p.streak+' Gün Ardıcıl</span>';
+          streakEl.style.background = 'linear-gradient(135deg,'+hexToRgba(accent,0.14)+','+hexToRgba(accent,0.07)+')';
+          streakEl.style.borderColor = hexToRgba(accent,0.28);
+          streakEl.style.color = shadeColor(accent,-25);
+          streakEl.style.animation = '';
           streakEl.style.display = 'inline-flex';
         }
         var streakVal = p.streak || 0;
