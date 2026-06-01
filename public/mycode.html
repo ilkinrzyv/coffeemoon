@@ -971,6 +971,9 @@
       <div id="emp-qr-reader"></div>
       <div class="scan-status" id="scanStatus"></div>
       <div class="scan-result-box" id="scanResultBox"></div>
+      <button class="pin-alt-toggle" id="camToggleBtn" onclick="toggleCam()" style="color:var(--danger);border-color:rgba(240,69,80,0.18);">
+        <i class="fa-solid fa-video-slash"></i> Kameranı Bağla
+      </button>
       <button class="pin-alt-toggle" id="pinAltToggleBtn" onclick="togglePinAlt()">
         <i class="fa-solid fa-hashtag"></i> Dinamik Kodu Göstər
       </button>
@@ -1423,7 +1426,7 @@
     if (tab === 'profil' && !_profileLoaded) loadProfileTab();
     if (tab === 'qeydler') renderNotes();
     // Kamera: gundelik tabında aç, başqasında bağla
-    if (tab === 'gundelik') { if (!_empScanning && isSessionActive) startEmpScan(); }
+    if (tab === 'gundelik') { if (!_empScanning && isSessionActive && !_camManuallyClosed) startEmpScan(); }
     else { stopEmpScan(); }
   }
 
@@ -1448,7 +1451,6 @@
         loadMyAvans();
         setInterval(updateApp, 40);
         updateApp();
-        startEmpScan();
 
         google.script.run.withSuccessHandler(function(dash) {
           if (!dash) return;
@@ -2863,19 +2865,37 @@
   }
 
   var _empQr = null, _empScanning = false, _empScanProcessing = false;
+  var _camManuallyClosed = false;
   var QR_WIN = 30000;
+
+  function toggleCam() {
+    _camManuallyClosed = !_camManuallyClosed;
+    var btn = document.getElementById('camToggleBtn');
+    if (_camManuallyClosed) {
+      stopEmpScan();
+      document.getElementById('scanStatus').innerText = 'Kamera söndürülüb';
+      btn.innerHTML = '<i class="fa-solid fa-video"></i> Kameranı Aç';
+      btn.style.color = 'var(--success)';
+      btn.style.borderColor = 'rgba(15,186,125,0.25)';
+    } else {
+      btn.innerHTML = '<i class="fa-solid fa-video-slash"></i> Kameranı Bağla';
+      btn.style.color = 'var(--danger)';
+      btn.style.borderColor = 'rgba(240,69,80,0.18)';
+      if (_activeMainTab === 'gundelik' && isSessionActive) startEmpScan();
+    }
+  }
 
   // Brauzer tabi gizlədildikdə kameranı bağla, geri gəldikdə aç
   document.addEventListener('visibilitychange', function() {
     if (document.hidden) {
       stopEmpScan();
     } else {
-      if (_activeMainTab === 'gundelik' && isSessionActive) startEmpScan();
+      if (_activeMainTab === 'gundelik' && isSessionActive && !_camManuallyClosed) startEmpScan();
     }
   });
 
   function startEmpScan() {
-    if (!isSessionActive) return;
+    if (!isSessionActive || _camManuallyClosed) return;
     _empScanning = true;
     _empScanProcessing = false;
     document.getElementById('emp-qr-reader').style.display = 'block';
@@ -2924,7 +2944,10 @@
     document.getElementById('scanConfirmOverlay').classList.remove('open');
     _empScanProcessing = false;
     showScanStatus('Ləğv edildi', false);
-    setTimeout(function() { showScanStatus('Passpage QR koduna yönəldin...', null); startEmpScan(); }, 1500);
+    setTimeout(function() {
+      if (_camManuallyClosed) { showScanStatus('Kamera söndürülüb', null); return; }
+      showScanStatus('Passpage QR koduna yönəldin...', null); startEmpScan();
+    }, 1500);
   }
 
   function scanConfirmOk() {
@@ -2971,7 +2994,11 @@
     box.className = 'scan-result-box ' + (ok ? 'ok' : 'err');
     box.innerHTML = msg;
     box.style.display = 'block';
-    setTimeout(function() { box.style.display = 'none'; document.getElementById('scanStatus').innerHTML = ''; startEmpScan(); }, 4000);
+    setTimeout(function() {
+      box.style.display = 'none';
+      if (_camManuallyClosed) { document.getElementById('scanStatus').innerText = 'Kamera söndürülüb'; return; }
+      document.getElementById('scanStatus').innerHTML = ''; startEmpScan();
+    }, 4000);
   }
 </script>
 <script>
