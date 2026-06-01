@@ -789,6 +789,41 @@
     text-transform:uppercase; letter-spacing:0.6px; text-align:center; line-height:1.2;
   }
   .frame-pick-item.on .frame-pick-label { color:var(--primary); }
+  .frame-pick-item.locked {
+    opacity:0.55; cursor:not-allowed; position:relative;
+  }
+  .frame-pick-item.locked .frame-pick-preview {
+    filter:grayscale(0.7) brightness(0.9);
+  }
+  .frame-pick-lock {
+    position:absolute; top:5px; right:5px;
+    font-size:0.58rem; color:#92400e;
+    background:linear-gradient(135deg,rgba(245,158,11,0.18),rgba(217,119,6,0.12));
+    border:1px solid rgba(245,158,11,0.25); border-radius:6px;
+    padding:2px 4px; font-weight:800; display:flex; align-items:center; gap:2px;
+    line-height:1; white-space:nowrap;
+  }
+  .banner-pick-item.locked { opacity:0.55; cursor:not-allowed; position:relative; }
+  .banner-pick-item.locked .banner-pick-preview { filter:grayscale(0.7) brightness(0.9); }
+  .banner-pick-lock {
+    position:absolute; top:4px; right:4px;
+    font-size:0.55rem; color:#92400e;
+    background:rgba(245,158,11,0.2); border:1px solid rgba(245,158,11,0.3);
+    border-radius:5px; padding:1px 4px; font-weight:800;
+    display:flex; align-items:center; gap:2px; line-height:1;
+  }
+
+  /* Kilid bildirişi */
+  .streak-lock-toast {
+    position:fixed; bottom:80px; left:50%; transform:translateX(-50%);
+    background:linear-gradient(135deg,#92400e,#b45309);
+    color:#fff; padding:10px 18px; border-radius:14px;
+    font-size:0.82rem; font-weight:700; z-index:9999;
+    box-shadow:0 8px 24px rgba(180,83,9,0.35);
+    display:flex; align-items:center; gap:8px;
+    animation:fadeIn 0.2s ease; pointer-events:none;
+    white-space:nowrap;
+  }
 
   /* ── BANNER SEÇİCİ ────────────────────────────────────────────── */
   .banner-picker-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
@@ -1420,6 +1455,7 @@
           userDept = dash.dept || "";
           document.getElementById('deptDisplay').innerHTML = '<i class="fa-solid fa-briefcase"></i> ' + (userDept || 'Filial');
           if (dash.streak > 0) {
+            _myStreakCount = dash.streak;
             document.getElementById('streakBox').style.display = 'inline-flex';
             document.getElementById('streakCount').innerText = dash.streak;
           }
@@ -1976,6 +2012,7 @@
   // ── PROFİL ────────────────────────────────────────────────────────
 
   var _myProfile = null;
+  var _myStreakCount = 0;
   var _editAvatarTab = 'preset';
   var _editAvatarType = 'preset';
   var _editAvatarValue = 'mug-hot';
@@ -1984,18 +2021,18 @@
 
   // ── YENİ ÖZƏLLƏŞDIRMƏ VERİLƏRİ ─────────────────────────────────
   var BANNER_OPTS = [
-    {id:'none',      label:'Yoxdur'  },
-    {id:'gradient',  label:'Gradient'},
-    {id:'sunset',    label:'Günbatan'},
-    {id:'aurora',    label:'Aurora'  },
-    {id:'ocean',     label:'Okean'   },
-    {id:'rose',      label:'Gül'     },
-    {id:'carbon',    label:'Karbon'  },
-    {id:'waves',     label:'Dalğa'   },
-    {id:'dots',      label:'Nöqtə'   },
-    {id:'diagonal',  label:'Zolaq'   },
-    {id:'mesh',      label:'Tor'     },
-    {id:'geometric', label:'Həndəsi' },
+    {id:'none',      label:'Yoxdur',   unlock:0  },
+    {id:'gradient',  label:'Gradient', unlock:0  },
+    {id:'waves',     label:'Dalğa',    unlock:0  },
+    {id:'dots',      label:'Nöqtə',    unlock:7  },
+    {id:'diagonal',  label:'Zolaq',    unlock:7  },
+    {id:'mesh',      label:'Tor',      unlock:14 },
+    {id:'geometric', label:'Həndəsi',  unlock:14 },
+    {id:'ocean',     label:'Okean',    unlock:21 },
+    {id:'sunset',    label:'Günbatan', unlock:30 },
+    {id:'rose',      label:'Gül',      unlock:30 },
+    {id:'carbon',    label:'Karbon',   unlock:45 },
+    {id:'aurora',    label:'Aurora',   unlock:60 },
   ];
   var THEME_OPTS = [
     {id:'glass',    label:'Glass',    ic:'fa-layer-group'},
@@ -2005,16 +2042,16 @@
     {id:'gradient', label:'Gradient', ic:'fa-palette'},
   ];
   var GLOW_OPTS = [
-    {id:'none',    label:'Yoxdur' },
-    {id:'soft',    label:'Yumşaq' },
-    {id:'solid',   label:'Sabit'  },
-    {id:'wide',    label:'Geniş'  },
-    {id:'pulse',   label:'Nəbz'   },
-    {id:'breathe', label:'Nəfəs'  },
-    {id:'burst',   label:'Dalğa'  },
-    {id:'shine',   label:'Parıltı'},
-    {id:'flicker', label:'Titrəmə'},
-    {id:'spin',    label:'Fırlan' },
+    {id:'none',    label:'Yoxdur',  unlock:0  },
+    {id:'soft',    label:'Yumşaq',  unlock:0  },
+    {id:'solid',   label:'Sabit',   unlock:7  },
+    {id:'wide',    label:'Geniş',   unlock:7  },
+    {id:'pulse',   label:'Nəbz',    unlock:14 },
+    {id:'breathe', label:'Nəfəs',   unlock:14 },
+    {id:'burst',   label:'Dalğa',   unlock:21 },
+    {id:'shine',   label:'Parıltı', unlock:30 },
+    {id:'flicker', label:'Titrəmə', unlock:45 },
+    {id:'spin',    label:'Fırlan',  unlock:60 },
   ];
 
   var _editBannerStyle = 'none';
@@ -2142,16 +2179,16 @@
   }
 
   var _FRAME_OPTS = [
-    {id:'none',      label:'Yoxdur'  },
-    {id:'simple',    label:'Sadə'    },
-    {id:'dashed',    label:'Kəsik'   },
-    {id:'dotted',    label:'Nöqtəli' },
-    {id:'double',    label:'İkiqat'  },
-    {id:'thick',     label:'Qalın'   },
-    {id:'glow',      label:'İşıqlı'  },
-    {id:'neon',      label:'Neon'    },
-    {id:'rainbow',   label:'Rəngli'  },
-    {id:'gradient',  label:'Gradient'},
+    {id:'none',      label:'Yoxdur',   unlock:0  },
+    {id:'simple',    label:'Sadə',     unlock:0  },
+    {id:'dashed',    label:'Kəsik',    unlock:0  },
+    {id:'dotted',    label:'Nöqtəli',  unlock:7  },
+    {id:'double',    label:'İkiqat',   unlock:7  },
+    {id:'thick',     label:'Qalın',    unlock:14 },
+    {id:'glow',      label:'İşıqlı',   unlock:21 },
+    {id:'gradient',  label:'Gradient', unlock:21 },
+    {id:'neon',      label:'Neon',     unlock:45 },
+    {id:'rainbow',   label:'Rəngli',   unlock:60 },
   ];
 
   function buildFramePicker(cur, accent, onChange) {
@@ -2159,8 +2196,10 @@
     if (!c) return;
     c.innerHTML = '';
     _FRAME_OPTS.forEach(function(o) {
+      var locked = (o.unlock || 0) > _myStreakCount;
       var item = document.createElement('div');
-      item.className = 'frame-pick-item' + (cur === o.id ? ' on' : '');
+      item.className = 'frame-pick-item' + (cur === o.id ? ' on' : '') + (locked ? ' locked' : '');
+      item.style.position = 'relative';
 
       var prev = document.createElement('div');
       prev.className = 'frame-pick-preview';
@@ -2171,9 +2210,17 @@
       lbl.className = 'frame-pick-label';
       lbl.textContent = o.label;
 
+      if (locked) {
+        var lockBadge = document.createElement('div');
+        lockBadge.className = 'frame-pick-lock';
+        lockBadge.innerHTML = '<i class="fa-solid fa-fire" style="font-size:0.5rem;color:#f59e0b;"></i>' + o.unlock;
+        item.appendChild(lockBadge);
+      }
+
       item.appendChild(prev);
       item.appendChild(lbl);
       item.onclick = function() {
+        if (locked) { showLockToast(o.unlock); return; }
         c.querySelectorAll('.frame-pick-item').forEach(function(x){ x.classList.remove('on'); });
         item.classList.add('on');
         onChange(o.id);
@@ -2228,13 +2275,27 @@
     }
   }
 
+  var _lockToastTimer = null;
+  function showLockToast(days) {
+    var existing = document.querySelector('.streak-lock-toast');
+    if (existing) existing.remove();
+    if (_lockToastTimer) clearTimeout(_lockToastTimer);
+    var el = document.createElement('div');
+    el.className = 'streak-lock-toast';
+    el.innerHTML = '<i class="fa-solid fa-fire"></i> ' + days + ' gün ardıcıl davamiyyət lazımdır';
+    document.body.appendChild(el);
+    _lockToastTimer = setTimeout(function(){ el.remove(); }, 2200);
+  }
+
   function buildGlowPicker(cur, accent, onChange) {
     var c = document.getElementById('glowPicker');
     if (!c) return;
     c.innerHTML = '';
     GLOW_OPTS.forEach(function(o) {
+      var locked = (o.unlock || 0) > _myStreakCount;
       var item = document.createElement('div');
-      item.className = 'frame-pick-item' + (cur === o.id ? ' on' : '');
+      item.className = 'frame-pick-item' + (cur === o.id ? ' on' : '') + (locked ? ' locked' : '');
+      item.style.position = 'relative';
 
       var prev = document.createElement('div');
       prev.className = 'frame-pick-preview';
@@ -2245,9 +2306,17 @@
       lbl.className = 'frame-pick-label';
       lbl.textContent = o.label;
 
+      if (locked) {
+        var lockBadge = document.createElement('div');
+        lockBadge.className = 'frame-pick-lock';
+        lockBadge.innerHTML = '<i class="fa-solid fa-fire" style="font-size:0.5rem;color:#f59e0b;"></i>' + o.unlock;
+        item.appendChild(lockBadge);
+      }
+
       item.appendChild(prev);
       item.appendChild(lbl);
       item.onclick = function() {
+        if (locked) { showLockToast(o.unlock); return; }
         c.querySelectorAll('.frame-pick-item').forEach(function(x){ x.classList.remove('on'); });
         item.classList.add('on');
         onChange(o.id);
@@ -2308,8 +2377,10 @@
     if (!c) return;
     c.innerHTML = '';
     BANNER_OPTS.forEach(function(o) {
+      var locked = (o.unlock || 0) > _myStreakCount;
       var item = document.createElement('div');
-      item.className = 'banner-pick-item' + (cur === o.id ? ' on' : '');
+      item.className = 'banner-pick-item' + (cur === o.id ? ' on' : '') + (locked ? ' locked' : '');
+      item.style.position = 'relative';
 
       var prev = document.createElement('div');
       prev.className = 'banner-pick-preview';
@@ -2324,9 +2395,17 @@
       lbl.className = 'banner-pick-label';
       lbl.textContent = o.label;
 
+      if (locked) {
+        var lockBadge = document.createElement('div');
+        lockBadge.className = 'banner-pick-lock';
+        lockBadge.innerHTML = '<i class="fa-solid fa-fire" style="font-size:0.5rem;color:#f59e0b;"></i>' + o.unlock;
+        item.appendChild(lockBadge);
+      }
+
       item.appendChild(prev);
       item.appendChild(lbl);
       item.onclick = function() {
+        if (locked) { showLockToast(o.unlock); return; }
         c.querySelectorAll('.banner-pick-item').forEach(function(x){ x.classList.remove('on'); });
         item.classList.add('on');
         onChange(o.id);
@@ -2411,6 +2490,7 @@
       .withSuccessHandler(function(p) {
         if (!p) return;
         _myProfile = p;
+        if (p.streak > 0) _myStreakCount = Math.max(_myStreakCount, p.streak);
         _editAvatarType  = p.avatarType;
         _editAvatarValue = p.avatarValue;
         _editAccentColor = p.accentColor;
