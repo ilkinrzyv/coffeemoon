@@ -2870,7 +2870,7 @@
       return;
     }
     grid.innerHTML = '';
-    members.forEach(function(m) {
+    members.slice().sort(function(a,b){ return (b.streak||0)-(a.streak||0); }).forEach(function(m) {
       var accent = m.accentColor || '#5b5ef4';
       var card = document.createElement('div');
       card.className = 'team-card';
