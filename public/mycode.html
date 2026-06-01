@@ -582,21 +582,16 @@
     transition:background 0.35s ease; position:relative; overflow:hidden;
   }
 
-  /* Banner animasiya overlay */
-  .pmodal-banner-shimmer {
-    position:absolute; top:0; left:-100%; width:300%; height:100%;
-    background:linear-gradient(90deg,transparent 0%,rgba(255,255,255,0.18) 50%,transparent 100%);
-    animation:banner-shimmer 3s ease-in-out infinite;
-    pointer-events:none; z-index:1;
+  /* Banner animasiya */
+  @keyframes banner-shimmer { 0%{background-position:-200% center} 100%{background-position:200% center} }
+  @keyframes banner-wave-move { from{background-position:0 0,0 0,0 0} to{background-position:30px 30px,30px 30px,0 0} }
+  .pmodal-banner-anim-shimmer {
+    animation:banner-shimmer 3.5s linear infinite !important;
+    background-size:200% 100% !important;
   }
-  .pmodal-banner-wave {
-    position:absolute; inset:0;
-    background-size:30px 30px;
-    animation:banner-wave-move 4s linear infinite;
-    pointer-events:none; z-index:1; opacity:0.4;
+  .pmodal-banner-anim-wave {
+    animation:banner-wave-move 3s linear infinite !important;
   }
-  @keyframes banner-shimmer { 0%,100%{transform:translateX(-30%)} 50%{transform:translateX(0%)} }
-  @keyframes banner-wave-move { from{background-position:0 0} to{background-position:30px 30px} }
 
   .pmodal-avatar {
     width:92px; height:92px; border-radius:26px;
@@ -2851,20 +2846,17 @@
       for (var j = 0; j < count; j++) {
         var pt = document.createElement('div');
         pt.className = 'pfire-particle';
-        pt.style.cssText = 'left:'+positions[j].l+';top:'+positions[j].top+';animation-delay:'+(j*0.25)+'s;animation-duration:'+(1+j*0.15)+'s;';
+        pt.style.cssText = 'left:'+positions[j].l+';top:'+positions[j].t+';animation-delay:'+(j*0.25)+'s;animation-duration:'+(1+j*0.15)+'s;';
         wrap.appendChild(pt);
       }
     }
   }
 
   function applyPmodalBannerAnim(bannerEl, bannerStyle) {
-    bannerEl.querySelectorAll('.pmodal-banner-shimmer,.pmodal-banner-wave').forEach(function(e){ e.remove(); });
+    bannerEl.classList.remove('pmodal-banner-anim-shimmer','pmodal-banner-anim-wave');
     if (!bannerStyle || bannerStyle === 'none' || bannerStyle === 'carbon') return;
     var isPattern = ['waves','dots','diagonal','mesh','geometric'].indexOf(bannerStyle) >= 0;
-    var overlay = document.createElement('div');
-    overlay.className = isPattern ? 'pmodal-banner-wave' : 'pmodal-banner-shimmer';
-    if (isPattern) overlay.style.background = 'linear-gradient(rgba(255,255,255,0.06) 1px,transparent 1px) 0 0/14px 14px,linear-gradient(90deg,rgba(255,255,255,0.06) 1px,transparent 1px) 0 0/14px 14px';
-    bannerEl.appendChild(overlay);
+    bannerEl.classList.add(isPattern ? 'pmodal-banner-anim-wave' : 'pmodal-banner-anim-shimmer');
   }
 
   function openPmodal(empId) {
