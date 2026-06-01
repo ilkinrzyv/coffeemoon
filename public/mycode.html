@@ -403,16 +403,17 @@
     overflow:hidden;
   }
   .profile-own-header {
-    padding:2rem 1.4rem 1.4rem; text-align:center;
-    background:linear-gradient(160deg,rgba(91,94,244,0.06),transparent);
+    padding:2rem 1.4rem 1.6rem; text-align:center;
+    background:linear-gradient(160deg,rgba(91,94,244,0.09),transparent);
     border-bottom:1px solid rgba(15,23,42,0.05);
+    transition:background 0.4s ease;
   }
   .profile-avatar-big {
-    width:84px; height:84px; border-radius:24px;
+    width:88px; height:88px; border-radius:26px;
     display:flex; align-items:center; justify-content:center;
-    margin:0 auto 14px; font-size:2rem;
-    box-shadow:0 12px 28px rgba(0,0,0,0.15), 0 0 0 3px rgba(255,255,255,0.9);
-    overflow:hidden; position:relative;
+    margin:0 auto 16px; font-size:2.1rem;
+    box-shadow:0 16px 36px rgba(91,94,244,0.35), 0 0 0 4px rgba(255,255,255,0.95);
+    overflow:hidden; position:relative; transition:box-shadow 0.4s;
   }
   .profile-avatar-big img { width:100%; height:100%; object-fit:cover; }
   .profile-own-name { font-size:1.2rem; font-weight:800; color:var(--text-main); margin-bottom:4px; }
@@ -451,20 +452,37 @@
   }
   .avatar-preset:active { transform:scale(0.9); }
   .avatar-preset.selected { border-color:var(--text-main); box-shadow:0 0 0 3px rgba(15,23,42,0.12); transform:scale(1.08); }
-  .color-palette { display:grid; grid-template-columns:repeat(5,1fr); gap:10px; }
+  /* Rəng önizləmə paneli */
+  .color-preview-bar {
+    display:flex; align-items:center; gap:12px; margin-bottom:12px;
+    background:rgba(15,23,42,0.025); border:1.5px solid rgba(15,23,42,0.07);
+    border-radius:18px; padding:12px 14px;
+    transition:background 0.3s, border-color 0.3s;
+  }
+  .color-preview-av {
+    width:46px; height:46px; border-radius:14px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center; font-size:1.15rem; color:#fff;
+    transition:background 0.3s, box-shadow 0.3s;
+    box-shadow:0 6px 16px rgba(0,0,0,0.18);
+  }
+  .color-preview-text { flex:1; }
+  .color-preview-name { font-size:0.9rem; font-weight:800; color:var(--text-main); }
+  .color-preview-hint { font-size:0.7rem; color:var(--text-muted); font-weight:500; margin-top:2px; }
+
+  .color-palette { display:grid; grid-template-columns:repeat(5,1fr); gap:9px; }
   .color-swatch {
-    aspect-ratio:1; border-radius:14px; border:3px solid transparent;
-    cursor:pointer; transition:all 0.2s cubic-bezier(0.16,1,0.3,1);
-    box-shadow:0 4px 10px rgba(0,0,0,0.15);
+    aspect-ratio:1; border-radius:16px; border:3px solid transparent;
+    cursor:pointer; transition:all 0.22s cubic-bezier(0.16,1,0.3,1);
+    box-shadow:0 4px 12px rgba(0,0,0,0.18);
     display:flex; align-items:center; justify-content:center;
     font-size:0; color:#fff;
   }
   .color-swatch:active { transform:scale(0.88); }
   .color-swatch.selected {
-    border-color:rgba(255,255,255,0.9);
-    box-shadow:0 0 0 3px rgba(15,23,42,0.18), 0 6px 16px rgba(0,0,0,0.2);
-    transform:scale(1.12);
-    font-size:0.85rem;
+    border-color:rgba(255,255,255,0.95);
+    box-shadow:0 0 0 3.5px rgba(15,23,42,0.2), 0 8px 20px rgba(0,0,0,0.25);
+    transform:scale(1.18);
+    font-size:1rem;
   }
   .color-swatch.selected::after { content:'✓'; font-weight:900; }
   .bio-input {
@@ -519,17 +537,21 @@
   }
   .team-grid { padding:0.9rem; display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
   .team-card {
-    border-radius:16px; padding:12px 8px; text-align:center; cursor:pointer;
+    border-radius:18px; padding:0 8px 13px; text-align:center; cursor:pointer;
     background:rgba(255,255,255,0.7); border:1.5px solid rgba(15,23,42,0.05);
-    transition:all 0.2s; display:flex; flex-direction:column; align-items:center; gap:5px;
+    transition:all 0.22s cubic-bezier(0.16,1,0.3,1);
+    display:flex; flex-direction:column; align-items:center; gap:5px;
+    overflow:hidden; position:relative;
   }
-  .team-card:hover { transform:translateY(-2px); box-shadow:0 6px 16px rgba(0,0,0,0.08); }
+  .team-card:hover { transform:translateY(-3px); box-shadow:0 10px 28px rgba(0,0,0,0.1); }
   .team-card:active { transform:scale(0.95); }
+  .team-card-stripe { width:100%; height:4px; flex-shrink:0; margin-bottom:9px; border-radius:0; }
   .team-avatar-sm {
-    width:46px; height:46px; border-radius:14px;
+    width:50px; height:50px; border-radius:16px;
     display:flex; align-items:center; justify-content:center;
-    font-size:1.1rem; color:#fff; flex-shrink:0;
-    box-shadow:0 4px 10px rgba(0,0,0,0.12); overflow:hidden;
+    font-size:1.2rem; color:#fff; flex-shrink:0;
+    box-shadow:0 6px 16px rgba(0,0,0,0.18); overflow:hidden;
+    transition:box-shadow 0.3s;
   }
   .team-avatar-sm img { width:100%; height:100%; object-fit:cover; }
   .team-name { font-size:0.73rem; font-weight:700; color:var(--text-main); line-height:1.2; }
@@ -552,15 +574,16 @@
     max-height:88vh; overflow-y:auto;
   }
   .pmodal-hero {
-    padding:2rem 1.6rem 1.4rem; text-align:center;
+    padding:2.2rem 1.6rem 1.6rem; text-align:center;
     border-bottom:1px solid rgba(15,23,42,0.05);
+    transition:background 0.35s ease;
   }
   .pmodal-avatar {
-    width:88px; height:88px; border-radius:24px;
+    width:92px; height:92px; border-radius:26px;
     display:flex; align-items:center; justify-content:center;
-    margin:0 auto 14px; font-size:2.2rem; color:#fff;
-    box-shadow:0 12px 30px rgba(0,0,0,0.16), 0 0 0 3px rgba(255,255,255,0.9);
-    overflow:hidden;
+    margin:0 auto 16px; font-size:2.3rem; color:#fff;
+    box-shadow:0 16px 36px rgba(0,0,0,0.2), 0 0 0 4px rgba(255,255,255,0.95);
+    overflow:hidden; transition:box-shadow 0.35s;
   }
   .pmodal-avatar img { width:100%; height:100%; object-fit:cover; }
   .pmodal-name { font-size:1.25rem; font-weight:800; color:var(--text-main); margin-bottom:3px; }
@@ -1033,6 +1056,13 @@
           <!-- Rəng seçimi -->
           <div>
             <div class="profile-section-label">Vurğu Rəngi</div>
+            <div class="color-preview-bar" id="colorPreviewBar">
+              <div class="color-preview-av" id="colorPreviewAv"></div>
+              <div class="color-preview-text">
+                <div class="color-preview-name" id="colorPreviewName">—</div>
+                <div class="color-preview-hint">Seçilmiş vurğu rəngi</div>
+              </div>
+            </div>
             <div class="color-palette" id="colorPalette"></div>
           </div>
 
@@ -1137,7 +1167,7 @@
 <!-- PROFİL MODAL -->
 <div class="pmodal-overlay" id="pmodalOverlay" onclick="closePmodalIfOutside(event)">
   <div class="pmodal-sheet" id="pmodalSheet">
-    <div class="pmodal-hero">
+    <div class="pmodal-hero" id="pmodalHero">
       <div class="pmodal-avatar" id="pmodalAvatar"></div>
       <div class="pmodal-name" id="pmodalName"></div>
       <div class="pmodal-dept" id="pmodalDept"></div>
@@ -1878,12 +1908,17 @@
   }
 
   function renderOwnProfileView(p) {
+    var accent = p.accentColor || '#5b5ef4';
     var bigEl = document.getElementById('profileAvatarBig');
-    bigEl.style.cssText = 'width:84px;height:84px;border-radius:24px;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;font-size:2rem;box-shadow:0 12px 28px rgba(0,0,0,0.15),0 0 0 3px rgba(255,255,255,0.9);overflow:hidden;position:relative;';
+    bigEl.style.cssText = 'width:88px;height:88px;border-radius:26px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:2.1rem;box-shadow:0 16px 36px '+hexToRgba(accent,0.38)+',0 0 0 4px rgba(255,255,255,0.95);overflow:hidden;position:relative;transition:box-shadow 0.4s;';
     renderAvatarEl(bigEl, p.avatarType, p.avatarValue, p.photoData);
     document.getElementById('profileOwnName').innerText = p.empName;
     document.getElementById('profileOwnDept').innerText = p.dept;
     document.getElementById('profileBioText').innerText = p.bio || 'Bio əlavə edilməyib...';
+    var header = document.querySelector('#profileViewMode .profile-own-header');
+    if (header) header.style.background = 'linear-gradient(160deg,'+hexToRgba(accent,0.13)+' 0%,'+hexToRgba(accent,0.05)+' 55%, transparent 100%)';
+    var editBtn = document.querySelector('.profile-edit-btn');
+    if (editBtn) { editBtn.style.borderColor=hexToRgba(accent,0.3); editBtn.style.background=hexToRgba(accent,0.08); editBtn.style.color=accent; }
   }
 
   function enterEditMode() {
@@ -1926,21 +1961,40 @@
     });
   }
 
+  function updateColorPreview(hex) {
+    var bar  = document.getElementById('colorPreviewBar');
+    var avEl = document.getElementById('colorPreviewAv');
+    var nm   = document.getElementById('colorPreviewName');
+    if (!bar || !avEl || !nm) return;
+    var col = COLOR_PALETTE.find(function(c){ return c.hex === hex; });
+    bar.style.background   = 'linear-gradient(135deg,'+hexToRgba(hex,0.1)+','+hexToRgba(hex,0.04)+')';
+    bar.style.borderColor  = hexToRgba(hex, 0.25);
+    avEl.style.background  = 'linear-gradient(135deg,'+hex+','+shadeColor(hex,-22)+')';
+    avEl.style.boxShadow   = '0 6px 18px '+hexToRgba(hex,0.42);
+    nm.style.color         = hex;
+    nm.innerText           = col ? col.name : 'Xüsusi';
+    // Cari avatar ikonunu göstər
+    var preset = AVATAR_PRESETS.find(function(p){ return p.id === _editAvatarValue; }) || AVATAR_PRESETS[0];
+    avEl.innerHTML = '<i class="fa-solid '+preset.icon+'" style="color:#fff;font-size:1.15rem;"></i>';
+  }
+
   function buildColorPalette() {
     var pal = document.getElementById('colorPalette');
     pal.innerHTML = '';
     COLOR_PALETTE.forEach(function(c) {
       var sw = document.createElement('div');
       sw.className = 'color-swatch' + (_editAccentColor === c.hex ? ' selected' : '');
-      sw.style.background = 'linear-gradient(135deg,' + c.hex + ', ' + shadeColor(c.hex, -20) + ')';
+      sw.style.background = 'linear-gradient(135deg,' + c.hex + ',' + shadeColor(c.hex, -22) + ')';
       sw.title = c.name;
       sw.onclick = function() {
         _editAccentColor = c.hex;
         document.querySelectorAll('.color-swatch').forEach(function(x){ x.classList.remove('selected'); });
         sw.classList.add('selected');
+        updateColorPreview(c.hex);
       };
       pal.appendChild(sw);
     });
+    updateColorPreview(_editAccentColor);
   }
 
   function shadeColor(hex, pct) {
@@ -2032,20 +2086,28 @@
     }
     grid.innerHTML = '';
     members.forEach(function(m) {
+      var accent = m.accentColor || '#5b5ef4';
       var card = document.createElement('div');
       card.className = 'team-card';
-      card.style.borderColor = m.accentColor + '33';
+      card.style.background = 'linear-gradient(160deg,'+hexToRgba(accent,0.09)+' 0%,rgba(255,255,255,0.65) 100%)';
+      card.style.borderColor = hexToRgba(accent, 0.22);
+
+      // Rəng zolağı
+      var stripe = document.createElement('div');
+      stripe.className = 'team-card-stripe';
+      stripe.style.background = 'linear-gradient(90deg,'+accent+','+shadeColor(accent,-18)+')';
+      card.appendChild(stripe);
 
       var avWrap = document.createElement('div');
       avWrap.className = 'team-avatar-sm';
-      avWrap.style.cssText = 'width:46px;height:46px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;color:#fff;overflow:hidden;';
+      avWrap.style.cssText = 'width:50px;height:50px;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:1.2rem;color:#fff;overflow:hidden;box-shadow:0 6px 18px '+hexToRgba(accent,0.4)+';';
       if (m.avatarType === 'photo' && m.photoData) {
         var img = document.createElement('img');
         img.src = m.photoData; img.style.cssText = 'width:100%;height:100%;object-fit:cover;';
         avWrap.appendChild(img);
       } else {
         var pr = AVATAR_PRESETS.find(function(p){ return p.id === m.avatarValue; }) || AVATAR_PRESETS[0];
-        avWrap.style.background = pr.bg;
+        avWrap.style.background = 'linear-gradient(135deg,'+pr.bg+','+shadeColor(pr.bg,-20)+')';
         avWrap.innerHTML = '<i class="fa-solid ' + pr.icon + '"></i>';
       }
 
@@ -2083,15 +2145,19 @@
     google.script.run
       .withSuccessHandler(function(p) {
         if (!p) return;
+        var accent = p.accentColor || '#5b5ef4';
+        // Hero fon
+        var heroEl = document.getElementById('pmodalHero');
+        if (heroEl) heroEl.style.background = 'linear-gradient(160deg,'+hexToRgba(accent,0.14)+' 0%,'+hexToRgba(accent,0.05)+' 55%,transparent 100%)';
         // Avatar
         var avEl = document.getElementById('pmodalAvatar');
-        avEl.style.cssText = 'width:88px;height:88px;border-radius:24px;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;font-size:2.2rem;color:#fff;box-shadow:0 12px 30px rgba(0,0,0,0.16),0 0 0 3px rgba(255,255,255,0.9);overflow:hidden;';
+        avEl.style.cssText = 'width:92px;height:92px;border-radius:26px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:2.3rem;color:#fff;box-shadow:0 16px 36px '+hexToRgba(accent,0.4)+',0 0 0 4px rgba(255,255,255,0.95);overflow:hidden;transition:box-shadow 0.35s;';
         avEl.innerHTML = '';
         if (p.avatarType === 'photo' && p.photoData) {
           avEl.innerHTML = '<img src="'+p.photoData+'" style="width:100%;height:100%;object-fit:cover;">';
         } else {
           var pr = AVATAR_PRESETS.find(function(x){ return x.id === p.avatarValue; }) || AVATAR_PRESETS[0];
-          avEl.style.background = pr.bg;
+          avEl.style.background = 'linear-gradient(135deg,'+pr.bg+','+shadeColor(pr.bg,-20)+')';
           avEl.innerHTML = '<i class="fa-solid ' + pr.icon + '"></i>';
         }
         document.getElementById('pmodalName').innerText = p.empName;
@@ -2099,7 +2165,11 @@
         document.getElementById('pmodalBio').innerText = p.bio || '';
         if (p.streak > 0) {
           document.getElementById('pmodalStreakVal').innerText = p.streak;
-          document.getElementById('pmodalStreak').style.display = 'inline-flex';
+          var streakEl = document.getElementById('pmodalStreak');
+          streakEl.style.background = 'linear-gradient(135deg,'+hexToRgba(accent,0.12)+','+hexToRgba(accent,0.06)+')';
+          streakEl.style.borderColor = hexToRgba(accent,0.25);
+          streakEl.style.color = shadeColor(accent,-25);
+          streakEl.style.display = 'inline-flex';
         }
         // Stats
         var s = p.stats || {};
