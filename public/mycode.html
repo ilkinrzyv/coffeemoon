@@ -2492,7 +2492,8 @@
       .withSuccessHandler(function(p) {
         if (!p) return;
         _myProfile = p;
-        if (p.streak > 0) _myStreakCount = Math.max(_myStreakCount, p.streak);
+        if (p.testMode) _myStreakCount = 999;
+        else if (p.streak > 0) _myStreakCount = Math.max(_myStreakCount, p.streak);
         _editAvatarType  = p.avatarType;
         _editAvatarValue = p.avatarValue;
         _editAccentColor = p.accentColor;
