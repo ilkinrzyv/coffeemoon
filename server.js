@@ -1256,6 +1256,40 @@ API.getTeamProfiles = async (secret) => {
   return result;
 };
 
+// ── REAKSİYALAR ──────────────────────────────────────────────────
+
+API.getReactions = async (secret) => {
+  const { data: caller } = await sb.from('employees').select('id').eq('secret', secret).single();
+  if (!caller) return {};
+  const { data: rows } = await sb.from('reactions').select('*');
+  const result = {};
+  for (const r of rows || []) {
+    if (!result[r.to_emp_id]) result[r.to_emp_id] = { like:0, love:0, fire:0, angry:0, mine:null };
+    result[r.to_emp_id][r.type] = (result[r.to_emp_id][r.type] || 0) + 1;
+    if (r.from_emp_id === caller.id) result[r.to_emp_id].mine = r.type;
+  }
+  return result;
+};
+
+API.toggleReaction = async (secret, toEmpId, type) => {
+  const VALID = ['like','love','fire','angry'];
+  if (!VALID.includes(type)) return { ok: false };
+  const { data: caller } = await sb.from('employees').select('id').eq('secret', secret).single();
+  if (!caller || caller.id === toEmpId) return { ok: false };
+  const { data: existing } = await sb.from('reactions')
+    .select('*').eq('from_emp_id', caller.id).eq('to_emp_id', toEmpId).single();
+  if (existing) {
+    if (existing.type === type) {
+      await sb.from('reactions').delete().eq('from_emp_id', caller.id).eq('to_emp_id', toEmpId);
+    } else {
+      await sb.from('reactions').update({ type }).eq('from_emp_id', caller.id).eq('to_emp_id', toEmpId);
+    }
+  } else {
+    await sb.from('reactions').insert({ from_emp_id: caller.id, to_emp_id: toEmpId, type });
+  }
+  return { ok: true };
+};
+
 API.getPublicProfile = async (secret, targetEmpId) => {
   if (!secret || !targetEmpId) return null;
   const { data: caller } = await sb.from('employees').select('id').eq('secret', secret).single();

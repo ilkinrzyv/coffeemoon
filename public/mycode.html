@@ -535,28 +535,47 @@
     text-transform:uppercase; letter-spacing:1.2px;
     display:flex; align-items:center; gap:7px;
   }
-  .team-grid { padding:0.9rem; display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+  .team-grid { padding:0.9rem; display:grid; grid-template-columns:repeat(3,1fr); gap:9px; }
   .team-card {
-    border-radius:18px; padding:0 8px 13px; text-align:center; cursor:pointer;
-    background:rgba(255,255,255,0.7); border:1.5px solid rgba(15,23,42,0.05);
-    transition:all 0.22s cubic-bezier(0.16,1,0.3,1);
-    display:flex; flex-direction:column; align-items:center; gap:5px;
+    border-radius:18px; padding:0 7px 10px; text-align:center; cursor:pointer;
+    background:rgba(255,255,255,0.82);
+    border:1.5px solid rgba(15,23,42,0.07);
+    box-shadow:0 2px 10px rgba(0,0,0,0.06);
+    transition:transform 0.2s cubic-bezier(0.16,1,0.3,1), box-shadow 0.2s;
+    display:flex; flex-direction:column; align-items:center; gap:4px;
     overflow:hidden; position:relative;
   }
-  .team-card:hover { transform:translateY(-3px); box-shadow:0 10px 28px rgba(0,0,0,0.1); }
-  .team-card:active { transform:scale(0.95); }
-  .team-card-stripe { width:100%; height:4px; flex-shrink:0; margin-bottom:9px; border-radius:0; }
+  .team-card:hover { transform:translateY(-3px); box-shadow:0 8px 24px rgba(0,0,0,0.11); }
+  .team-card:active { transform:scale(0.96); }
+  .team-card-stripe { width:100%; height:5px; flex-shrink:0; margin-bottom:10px; }
   .team-avatar-sm {
-    width:50px; height:50px; border-radius:16px;
+    width:52px; height:52px; border-radius:15px;
     display:flex; align-items:center; justify-content:center;
-    font-size:1.2rem; color:#fff; flex-shrink:0;
-    box-shadow:0 6px 16px rgba(0,0,0,0.18); overflow:hidden;
-    transition:box-shadow 0.3s;
+    font-size:1.25rem; color:#fff; flex-shrink:0;
+    box-shadow:0 4px 14px rgba(0,0,0,0.2); overflow:hidden;
+    transition:box-shadow 0.25s;
   }
   .team-avatar-sm img { width:100%; height:100%; object-fit:cover; }
-  .team-name { font-size:0.73rem; font-weight:700; color:var(--text-main); line-height:1.2; }
-  .team-dept { font-size:0.64rem; color:var(--text-soft); font-weight:600; }
-  .team-streak { font-size:0.65rem; font-weight:800; color:#92400e; }
+  .team-name { font-size:0.76rem; font-weight:800; color:var(--text-main); line-height:1.2; margin-top:1px; }
+  .team-dept { font-size:0.62rem; color:var(--text-soft); font-weight:600; letter-spacing:0.1px; }
+  .team-streak { font-size:0.64rem; font-weight:800; color:#b45309;
+    background:rgba(245,158,11,0.1); border-radius:20px; padding:2px 7px; margin-top:1px; }
+  .team-divider { width:100%; height:1px; background:rgba(15,23,42,0.06); margin:5px 0 2px; }
+  .team-reactions { display:flex; gap:3px; width:100%; }
+  .team-react-btn {
+    flex:1; padding:4px 1px; border-radius:8px;
+    border:1.2px solid transparent;
+    background:rgba(15,23,42,0.04);
+    cursor:pointer; text-align:center;
+    transition:all 0.14s ease;
+    -webkit-tap-highlight-color:transparent;
+    user-select:none;
+  }
+  .team-react-btn .r-emoji { display:block; font-size:0.88rem; line-height:1.3; }
+  .team-react-btn .r-count { display:block; font-size:0.56rem; font-weight:700; color:var(--text-soft); min-height:9px; line-height:1.2; }
+  .team-react-btn.active { background:rgba(91,94,244,0.1); border-color:rgba(91,94,244,0.28); }
+  .team-react-btn.active .r-count { color:#5b5ef4; }
+  .team-react-btn:active { transform:scale(0.82); }
 
   /* Profile view modal */
   .pmodal-overlay {
@@ -2863,31 +2882,36 @@
     google.script.run.withSuccessHandler(renderTeamGrid).getTeamProfiles(SECRET);
   }
 
+  var _reactions = {};
+  var _teamMembers = [];
+
   function renderTeamGrid(members) {
+    _teamMembers = members || [];
     var grid = document.getElementById('teamGrid');
-    if (!members || !members.length) {
+    if (!_teamMembers.length) {
       grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:1.5rem;color:var(--text-muted);font-size:0.84rem;">Komanda tapılmadı</div>';
       return;
     }
     grid.innerHTML = '';
-    members.slice().sort(function(a,b){ return (b.streak||0)-(a.streak||0); }).forEach(function(m) {
+    _teamMembers.slice().sort(function(a,b){ return (b.streak||0)-(a.streak||0); }).forEach(function(m) {
       var accent = m.accentColor || '#5b5ef4';
       var card = document.createElement('div');
       card.className = 'team-card';
-      card.style.background = 'linear-gradient(160deg,'+hexToRgba(accent,0.09)+' 0%,rgba(255,255,255,0.65) 100%)';
-      card.style.borderColor = hexToRgba(accent, 0.22);
+      card.dataset.empid = m.empId;
+      card.style.background = 'linear-gradient(160deg,'+hexToRgba(accent,0.08)+' 0%,rgba(255,255,255,0.88) 100%)';
+      card.style.borderColor = hexToRgba(accent, 0.18);
 
-      // Banner / rəng zolağı
+      // Rəng zolağı
       var stripe = document.createElement('div');
       stripe.className = 'team-card-stripe';
       var sBg = getBannerBg(m.bannerStyle, accent);
       stripe.style.background = sBg !== 'none' ? sBg : 'linear-gradient(90deg,'+accent+','+shadeColor(accent,-18)+')';
-      stripe.style.height = '5px';
       card.appendChild(stripe);
 
+      // Avatar
       var avWrap = document.createElement('div');
       avWrap.className = 'team-avatar-sm';
-      avWrap.style.cssText = 'width:50px;height:50px;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:1.2rem;color:#fff;overflow:hidden;box-shadow:0 6px 18px '+hexToRgba(accent,0.4)+';';
+      avWrap.style.cssText = 'width:52px;height:52px;border-radius:15px;display:flex;align-items:center;justify-content:center;font-size:1.25rem;color:#fff;overflow:hidden;box-shadow:0 4px 14px '+hexToRgba(accent,0.38)+';';
       if (m.avatarType === 'photo' && m.photoData) {
         var img = document.createElement('img');
         img.src = m.photoData; img.style.cssText = 'width:100%;height:100%;object-fit:cover;';
@@ -2897,11 +2921,12 @@
         avWrap.style.background = 'linear-gradient(135deg,'+pr.bg+','+shadeColor(pr.bg,-20)+')';
         avWrap.innerHTML = '<i class="fa-solid ' + pr.icon + '"></i>';
       }
+      applyAvatarEffects(avWrap, m.glowEffect, m.frameStyle, accent, 52);
 
-      var firstName = m.empName.split(' ')[0];
+      // Ad + filial
       var nameEl = document.createElement('div');
       nameEl.className = 'team-name';
-      nameEl.innerText = firstName;
+      nameEl.innerText = m.empName.split(' ')[0];
 
       var deptEl = document.createElement('div');
       deptEl.className = 'team-dept';
@@ -2911,18 +2936,83 @@
       card.appendChild(nameEl);
       card.appendChild(deptEl);
 
+      // Streak
       if (m.streak > 0) {
         var strEl = document.createElement('div');
         strEl.className = 'team-streak';
-        strEl.innerHTML = '<i class="fa-solid fa-fire" style="color:#f59e0b;font-size:0.6rem;"></i> ' + m.streak;
+        strEl.innerHTML = '🔥 ' + m.streak;
         card.appendChild(strEl);
       }
 
-      // Avatar glow + frame (kiçik ölçü)
-      applyAvatarEffects(avWrap, m.glowEffect, m.frameStyle, accent, 50);
-      card.onclick = function(){ openPmodal(m.empId); };
+      // Ayırıcı + reaksiya sətri
+      var divEl = document.createElement('div');
+      divEl.className = 'team-divider';
+      card.appendChild(divEl);
+
+      var rRow = document.createElement('div');
+      rRow.className = 'team-reactions';
+      [['like','👍'],['love','❤️'],['fire','🔥'],['angry','😡']].forEach(function(pair) {
+        var btn = document.createElement('button');
+        btn.className = 'team-react-btn';
+        btn.dataset.type = pair[0];
+        btn.innerHTML = '<span class="r-emoji">'+pair[1]+'</span><span class="r-count"></span>';
+        btn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          handleReaction(m.empId, pair[0], card);
+        });
+        rRow.appendChild(btn);
+      });
+      card.appendChild(rRow);
+
+      card.addEventListener('click', function(){ openPmodal(m.empId); });
       grid.appendChild(card);
     });
+
+    // Reaksiyaları yüklə
+    google.script.run.withSuccessHandler(function(data) {
+      _reactions = data || {};
+      refreshAllReactions();
+    }).getReactions(SECRET);
+  }
+
+  function refreshAllReactions() {
+    document.querySelectorAll('.team-card[data-empid]').forEach(function(card) {
+      applyReactionsToCard(card, _reactions[card.dataset.empid] || {});
+    });
+  }
+
+  function applyReactionsToCard(card, r) {
+    var mine = r.mine || null;
+    card.querySelectorAll('.team-react-btn').forEach(function(btn) {
+      var type = btn.dataset.type;
+      var cnt = r[type] || 0;
+      btn.querySelector('.r-count').innerText = cnt > 0 ? cnt : '';
+      btn.classList.toggle('active', mine === type);
+    });
+  }
+
+  function handleReaction(empId, type, card) {
+    // Optimistik yeniləmə
+    var r = Object.assign({ like:0, love:0, fire:0, angry:0, mine:null }, _reactions[empId] || {});
+    if (r.mine === type) {
+      r[type] = Math.max(0, (r[type]||0) - 1);
+      r.mine = null;
+    } else {
+      if (r.mine) r[r.mine] = Math.max(0, (r[r.mine]||0) - 1);
+      r[type] = (r[type]||0) + 1;
+      r.mine = type;
+    }
+    _reactions[empId] = r;
+    applyReactionsToCard(card, r);
+    google.script.run.withSuccessHandler(function(res) {
+      if (!res || !res.ok) {
+        // Server rədd etdi — geri qaytar
+        google.script.run.withSuccessHandler(function(data) {
+          _reactions = data || {};
+          refreshAllReactions();
+        }).getReactions(SECRET);
+      }
+    }).toggleReaction(SECRET, empId, type);
   }
 
   // ── Profil modal ─────────────────────────────────────────────────
