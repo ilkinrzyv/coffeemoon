@@ -710,6 +710,52 @@
   .scan-confirm-cancel { flex:1; padding:13px; border-radius:13px; border:1.5px solid rgba(15,23,42,0.1); background:#f8fafc; color:var(--text-muted); font-size:0.9rem; font-weight:700; cursor:pointer; font-family:'Inter',sans-serif; }
   .scan-confirm-ok { flex:2; padding:13px; border-radius:13px; border:none; background:linear-gradient(135deg,var(--primary),var(--primary-dark)); color:#fff; font-size:0.9rem; font-weight:800; cursor:pointer; font-family:'Inter',sans-serif; box-shadow:0 4px 14px rgba(91,94,244,0.28); display:flex; align-items:center; justify-content:center; gap:6px; }
 
+  /* ── BANNER ──────────────────────────────────────────────────── */
+  .profile-own-header { position:relative; overflow:hidden; }
+  .profile-own-header > * { position:relative; z-index:1; }
+  .profile-banner-bg { position:absolute; top:0; left:0; right:0; height:96px; z-index:0; pointer-events:none; border-radius:0; transition:background 0.4s; }
+
+  /* ── ÖZƏLLƏŞDIRMƏ SEÇİCİ ──────────────────────────────────────── */
+  .cpicker { display:flex; gap:6px; overflow-x:auto; padding:2px 0 4px; -webkit-overflow-scrolling:touch; scrollbar-width:none; }
+  .cpicker::-webkit-scrollbar { display:none; }
+  .cpick { flex-shrink:0; padding:7px 11px; border-radius:11px; border:1.5px solid rgba(15,23,42,0.09); font-size:0.73rem; font-weight:700; cursor:pointer; background:rgba(255,255,255,0.5); color:var(--text-muted); transition:all 0.18s; font-family:'Inter',sans-serif; display:flex; align-items:center; gap:5px; white-space:nowrap; }
+  .cpick:active { transform:scale(0.92); }
+  .cpick.on { background:var(--primary); color:#fff; border-color:var(--primary); box-shadow:0 3px 10px rgba(91,94,244,0.28); }
+
+  /* ── KART TEMALARI ────────────────────────────────────────────── */
+  .ticket[data-theme="dark"] { background:linear-gradient(160deg,#1a1a2e,#16213e) !important; border-color:rgba(255,255,255,0.07) !important; }
+  .ticket[data-theme="dark"] .ticket-header { background:linear-gradient(180deg,rgba(255,255,255,0.04),transparent) !important; border-bottom-color:rgba(255,255,255,0.07) !important; }
+  .ticket[data-theme="dark"] .brand,.ticket[data-theme="dark"] .name,.ticket[data-theme="dark"] .pin { color:#e2e8f0 !important; }
+  .ticket[data-theme="dark"] .dept-badge,.ticket[data-theme="dark"] .status-text,.ticket[data-theme="dark"] .ticket-footer { color:#94a3b8 !important; }
+  .ticket[data-theme="dark"] .pin-display-wrap { background:rgba(255,255,255,0.05) !important; border-color:rgba(255,255,255,0.08) !important; }
+  .ticket[data-theme="dark"] .ticket-footer { background:rgba(255,255,255,0.03) !important; border-top-color:rgba(255,255,255,0.07) !important; }
+  .ticket[data-theme="dark"] .progress-bg { background:rgba(255,255,255,0.08) !important; }
+  .ticket[data-theme="dark"] .ten-sec-timer { background:rgba(255,255,255,0.08) !important; }
+  .ticket[data-theme="dark"] .msg-box { background:rgba(255,255,255,0.05) !important; border-color:rgba(255,255,255,0.1) !important; }
+  .ticket[data-theme="dark"] .msg-title,.ticket[data-theme="dark"] .msg-text { color:#c8d0e0 !important; }
+  .ticket[data-theme="dark"] .late-warning-box { background:rgba(240,69,80,0.15) !important; }
+  .ticket[data-theme="dark"] .pin-lbl { color:#94a3b8 !important; }
+
+  .ticket[data-theme="neon"] { background:#0d0d1a !important; }
+  .ticket[data-theme="neon"] .ticket-header { background:rgba(255,255,255,0.03) !important; border-bottom-color:rgba(255,255,255,0.07) !important; }
+  .ticket[data-theme="neon"] .brand,.ticket[data-theme="neon"] .name,.ticket[data-theme="neon"] .pin,.ticket[data-theme="neon"] .card-title { color:#f0f0ff !important; }
+  .ticket[data-theme="neon"] .dept-badge,.ticket[data-theme="neon"] .status-text,.ticket[data-theme="neon"] .ticket-footer,.ticket[data-theme="neon"] .pin-lbl { color:#8888aa !important; }
+  .ticket[data-theme="neon"] .pin-display-wrap { background:rgba(255,255,255,0.04) !important; border-color:rgba(255,255,255,0.08) !important; }
+  .ticket[data-theme="neon"] .ticket-footer { background:rgba(255,255,255,0.02) !important; border-top-color:rgba(255,255,255,0.06) !important; }
+  .ticket[data-theme="neon"] .progress-bg { background:rgba(255,255,255,0.07) !important; }
+  .ticket[data-theme="neon"] .ten-sec-timer { background:rgba(255,255,255,0.07) !important; }
+  .ticket[data-theme="neon"] .msg-box { background:rgba(255,255,255,0.04) !important; border-color:rgba(255,255,255,0.09) !important; }
+  .ticket[data-theme="neon"] .msg-title,.ticket[data-theme="neon"] .msg-text { color:#b0b0cc !important; }
+
+  .ticket[data-theme="minimal"] { background:#fff !important; border-color:rgba(15,23,42,0.06) !important; box-shadow:0 2px 16px rgba(15,23,42,0.06),0 0 0 1px rgba(15,23,42,0.04) !important; backdrop-filter:none !important; -webkit-backdrop-filter:none !important; }
+  .ticket[data-theme="minimal"] .ticket-header { background:none !important; }
+
+  /* ── AVATAR PARILTISI ─────────────────────────────────────────── */
+  @keyframes av-glow-pulse { 0%,100%{box-shadow:var(--av-base-shadow)} 50%{box-shadow:var(--av-base-shadow), 0 0 0 10px var(--av-glow-sm)} }
+  @keyframes av-glow-shine { 0%,100%{filter:brightness(1) drop-shadow(0 0 4px var(--av-glow-color))} 50%{filter:brightness(1.1) drop-shadow(0 0 16px var(--av-glow-color))} }
+  .av-pulse { animation:av-glow-pulse 2.2s ease-in-out infinite; }
+  .av-shine { animation:av-glow-shine 2s ease-in-out infinite; }
+
   .emergency-btn {
     width:100%; padding:14px; margin-top:10px;
     background:linear-gradient(135deg,#ef4444,#dc2626);
@@ -1009,7 +1055,8 @@
     <div class="profile-own-card" id="profileOwnCard">
       <!-- Görünüş modu -->
       <div id="profileViewMode">
-        <div class="profile-own-header">
+        <div class="profile-own-header" id="profileOwnHeader">
+          <div class="profile-banner-bg" id="profileBannerBg"></div>
           <div class="profile-avatar-big" id="profileAvatarBig"></div>
           <div class="profile-own-name" id="profileOwnName"></div>
           <div class="profile-own-dept" id="profileOwnDept"></div>
@@ -1064,6 +1111,30 @@
               </div>
             </div>
             <div class="color-palette" id="colorPalette"></div>
+          </div>
+
+          <!-- Banner -->
+          <div>
+            <div class="profile-section-label">Profil Banneri</div>
+            <div class="cpicker" id="bannerPicker"></div>
+          </div>
+
+          <!-- Kart Tema -->
+          <div>
+            <div class="profile-section-label">Kart Teması</div>
+            <div class="cpicker" id="themePicker"></div>
+          </div>
+
+          <!-- Parıltı + Çərçivə -->
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+            <div>
+              <div class="profile-section-label">Avatar Parıltısı</div>
+              <div class="cpicker" style="flex-direction:column;overflow-x:visible;" id="glowPicker"></div>
+            </div>
+            <div>
+              <div class="profile-section-label">Çərçivə</div>
+              <div class="cpicker" style="flex-direction:column;overflow-x:visible;" id="framePicker"></div>
+            </div>
           </div>
 
           <!-- Bio -->
@@ -1167,8 +1238,9 @@
 <!-- PROFİL MODAL -->
 <div class="pmodal-overlay" id="pmodalOverlay" onclick="closePmodalIfOutside(event)">
   <div class="pmodal-sheet" id="pmodalSheet">
-    <div class="pmodal-hero" id="pmodalHero">
-      <div class="pmodal-avatar" id="pmodalAvatar"></div>
+    <div class="pmodal-hero" id="pmodalHero" style="position:relative;overflow:hidden;">
+      <div class="profile-banner-bg" id="pmodalBannerBg" style="height:80px;"></div>
+      <div class="pmodal-avatar" id="pmodalAvatar" style="position:relative;z-index:1;"></div>
       <div class="pmodal-name" id="pmodalName"></div>
       <div class="pmodal-dept" id="pmodalDept"></div>
       <div class="pmodal-bio" id="pmodalBio"></div>
@@ -1834,6 +1906,128 @@
   var _editAccentColor = '#5b5ef4';
   var _editPhotoData = '';
 
+  // ── YENİ ÖZƏLLƏŞDIRMƏ VERİLƏRİ ─────────────────────────────────
+  var BANNER_OPTS = [
+    {id:'none',     label:'Yoxdur',   ic:'fa-ban'},
+    {id:'gradient', label:'Gradient', ic:'fa-paint-roller'},
+    {id:'waves',    label:'Dalğa',    ic:'fa-water'},
+    {id:'dots',     label:'Nöqtə',    ic:'fa-circle-dot'},
+    {id:'diagonal', label:'Zolaq',    ic:'fa-slash'},
+    {id:'mesh',     label:'Tor',      ic:'fa-hashtag'},
+  ];
+  var THEME_OPTS = [
+    {id:'glass',    label:'Glass',    ic:'fa-layer-group'},
+    {id:'dark',     label:'Dark',     ic:'fa-moon'},
+    {id:'neon',     label:'Neon',     ic:'fa-bolt'},
+    {id:'minimal',  label:'Minimal',  ic:'fa-minus'},
+    {id:'gradient', label:'Gradient', ic:'fa-palette'},
+  ];
+  var GLOW_OPTS = [
+    {id:'none',  label:'Yoxdur', ic:'fa-ban'},
+    {id:'solid', label:'Sabit',  ic:'fa-circle'},
+    {id:'pulse', label:'Nəbz',   ic:'fa-heart-pulse'},
+    {id:'shine', label:'Parıltı',ic:'fa-star'},
+  ];
+  var FRAME_OPTS = [
+    {id:'none',     label:'Yoxdur',   ic:'fa-ban'},
+    {id:'simple',   label:'Sadə',     ic:'fa-square'},
+    {id:'dashed',   label:'Kəsik',    ic:'fa-border-none'},
+    {id:'double',   label:'İkiqat',   ic:'fa-circle-dot'},
+    {id:'gradient', label:'Rəngli',   ic:'fa-palette'},
+  ];
+
+  var _editBannerStyle = 'none';
+  var _editCardTheme   = 'glass';
+  var _editGlowEffect  = 'none';
+  var _editFrameStyle  = 'none';
+
+  function getBannerBg(style, accent) {
+    if (!style || style === 'none') return 'none';
+    var a1 = hexToRgba(accent,0.88), a2 = hexToRgba(accent,0.55), a3 = hexToRgba(accent,0.18);
+    var dk = shadeColor(accent,-22);
+    switch(style) {
+      case 'gradient': return 'linear-gradient(135deg,'+accent+' 0%,'+dk+' 100%)';
+      case 'waves':    return 'repeating-linear-gradient(135deg,'+a1+' 0,'+a1+' 4px,'+a2+' 4px,'+a2+' 8px,transparent 8px,transparent 18px) 0 0/28px 28px, linear-gradient(135deg,'+accent+','+dk+')';
+      case 'dots':     return 'radial-gradient('+a1+' 2px,transparent 2px) 0 0/12px 12px,linear-gradient(135deg,'+a3+','+hexToRgba(accent,0.1)+')';
+      case 'diagonal': return 'repeating-linear-gradient(45deg,'+a1+' 0,'+a1+' 3px,transparent 0,transparent 14px),linear-gradient(135deg,'+a3+','+hexToRgba(accent,0.08)+')';
+      case 'mesh':     return 'linear-gradient('+a1+' 1px,transparent 1px) 0 0/16px 16px,linear-gradient(90deg,'+a1+' 1px,transparent 1px) 0 0/16px 16px,linear-gradient(135deg,'+a3+','+hexToRgba(accent,0.08)+')';
+      default: return 'none';
+    }
+  }
+
+  function applyAvatarEffects(el, glowStyle, frameStyle, accent, sz) {
+    if (!el) return;
+    sz = sz || 88;
+    var gColor = hexToRgba(accent, 0.45);
+    var gSm    = hexToRgba(accent, 0.18);
+    var base   = '0 '+(sz*0.18|0)+'px '+(sz*0.4|0)+'px '+hexToRgba(accent,0.38)+',0 0 0 4px rgba(255,255,255,0.95)';
+    el.classList.remove('av-pulse','av-shine');
+    el.style.outline = 'none'; el.style.outlineOffset = '';
+    el.style.removeProperty('--av-base-shadow');
+    el.style.removeProperty('--av-glow-sm');
+    el.style.removeProperty('--av-glow-color');
+    // Frame
+    switch(frameStyle) {
+      case 'simple':   el.style.outline = '3px solid '+accent; el.style.outlineOffset = '3px'; break;
+      case 'dashed':   el.style.outline = '3px dashed '+accent; el.style.outlineOffset = '3px'; break;
+      case 'double':   base += ', 0 0 0 6px '+hexToRgba(accent,0.28); break;
+      case 'gradient': base += ', 0 0 0 3px '+accent+', 0 0 0 6px rgba(255,255,255,0.9)'; break;
+    }
+    // Glow
+    switch(glowStyle) {
+      case 'solid': base += ', 0 0 20px 5px '+gColor; el.style.boxShadow = base; break;
+      case 'pulse':
+        el.style.setProperty('--av-base-shadow', base);
+        el.style.setProperty('--av-glow-sm', gSm);
+        el.classList.add('av-pulse');
+        break;
+      case 'shine':
+        el.style.setProperty('--av-glow-color', gColor);
+        el.classList.add('av-shine');
+        el.style.boxShadow = base;
+        break;
+      default: el.style.boxShadow = base;
+    }
+    if (glowStyle === 'pulse') { /* animation handles shadow */ }
+    else if (glowStyle !== 'shine') { el.style.boxShadow = base; }
+  }
+
+  function applyCardTheme(themeId, accent) {
+    var t = document.getElementById('ticket');
+    if (!t) return;
+    t.removeAttribute('data-theme');
+    t.style.removeProperty('background');
+    t.style.removeProperty('border-color');
+    t.style.removeProperty('box-shadow');
+    if (!themeId || themeId === 'glass') return;
+    if (themeId === 'gradient') {
+      t.style.background = 'linear-gradient(160deg,'+hexToRgba(accent,0.16)+' 0%,'+hexToRgba(accent,0.06)+' 50%,rgba(255,255,255,0.88) 100%)';
+      return;
+    }
+    t.setAttribute('data-theme', themeId);
+    if (themeId === 'neon') {
+      t.style.borderColor = accent;
+      t.style.boxShadow   = '0 0 0 1px '+accent+', 0 0 28px '+hexToRgba(accent,0.22)+', 0 30px 60px -15px rgba(15,23,42,0.08)';
+    }
+  }
+
+  function buildPicker(id, opts, cur, onChange) {
+    var c = document.getElementById(id);
+    if (!c) return;
+    c.innerHTML = '';
+    opts.forEach(function(o) {
+      var el = document.createElement('div');
+      el.className = 'cpick' + (cur === o.id ? ' on' : '');
+      el.innerHTML = '<i class="fa-solid '+o.ic+'" style="font-size:0.78rem;"></i>'+o.label;
+      el.onclick = function() {
+        c.querySelectorAll('.cpick').forEach(function(x){ x.classList.remove('on'); });
+        el.classList.add('on');
+        onChange(o.id);
+      };
+      c.appendChild(el);
+    });
+  }
+
   var AVATAR_PRESETS = [
     { id:'mug-hot',    icon:'fa-mug-hot',    bg:'#92400e' },
     { id:'star',       icon:'fa-star',       bg:'#b45309' },
@@ -1897,6 +2091,10 @@
         _editAvatarValue = p.avatarValue;
         _editAccentColor = p.accentColor;
         _editPhotoData   = p.photoData;
+        _editBannerStyle = p.bannerStyle || 'none';
+        _editCardTheme   = p.cardTheme  || 'glass';
+        _editGlowEffect  = p.glowEffect || 'none';
+        _editFrameStyle  = p.frameStyle || 'none';
         renderOwnProfileView(p);
         updateTicketAvatar(p);
       })
@@ -1916,9 +2114,16 @@
     document.getElementById('profileOwnDept').innerText = p.dept;
     document.getElementById('profileBioText').innerText = p.bio || 'Bio əlavə edilməyib...';
     var header = document.querySelector('#profileViewMode .profile-own-header');
-    if (header) header.style.background = 'linear-gradient(160deg,'+hexToRgba(accent,0.13)+' 0%,'+hexToRgba(accent,0.05)+' 55%, transparent 100%)';
+    if (header) header.style.background = 'linear-gradient(160deg,'+hexToRgba(accent,0.1)+' 0%,'+hexToRgba(accent,0.03)+' 55%,transparent 100%)';
     var editBtn = document.querySelector('.profile-edit-btn');
     if (editBtn) { editBtn.style.borderColor=hexToRgba(accent,0.3); editBtn.style.background=hexToRgba(accent,0.08); editBtn.style.color=accent; }
+    // Banner
+    var bannerEl = document.getElementById('profileBannerBg');
+    if (bannerEl) { var bg = getBannerBg(p.bannerStyle, accent); bannerEl.style.background = bg; bannerEl.style.opacity = '0.82'; }
+    // Card theme
+    applyCardTheme(p.cardTheme, accent);
+    // Avatar glow + frame
+    applyAvatarEffects(bigEl, p.glowEffect, p.frameStyle, accent, 88);
   }
 
   function enterEditMode() {
@@ -1928,9 +2133,30 @@
     _editAvatarValue = _myProfile ? _myProfile.avatarValue : 'mug-hot';
     _editAccentColor = _myProfile ? _myProfile.accentColor : '#5b5ef4';
     _editPhotoData   = _myProfile ? _myProfile.photoData   : '';
+    _editBannerStyle = _myProfile ? (_myProfile.bannerStyle || 'none')  : 'none';
+    _editCardTheme   = _myProfile ? (_myProfile.cardTheme  || 'glass')  : 'glass';
+    _editGlowEffect  = _myProfile ? (_myProfile.glowEffect || 'none')   : 'none';
+    _editFrameStyle  = _myProfile ? (_myProfile.frameStyle || 'none')   : 'none';
     document.getElementById('bioInput').value = _myProfile ? (_myProfile.bio || '') : '';
     buildPresetsGrid();
     buildColorPalette();
+    buildPicker('bannerPicker', BANNER_OPTS, _editBannerStyle, function(v){
+      _editBannerStyle = v;
+      var bg = getBannerBg(v, _editAccentColor);
+      var el = document.getElementById('profileBannerBg');
+      if (el) { el.style.background = bg; }
+    });
+    buildPicker('themePicker', THEME_OPTS, _editCardTheme, function(v){
+      _editCardTheme = v; applyCardTheme(v, _editAccentColor);
+    });
+    buildPicker('glowPicker', GLOW_OPTS, _editGlowEffect, function(v){
+      _editGlowEffect = v;
+      applyAvatarEffects(document.getElementById('profileAvatarBig'), v, _editFrameStyle, _editAccentColor, 88);
+    });
+    buildPicker('framePicker', FRAME_OPTS, _editFrameStyle, function(v){
+      _editFrameStyle = v;
+      applyAvatarEffects(document.getElementById('profileAvatarBig'), _editGlowEffect, v, _editAccentColor, 88);
+    });
     document.getElementById('profileSaveStatus').innerText = '';
     switchAvatarTab(_editAvatarType === 'photo' ? 'photo' : 'preset');
     if (_editAvatarType === 'photo' && _editPhotoData) {
@@ -1973,9 +2199,13 @@
     avEl.style.boxShadow   = '0 6px 18px '+hexToRgba(hex,0.42);
     nm.style.color         = hex;
     nm.innerText           = col ? col.name : 'Xüsusi';
-    // Cari avatar ikonunu göstər
     var preset = AVATAR_PRESETS.find(function(p){ return p.id === _editAvatarValue; }) || AVATAR_PRESETS[0];
     avEl.innerHTML = '<i class="fa-solid '+preset.icon+'" style="color:#fff;font-size:1.15rem;"></i>';
+    // Canlı effekt yeniləmə
+    var bnEl = document.getElementById('profileBannerBg');
+    if (bnEl) { var nbg = getBannerBg(_editBannerStyle, hex); bnEl.style.background = nbg; }
+    applyCardTheme(_editCardTheme, hex);
+    applyAvatarEffects(document.getElementById('profileAvatarBig'), _editGlowEffect, _editFrameStyle, hex, 88);
   }
 
   function buildColorPalette() {
@@ -2050,6 +2280,10 @@
       accentColor: _editAccentColor,
       bio:         document.getElementById('bioInput').value.trim(),
       photoData:   _editAvatarType === 'photo' ? _editPhotoData : '',
+      bannerStyle: _editBannerStyle,
+      cardTheme:   _editCardTheme,
+      glowEffect:  _editGlowEffect,
+      frameStyle:  _editFrameStyle,
     };
     google.script.run
       .withSuccessHandler(function(res) {
@@ -2092,10 +2326,12 @@
       card.style.background = 'linear-gradient(160deg,'+hexToRgba(accent,0.09)+' 0%,rgba(255,255,255,0.65) 100%)';
       card.style.borderColor = hexToRgba(accent, 0.22);
 
-      // Rəng zolağı
+      // Banner / rəng zolağı
       var stripe = document.createElement('div');
       stripe.className = 'team-card-stripe';
-      stripe.style.background = 'linear-gradient(90deg,'+accent+','+shadeColor(accent,-18)+')';
+      var sBg = getBannerBg(m.bannerStyle, accent);
+      stripe.style.background = sBg !== 'none' ? sBg : 'linear-gradient(90deg,'+accent+','+shadeColor(accent,-18)+')';
+      stripe.style.height = '5px';
       card.appendChild(stripe);
 
       var avWrap = document.createElement('div');
@@ -2131,6 +2367,8 @@
         card.appendChild(strEl);
       }
 
+      // Avatar glow + frame (kiçik ölçü)
+      applyAvatarEffects(avWrap, m.glowEffect, m.frameStyle, accent, 50);
       card.onclick = function(){ openPmodal(m.empId); };
       grid.appendChild(card);
     });
@@ -2146,12 +2384,15 @@
       .withSuccessHandler(function(p) {
         if (!p) return;
         var accent = p.accentColor || '#5b5ef4';
+        // Banner
+        var bannerEl2 = document.getElementById('pmodalBannerBg');
+        if (bannerEl2) { var pbg = getBannerBg(p.bannerStyle, accent); bannerEl2.style.background = pbg !== 'none' ? pbg : 'none'; bannerEl2.style.opacity = '0.7'; }
         // Hero fon
         var heroEl = document.getElementById('pmodalHero');
-        if (heroEl) heroEl.style.background = 'linear-gradient(160deg,'+hexToRgba(accent,0.14)+' 0%,'+hexToRgba(accent,0.05)+' 55%,transparent 100%)';
+        if (heroEl) heroEl.style.background = 'linear-gradient(160deg,'+hexToRgba(accent,0.12)+' 0%,'+hexToRgba(accent,0.04)+' 55%,transparent 100%)';
         // Avatar
         var avEl = document.getElementById('pmodalAvatar');
-        avEl.style.cssText = 'width:92px;height:92px;border-radius:26px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:2.3rem;color:#fff;box-shadow:0 16px 36px '+hexToRgba(accent,0.4)+',0 0 0 4px rgba(255,255,255,0.95);overflow:hidden;transition:box-shadow 0.35s;';
+        avEl.style.cssText = 'width:92px;height:92px;border-radius:26px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:2.3rem;color:#fff;overflow:hidden;transition:box-shadow 0.35s;position:relative;z-index:1;';
         avEl.innerHTML = '';
         if (p.avatarType === 'photo' && p.photoData) {
           avEl.innerHTML = '<img src="'+p.photoData+'" style="width:100%;height:100%;object-fit:cover;">';
@@ -2160,6 +2401,7 @@
           avEl.style.background = 'linear-gradient(135deg,'+pr.bg+','+shadeColor(pr.bg,-20)+')';
           avEl.innerHTML = '<i class="fa-solid ' + pr.icon + '"></i>';
         }
+        applyAvatarEffects(avEl, p.glowEffect, p.frameStyle, accent, 92);
         document.getElementById('pmodalName').innerText = p.empName;
         document.getElementById('pmodalDept').innerText = p.dept;
         document.getElementById('pmodalBio').innerText = p.bio || '';
