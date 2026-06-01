@@ -2828,14 +2828,15 @@
           streakEl.style.color = shadeColor(accent,-25);
           streakEl.style.display = 'inline-flex';
         }
-        // Stats
-        var s = p.stats || {};
-        var pct = s.pct || 0;
-        var pctColor = pct >= 90 ? 'var(--success)' : pct >= 70 ? 'var(--warning)' : 'var(--danger)';
+        var streakVal = p.streak || 0;
+        var streakColor = streakVal >= 30 ? 'var(--success)' : streakVal >= 7 ? 'var(--warning)' : 'var(--text-muted)';
         document.getElementById('pmodalStats').innerHTML =
           '<div class="pmodal-stat" style="min-width:110px;">'+
-            '<div class="pmodal-stat-val" style="color:'+pctColor+';">'+pct+'%</div>'+
-            '<div class="pmodal-stat-lbl">Davamiyyət</div>'+
+            '<div class="pmodal-stat-val" style="color:'+streakColor+';">'+
+              (streakVal > 0 ? '<i class="fa-solid fa-fire" style="font-size:1.1rem;color:#f59e0b;margin-right:4px;"></i>' : '')+
+              streakVal+
+            '</div>'+
+            '<div class="pmodal-stat-lbl">Ardıcıl Gün</div>'+
           '</div>';
       })
       .getPublicProfile(SECRET, empId);
