@@ -547,15 +547,26 @@
   }
   .team-card:hover { transform:translateY(-2px); box-shadow:0 6px 20px rgba(0,0,0,0.1); }
   .team-card:active { transform:scale(0.97); }
-  .team-card-stripe { width:100%; height:4px; flex-shrink:0; margin-bottom:11px; }
+  .team-card-stripe {
+    width:100%; height:52px; flex-shrink:0; margin-bottom:0;
+    position:relative;
+  }
+  .team-card-stripe::after {
+    content:''; position:absolute; bottom:0; left:0; right:0; height:18px;
+    background:linear-gradient(to bottom, transparent, rgba(255,255,255,0.25));
+    pointer-events:none;
+  }
   .team-avatar-sm {
     width:50px; height:50px; border-radius:14px;
     display:flex; align-items:center; justify-content:center;
     font-size:1.2rem; color:#fff; flex-shrink:0;
-    box-shadow:0 3px 10px rgba(0,0,0,0.18); overflow:hidden;
+    box-shadow:0 4px 12px rgba(0,0,0,0.22);
+    overflow:hidden; position:relative; z-index:1;
+    margin-top:-20px;
+    border:2.5px solid #fff;
   }
   .team-avatar-sm img { width:100%; height:100%; object-fit:cover; }
-  .team-name { font-size:0.75rem; font-weight:800; color:var(--text-main); line-height:1.2; margin-top:7px; padding:0 4px; }
+  .team-name { font-size:0.75rem; font-weight:800; color:var(--text-main); line-height:1.2; margin-top:6px; padding:0 4px; }
   .team-dept { font-size:0.6rem; color:var(--text-soft); font-weight:600; margin-top:2px; }
   .team-streak { display:none; }
   .team-reactions {
@@ -2911,7 +2922,7 @@
       // Avatar
       var avWrap = document.createElement('div');
       avWrap.className = 'team-avatar-sm';
-      avWrap.style.cssText = 'width:52px;height:52px;border-radius:15px;display:flex;align-items:center;justify-content:center;font-size:1.25rem;color:#fff;overflow:hidden;box-shadow:0 4px 14px '+hexToRgba(accent,0.38)+';';
+      avWrap.style.cssText = 'box-shadow:0 4px 14px '+hexToRgba(accent,0.42)+';';
       if (m.avatarType === 'photo' && m.photoData) {
         var img = document.createElement('img');
         img.src = m.photoData; img.style.cssText = 'width:100%;height:100%;object-fit:cover;';
