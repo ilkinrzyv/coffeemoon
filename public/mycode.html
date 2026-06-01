@@ -565,19 +565,19 @@
   .team-card:hover .team-streak { opacity:1; transform:translateY(0); }
   .team-reactions {
     display:flex; gap:2px; width:100%;
-    padding:0 6px; margin-top:8px;
+    padding:0 5px; margin-top:8px; box-sizing:border-box;
   }
   .team-react-btn {
-    flex:1; height:24px; border-radius:7px;
+    flex:1; min-width:0; height:23px; border-radius:7px;
     border:1px solid transparent;
     background:rgba(15,23,42,0.04);
     cursor:pointer; display:flex; align-items:center; justify-content:center; gap:2px;
     transition:all 0.13s ease;
     -webkit-tap-highlight-color:transparent;
-    user-select:none; font-family:inherit;
+    user-select:none; font-family:inherit; overflow:hidden;
   }
-  .team-react-btn .r-emoji { font-size:0.78rem; line-height:1; }
-  .team-react-btn .r-count { font-size:0.58rem; font-weight:800; color:var(--text-soft); }
+  .team-react-btn .r-emoji { font-size:0.76rem; line-height:1; flex-shrink:0; }
+  .team-react-btn .r-count { font-size:0.56rem; font-weight:800; color:var(--text-soft); }
   .team-react-btn.active { background:rgba(91,94,244,0.09); border-color:rgba(91,94,244,0.25); }
   .team-react-btn.active .r-count { color:#5b5ef4; }
   .team-react-btn:active { transform:scale(0.8); }
