@@ -1234,7 +1234,7 @@ API.getTeamProfiles = async (secret) => {
   if (!secret) return [];
   const { data: caller } = await sb.from('employees').select('id').eq('secret', secret).single();
   if (!caller) return [];
-  const { data: emps } = await sb.from('employees').select('id,name,dept').order('name');
+  const { data: emps } = await sb.from('employees').select('id,name,dept,is_test').order('name');
   const { data: profiles } = await sb.from('profiles').select('*');
   const pm = {};
   for (const p of profiles || []) pm[p.emp_id] = p;
@@ -1242,7 +1242,7 @@ API.getTeamProfiles = async (secret) => {
     empId:       e.id,
     empName:     e.name,
     dept:        e.dept,
-    streak:      await U.calcStreak(e.id, e.dept),
+    streak:      e.is_test ? 999 : await U.calcStreak(e.id, e.dept),
     avatarType:  pm[e.id]?.avatar_type  || 'preset',
     avatarValue: pm[e.id]?.avatar_value || 'mug-hot',
     accentColor: pm[e.id]?.accent_color || '#5b5ef4',
