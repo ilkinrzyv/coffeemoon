@@ -535,47 +535,49 @@
     text-transform:uppercase; letter-spacing:1.2px;
     display:flex; align-items:center; gap:7px;
   }
-  .team-grid { padding:0.9rem; display:grid; grid-template-columns:repeat(3,1fr); gap:9px; }
+  .team-grid { padding:0.9rem; display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
   .team-card {
-    border-radius:18px; padding:0 7px 10px; text-align:center; cursor:pointer;
-    background:rgba(255,255,255,0.82);
+    border-radius:16px; padding:0 0 9px; text-align:center; cursor:pointer;
+    background:#fff;
     border:1.5px solid rgba(15,23,42,0.07);
-    box-shadow:0 2px 10px rgba(0,0,0,0.06);
-    transition:transform 0.2s cubic-bezier(0.16,1,0.3,1), box-shadow 0.2s;
-    display:flex; flex-direction:column; align-items:center; gap:4px;
+    box-shadow:0 1px 6px rgba(0,0,0,0.07);
+    transition:transform 0.18s cubic-bezier(0.16,1,0.3,1), box-shadow 0.18s;
+    display:flex; flex-direction:column; align-items:center; gap:0;
     overflow:hidden; position:relative;
   }
-  .team-card:hover { transform:translateY(-3px); box-shadow:0 8px 24px rgba(0,0,0,0.11); }
-  .team-card:active { transform:scale(0.96); }
-  .team-card-stripe { width:100%; height:5px; flex-shrink:0; margin-bottom:10px; }
+  .team-card:hover { transform:translateY(-2px); box-shadow:0 6px 20px rgba(0,0,0,0.1); }
+  .team-card:active { transform:scale(0.97); }
+  .team-card-stripe { width:100%; height:4px; flex-shrink:0; margin-bottom:11px; }
   .team-avatar-sm {
-    width:52px; height:52px; border-radius:15px;
+    width:50px; height:50px; border-radius:14px;
     display:flex; align-items:center; justify-content:center;
-    font-size:1.25rem; color:#fff; flex-shrink:0;
-    box-shadow:0 4px 14px rgba(0,0,0,0.2); overflow:hidden;
-    transition:box-shadow 0.25s;
+    font-size:1.2rem; color:#fff; flex-shrink:0;
+    box-shadow:0 3px 10px rgba(0,0,0,0.18); overflow:hidden;
   }
   .team-avatar-sm img { width:100%; height:100%; object-fit:cover; }
-  .team-name { font-size:0.76rem; font-weight:800; color:var(--text-main); line-height:1.2; margin-top:1px; }
-  .team-dept { font-size:0.62rem; color:var(--text-soft); font-weight:600; letter-spacing:0.1px; }
-  .team-streak { font-size:0.64rem; font-weight:800; color:#b45309;
-    background:rgba(245,158,11,0.1); border-radius:20px; padding:2px 7px; margin-top:1px; }
-  .team-divider { width:100%; height:1px; background:rgba(15,23,42,0.06); margin:5px 0 2px; }
-  .team-reactions { display:flex; gap:3px; width:100%; }
-  .team-react-btn {
-    flex:1; padding:4px 1px; border-radius:8px;
-    border:1.2px solid transparent;
-    background:rgba(15,23,42,0.04);
-    cursor:pointer; text-align:center;
-    transition:all 0.14s ease;
-    -webkit-tap-highlight-color:transparent;
-    user-select:none;
+  .team-name { font-size:0.75rem; font-weight:800; color:var(--text-main); line-height:1.2; margin-top:7px; padding:0 4px; }
+  .team-dept { font-size:0.6rem; color:var(--text-soft); font-weight:600; margin-top:2px; }
+  .team-streak { font-size:0.6rem; font-weight:700; color:#b45309;
+    background:rgba(245,158,11,0.1); border-radius:20px;
+    padding:2px 6px; margin-top:5px; display:inline-block; }
+  .team-reactions {
+    display:flex; gap:2px; width:100%;
+    padding:0 6px; margin-top:8px;
   }
-  .team-react-btn .r-emoji { display:block; font-size:0.88rem; line-height:1.3; }
-  .team-react-btn .r-count { display:block; font-size:0.56rem; font-weight:700; color:var(--text-soft); min-height:9px; line-height:1.2; }
-  .team-react-btn.active { background:rgba(91,94,244,0.1); border-color:rgba(91,94,244,0.28); }
+  .team-react-btn {
+    flex:1; height:24px; border-radius:7px;
+    border:1px solid transparent;
+    background:rgba(15,23,42,0.04);
+    cursor:pointer; display:flex; align-items:center; justify-content:center; gap:2px;
+    transition:all 0.13s ease;
+    -webkit-tap-highlight-color:transparent;
+    user-select:none; font-family:inherit;
+  }
+  .team-react-btn .r-emoji { font-size:0.78rem; line-height:1; }
+  .team-react-btn .r-count { font-size:0.58rem; font-weight:800; color:var(--text-soft); }
+  .team-react-btn.active { background:rgba(91,94,244,0.09); border-color:rgba(91,94,244,0.25); }
   .team-react-btn.active .r-count { color:#5b5ef4; }
-  .team-react-btn:active { transform:scale(0.82); }
+  .team-react-btn:active { transform:scale(0.8); }
 
   /* Profile view modal */
   .pmodal-overlay {
@@ -2944,18 +2946,14 @@
         card.appendChild(strEl);
       }
 
-      // Ayırıcı + reaksiya sətri
-      var divEl = document.createElement('div');
-      divEl.className = 'team-divider';
-      card.appendChild(divEl);
-
+      // Reaksiya sətri
       var rRow = document.createElement('div');
       rRow.className = 'team-reactions';
-      [['like','👍'],['love','❤️'],['fire','🔥'],['angry','😡']].forEach(function(pair) {
+      [['like','👍'],['fire','🔥'],['sad','😢'],['angry','😡']].forEach(function(pair) {
         var btn = document.createElement('button');
         btn.className = 'team-react-btn';
         btn.dataset.type = pair[0];
-        btn.innerHTML = '<span class="r-emoji">'+pair[1]+'</span><span class="r-count"></span>';
+        btn.innerHTML = '<span class="r-emoji">'+pair[1]+'</span><span class="r-count" style="display:none"></span>';
         btn.addEventListener('click', function(e) {
           e.stopPropagation();
           handleReaction(m.empId, pair[0], card);
@@ -2986,7 +2984,9 @@
     card.querySelectorAll('.team-react-btn').forEach(function(btn) {
       var type = btn.dataset.type;
       var cnt = r[type] || 0;
-      btn.querySelector('.r-count').innerText = cnt > 0 ? cnt : '';
+      var cntEl = btn.querySelector('.r-count');
+      if (cnt > 0) { cntEl.innerText = cnt; cntEl.style.display = ''; }
+      else { cntEl.innerText = ''; cntEl.style.display = 'none'; }
       btn.classList.toggle('active', mine === type);
     });
   }

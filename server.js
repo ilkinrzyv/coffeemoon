@@ -1272,7 +1272,7 @@ API.getReactions = async (secret) => {
 };
 
 API.toggleReaction = async (secret, toEmpId, type) => {
-  const VALID = ['like','love','fire','angry'];
+  const VALID = ['like','fire','sad','angry'];
   if (!VALID.includes(type)) return { ok: false };
   const { data: caller } = await sb.from('employees').select('id').eq('secret', secret).single();
   if (!caller || caller.id === toEmpId) return { ok: false };
