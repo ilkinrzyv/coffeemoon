@@ -1370,6 +1370,23 @@
           if (dash.announcements && dash.announcements.length) renderAnnouncements(dash.announcements);
         }).getDashboardData(SECRET);
 
+        google.script.run.withSuccessHandler(function(p) {
+          if (!p) return;
+          _myProfile = p;
+          _editAvatarType  = p.avatarType;
+          _editAvatarValue = p.avatarValue;
+          _editAccentColor = p.accentColor;
+          _editPhotoData   = p.photoData;
+          _editBannerStyle = p.bannerStyle || 'none';
+          _editCardTheme   = p.cardTheme  || 'glass';
+          _editGlowEffect  = p.glowEffect || 'none';
+          _editFrameStyle  = p.frameStyle || 'none';
+          updateTicketAvatar(p);
+          var accent = p.accentColor || '#5b5ef4';
+          applyCardTheme(p.cardTheme, accent);
+          applyAvatarEffects(document.getElementById('avatarDiv'), p.glowEffect, p.frameStyle, accent, 76);
+        }).getMyProfile(SECRET);
+
       } else {
         var icon = res && res.deviceLocked
           ? '<i class="fa-solid fa-mobile-screen-button fa-3x" style="color:var(--warning)"></i>'
