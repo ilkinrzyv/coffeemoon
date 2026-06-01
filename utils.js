@@ -121,7 +121,8 @@ async function calcStreak(empId, dept) {
     const si = st ? getShiftInfo(dept, st) : null;
     const lim = si ? (si.lateH * 60 + si.lateM)
       : (h < 13 ? 7 * 60 + 30 : (dept === 'Ağ Şəhər' || dept === 'Gənclik') ? 16 * 60 : 15 * 60);
-    if (tot <= lim) streak++; else break;
+    if (tot <= lim) streak++;
+    else { streak = Math.max(0, streak - 5); break; }
   }
   return streak;
 }
