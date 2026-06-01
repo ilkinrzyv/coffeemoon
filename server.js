@@ -1195,6 +1195,10 @@ API.getMyProfile = async (secret) => {
     accentColor: p?.accent_color || '#5b5ef4',
     bio:         p?.bio          || '',
     photoData:   p?.photo_data   || '',
+    bannerStyle: p?.banner_style || 'none',
+    cardTheme:   p?.card_theme   || 'glass',
+    glowEffect:  p?.glow_effect  || 'none',
+    frameStyle:  p?.frame_style  || 'none',
   };
 };
 
@@ -1209,6 +1213,10 @@ API.saveProfile = async (secret, data) => {
     accent_color: data.accentColor || '#5b5ef4',
     bio:          (data.bio || '').slice(0, 80),
     photo_data:   data.photoData   || '',
+    banner_style: data.bannerStyle || 'none',
+    card_theme:   data.cardTheme   || 'glass',
+    glow_effect:  data.glowEffect  || 'none',
+    frame_style:  data.frameStyle  || 'none',
     updated_at:   new Date().toISOString(),
   }, { onConflict: 'emp_id' });
   sbErr('saveProfile', error);
@@ -1233,6 +1241,10 @@ API.getTeamProfiles = async (secret) => {
     accentColor: pm[e.id]?.accent_color || '#5b5ef4',
     bio:         pm[e.id]?.bio          || '',
     photoData:   pm[e.id]?.photo_data   || '',
+    bannerStyle: pm[e.id]?.banner_style || 'none',
+    cardTheme:   pm[e.id]?.card_theme   || 'glass',
+    glowEffect:  pm[e.id]?.glow_effect  || 'none',
+    frameStyle:  pm[e.id]?.frame_style  || 'none',
   })));
   return result;
 };
@@ -1255,6 +1267,10 @@ API.getPublicProfile = async (secret, targetEmpId) => {
     accentColor: p?.accent_color || '#5b5ef4',
     bio:         p?.bio          || '',
     photoData:   p?.photo_data   || '',
+    bannerStyle: p?.banner_style || 'none',
+    cardTheme:   p?.card_theme   || 'glass',
+    glowEffect:  p?.glow_effect  || 'none',
+    frameStyle:  p?.frame_style  || 'none',
     stats: { days: myR.totalDays, onTime: myR.onTime, late: myR.late, pct: myR.pct },
   };
 };
