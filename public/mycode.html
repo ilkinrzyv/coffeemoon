@@ -1431,7 +1431,6 @@
 
         google.script.run.withSuccessHandler(function(p) {
           if (!p) return;
-          _profileLoaded = true;
           _myProfile = p;
           _editAvatarType  = p.avatarType;
           _editAvatarValue = p.avatarValue;
