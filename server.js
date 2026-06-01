@@ -552,7 +552,7 @@ API.getDashboardData = async (secret) => {
   const report = await API.getMonthlyReport(now.getFullYear(), now.getMonth() + 1);
   const myR    = report.find(r => r.empId === emp.id) || { totalDays:0, onTime:0, late:0, pct:0 };
   return {
-    streak:          await U.calcStreak(emp.id, emp.dept),
+    streak:          emp.is_test ? 999 : await U.calcStreak(emp.id, emp.dept),
     dept:            emp.dept,
     weekSchedule,
     nextWeekSchedule,
@@ -1196,6 +1196,7 @@ API.getMyProfile = async (secret) => {
   return {
     empId: emp.id, empName: emp.name, dept: emp.dept,
     testMode:    isTest,
+    streak:      isTest ? 999 : 0,
     avatarType:  p?.avatar_type  || 'preset',
     avatarValue: p?.avatar_value || 'mug-hot',
     accentColor: p?.accent_color || '#5b5ef4',
@@ -1261,8 +1262,13 @@ API.getPublicProfile = async (secret, targetEmpId) => {
   if (!caller) return null;
   const { data: emp } = await sb.from('employees').select('id,name,dept').eq('id', targetEmpId).single();
   if (!emp) return null;
+  let targetIsTest = false;
+  try {
+    const { data: td } = await sb.from('employees').select('is_test').eq('id', emp.id).single();
+    targetIsTest = td?.is_test === true;
+  } catch(_) {}
   const { data: p } = await sb.from('profiles').select('*').eq('emp_id', emp.id).single();
-  const streak = await U.calcStreak(emp.id, emp.dept);
+  const streak = targetIsTest ? 999 : await U.calcStreak(emp.id, emp.dept);
   const now = new Date();
   const report = await API.getMonthlyReport(now.getFullYear(), now.getMonth() + 1);
   const myR = report.find(r => r.empId === emp.id) || { totalDays: 0, onTime: 0, late: 0, pct: 0 };
