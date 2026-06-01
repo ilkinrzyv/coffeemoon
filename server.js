@@ -1185,12 +1185,17 @@ API.saveAnnouncement = async (data) => {
 
 API.getMyProfile = async (secret) => {
   if (!secret) return null;
-  const { data: emp } = await sb.from('employees').select('id,name,dept,is_test').eq('secret', secret).single();
+  const { data: emp } = await sb.from('employees').select('id,name,dept').eq('secret', secret).single();
   if (!emp) return null;
+  let isTest = false;
+  try {
+    const { data: td } = await sb.from('employees').select('is_test').eq('id', emp.id).single();
+    isTest = td?.is_test === true;
+  } catch(_) {}
   const { data: p } = await sb.from('profiles').select('*').eq('emp_id', emp.id).single();
   return {
     empId: emp.id, empName: emp.name, dept: emp.dept,
-    testMode:    emp.is_test || false,
+    testMode:    isTest,
     avatarType:  p?.avatar_type  || 'preset',
     avatarValue: p?.avatar_value || 'mug-hot',
     accentColor: p?.accent_color || '#5b5ef4',

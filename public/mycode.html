@@ -582,16 +582,6 @@
     transition:background 0.35s ease; position:relative; overflow:hidden;
   }
 
-  /* Banner animasiya */
-  @keyframes banner-shimmer { 0%{background-position:-200% center} 100%{background-position:200% center} }
-  @keyframes banner-wave-move { from{background-position:0 0,0 0,0 0} to{background-position:30px 30px,30px 30px,0 0} }
-  .pmodal-banner-anim-shimmer {
-    animation:banner-shimmer 3.5s linear infinite !important;
-    background-size:200% 100% !important;
-  }
-  .pmodal-banner-anim-wave {
-    animation:banner-wave-move 3s linear infinite !important;
-  }
 
   .pmodal-avatar {
     width:92px; height:92px; border-radius:26px;
@@ -2852,12 +2842,6 @@
     }
   }
 
-  function applyPmodalBannerAnim(bannerEl, bannerStyle) {
-    bannerEl.classList.remove('pmodal-banner-anim-shimmer','pmodal-banner-anim-wave');
-    if (!bannerStyle || bannerStyle === 'none' || bannerStyle === 'carbon') return;
-    var isPattern = ['waves','dots','diagonal','mesh','geometric'].indexOf(bannerStyle) >= 0;
-    bannerEl.classList.add(isPattern ? 'pmodal-banner-anim-wave' : 'pmodal-banner-anim-shimmer');
-  }
 
   function openPmodal(empId) {
     var heroEl = document.getElementById('pmodalHero');
@@ -2887,7 +2871,6 @@
           var pbg = getBannerBg(p.bannerStyle, accent);
           bannerEl2.style.background = pbg !== 'none' ? pbg : 'none';
           bannerEl2.style.opacity = '0.78';
-          applyPmodalBannerAnim(bannerEl2, p.bannerStyle);
         }
         // Hero fon
         if (heroEl) heroEl.style.background = 'linear-gradient(160deg,'+hexToRgba(accent,0.1)+' 0%,'+hexToRgba(accent,0.03)+' 55%,transparent 100%)';
