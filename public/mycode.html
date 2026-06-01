@@ -3059,7 +3059,7 @@
         if (heroTier >= 2) heroBg += ',radial-gradient(ellipse at 50% 125%,rgba(251,146,60,'+(0.14+heroTier*0.08)+'),rgba(245,158,11,'+(0.07+heroTier*0.04)+') 46%,transparent 78%)';
         if (heroEl) {
           heroEl.style.background = heroBg;
-          heroEl.style.animation = heroTier >= 4 ? 'streak-hdr-pulse '+(heroTier>=5?'1.5s':'2s')+' ease-in-out infinite' : '';
+          heroEl.style.animation = '';
         }
         // Avatar
         var avEl = document.getElementById('pmodalAvatar');
