@@ -592,23 +592,51 @@
   }
   .pmodal-avatar img { width:100%; height:100%; object-fit:cover; }
 
-  /* Alov effekti */
+  /* ── ALOV EFFEKTİ — 5 TİR ── */
   .pfire-wrap { position:relative; display:inline-block; z-index:2; }
-  @keyframes pfire-flicker { 0%,100%{transform:scaleY(1) scaleX(1);opacity:0.9} 33%{transform:scaleY(1.08) scaleX(0.96);opacity:1} 66%{transform:scaleY(0.95) scaleX(1.04);opacity:0.85} }
-  @keyframes pfire-particle { 0%{transform:translateY(0) scale(1);opacity:0.8} 100%{transform:translateY(-40px) scale(0.2);opacity:0} }
+  @keyframes pfire-flicker {
+    0%,100%{transform:scaleY(1) scaleX(1);opacity:1}
+    22%{transform:scaleY(1.10) scaleX(0.94);opacity:0.9}
+    45%{transform:scaleY(0.93) scaleX(1.06);opacity:0.83}
+    68%{transform:scaleY(1.07) scaleX(0.97);opacity:0.96}
+  }
+  @keyframes pfire-particle {
+    0%{transform:translateY(0) scale(1) rotate(0deg);opacity:0.95}
+    55%{opacity:0.48}
+    100%{transform:translateY(-70px) scale(0.07) rotate(32deg);opacity:0}
+  }
+  @keyframes streak-hdr-pulse { 0%,100%{opacity:0.55} 50%{opacity:1} }
+  @keyframes streak-name-gold {
+    0%,100%{text-shadow:none}
+    50%{text-shadow:0 0 18px rgba(251,191,36,0.82),0 0 36px rgba(245,158,11,0.32)}
+  }
+  @keyframes streak-badge-pulse {
+    0%,100%{box-shadow:0 3px 10px rgba(245,158,11,0.22)}
+    50%{box-shadow:0 6px 26px rgba(245,158,11,0.68),0 0 0 4px rgba(245,158,11,0.16)}
+  }
   .pfire-ring {
     position:absolute; border-radius:30px; pointer-events:none;
-    animation:pfire-flicker 1.4s ease-in-out infinite;
+    animation:pfire-flicker 1.38s ease-in-out infinite;
   }
-  .pfire-ring-1 { inset:-6px; background:radial-gradient(ellipse at 50% 100%,rgba(251,146,60,0.7),rgba(239,68,68,0.4) 50%,transparent 75%); }
-  .pfire-ring-2 { inset:-12px; background:radial-gradient(ellipse at 50% 110%,rgba(253,186,116,0.5),rgba(249,115,22,0.3) 45%,transparent 70%); animation-delay:0.2s; animation-duration:1.8s; }
-  .pfire-ring-3 { inset:-18px; background:radial-gradient(ellipse at 50% 115%,rgba(254,215,170,0.3),rgba(251,146,60,0.18) 40%,transparent 65%); animation-delay:0.4s; animation-duration:2.2s; }
+  /* Tir 1 — Başlanğıc (7 gün+) */
+  .pfire-ring-1 { inset:-9px; background:radial-gradient(ellipse 82% 70% at 50% 97%,rgba(251,146,60,0.96),rgba(239,68,68,0.6) 44%,transparent 72%); }
+  /* Tir 2 — Sabit (15 gün+) */
+  .pfire-ring-2 { inset:-18px; background:radial-gradient(ellipse 86% 76% at 50% 107%,rgba(253,186,116,0.8),rgba(249,115,22,0.48) 42%,transparent 70%); animation-delay:0.28s; animation-duration:1.72s; }
+  /* Tir 3 — Qızıl (30 gün+) */
+  .pfire-ring-3 { inset:-30px; background:radial-gradient(ellipse 90% 80% at 50% 112%,rgba(254,215,170,0.62),rgba(251,146,60,0.38) 38%,transparent 68%); animation-delay:0.52s; animation-duration:2.12s; }
+  /* Tir 4 — Platin (60 gün+) */
+  .pfire-ring-4 { inset:-46px; background:radial-gradient(ellipse 95% 85% at 50% 117%,rgba(253,224,71,0.45),rgba(245,158,11,0.28) 34%,rgba(252,165,165,0.1) 56%,transparent 72%); animation-delay:0.76s; animation-duration:2.52s; }
+  /* Tir 5 — Əfsanəvi (100 gün+) */
+  .pfire-ring-5 { inset:-64px; background:radial-gradient(ellipse 100% 90% at 50% 121%,rgba(217,119,6,0.32),rgba(180,83,9,0.2) 30%,rgba(139,92,246,0.13) 53%,transparent 68%); animation-delay:1.0s; animation-duration:3.05s; }
   .pfire-particle {
-    position:absolute; width:5px; height:5px; border-radius:50%;
-    background:radial-gradient(circle,#fbbf24,#f97316);
-    animation:pfire-particle 1.2s ease-out infinite;
+    position:absolute; border-radius:50%;
+    width:5px; height:5px;
+    background:radial-gradient(circle,#fef9c3,#fbbf24,#f97316);
+    animation:pfire-particle 1.35s ease-out infinite;
     pointer-events:none;
   }
+  .pfire-particle.lg { width:7px; height:7px; background:radial-gradient(circle,#fff,#fef3c7,#fbbf24,#f97316); }
+  .pfire-particle.xl { width:9px; height:9px; background:radial-gradient(circle,#fff,#fef9c3,#fde68a,#fbbf24,#f97316); }
 
   .pmodal-name { font-size:1.25rem; font-weight:800; color:var(--text-main); margin-bottom:3px; position:relative; z-index:2; }
   .pmodal-dept { font-size:0.8rem; color:var(--text-muted); font-weight:600; margin-bottom:10px; position:relative; z-index:2; }
@@ -1181,10 +1209,13 @@
       <div id="profileViewMode">
         <div class="profile-own-header" id="profileOwnHeader">
           <div class="profile-banner-bg" id="profileBannerBg"></div>
-          <div class="profile-avatar-big" id="profileAvatarBig"></div>
+          <div id="profileAvatarWrap" style="position:relative;display:inline-block;margin:0 auto 16px;">
+            <div class="profile-avatar-big" id="profileAvatarBig" style="margin:0;"></div>
+          </div>
           <div class="profile-own-name" id="profileOwnName"></div>
           <div class="profile-own-dept" id="profileOwnDept"></div>
           <div class="profile-bio-text" id="profileBioText"></div>
+          <div id="profileStreakBadge" style="display:none;"></div>
           <button class="profile-edit-btn" onclick="enterEditMode()">
             <i class="fa-solid fa-pen"></i> Profili Redaktə Et
           </button>
@@ -2538,10 +2569,94 @@
       .getTeamProfiles(SECRET);
   }
 
+  // ── Streak tier (0-5) ────────────────────────────────────────────
+  function getStreakTier(v) {
+    return v >= 100 ? 5 : v >= 60 ? 4 : v >= 30 ? 3 : v >= 15 ? 2 : v >= 7 ? 1 : 0;
+  }
+
+  // ── Universal alov qurucusu ─────────────────────────────────────
+  function buildFireEffect(wrapEl, streakVal) {
+    if (!wrapEl) return;
+    wrapEl.querySelectorAll('.pfire-ring,.pfire-particle').forEach(function(e){ e.remove(); });
+    var tier = getStreakTier(streakVal);
+    if (tier === 0) return;
+    for (var i = 1; i <= tier; i++) {
+      var ring = document.createElement('div');
+      ring.className = 'pfire-ring pfire-ring-' + i;
+      wrapEl.appendChild(ring);
+    }
+    var PSETS = [null, null,
+      [{l:'22%',t:'12%',s:'',d:0,dr:1.3},{l:'66%',t:'7%',s:'',d:0.35,dr:1.2},{l:'44%',t:'1%',s:'',d:0.7,dr:1.4}],
+      [{l:'20%',t:'10%',s:'',d:0,dr:1.3},{l:'68%',t:'5%',s:'',d:0.25,dr:1.2},{l:'44%',t:'0%',s:'lg',d:0.5,dr:1.4},{l:'15%',t:'22%',s:'',d:0.75,dr:1.1},{l:'75%',t:'15%',s:'',d:1.0,dr:1.35}],
+      [{l:'18%',t:'10%',s:'lg',d:0,dr:1.25},{l:'70%',t:'5%',s:'lg',d:0.2,dr:1.35},{l:'44%',t:'0%',s:'',d:0.4,dr:1.1},{l:'25%',t:'20%',s:'',d:0.6,dr:1.45},{l:'72%',t:'15%',s:'',d:0.8,dr:1.2},{l:'55%',t:'8%',s:'lg',d:1.0,dr:1.3},{l:'10%',t:'25%',s:'',d:0.3,dr:1.15},{l:'85%',t:'22%',s:'',d:0.5,dr:1.4}],
+      [{l:'14%',t:'8%',s:'xl',d:0,dr:1.2},{l:'72%',t:'4%',s:'xl',d:0.18,dr:1.3},{l:'42%',t:'-2%',s:'lg',d:0.36,dr:1.1},{l:'22%',t:'18%',s:'lg',d:0.54,dr:1.4},{l:'65%',t:'12%',s:'lg',d:0.72,dr:1.25},{l:'50%',t:'6%',s:'',d:0.9,dr:1.0},{l:'30%',t:'2%',s:'',d:1.08,dr:1.35},{l:'80%',t:'20%',s:'lg',d:0.2,dr:1.5},{l:'8%',t:'30%',s:'',d:0.45,dr:1.2},{l:'88%',t:'28%',s:'',d:0.65,dr:1.1}]
+    ];
+    var pset = PSETS[tier];
+    if (pset) {
+      pset.forEach(function(cfg) {
+        var pt = document.createElement('div');
+        pt.className = 'pfire-particle' + (cfg.s ? ' '+cfg.s : '');
+        pt.style.cssText = 'left:'+cfg.l+';top:'+cfg.t+';animation-delay:'+cfg.d+'s;animation-duration:'+cfg.dr+'s;';
+        wrapEl.appendChild(pt);
+      });
+    }
+  }
+
+  // ── Öz profil header-inə streak effektləri ───────────────────────
+  function applyOwnProfileStreakEffects(streakVal, accent) {
+    var tier = getStreakTier(streakVal);
+    // 1) Avatar ətrafında alov
+    buildFireEffect(document.getElementById('profileAvatarWrap'), streakVal);
+    // 2) Header istilik overlay
+    var header = document.getElementById('profileOwnHeader');
+    if (header) {
+      var prev = header.querySelector('.streak-hdr-overlay');
+      if (prev) prev.remove();
+      if (tier >= 2) {
+        var ov = document.createElement('div');
+        ov.className = 'streak-hdr-overlay';
+        var ovBg = tier >= 5
+          ? 'radial-gradient(ellipse at 50% 125%,rgba(251,146,60,0.68),rgba(245,158,11,0.4) 40%,rgba(239,68,68,0.16) 60%,rgba(139,92,246,0.09) 78%,transparent 92%)'
+          : tier >= 4
+            ? 'radial-gradient(ellipse at 50% 120%,rgba(251,146,60,0.52),rgba(245,158,11,0.28) 42%,rgba(239,68,68,0.11) 62%,transparent 82%)'
+            : tier >= 3
+              ? 'radial-gradient(ellipse at 50% 118%,rgba(251,146,60,0.36),rgba(245,158,11,0.19) 46%,transparent 74%)'
+              : 'radial-gradient(ellipse at 50% 115%,rgba(251,146,60,0.2),rgba(245,158,11,0.1) 50%,transparent 76%)';
+        var ovAnim = tier >= 5 ? 'animation:streak-hdr-pulse 1.5s ease-in-out infinite;'
+                   : tier >= 4 ? 'animation:streak-hdr-pulse 2s ease-in-out infinite;'
+                   : tier >= 3 ? 'animation:streak-hdr-pulse 2.6s ease-in-out infinite;' : '';
+        ov.style.cssText = 'position:absolute;inset:0;pointer-events:none;z-index:0;border-radius:inherit;background:'+ovBg+';'+ovAnim;
+        header.insertBefore(ov, header.firstChild);
+      }
+    }
+    // 3) Ad rəngi / parıltısı (tier 4+)
+    var nameEl = document.getElementById('profileOwnName');
+    if (nameEl) {
+      nameEl.style.animation = '';
+      nameEl.style.color = '';
+      if (tier >= 5) { nameEl.style.color='#78350f'; nameEl.style.animation='streak-name-gold 2s ease-in-out infinite'; }
+      else if (tier >= 4) { nameEl.style.color='#92400e'; }
+    }
+    // 4) Streak tier badge
+    var bdg = document.getElementById('profileStreakBadge');
+    if (!bdg) return;
+    if (tier === 0) { bdg.style.display='none'; bdg.innerHTML=''; return; }
+    var TL = [null,
+      {i:'🔥',lb:'Başlanğıc',c:'#92400e',bg:'rgba(245,158,11,0.12)',br:'rgba(245,158,11,0.28)',an:''},
+      {i:'⚡',lb:'Sabit',c:'#78350f',bg:'rgba(245,158,11,0.16)',br:'rgba(245,158,11,0.32)',an:''},
+      {i:'🥇',lb:'Qızıl',c:'#78350f',bg:'linear-gradient(135deg,rgba(251,191,36,0.22),rgba(245,158,11,0.14))',br:'rgba(251,191,36,0.48)',an:'animation:streak-badge-pulse 2.2s ease-in-out infinite;'},
+      {i:'💎',lb:'Platin',c:'#5b21b6',bg:'linear-gradient(135deg,rgba(139,92,246,0.2),rgba(245,158,11,0.14))',br:'rgba(139,92,246,0.4)',an:'animation:streak-badge-pulse 1.8s ease-in-out infinite;'},
+      {i:'👑',lb:'Əfsanəvi',c:'#78350f',bg:'linear-gradient(135deg,rgba(217,119,6,0.28),rgba(251,191,36,0.22),rgba(245,158,11,0.16))',br:'rgba(217,119,6,0.52)',an:'animation:streak-badge-pulse 1.4s ease-in-out infinite;'}
+    ];
+    var t = TL[tier];
+    bdg.style.cssText = 'display:inline-flex;align-items:center;gap:6px;margin-top:10px;padding:6px 16px;border-radius:100px;font-size:0.77rem;font-weight:800;letter-spacing:0.3px;background:'+t.bg+';border:1.5px solid '+t.br+';color:'+t.c+';'+t.an;
+    bdg.innerHTML = t.i+' '+t.lb+' &nbsp;·&nbsp; '+streakVal+' gün';
+  }
+
   function renderOwnProfileView(p) {
     var accent = p.accentColor || '#5b5ef4';
     var bigEl = document.getElementById('profileAvatarBig');
-    bigEl.style.cssText = 'width:88px;height:88px;border-radius:26px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:2.1rem;box-shadow:0 16px 36px '+hexToRgba(accent,0.38)+',0 0 0 4px rgba(255,255,255,0.95);overflow:hidden;position:relative;transition:box-shadow 0.4s;';
+    bigEl.style.cssText = 'width:88px;height:88px;border-radius:26px;display:flex;align-items:center;justify-content:center;margin:0;font-size:2.1rem;box-shadow:0 16px 36px '+hexToRgba(accent,0.38)+',0 0 0 4px rgba(255,255,255,0.95);overflow:hidden;position:relative;transition:box-shadow 0.4s;';
     renderAvatarEl(bigEl, p.avatarType, p.avatarValue, p.photoData);
     document.getElementById('profileOwnName').innerText = p.empName;
     document.getElementById('profileOwnDept').innerText = p.dept;
@@ -2557,6 +2672,9 @@
     applyCardTheme(p.cardTheme, accent);
     // Avatar glow + frame
     applyAvatarEffects(bigEl, p.glowEffect, p.frameStyle, accent, 88);
+    // Streak effektləri (alov + header + tier badge)
+    var streakVal = p.testMode ? 999 : (p.streak || 0);
+    applyOwnProfileStreakEffects(streakVal, accent);
   }
 
   function enterEditMode() {
@@ -2820,26 +2938,7 @@
 
   // ── Profil modal ─────────────────────────────────────────────────
   function applyPmodalFireEffect(streakVal) {
-    var wrap = document.getElementById('pmodalAvatarWrap');
-    if (!wrap) return;
-    wrap.querySelectorAll('.pfire-ring,.pfire-particle').forEach(function(e){ e.remove(); });
-    if (streakVal < 7) return;
-    var intensity = streakVal >= 60 ? 3 : streakVal >= 30 ? 2 : 1;
-    for (var i = 1; i <= intensity; i++) {
-      var ring = document.createElement('div');
-      ring.className = 'pfire-ring pfire-ring-' + i;
-      wrap.appendChild(ring);
-    }
-    if (intensity >= 2) {
-      var positions = [{l:'20%',t:'10%'},{l:'70%',t:'5%'},{l:'45%',t:'0%'},{l:'15%',t:'20%'},{l:'75%',t:'15%'}];
-      var count = intensity >= 3 ? 5 : 3;
-      for (var j = 0; j < count; j++) {
-        var pt = document.createElement('div');
-        pt.className = 'pfire-particle';
-        pt.style.cssText = 'left:'+positions[j].l+';top:'+positions[j].t+';animation-delay:'+(j*0.25)+'s;animation-duration:'+(1+j*0.15)+'s;';
-        wrap.appendChild(pt);
-      }
-    }
+    buildFireEffect(document.getElementById('pmodalAvatarWrap'), streakVal);
   }
 
 
@@ -2872,8 +2971,14 @@
           bannerEl2.style.background = pbg !== 'none' ? pbg : 'none';
           bannerEl2.style.opacity = '0.78';
         }
-        // Hero fon
-        if (heroEl) heroEl.style.background = 'linear-gradient(160deg,'+hexToRgba(accent,0.1)+' 0%,'+hexToRgba(accent,0.03)+' 55%,transparent 100%)';
+        // Hero fon (streak tirinə görə güclənir)
+        var heroTier = getStreakTier(p.streak || 0);
+        var heroBg = 'linear-gradient(160deg,'+hexToRgba(accent,0.12)+' 0%,'+hexToRgba(accent,0.04)+' 55%,transparent 100%)';
+        if (heroTier >= 2) heroBg += ',radial-gradient(ellipse at 50% 125%,rgba(251,146,60,'+(0.14+heroTier*0.08)+'),rgba(245,158,11,'+(0.07+heroTier*0.04)+') 46%,transparent 78%)';
+        if (heroEl) {
+          heroEl.style.background = heroBg;
+          heroEl.style.animation = heroTier >= 4 ? 'streak-hdr-pulse '+(heroTier>=5?'1.5s':'2s')+' ease-in-out infinite' : '';
+        }
         // Avatar
         var avEl = document.getElementById('pmodalAvatar');
         avEl.style.cssText = 'width:92px;height:92px;border-radius:26px;display:flex;align-items:center;justify-content:center;font-size:2.3rem;color:#fff;overflow:hidden;transition:box-shadow 0.35s;position:relative;z-index:2;margin:0;';
@@ -2892,11 +2997,21 @@
         document.getElementById('pmodalDept').innerText = p.dept;
         document.getElementById('pmodalBio').innerText = p.bio || '';
         if (p.streak > 0) {
-          document.getElementById('pmodalStreakVal').innerText = p.streak;
+          var pmTier = getStreakTier(p.streak);
+          var pmIcons = ['🔥','🔥','⚡','🥇','💎','👑'];
           var streakEl = document.getElementById('pmodalStreak');
-          streakEl.style.background = 'linear-gradient(135deg,'+hexToRgba(accent,0.12)+','+hexToRgba(accent,0.06)+')';
-          streakEl.style.borderColor = hexToRgba(accent,0.25);
-          streakEl.style.color = shadeColor(accent,-25);
+          streakEl.innerHTML = '<span>'+pmIcons[pmTier]+'</span> <span>'+p.streak+' Gün Ardıcıl</span>';
+          if (pmTier >= 3) {
+            streakEl.style.background = 'linear-gradient(135deg,rgba(251,191,36,0.22),'+hexToRgba(accent,0.09)+')';
+            streakEl.style.borderColor = 'rgba(251,191,36,0.48)';
+            streakEl.style.color = '#78350f';
+            streakEl.style.animation = 'streak-badge-pulse '+(pmTier>=5?'1.4s':pmTier>=4?'1.8s':'2.2s')+' ease-in-out infinite';
+          } else {
+            streakEl.style.background = 'linear-gradient(135deg,'+hexToRgba(accent,0.14)+','+hexToRgba(accent,0.07)+')';
+            streakEl.style.borderColor = hexToRgba(accent,0.28);
+            streakEl.style.color = shadeColor(accent,-25);
+            streakEl.style.animation = '';
+          }
           streakEl.style.display = 'inline-flex';
         }
         var streakVal = p.streak || 0;
