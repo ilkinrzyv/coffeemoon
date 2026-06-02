@@ -3184,6 +3184,18 @@
       else if (s >= 40) card.classList.add('aura-silver');
       else if (s >= 15) card.classList.add('aura-bronze');
 
+      // Aura kartlarda: neytral fon + avatar shadow (mərkəz parıltını ləğv edir)
+      if (s >= 15) {
+        card.style.background = 'rgba(255,255,255,0.96)';
+        avWrap.style.boxShadow = '0 3px 8px rgba(0,0,0,0.18), 0 0 0 2.5px rgba(255,255,255,0.9)';
+      }
+
+      // Shimmer (60+)
+      if (s >= 60) {
+        var holo = document.createElement('div');
+        holo.className = 'holo-overlay';
+        card.appendChild(holo);
+      }
 
       card.addEventListener('click', function(){ openPmodal(m.empId); });
 
