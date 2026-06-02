@@ -1581,14 +1581,22 @@
   }
 
   function buildDeviceId() {
+    // localStorage-də mövcud ID varsa, həmişə onu istifadə et.
+    // Standalone (PWA) rejimdə UA dəyişdiyindən yenidən hesablamaq
+    // fərqli ID yaradır və cihaz "locked" görünür.
+    try {
+      var stored = localStorage.getItem('emp_device_id_v1');
+      if (stored) return stored;
+    } catch(e) {}
     var raw = [SECRET, navigator.userAgent, screen.width + 'x' + screen.height, navigator.language || '', navigator.platform || ''].join('|');
     var hash = 0;
     for (var i = 0; i < raw.length; i++) { hash = Math.imul(31, hash) + raw.charCodeAt(i) | 0; }
     hash ^= (hash << 13); hash ^= (hash >>> 17); hash ^= (hash << 5);
-    return 'DEV-' + Math.abs(hash).toString(36).toUpperCase().slice(0, 8);
+    var id = 'DEV-' + Math.abs(hash).toString(36).toUpperCase().slice(0, 8);
+    try { localStorage.setItem('emp_device_id_v1', id); } catch(e) {}
+    return id;
   }
   var myDeviceId = buildDeviceId();
-  try { localStorage.setItem('emp_device_id_v1', myDeviceId); } catch(e) {}
 
   // ── TAB SİSTEMİ ───────────────────────────────────────────────────
   var _activeMainTab = 'gundelik';
