@@ -1185,6 +1185,15 @@
     text-align:center; font-size:0.82rem; font-weight:700;
     margin-top:0.8rem; min-height:18px;
   }
+  /* ── Performans: mobil üçün backdrop-filter söndür ── */
+  @media (max-width:520px) {
+    .ticket, .tab-panel > *, .week-card, .stats-card,
+    .announce-item, .avans-item, .icaze-item, .late-perm-card,
+    .sg-card, .pmodal-sheet {
+      backdrop-filter:none !important;
+      -webkit-backdrop-filter:none !important;
+    }
+  }
 </style>
 </head>
 <body>
@@ -3166,19 +3175,11 @@
   function addSparkleAura(wrap) {
     var sparks=[
       {sx:'-32px',sy:'-46px',sz:11,dur:2.2,del:0   },
-      {sx:'0px',  sy:'-52px',sz:9, dur:2.4,del:-0.28},
       {sx:'32px', sy:'-46px',sz:11,dur:2.1,del:-0.56},
-      {sx:'48px', sy:'-18px',sz:8, dur:2.3,del:-0.84},
       {sx:'48px', sy:'18px', sz:10,dur:2.5,del:-1.12},
-      {sx:'30px', sy:'46px', sz:11,dur:2.2,del:-1.4 },
       {sx:'0px',  sy:'52px', sz:8, dur:2.4,del:-1.68},
-      {sx:'-30px',sy:'46px', sz:10,dur:2.1,del:-1.96},
       {sx:'-48px',sy:'18px', sz:11,dur:2.3,del:-2.24},
-      {sx:'-48px',sy:'-18px',sz:8, dur:2.5,del:-2.52},
       {sx:'-18px',sy:'-40px',sz:7, dur:2.0,del:-0.42},
-      {sx:'18px', sy:'-40px',sz:7, dur:2.0,del:-1.26},
-      {sx:'40px', sy:'0px',  sz:7, dur:2.0,del:-1.68},
-      {sx:'-40px',sy:'0px',  sz:7, dur:2.0,del:-2.10},
     ];
     var shapes=['✦','✦','✧','✦','★'];
     var cols=['#fef3c7','#fbbf24','#fde68a','#fff','#fcd34d'];
