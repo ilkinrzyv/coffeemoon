@@ -588,22 +588,25 @@
   .team-react-btn.active .r-count { color:#5b5ef4; }
   .team-react-btn:active { transform:scale(0.8); }
 
-  /* ── AURA ── */
-  @keyframes aura-bronze {
-    0%,100%{box-shadow:0 1px 6px rgba(0,0,0,0.07),0 0 0 2px rgba(180,83,9,0.5),  0 0 10px rgba(205,127,50,0.28),0 0 20px rgba(205,127,50,0.1);}
-    50%    {box-shadow:0 1px 6px rgba(0,0,0,0.07),0 0 0 3px rgba(205,127,50,0.85),0 0 22px rgba(205,127,50,0.52),0 0 36px rgba(205,127,50,0.18);}
+  /* ── AURA (sadə glow — forma elementləri JS ilə əlavə edilir) ── */
+  .team-card.aura-bronze { box-shadow:0 1px 8px rgba(0,0,0,0.08),0 0 0 1.5px rgba(180,83,9,0.3),0 0 14px rgba(205,127,50,0.22)!important; border-color:rgba(180,83,9,0.28)!important; }
+  .team-card.aura-silver { box-shadow:0 1px 8px rgba(0,0,0,0.08),0 0 0 1.5px rgba(148,163,184,0.4),0 0 16px rgba(203,213,225,0.28)!important; border-color:rgba(148,163,184,0.35)!important; }
+  .team-card.aura-gold   { box-shadow:0 1px 8px rgba(0,0,0,0.08),0 0 0 1.5px rgba(217,119,6,0.4), 0 0 20px rgba(251,191,36,0.32)!important; border-color:rgba(217,119,6,0.38)!important; }
+
+  /* Kart wrapper (aura elementlərinin daşıyıcısı) */
+  .tc-wrap { position:relative; }
+  .team-card { width:100%; box-sizing:border-box; }
+
+  /* Ulduz orbit */
+  @keyframes star-orbit {
+    from { transform:rotate(0deg); }
+    to   { transform:rotate(360deg); }
   }
-  @keyframes aura-silver {
-    0%,100%{box-shadow:0 1px 6px rgba(0,0,0,0.07),0 0 0 2px rgba(148,163,184,0.55),0 0 12px rgba(203,213,225,0.35),0 0 24px rgba(226,232,240,0.15);}
-    50%    {box-shadow:0 1px 6px rgba(0,0,0,0.07),0 0 0 3px rgba(203,213,225,0.9), 0 0 26px rgba(226,232,240,0.6), 0 0 42px rgba(248,250,252,0.22);}
+  /* Brilyant nəbz */
+  @keyframes diamond-pulse {
+    0%,100% { transform:rotate(45deg) scale(1);    opacity:0.82; }
+    50%     { transform:rotate(45deg) scale(1.38); opacity:1; }
   }
-  @keyframes aura-gold {
-    0%,100%{box-shadow:0 1px 6px rgba(0,0,0,0.07),0 0 0 2px rgba(217,119,6,0.55), 0 0 14px rgba(251,191,36,0.38),0 0 28px rgba(253,224,71,0.15);}
-    50%    {box-shadow:0 1px 6px rgba(0,0,0,0.07),0 0 0 3px rgba(251,191,36,0.95), 0 0 30px rgba(253,224,71,0.68),0 0 50px rgba(254,240,138,0.25);}
-  }
-  .team-card.aura-bronze { animation:aura-bronze 2.4s ease-in-out infinite; border-color:rgba(180,83,9,0.35)!important; }
-  .team-card.aura-silver { animation:aura-silver 2.1s ease-in-out infinite; border-color:rgba(148,163,184,0.4)!important; }
-  .team-card.aura-gold   { animation:aura-gold   1.8s ease-in-out infinite; border-color:rgba(217,119,6,0.4)!important; }
 
   /* ── HOLOGRAM ── */
   @keyframes holo-shift {
@@ -2950,6 +2953,74 @@
   var _reactions = {};
   var _teamMembers = [];
 
+  // ── Çələng (bronze) ──────────────────────────────────────────────
+  function addWreathAura(wrap) {
+    var ns = 'http://www.w3.org/2000/svg';
+    function makeBranch(flip) {
+      var svg = document.createElementNS(ns, 'svg');
+      svg.setAttribute('viewBox','0 0 18 80'); svg.setAttribute('width','18'); svg.setAttribute('height','80');
+      svg.style.cssText = 'position:absolute;top:50%;'+(flip?'right:-12px;transform:translateY(-50%) scaleX(-1)':'left:-12px;transform:translateY(-50%)')+';pointer-events:none;z-index:5;';
+      var stem = document.createElementNS(ns,'path');
+      stem.setAttribute('d','M9,3 Q7,22 9,41 Q11,60 9,77');
+      stem.setAttribute('stroke','#92400e'); stem.setAttribute('stroke-width','1.2');
+      stem.setAttribute('fill','none'); stem.setAttribute('opacity','0.55');
+      svg.appendChild(stem);
+      [[11,-38,'#5c7a35',0.82],[22,38,'#4a6628',0.88],[33,-38,'#5c7a35',0.82],
+       [44,38,'#4a6628',0.88],[55,-38,'#5c7a35',0.82],[66,38,'#4a6628',0.88]].forEach(function(l){
+        var el = document.createElementNS(ns,'ellipse');
+        el.setAttribute('cx','9'); el.setAttribute('cy',l[0]);
+        el.setAttribute('rx','7'); el.setAttribute('ry','3.2');
+        el.setAttribute('transform','rotate('+l[1]+' 9 '+l[0]+')');
+        el.setAttribute('fill',l[2]); el.setAttribute('opacity',l[3]);
+        svg.appendChild(el);
+      });
+      return svg;
+    }
+    wrap.appendChild(makeBranch(false));
+    wrap.appendChild(makeBranch(true));
+  }
+
+  // ── Fırlanan ulduzlar (silver) ───────────────────────────────────
+  function addStarAura(wrap) {
+    var N=6, DUR=9;
+    var COLS=['#e2e8f0','#f1f5f9','#b8cfe0','#94a3b8','#dde8f2','#f8fafc'];
+    var SZ=[9,7,8,6,9,7];
+    for (var i=0; i<N; i++) {
+      var el = document.createElement('div');
+      el.style.cssText = 'position:absolute;top:50%;left:50%;width:calc(100% + 32px);height:calc(100% + 32px);margin-top:calc(-50% - 16px);margin-left:calc(-50% - 16px);pointer-events:none;z-index:5;animation:star-orbit '+DUR+'s linear '+(-((i/N)*DUR).toFixed(2))+'s infinite;';
+      var dot = document.createElement('span');
+      dot.textContent='✦';
+      dot.style.cssText='position:absolute;top:-7px;left:50%;transform:translateX(-50%);font-size:'+SZ[i]+'px;color:'+COLS[i]+';line-height:1;filter:drop-shadow(0 0 5px rgba(203,213,225,0.95));';
+      el.appendChild(dot); wrap.appendChild(el);
+    }
+  }
+
+  // ── Brilyant haşiyə (gold) ───────────────────────────────────────
+  function addDiamondAura(wrap) {
+    var pts=[
+      {t:'-7px',l:'50%',ml:'-5px',big:true},
+      {b:'-7px',l:'50%',ml:'-5px',big:true},
+      {t:'50%', l:'-7px',mt:'-5px',big:true},
+      {t:'50%', r:'-7px',mt:'-5px',big:true},
+      {t:'-4px',l:'-4px',big:false},
+      {t:'-4px',r:'-4px',big:false},
+      {b:'-4px',l:'-4px',big:false},
+      {b:'-4px',r:'-4px',big:false}
+    ];
+    pts.forEach(function(p,i){
+      var d = document.createElement('div');
+      var sz = p.big ? 10 : 7;
+      var css='position:absolute;width:'+sz+'px;height:'+sz+'px;background:linear-gradient(135deg,#fef3c7,#fbbf24,#d97706);transform:rotate(45deg);pointer-events:none;z-index:5;box-shadow:0 0 8px rgba(251,191,36,0.9),0 0 18px rgba(251,191,36,0.45);animation:diamond-pulse 2s ease-in-out '+(i*0.22).toFixed(2)+'s infinite;';
+      if(p.t)  css+='top:'+p.t+';';
+      if(p.b)  css+='bottom:'+p.b+';';
+      if(p.l)  css+='left:'+p.l+';';
+      if(p.r)  css+='right:'+p.r+';';
+      if(p.ml) css+='margin-left:'+p.ml+';';
+      if(p.mt) css+='margin-top:'+p.mt+';';
+      d.style.cssText = css; wrap.appendChild(d);
+    });
+  }
+
   function renderTeamGrid(members) {
     _teamMembers = members || [];
     var grid = document.getElementById('teamGrid');
@@ -3025,7 +3096,7 @@
       });
       card.appendChild(rRow);
 
-      // Aura
+      // Aura sinfi
       var s = m.streak || 0;
       if      (s >= 60) card.classList.add('aura-gold');
       else if (s >= 40) card.classList.add('aura-silver');
@@ -3039,7 +3110,15 @@
       }
 
       card.addEventListener('click', function(){ openPmodal(m.empId); });
-      grid.appendChild(card);
+
+      // Wrapper + forma auraları
+      var wrap = document.createElement('div');
+      wrap.className = 'tc-wrap';
+      if      (s >= 60) addDiamondAura(wrap);
+      else if (s >= 40) addStarAura(wrap);
+      else if (s >= 15) addWreathAura(wrap);
+      wrap.appendChild(card);
+      grid.appendChild(wrap);
     });
 
     // Reaksiyaları yüklə
@@ -3050,7 +3129,7 @@
   }
 
   function refreshAllReactions() {
-    document.querySelectorAll('.team-card[data-empid]').forEach(function(card) {
+    document.querySelectorAll('#teamGrid .team-card[data-empid]').forEach(function(card) {
       applyReactionsToCard(card, _reactions[card.dataset.empid] || {});
     });
   }
