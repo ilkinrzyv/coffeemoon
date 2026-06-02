@@ -604,43 +604,10 @@
   @keyframes silver-spin { to { --silver-angle:360deg; } }
   @keyframes gold-spin   { to { --gold-angle:360deg;   } }
 
-  @keyframes bronze-glow-pulse {
-    0%,100% { box-shadow:0 2px 12px rgba(0,0,0,0.14),0 0 18px rgba(180,83,9,0.28),0 0 6px rgba(205,127,50,0.18)!important; }
-    50%     { box-shadow:0 2px 12px rgba(0,0,0,0.14),0 0 30px rgba(205,127,50,0.5),0 0 50px rgba(205,127,50,0.18)!important; }
-  }
-  @keyframes silver-glow-pulse {
-    0%,100% { box-shadow:0 2px 12px rgba(0,0,0,0.12),0 0 18px rgba(148,163,184,0.32),0 0 6px rgba(203,213,225,0.2)!important; }
-    50%     { box-shadow:0 2px 12px rgba(0,0,0,0.12),0 0 32px rgba(203,213,225,0.65),0 0 56px rgba(186,230,253,0.22)!important; }
-  }
-  @keyframes gold-border-pulse {
-    0%,100% { box-shadow:0 2px 12px rgba(0,0,0,0.1),0 0 22px rgba(251,191,36,0.38),0 0 8px rgba(251,191,36,0.2)!important; }
-    50%     { box-shadow:0 2px 12px rgba(0,0,0,0.1),0 0 38px rgba(251,191,36,0.65),0 0 68px rgba(251,191,36,0.22)!important; }
-  }
 
-  .team-card.aura-bronze { border-color:transparent!important; animation:bronze-glow-pulse 3s ease-in-out infinite; }
-  .team-card.aura-silver { border-color:transparent!important; animation:silver-glow-pulse 2.6s ease-in-out infinite; }
-  .team-card.aura-gold   { border-color:transparent!important; animation:gold-border-pulse 2.2s ease-in-out infinite; }
-
-  @keyframes gold-sweep {
-    0%   { background-position:220% 0; }
-    100% { background-position:-80% 0; }
-  }
-  .gold-shine-overlay {
-    position:absolute; inset:0; border-radius:inherit; pointer-events:none; z-index:4;
-    padding:4px;
-    background:linear-gradient(105deg,
-      transparent           22%,
-      rgba(255,220,80,0.18) 36%,
-      rgba(255,255,255,0.88) 50%,
-      rgba(255,220,80,0.18) 64%,
-      transparent           78%);
-    background-size:280% 100%;
-    animation:gold-sweep 2.8s ease-in-out infinite;
-    -webkit-mask:linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-    -webkit-mask-composite:xor;
-    mask:linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-    mask-composite:exclude;
-  }
+  .team-card.aura-bronze,
+  .team-card.aura-silver,
+  .team-card.aura-gold   { border:none!important; }
 
   /* Kart wrapper (aura elementlərinin daşıyıcısı) */
   .tc-wrap { position:relative; }
@@ -3217,15 +3184,6 @@
       else if (s >= 40) card.classList.add('aura-silver');
       else if (s >= 15) card.classList.add('aura-bronze');
 
-      // Hologram + gold shine (60+)
-      if (s >= 60) {
-        var holo = document.createElement('div');
-        holo.className = 'holo-overlay';
-        card.appendChild(holo);
-        var goldShine = document.createElement('div');
-        goldShine.className = 'gold-shine-overlay';
-        card.appendChild(goldShine);
-      }
 
       card.addEventListener('click', function(){ openPmodal(m.empId); });
 
