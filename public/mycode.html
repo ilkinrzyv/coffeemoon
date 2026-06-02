@@ -617,36 +617,10 @@
     50%     { box-shadow:0 2px 12px rgba(0,0,0,0.1),0 0 38px rgba(251,191,36,0.65),0 0 68px rgba(251,191,36,0.22)!important; }
   }
 
-  .team-card.aura-bronze { border-color:rgba(180,83,9,0.45)!important; animation:bronze-glow-pulse 3s ease-in-out infinite; }
-  .team-card.aura-silver { border-color:rgba(148,163,184,0.55)!important; animation:silver-glow-pulse 2.6s ease-in-out infinite; }
-  .team-card.aura-gold   { border-color:rgba(217,119,6,0.55)!important;  animation:gold-border-pulse 2.2s ease-in-out infinite; }
+  .team-card.aura-bronze { border-color:transparent!important; animation:bronze-glow-pulse 3s ease-in-out infinite; }
+  .team-card.aura-silver { border-color:transparent!important; animation:silver-glow-pulse 2.6s ease-in-out infinite; }
+  .team-card.aura-gold   { border-color:transparent!important; animation:gold-border-pulse 2.2s ease-in-out infinite; }
 
-  /* Döndürülən çərçivə overlay-ları — inset:0 + padding ilə overflow:hidden uyumlu */
-  .aura-border-spin {
-    position:absolute; inset:0; border-radius:inherit; pointer-events:none;
-    -webkit-mask:linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-    -webkit-mask-composite:xor;
-    mask:linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-    mask-composite:exclude;
-  }
-  .aura-border-spin.bronze {
-    padding:3px; z-index:2;
-    background:conic-gradient(from var(--bronze-angle),
-      #3d1a00, #cd7f32, #f0c070, #fffbe8, #f0c070, #cd7f32, #3d1a00);
-    animation:bronze-spin 4s linear infinite;
-  }
-  .aura-border-spin.silver {
-    padding:3px; z-index:2;
-    background:conic-gradient(from var(--silver-angle),
-      #334155, #94a3b8, #e2e8f0, #ffffff, #bae6fd, #94a3b8, #334155);
-    animation:silver-spin 3s linear infinite;
-  }
-  .aura-border-spin.gold {
-    padding:4px; z-index:2;
-    background:conic-gradient(from var(--gold-angle),
-      #78350f, #f59e0b, #fde68a, #ffffff, #fde68a, #f59e0b, #78350f);
-    animation:gold-spin 2s linear infinite;
-  }
   @keyframes gold-sweep {
     0%   { background-position:220% 0; }
     100% { background-position:-80% 0; }
@@ -670,7 +644,30 @@
 
   /* Kart wrapper (aura elementlərinin daşıyıcısı) */
   .tc-wrap { position:relative; }
-  .team-card { width:100%; box-sizing:border-box; }
+  .team-card { width:100%; box-sizing:border-box; position:relative; z-index:1; }
+
+  /* Döndürülən conic-gradient çərçivə — tc-wrap::before ilə kartın xaricindən */
+  .tc-wrap.aura-tier-bronze::before,
+  .tc-wrap.aura-tier-silver::before,
+  .tc-wrap.aura-tier-gold::before {
+    content:''; position:absolute; inset:-3px;
+    border-radius:19px; z-index:0; pointer-events:none;
+  }
+  .tc-wrap.aura-tier-bronze::before {
+    background:conic-gradient(from var(--bronze-angle),
+      #3d1a00, #cd7f32, #f0c070, #fffbe8, #f0c070, #cd7f32, #3d1a00);
+    animation:bronze-spin 4s linear infinite;
+  }
+  .tc-wrap.aura-tier-silver::before {
+    background:conic-gradient(from var(--silver-angle),
+      #1e3a5f, #94a3b8, #e2e8f0, #ffffff, #bae6fd, #94a3b8, #1e3a5f);
+    animation:silver-spin 3s linear infinite;
+  }
+  .tc-wrap.aura-tier-gold::before {
+    background:conic-gradient(from var(--gold-angle),
+      #78350f, #f59e0b, #fde68a, #ffffff, #fde68a, #f59e0b, #78350f);
+    animation:gold-spin 2s linear infinite;
+  }
 
   /* Yer nişanı */
   .rank-badge {
@@ -3220,13 +3217,6 @@
       else if (s >= 40) card.classList.add('aura-silver');
       else if (s >= 15) card.classList.add('aura-bronze');
 
-      // Döndürülən çərçivə
-      if (s >= 15) {
-        var spinBorder = document.createElement('div');
-        spinBorder.className = 'aura-border-spin ' + (s >= 60 ? 'gold' : s >= 40 ? 'silver' : 'bronze');
-        card.appendChild(spinBorder);
-      }
-
       // Hologram + gold shine (60+)
       if (s >= 60) {
         var holo = document.createElement('div');
@@ -3239,12 +3229,12 @@
 
       card.addEventListener('click', function(){ openPmodal(m.empId); });
 
-      // Wrapper + forma auraları
+      // Wrapper + forma auraları + tier class (::before üçün)
       var wrap = document.createElement('div');
       wrap.className = 'tc-wrap';
-      if      (s >= 60) addSparkleAura(wrap);
-      else if (s >= 40) addStarAura(wrap);
-      else if (s >= 15) addEmberAura(wrap);
+      if      (s >= 60) { wrap.classList.add('aura-tier-gold');   addSparkleAura(wrap); }
+      else if (s >= 40) { wrap.classList.add('aura-tier-silver'); addStarAura(wrap); }
+      else if (s >= 15) { wrap.classList.add('aura-tier-bronze'); addEmberAura(wrap); }
 
       // Yer nişanı (ilk 3)
       if (idx < 3) {
