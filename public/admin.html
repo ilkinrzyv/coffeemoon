@@ -244,6 +244,7 @@ input:focus,select:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(7
     <input id="iName" placeholder="İşçinin Adı Soyadı">
     <select id="iDept"><option value="" disabled selected>Filial Seçin</option><option value="Elmlər">Elmlər</option><option value="Sahil">Sahil</option><option value="Gənclik">Gənclik</option><option value="Ağ Şəhər">Ağ Şəhər</option></select>
     <button class="btn primary" onclick="addEmp()"><i class="fa-solid fa-user-plus"></i> Əlavə et</button>
+    <button class="btn" id="recalcBtn" onclick="recalcStreaks()" style="margin-left:auto;" title="Köhnə məlumatları yeniləmək üçün bir dəfə işlət"><i class="fa-solid fa-rotate"></i> Streak-ləri yenilə</button>
   </div>
   <div class="card" id="empList">Yüklənir...</div>
 </div>
@@ -1762,6 +1763,27 @@ function submitYenilik() {
 function deleteYenilik(id) {
   if (!confirm('Bu yeniliyi silmək istəyirsiniz?')) return;
   google.script.run.withSuccessHandler(loadYenilikler).deleteAnnouncement(id);
+}
+
+function recalcStreaks() {
+  var btn = document.getElementById('recalcBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Hesablanır...';
+  google.script.run
+    .withSuccessHandler(function(res) {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa-solid fa-check"></i> Hazır (' + res.updated + ' işçi)';
+      setTimeout(function() {
+        btn.innerHTML = '<i class="fa-solid fa-rotate"></i> Streak-ləri yenilə';
+      }, 4000);
+      loadEmps();
+    })
+    .withFailureHandler(function() {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa-solid fa-rotate"></i> Streak-ləri yenilə';
+      alert('Xəta baş verdi.');
+    })
+    .recalcAllStreaks();
 }
 </script>
 </body>

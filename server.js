@@ -143,14 +143,14 @@ API.getEmployees = async () => {
   const { data, error } = await sb.from('employees').select('*').order('name');
   sbErr('getEmployees', error);
   const emps = data || [];
-  const result = await Promise.all(emps.map(async emp => ({
+  const result = emps.map(emp => ({
     id:      emp.id,
     name:    emp.name,
     dept:    emp.dept,
     secret:  emp.secret,
     message: emp.message || '',
-    streak:  await U.calcStreak(emp.id, emp.dept),
-  })));
+    streak:  emp.is_test ? 999 : (emp.streak || 0),
+  }));
   return result.sort((a, b) => b.streak - a.streak);
 };
 
@@ -451,6 +451,10 @@ API.validateAndLog = async (enteredPin, clientIp, forceMode) => {
       emp_id: matched.id, emp_name: matched.name, dept: matched.dept,
       timestamp: ts.toISOString(), type: 'GƏLİŞ', overtime: '', shift_type: todayShift || '',
     });
+    if (!matched.is_test) {
+      const newStreak = await U.calcStreak(matched.id, matched.dept);
+      await sb.from('employees').update({ streak: newStreak }).eq('id', matched.id);
+    }
     await U.sendTelegramMsg(`<b>${matched.name}</b> smendə.\n${U.fmtTime(ts)} — ${lateStr}`, matched.dept);
     return { valid: true, empName: matched.name, dept: matched.dept, type: 'GƏLİŞ', overtime: '' };
 
@@ -552,7 +556,7 @@ API.getDashboardData = async (secret) => {
   const report = await API.getMonthlyReport(now.getFullYear(), now.getMonth() + 1);
   const myR    = report.find(r => r.empId === emp.id) || { totalDays:0, onTime:0, late:0, pct:0 };
   return {
-    streak:          emp.is_test ? 999 : await U.calcStreak(emp.id, emp.dept),
+    streak:          emp.is_test ? 999 : (emp.streak || 0),
     dept:            emp.dept,
     weekSchedule,
     nextWeekSchedule,
@@ -1185,18 +1189,14 @@ API.saveAnnouncement = async (data) => {
 
 API.getMyProfile = async (secret) => {
   if (!secret) return null;
-  const { data: emp } = await sb.from('employees').select('id,name,dept').eq('secret', secret).single();
+  const { data: emp } = await sb.from('employees').select('id,name,dept,is_test,streak').eq('secret', secret).single();
   if (!emp) return null;
-  let isTest = false;
-  try {
-    const { data: td } = await sb.from('employees').select('is_test').eq('id', emp.id).single();
-    isTest = td?.is_test === true;
-  } catch(_) {}
+  const isTest = emp.is_test === true;
   const { data: p } = await sb.from('profiles').select('*').eq('emp_id', emp.id).single();
   return {
     empId: emp.id, empName: emp.name, dept: emp.dept,
     testMode:    isTest,
-    streak:      isTest ? 999 : 0,
+    streak:      isTest ? 999 : (emp.streak || 0),
     avatarType:  p?.avatar_type  || 'preset',
     avatarValue: p?.avatar_value || 'mug-hot',
     accentColor: p?.accent_color || '#5b5ef4',
@@ -1234,15 +1234,15 @@ API.getTeamProfiles = async (secret) => {
   if (!secret) return [];
   const { data: caller } = await sb.from('employees').select('id').eq('secret', secret).single();
   if (!caller) return [];
-  const { data: emps } = await sb.from('employees').select('id,name,dept,is_test').order('name');
+  const { data: emps } = await sb.from('employees').select('id,name,dept,is_test,streak').order('name');
   const { data: profiles } = await sb.from('profiles').select('*');
   const pm = {};
   for (const p of profiles || []) pm[p.emp_id] = p;
-  const result = await Promise.all((emps || []).map(async e => ({
+  const result = (emps || []).map(e => ({
     empId:       e.id,
     empName:     e.name,
     dept:        e.dept,
-    streak:      e.is_test ? 999 : await U.calcStreak(e.id, e.dept),
+    streak:      e.is_test ? 999 : (e.streak || 0),
     avatarType:  pm[e.id]?.avatar_type  || 'preset',
     avatarValue: pm[e.id]?.avatar_value || 'mug-hot',
     accentColor: pm[e.id]?.accent_color || '#5b5ef4',
@@ -1252,8 +1252,22 @@ API.getTeamProfiles = async (secret) => {
     cardTheme:   pm[e.id]?.card_theme   || 'glass',
     glowEffect:  pm[e.id]?.glow_effect  || 'none',
     frameStyle:  pm[e.id]?.frame_style  || 'none',
-  })));
+  }));
   return result;
+};
+
+// ── STREAK BACKFILL ───────────────────────────────────────────────
+
+API.recalcAllStreaks = async () => {
+  const { data: emps } = await sb.from('employees').select('id,dept,is_test');
+  let updated = 0;
+  for (const emp of emps || []) {
+    if (emp.is_test) continue;
+    const streak = await U.calcStreak(emp.id, emp.dept);
+    await sb.from('employees').update({ streak }).eq('id', emp.id);
+    updated++;
+  }
+  return { success: true, updated };
 };
 
 // ── REAKSİYALAR ──────────────────────────────────────────────────
@@ -1294,15 +1308,11 @@ API.getPublicProfile = async (secret, targetEmpId) => {
   if (!secret || !targetEmpId) return null;
   const { data: caller } = await sb.from('employees').select('id').eq('secret', secret).single();
   if (!caller) return null;
-  const { data: emp } = await sb.from('employees').select('id,name,dept').eq('id', targetEmpId).single();
+  const { data: emp } = await sb.from('employees').select('id,name,dept,is_test,streak').eq('id', targetEmpId).single();
   if (!emp) return null;
-  let targetIsTest = false;
-  try {
-    const { data: td } = await sb.from('employees').select('is_test').eq('id', emp.id).single();
-    targetIsTest = td?.is_test === true;
-  } catch(_) {}
+  const targetIsTest = emp.is_test === true;
   const { data: p } = await sb.from('profiles').select('*').eq('emp_id', emp.id).single();
-  const streak = targetIsTest ? 999 : await U.calcStreak(emp.id, emp.dept);
+  const streak = targetIsTest ? 999 : (emp.streak || 0);
   const now = new Date();
   const report = await API.getMonthlyReport(now.getFullYear(), now.getMonth() + 1);
   const myR = report.find(r => r.empId === emp.id) || { totalDays: 0, onTime: 0, late: 0, pct: 0 };
