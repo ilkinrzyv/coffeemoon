@@ -595,16 +595,7 @@
     100% { transform:translateY(-62px) translateX(var(--ex)) scale(0.18); opacity:0; }
   }
 
-  /* ── AURA (oyunvari döndürülən çərçivə + glow) ── */
-  @property --bronze-angle { syntax:'<angle>'; initial-value:0deg; inherits:false; }
-  @property --silver-angle { syntax:'<angle>'; initial-value:0deg; inherits:false; }
-  @property --gold-angle   { syntax:'<angle>'; initial-value:0deg; inherits:false; }
-
-  @keyframes bronze-spin { to { --bronze-angle:360deg; } }
-  @keyframes silver-spin { to { --silver-angle:360deg; } }
-  @keyframes gold-spin   { to { --gold-angle:360deg;   } }
-
-
+  /* ── AURA çərçivəsi — statik gradient + glow pulse (yüngül) ── */
   .team-card.aura-bronze,
   .team-card.aura-silver,
   .team-card.aura-gold   { border:none!important; }
@@ -613,28 +604,32 @@
   .tc-wrap { position:relative; }
   .team-card { width:100%; box-sizing:border-box; position:relative; z-index:1; }
 
-  /* Döndürülən conic-gradient çərçivə — tc-wrap özü gradient border */
   .tc-wrap.aura-tier-bronze,
   .tc-wrap.aura-tier-silver,
   .tc-wrap.aura-tier-gold {
-    padding:3px;
-    border-radius:19px;
+    padding:3px; border-radius:19px;
+    will-change:box-shadow;
   }
+
+  /* Statik gradient border — bir dəfə render olunur */
   .tc-wrap.aura-tier-bronze {
-    background:conic-gradient(from var(--bronze-angle),
-      #3b0d00, #a8360c, #c85f28, #e8874a, #ffe0c8, #e8874a, #c85f28, #a8360c, #3b0d00);
-    animation:bronze-spin 4s linear infinite;
+    background:linear-gradient(135deg,#3b0d00,#a8360c,#e8874a,#ffe0c8,#e8874a,#a8360c,#3b0d00);
   }
   .tc-wrap.aura-tier-silver {
-    background:conic-gradient(from var(--silver-angle),
-      #1e3a5f, #94a3b8, #e2e8f0, #ffffff, #bae6fd, #94a3b8, #1e3a5f);
-    animation:silver-spin 3s linear infinite;
+    background:linear-gradient(135deg,#1e3a5f,#94a3b8,#e2e8f0,#ffffff,#bae6fd,#94a3b8,#1e3a5f);
   }
   .tc-wrap.aura-tier-gold {
-    background:conic-gradient(from var(--gold-angle),
-      #78350f, #d97706, #fbbf24, #fefce8, #ffffff, #fefce8, #fbbf24, #d97706, #78350f);
-    animation:gold-spin 2s linear infinite;
+    background:linear-gradient(135deg,#78350f,#d97706,#fbbf24,#ffffff,#fbbf24,#d97706,#78350f);
   }
+
+  /* Glow pulse — yalnız box-shadow animasiyası, GPU compositor-da idarə olunur */
+  @keyframes bronze-glow { 0%,100%{box-shadow:0 0 8px 1px rgba(168,54,12,0.45),0 0 18px rgba(200,95,40,0.2)} 50%{box-shadow:0 0 14px 3px rgba(168,54,12,0.65),0 0 30px rgba(200,95,40,0.35)} }
+  @keyframes silver-glow { 0%,100%{box-shadow:0 0 8px 1px rgba(100,149,200,0.4),0 0 18px rgba(186,230,253,0.2)} 50%{box-shadow:0 0 14px 3px rgba(100,149,200,0.6),0 0 30px rgba(186,230,253,0.35)} }
+  @keyframes gold-glow   { 0%,100%{box-shadow:0 0 8px 1px rgba(217,119,6,0.45),0 0 18px rgba(251,191,36,0.2)} 50%{box-shadow:0 0 16px 3px rgba(217,119,6,0.7),0 0 34px rgba(251,191,36,0.38)} }
+
+  .tc-wrap.aura-tier-bronze { animation:bronze-glow 3s ease-in-out infinite; }
+  .tc-wrap.aura-tier-silver { animation:silver-glow 2.6s ease-in-out infinite; }
+  .tc-wrap.aura-tier-gold   { animation:gold-glow   2.2s ease-in-out infinite; }
 
   /* Yer nişanı */
   .rank-badge {
