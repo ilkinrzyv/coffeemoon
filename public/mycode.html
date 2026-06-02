@@ -604,6 +604,31 @@
   .tc-wrap { position:relative; }
   .team-card { width:100%; box-sizing:border-box; }
 
+  /* Yer nişanı */
+  .rank-badge {
+    position:absolute; top:6px; right:6px; z-index:10;
+    width:22px; height:22px; border-radius:7px;
+    display:flex; align-items:center; justify-content:center;
+    font-size:0.78rem; font-weight:900; line-height:1;
+    font-family:'Inter',sans-serif; letter-spacing:-0.5px;
+    pointer-events:none;
+  }
+  .rank-badge.rank-1 {
+    background:linear-gradient(135deg,#fef3c7,#fbbf24);
+    color:#92400e;
+    box-shadow:0 2px 10px rgba(251,191,36,0.55), 0 0 0 1.5px rgba(217,119,6,0.35);
+  }
+  .rank-badge.rank-2 {
+    background:linear-gradient(135deg,#f1f5f9,#cbd5e1);
+    color:#334155;
+    box-shadow:0 2px 10px rgba(148,163,184,0.55), 0 0 0 1.5px rgba(100,116,139,0.3);
+  }
+  .rank-badge.rank-3 {
+    background:linear-gradient(135deg,#fef3e2,#d97706);
+    color:#fff;
+    box-shadow:0 2px 10px rgba(205,127,50,0.5), 0 0 0 1.5px rgba(180,83,9,0.3);
+  }
+
   /* Ulduz orbit */
   @keyframes star-orbit {
     from { transform:rotate(0deg); }
@@ -3046,7 +3071,7 @@
       return;
     }
     grid.innerHTML = '';
-    _teamMembers.slice().sort(function(a,b){ return (b.streak||0)-(a.streak||0); }).forEach(function(m) {
+    _teamMembers.slice().sort(function(a,b){ return (b.streak||0)-(a.streak||0); }).forEach(function(m, idx) {
       var accent = m.accentColor || '#5b5ef4';
       var card = document.createElement('div');
       card.className = 'team-card';
@@ -3134,6 +3159,15 @@
       if      (s >= 60) addSparkleAura(wrap);
       else if (s >= 40) addStarAura(wrap);
       else if (s >= 15) addEmberAura(wrap);
+
+      // Yer nişanı (ilk 3)
+      if (idx < 3) {
+        var badge = document.createElement('div');
+        badge.className = 'rank-badge rank-' + (idx + 1);
+        badge.textContent = idx + 1;
+        wrap.appendChild(badge);
+      }
+
       wrap.appendChild(card);
       grid.appendChild(wrap);
     });

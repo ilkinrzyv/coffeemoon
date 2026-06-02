@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aura Preview</title>
+<style>
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:#f0f2f8; font-family:'Inter',sans-serif; display:flex; flex-direction:column; align-items:center; padding:40px 20px; gap:40px; min-height:100vh; }
+  h2 { color:#1e293b; font-size:1rem; font-weight:700; text-align:center; }
+  .row { display:flex; gap:36px; align-items:flex-start; justify-content:center; flex-wrap:wrap; }
+  .col { display:flex; flex-direction:column; align-items:center; gap:12px; }
+  .label { font-size:0.75rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:1px; }
+  .sublabel { font-size:0.65rem; color:#94a3b8; font-weight:600; }
+
+  .tc-wrap { position:relative; width:110px; }
+  .team-card {
+    width:100%; border-radius:16px; padding:0 0 10px;
+    text-align:center; background:#fff;
+    border:1.5px solid rgba(15,23,42,0.07);
+    display:flex; flex-direction:column; align-items:center; gap:0;
+    overflow:hidden; position:relative; z-index:1;
+  }
+  .stripe { width:100%; height:52px; flex-shrink:0; }
+  .avatar {
+    width:50px; height:50px; border-radius:14px;
+    display:flex; align-items:center; justify-content:center;
+    font-size:1.3rem; color:#fff;
+    margin-top:-20px; border:2.5px solid #fff; position:relative; z-index:2;
+  }
+  .card-name   { font-size:0.75rem; font-weight:800; color:#1e293b; margin-top:7px; }
+  .card-dept   { font-size:0.6rem; color:#94a3b8; font-weight:600; margin-top:2px; }
+  .card-streak { font-size:0.6rem; font-weight:700; color:#b45309; background:rgba(245,158,11,0.1); border-radius:20px; padding:2px 7px; margin-top:5px; }
+  .card-like   { font-size:0.75rem; margin-top:8px; color:#64748b; }
+
+  /* AURA glows */
+  .aura-bronze { box-shadow:0 1px 8px rgba(0,0,0,0.08),0 0 0 1.5px rgba(180,83,9,0.3),0 0 14px rgba(205,127,50,0.22); border-color:rgba(180,83,9,0.28)!important; }
+  .aura-silver { box-shadow:0 1px 8px rgba(0,0,0,0.08),0 0 0 1.5px rgba(148,163,184,0.4),0 0 16px rgba(203,213,225,0.28); border-color:rgba(148,163,184,0.35)!important; }
+  .aura-gold   { box-shadow:0 1px 8px rgba(0,0,0,0.08),0 0 0 1.5px rgba(217,119,6,0.4),0 0 20px rgba(251,191,36,0.32); border-color:rgba(217,119,6,0.38)!important; }
+
+  /* KÖZ */
+  @keyframes ember-rise {
+    0%   { transform:translateY(0) translateX(0) scale(1); opacity:0.92; }
+    40%  { opacity:0.75; }
+    100% { transform:translateY(-62px) translateX(var(--ex)) scale(0.18); opacity:0; }
+  }
+
+  /* ULDUZ ORBIT */
+  @keyframes star-orbit {
+    from { transform:rotate(0deg); }
+    to   { transform:rotate(360deg); }
+  }
+
+  /* SPARKLE — kənardan başlayır, hologramı öldürmür */
+  @keyframes spark-fly {
+    0%   { opacity:1;   transform:translate(calc(-50% + var(--sx0)), calc(-50% + var(--sy0))) scale(0.55); }
+    55%  { opacity:0.9; }
+    100% { opacity:0;   transform:translate(calc(-50% + var(--sx)), calc(-50% + var(--sy))) scale(1.3); }
+  }
+
+  /* HOLOGRAM */
+  @keyframes holo-shift {
+    0%   { background-position:220% 50%; }
+    100% { background-position:-60% 50%; }
+  }
+  @keyframes holo-shine { 0%,100%{opacity:0.78} 50%{opacity:1} }
+  .holo-overlay {
+    position:absolute; inset:0; border-radius:inherit; pointer-events:none; z-index:3;
+    background:linear-gradient(108deg,
+      transparent 8%, rgba(255,255,255,0.14) 17%,
+      rgba(192,132,252,0.32) 26%, rgba(96,165,250,0.28) 35%,
+      rgba(52,211,153,0.26) 44%, rgba(251,191,36,0.28) 53%,
+      rgba(251,113,133,0.28) 62%, rgba(255,255,255,0.16) 71%, transparent 80%);
+    background-size:320% 100%;
+    animation:holo-shift 5s ease-in-out infinite alternate, holo-shine 5s ease-in-out infinite;
+  }
+
+  /* RANK BADGE */
+  .rank-badge {
+    position:absolute; top:6px; right:6px; z-index:10;
+    width:22px; height:22px; border-radius:7px;
+    display:flex; align-items:center; justify-content:center;
+    font-size:0.78rem; line-height:1;
+    font-weight:900; box-shadow:0 2px 8px rgba(0,0,0,0.18);
+    pointer-events:none; font-family:'Inter',sans-serif;
+    letter-spacing:-0.5px;
+  }
+  .rank-badge.rank-1 {
+    background:linear-gradient(135deg,#fef3c7,#fbbf24);
+    box-shadow:0 2px 10px rgba(251,191,36,0.55), 0 0 0 1.5px rgba(217,119,6,0.35);
+  }
+  .rank-badge.rank-2 {
+    background:linear-gradient(135deg,#f1f5f9,#cbd5e1);
+    box-shadow:0 2px 10px rgba(148,163,184,0.55), 0 0 0 1.5px rgba(100,116,139,0.3);
+  }
+  .rank-badge.rank-3 {
+    background:linear-gradient(135deg,#fef3e2,#d97706);
+    box-shadow:0 2px 10px rgba(205,127,50,0.5), 0 0 0 1.5px rgba(180,83,9,0.3);
+  }
+</style>
+</head>
+<body>
+
+<h2>🏆 YER NİŞANLARI — Mini Kartlarda</h2>
+
+<div class="row">
+
+  <div class="col">
+    <div class="label" style="color:#d97706;">🥇 1-ci yer</div>
+    <div class="sublabel">Ən çox aura</div>
+    <div class="tc-wrap" style="width:110px; position:relative;">
+      <div class="rank-badge rank-1">1</div>
+      <div class="team-card aura-gold">
+        <div class="stripe" style="background:linear-gradient(90deg,#d97706,#fbbf24);"></div>
+        <div class="avatar" style="background:linear-gradient(135deg,#d97706,#b45309);box-shadow:0 4px 14px rgba(217,119,6,0.5);">🌙</div>
+        <div class="card-name">Nigar</div>
+        <div class="card-dept">Elmlər</div>
+        <div class="card-streak">🔥 999</div>
+        <div class="card-like">👍 12</div>
+        <div class="holo-overlay"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col">
+    <div class="label" style="color:#475569;">🥈 2-ci yer</div>
+    <div class="sublabel">İkinci ən çox</div>
+    <div class="tc-wrap" style="width:110px; position:relative;">
+      <div class="rank-badge rank-2">2</div>
+      <div class="team-card aura-silver">
+        <div class="stripe" style="background:linear-gradient(90deg,#64748b,#94a3b8);"></div>
+        <div class="avatar" style="background:linear-gradient(135deg,#64748b,#475569);box-shadow:0 4px 12px rgba(100,116,139,0.4);">☕</div>
+        <div class="card-name">İsmayıl</div>
+        <div class="card-dept">Ağ Şəhər</div>
+        <div class="card-streak">🔥 44</div>
+        <div class="card-like">👍 8</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col">
+    <div class="label" style="color:#92400e;">🥉 3-cü yer</div>
+    <div class="sublabel">Üçüncü ən çox</div>
+    <div class="tc-wrap" style="width:110px; position:relative;">
+      <div class="rank-badge rank-3">3</div>
+      <div class="team-card aura-bronze">
+        <div class="stripe" style="background:linear-gradient(90deg,#b45309,#d97706);"></div>
+        <div class="avatar" style="background:linear-gradient(135deg,#b45309,#92400e);box-shadow:0 4px 12px rgba(180,83,9,0.4);">☕</div>
+        <div class="card-name">Aysel</div>
+        <div class="card-dept">Gənclik</div>
+        <div class="card-streak">🔥 18</div>
+        <div class="card-like">👍 5</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col">
+    <div class="label" style="color:#94a3b8;">Normal</div>
+    <div class="sublabel">Yer yoxdur</div>
+    <div class="tc-wrap" style="width:110px; position:relative;">
+      <div class="team-card">
+        <div class="stripe" style="background:linear-gradient(90deg,#6366f1,#4f46e5);"></div>
+        <div class="avatar" style="background:linear-gradient(135deg,#6366f1,#4f46e5);box-shadow:0 4px 12px rgba(99,102,241,0.38);">☕</div>
+        <div class="card-name">Rəşad</div>
+        <div class="card-dept">Qərb</div>
+        <div class="card-like">👍 2</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<hr style="width:100%;max-width:600px;border:none;border-top:1px solid rgba(15,23,42,0.08);">
+<h2>🎖️ AURA — GOLD: Sparkle kənardan</h2>
+
+<div class="row">
+
+  <div class="col">
+    <div class="label">Normal</div>
+    <div class="sublabel">0–14 gün</div>
+    <div class="tc-wrap">
+      <div class="team-card">
+        <div class="stripe" style="background:linear-gradient(90deg,#6366f1,#4f46e5);"></div>
+        <div class="avatar" style="background:linear-gradient(135deg,#6366f1,#4f46e5);box-shadow:0 4px 12px rgba(99,102,241,0.38);">☕</div>
+        <div class="card-name">Aysel</div><div class="card-dept">Elmlər</div>
+        <div class="card-like">👍</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col">
+    <div class="label" style="color:#92400e;">🥉 Bronze</div>
+    <div class="sublabel">15+ · Köz</div>
+    <div class="tc-wrap" id="bronzeWrap">
+      <div class="team-card aura-bronze">
+        <div class="stripe" style="background:linear-gradient(90deg,#b45309,#d97706);"></div>
+        <div class="avatar" style="background:linear-gradient(135deg,#b45309,#92400e);box-shadow:0 4px 12px rgba(180,83,9,0.4);">☕</div>
+        <div class="card-name">Nigar</div><div class="card-dept">Gənclik</div>
+        <div class="card-streak">🔥 18</div><div class="card-like">👍</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col">
+    <div class="label" style="color:#475569;">🥈 Silver</div>
+    <div class="sublabel">40+ · Ulduzlar</div>
+    <div class="tc-wrap" id="silverWrap">
+      <div class="team-card aura-silver">
+        <div class="stripe" style="background:linear-gradient(90deg,#64748b,#94a3b8);"></div>
+        <div class="avatar" style="background:linear-gradient(135deg,#64748b,#475569);box-shadow:0 4px 12px rgba(100,116,139,0.4);">☕</div>
+        <div class="card-name">İsmayıl</div><div class="card-dept">Ağ Şəhər</div>
+        <div class="card-streak">🔥 44</div><div class="card-like">👍</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col">
+    <div class="label" style="color:#d97706;">🥇 Gold</div>
+    <div class="sublabel">60+ · Sparkle + Hologram</div>
+    <div class="tc-wrap" id="goldWrap">
+      <div class="team-card aura-gold">
+        <div class="stripe" style="background:linear-gradient(90deg,#d97706,#fbbf24);"></div>
+        <div class="avatar" style="background:linear-gradient(135deg,#d97706,#b45309);box-shadow:0 4px 14px rgba(217,119,6,0.5);">🌙</div>
+        <div class="card-name">Test</div><div class="card-dept">Elmlər</div>
+        <div class="card-streak">🔥 999</div><div class="card-like">👍</div>
+        <div class="holo-overlay"></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── BRONZE: Köz ──────────────────────────────────────────
+var bw = document.getElementById('bronzeWrap');
+var EC=['#f97316','#ef4444','#fbbf24','#fb923c','#f97316','#fcd34d','#ef4444','#fb923c'];
+var DX=[-4,3,-2,5,-5,2,-3,4];
+for(var i=0;i<8;i++){
+  var e=document.createElement('div');
+  var sz=3+(i%3), left=12+(i/7)*76;
+  e.style.cssText='position:absolute;width:'+sz+'px;height:'+sz+'px;border-radius:50%;background:'+EC[i]+';bottom:6px;left:'+left+'%;pointer-events:none;z-index:5;box-shadow:0 0 5px '+EC[i]+',0 0 10px '+EC[i]+'88;--ex:'+DX[i]+'px;animation:ember-rise '+(1.3+i*0.18).toFixed(1)+'s '+(-i*0.28).toFixed(2)+'s ease-out infinite;';
+  bw.appendChild(e);
+}
+
+// ── SILVER: Ulduzlar ─────────────────────────────────────
+var sw=document.getElementById('silverWrap');
+var SC=['#e2e8f0','#f1f5f9','#b8cfe0','#94a3b8','#dde8f2','#f8fafc'];
+var SZ=[9,7,8,6,9,7];
+for(var j=0;j<6;j++){
+  var el=document.createElement('div');
+  el.style.cssText='position:absolute;top:50%;left:50%;width:calc(100% + 32px);height:calc(100% + 32px);margin-top:calc(-50% - 16px);margin-left:calc(-50% - 16px);pointer-events:none;z-index:5;animation:star-orbit 9s linear '+(-((j/6)*9).toFixed(2))+'s infinite;';
+  var dot=document.createElement('span');
+  dot.textContent='✦';
+  dot.style.cssText='position:absolute;top:-7px;left:50%;transform:translateX(-50%);font-size:'+SZ[j]+'px;color:'+SC[j]+';line-height:1;filter:drop-shadow(0 0 5px rgba(203,213,225,0.95));';
+  el.appendChild(dot); sw.appendChild(el);
+}
+
+// ── GOLD: Sparkle kənardan başlayır ──────────────────────
+// Kart ~110px en, ~175px hündürlük. Sparkle-lar kənar mövqeyindən (40%) başlayır.
+var gw=document.getElementById('goldWrap');
+var sparks=[
+  {sx:'-32px',sy:'-46px'},{sx:'0px',sy:'-52px'},{sx:'32px',sy:'-46px'},
+  {sx:'48px',sy:'-18px'},{sx:'48px',sy:'18px'},{sx:'30px',sy:'46px'},
+  {sx:'0px',sy:'52px'},{sx:'-30px',sy:'46px'},{sx:'-48px',sy:'18px'},
+  {sx:'-48px',sy:'-18px'},{sx:'-18px',sy:'-40px'},{sx:'18px',sy:'-40px'},
+  {sx:'40px',sy:'0px'},{sx:'-40px',sy:'0px'},
+];
+var DUR=[2.2,2.4,2.1,2.3,2.5,2.2,2.4,2.1,2.3,2.5,2.0,2.0,2.0,2.0];
+var DEL=[0,-0.28,-0.56,-0.84,-1.12,-1.4,-1.68,-1.96,-2.24,-2.52,-0.42,-1.26,-1.68,-2.10];
+var SZG=[11,9,11,8,10,11,8,10,11,8,7,7,7,7];
+var shapes=['✦','✦','✧','✦','★'];
+var cols=['#fef3c7','#fbbf24','#fde68a','#fff','#fcd34d'];
+
+sparks.forEach(function(s,i){
+  var sp=document.createElement('div');
+  sp.textContent=shapes[i%shapes.length];
+  // sx0/sy0 = 42% of final — kart kənarına uyğun
+  var sx0=Math.round(parseFloat(s.sx)*0.42)+'px';
+  var sy0=Math.round(parseFloat(s.sy)*0.42)+'px';
+  sp.style.cssText=
+    'position:absolute;top:50%;left:50%;font-size:'+SZG[i]+'px;color:'+cols[i%cols.length]+';line-height:1;'+
+    'pointer-events:none;z-index:5;'+
+    'text-shadow:0 0 8px #fbbf24,0 0 18px #f59e0b,0 0 28px rgba(251,191,36,0.6);'+
+    '--sx:'+s.sx+';--sy:'+s.sy+';--sx0:'+sx0+';--sy0:'+sy0+';'+
+    'animation:spark-fly '+DUR[i]+'s '+DEL[i]+'s ease-out infinite;';
+  gw.appendChild(sp);
+});
+</script>
+</body>
+</html>
