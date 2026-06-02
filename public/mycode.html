@@ -1059,6 +1059,68 @@
   }
   .banner-pick-item.on .banner-pick-label { color:var(--primary); }
 
+  /* ── STREAK BƏLƏDÇİSİ ── */
+  .sg-card {
+    background:rgba(255,255,255,0.82);backdrop-filter:blur(12px);
+    border-radius:18px; border:1.5px solid rgba(15,23,42,0.07);
+    box-shadow:0 1px 8px rgba(0,0,0,0.07); overflow:hidden;
+  }
+  .sg-header {
+    padding:14px 16px; display:flex; align-items:center; gap:10px;
+    cursor:pointer; user-select:none;
+  }
+  .sg-header-icon {
+    width:34px; height:34px; border-radius:11px; flex-shrink:0;
+    background:linear-gradient(135deg,#6366f1,#818cf8);
+    display:flex; align-items:center; justify-content:center;
+    font-size:0.9rem; color:#fff; box-shadow:0 3px 8px rgba(99,102,241,0.28);
+  }
+  .sg-header-text { flex:1; }
+  .sg-header-text strong { display:block; font-size:0.82rem; font-weight:800; color:var(--text-main); }
+  .sg-header-text span   { font-size:0.72rem; color:var(--text-muted); font-weight:500; }
+  .sg-chevron { color:var(--text-soft); font-size:0.78rem; transition:transform 0.25s; }
+  .sg-chevron.open { transform:rotate(180deg); }
+  .sg-body { display:none; padding:0 16px 16px; animation:fadeIn 0.2s ease; }
+  .sg-body.open { display:block; }
+  .sg-section-title {
+    font-size:0.68rem; font-weight:800; color:var(--text-muted);
+    text-transform:uppercase; letter-spacing:1px; margin:0 0 10px;
+  }
+  .sg-milestone-row {
+    display:flex; align-items:center; gap:10px;
+    padding:9px 0; border-bottom:1px solid rgba(15,23,42,0.05);
+  }
+  .sg-milestone-row:last-child { border-bottom:none; }
+  .sg-ms-badge {
+    min-width:38px; height:28px; border-radius:9px;
+    display:flex; align-items:center; justify-content:center;
+    font-size:0.68rem; font-weight:900; letter-spacing:-0.3px;
+    background:rgba(15,23,42,0.06); color:var(--text-muted); flex-shrink:0;
+  }
+  .sg-ms-badge.done { background:rgba(15,186,125,0.12); color:#059669; }
+  .sg-ms-badge.next { background:rgba(91,94,244,0.12); color:var(--primary); }
+  .sg-ms-icon { font-size:1.1rem; flex-shrink:0; }
+  .sg-ms-info { flex:1; min-width:0; }
+  .sg-ms-label { font-size:0.76rem; font-weight:700; color:var(--text-main); }
+  .sg-ms-desc  { font-size:0.66rem; color:var(--text-muted); margin-top:1px; line-height:1.4; }
+  .sg-milestone-row.done .sg-ms-label { color:var(--text-soft); }
+  .sg-milestone-row.next .sg-ms-label { color:var(--primary); }
+  .sg-milestone-row.next { background:rgba(91,94,244,0.03); border-radius:10px; margin:0 -8px; padding:9px 8px; }
+  .sg-divider { border:none; border-top:1px solid rgba(15,23,42,0.07); margin:14px 0; }
+  .sg-rule-row {
+    display:flex; align-items:flex-start; gap:10px; padding:7px 0;
+  }
+  .sg-rule-row:not(:last-child) { border-bottom:1px solid rgba(15,23,42,0.05); }
+  .sg-rule-icon {
+    width:28px; height:28px; border-radius:9px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center; font-size:0.85rem;
+  }
+  .sg-rule-icon.green  { background:rgba(15,186,125,0.12); }
+  .sg-rule-icon.red    { background:rgba(240,69,80,0.1); }
+  .sg-rule-icon.yellow { background:rgba(245,158,11,0.12); }
+  .sg-rule-text { font-size:0.74rem; color:var(--text-main); font-weight:500; line-height:1.45; padding-top:4px; }
+  .sg-rule-text b { color:var(--text-main); font-weight:800; }
+
   .emergency-btn {
     width:100%; padding:14px; margin-top:10px;
     background:linear-gradient(135deg,#ef4444,#dc2626);
@@ -1503,6 +1565,40 @@
       </div>
     </div>
 
+  <!-- STREAK BƏLƏDÇİSİ -->
+  <div class="sg-card" id="sgCard" style="display:none;">
+    <div class="sg-header" onclick="toggleSgCard()">
+      <div class="sg-header-icon"><i class="fa-solid fa-trophy"></i></div>
+      <div class="sg-header-text">
+        <strong>Streak Bələdçisi</strong>
+        <span id="sgHeaderSub">Mükafatlar və qaydalar</span>
+      </div>
+      <i class="fa-solid fa-chevron-down sg-chevron" id="sgChevron"></i>
+    </div>
+    <div class="sg-body" id="sgBody">
+      <div class="sg-section-title">🎯 Mükafat Cədvəli</div>
+      <div id="sgMilestones"></div>
+      <hr class="sg-divider">
+      <div class="sg-section-title">📋 Qaydalar</div>
+      <div class="sg-rule-row">
+        <div class="sg-rule-icon green"><i class="fa-solid fa-check" style="color:#059669;font-size:0.75rem;"></i></div>
+        <div class="sg-rule-text">Hər gün <b>vaxtında gəliş</b> streak-i +1 artırır</div>
+      </div>
+      <div class="sg-rule-row">
+        <div class="sg-rule-icon red"><i class="fa-solid fa-xmark" style="color:#e11d48;font-size:0.75rem;"></i></div>
+        <div class="sg-rule-text"><b>Gecikmə:</b> streak sıfırlanır (−5 cəza tətbiq edilir)</div>
+      </div>
+      <div class="sg-rule-row">
+        <div class="sg-rule-icon red"><i class="fa-solid fa-calendar-xmark" style="color:#e11d48;font-size:0.75rem;"></i></div>
+        <div class="sg-rule-text"><b>İzinsiz iş buraxmaq:</b> streak tamamilə itir</div>
+      </div>
+      <div class="sg-rule-row">
+        <div class="sg-rule-icon yellow"><i class="fa-solid fa-clock" style="color:#d97706;font-size:0.75rem;"></i></div>
+        <div class="sg-rule-text"><b>Təsdiqlənmiş izin:</b> streak nə artır, nə azalır — qorunur</div>
+      </div>
+    </div>
+  </div>
+
   </div>
 
   <!-- EMERGENCY DÜYMƏSİ -->
@@ -1680,6 +1776,7 @@
             document.getElementById('streakBox').style.display = 'inline-flex';
             document.getElementById('streakCount').innerText = dash.streak;
           }
+          buildStreakGuide(dash.streak || 0);
           checkLateStatus();
           if (dash.weekSchedule && dash.weekSchedule.length) renderWeekSchedule(dash.weekSchedule, dash.nextWeekSchedule || []);
           if (dash.monthStats) renderMonthStats(dash.monthStats);
@@ -3245,6 +3342,62 @@
 
   // ── Konfeti ─────────────────────────────────────────────────────
   var MILESTONES = [7, 21, 30, 60, 100];
+  // ── Streak Bələdçisi ─────────────────────────────────────────────
+  var _SG_MILESTONES = [
+    { day:7,  icon:'🥉', label:'Bronze Aura',         desc:'Komanda kartında mis çərçivə aktiv olur' },
+    { day:14, icon:'✨', label:'Profil effektləri',    desc:'Nəbz, Nəfəs parıltısı; Qalın çərçivə; Tor, Həndəsi banner' },
+    { day:20, icon:'🥈', label:'Silver Aura',          desc:'Komanda kartında gümüşü çərçivə aktiv olur' },
+    { day:21, icon:'💫', label:'Premium optionlar',    desc:'İşıqlı, Gradient çərçivə; Dalğa effekti; Okean banner' },
+    { day:30, icon:'🌟', label:'Parıltı effekti',      desc:'Günbatan, Gül banner açılır' },
+    { day:40, icon:'🥇', label:'Gold Aura',            desc:'Komanda kartında qızıl çərçivə aktiv olur' },
+    { day:45, icon:'⚡', label:'Premium çərçivələr',   desc:'Titrəmə effekti, Neon çərçivə, Karbon banner' },
+    { day:60, icon:'🌈', label:'Shimmer & Elite',      desc:'Hologram shimmer, Fırlan effekti, Rəngli çərçivə, Aurora banner' },
+  ];
+
+  function buildStreakGuide(s) {
+    var card = document.getElementById('sgCard');
+    if (!card) return;
+    card.style.display = '';
+    var sub = document.getElementById('sgHeaderSub');
+    var nextMs = _SG_MILESTONES.find(function(m){ return m.day > s; });
+    if (nextMs) sub.textContent = 'Növbəti: ' + nextMs.day + ' gün — ' + nextMs.label;
+    else sub.textContent = 'Bütün mükafatlar qazanıldı! 🎉';
+
+    var container = document.getElementById('sgMilestones');
+    container.innerHTML = '';
+    _SG_MILESTONES.forEach(function(m) {
+      var done = s >= m.day;
+      var next = nextMs && m.day === nextMs.day;
+      var row = document.createElement('div');
+      row.className = 'sg-milestone-row' + (done ? ' done' : next ? ' next' : '');
+
+      var badge = document.createElement('div');
+      badge.className = 'sg-ms-badge' + (done ? ' done' : next ? ' next' : '');
+      badge.textContent = m.day + ' gün';
+
+      var ico = document.createElement('div');
+      ico.className = 'sg-ms-icon';
+      ico.textContent = done ? '✅' : m.icon;
+
+      var info = document.createElement('div');
+      info.className = 'sg-ms-info';
+      info.innerHTML = '<div class="sg-ms-label">' + m.label + '</div>'
+                     + '<div class="sg-ms-desc">' + m.desc + '</div>';
+
+      row.appendChild(badge);
+      row.appendChild(ico);
+      row.appendChild(info);
+      container.appendChild(row);
+    });
+  }
+
+  function toggleSgCard() {
+    var body = document.getElementById('sgBody');
+    var chev = document.getElementById('sgChevron');
+    var open = body.classList.toggle('open');
+    chev.classList.toggle('open', open);
+  }
+
   function checkMilestone(streak) {
     if (!MILESTONES.includes(streak)) return;
     var key = 'cm_ms_' + streak;
