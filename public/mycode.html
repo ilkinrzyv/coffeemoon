@@ -1576,7 +1576,7 @@
     <div class="sg-header" onclick="toggleSgCard()">
       <div class="sg-header-icon"><i class="fa-solid fa-trophy"></i></div>
       <div class="sg-header-text">
-        <strong>Streak Bələdçisi</strong>
+        <strong>Davamiyyət Bələdçisi</strong>
         <span id="sgHeaderSub">Mükafatlar və qaydalar</span>
       </div>
       <i class="fa-solid fa-chevron-down sg-chevron" id="sgChevron"></i>
@@ -1588,19 +1588,19 @@
       <div class="sg-section-title">📋 Qaydalar</div>
       <div class="sg-rule-row">
         <div class="sg-rule-icon green"><i class="fa-solid fa-check" style="color:#059669;font-size:0.75rem;"></i></div>
-        <div class="sg-rule-text">Hər gün <b>vaxtında gəliş</b> streak-i +1 artırır</div>
+        <div class="sg-rule-text">Hər gün <b>vaxtında gəliş</b> davamiyyəti +1 artırır</div>
       </div>
       <div class="sg-rule-row">
         <div class="sg-rule-icon red"><i class="fa-solid fa-xmark" style="color:#e11d48;font-size:0.75rem;"></i></div>
-        <div class="sg-rule-text"><b>Gecikmə:</b> streak sıfırlanır (−5 cəza tətbiq edilir)</div>
+        <div class="sg-rule-text"><b>Gecikmə:</b> davamiyyətə −5 cəza tətbiq edilir)</div>
       </div>
       <div class="sg-rule-row">
         <div class="sg-rule-icon red"><i class="fa-solid fa-calendar-xmark" style="color:#e11d48;font-size:0.75rem;"></i></div>
-        <div class="sg-rule-text"><b>İzinsiz iş buraxmaq:</b> streak tamamilə itir</div>
+        <div class="sg-rule-text"><b>İcazəsiz iş buraxmaq:</b> davamiyyət tamamilə itir</div>
       </div>
       <div class="sg-rule-row">
         <div class="sg-rule-icon yellow"><i class="fa-solid fa-clock" style="color:#d97706;font-size:0.75rem;"></i></div>
-        <div class="sg-rule-text"><b>Təsdiqlənmiş izin:</b> streak nə artır, nə azalır — qorunur</div>
+        <div class="sg-rule-text"><b>Təsdiqlənmiş icazə:</b> davamiyyət nə artır, nə azalır — qorunur</div>
       </div>
     </div>
   </div>
@@ -3342,14 +3342,14 @@
   var MILESTONES = [7, 21, 30, 60, 100];
   // ── Streak Bələdçisi ─────────────────────────────────────────────
   var _SG_MILESTONES = [
-    { day:7,  icon:'🥉', label:'Bronze Aura',         desc:'Komanda kartında mis çərçivə aktiv olur' },
+    { day:7,  icon:'🥉', label:'Bronze Aura',         desc:'Komanda kartında bürünc çərçivə aktiv olur' },
     { day:14, icon:'✨', label:'Profil effektləri',    desc:'Nəbz, Nəfəs parıltısı; Qalın çərçivə; Tor, Həndəsi banner' },
     { day:20, icon:'🥈', label:'Silver Aura',          desc:'Komanda kartında gümüşü çərçivə aktiv olur' },
-    { day:21, icon:'💫', label:'Premium optionlar',    desc:'İşıqlı, Gradient çərçivə; Dalğa effekti; Okean banner' },
-    { day:30, icon:'🌟', label:'Parıltı effekti',      desc:'Günbatan, Gül banner açılır' },
+    { day:21, icon:'💫', label:'Premium seçimlər',    desc:'İşıqlı, Gradient çərçivə; Dalğa effekti; Okean banner' },
+    { day:30, icon:'🌟', label:'Parıltı effekti',      desc:'Günbatımı, Gül banner açılır' },
     { day:40, icon:'🥇', label:'Gold Aura',            desc:'Komanda kartında qızıl çərçivə aktiv olur' },
     { day:45, icon:'⚡', label:'Premium çərçivələr',   desc:'Titrəmə effekti, Neon çərçivə, Karbon banner' },
-    { day:60, icon:'🌈', label:'Shimmer & Elite',      desc:'Hologram shimmer, Fırlan effekti, Rəngli çərçivə, Aurora banner' },
+    { day:60, icon:'🌈', label:'Shimmer & Elite',      desc:'Hologram shimmer (premium kart), Fırlanma effekti, Rəngli çərçivə, Aurora banner' },
   ];
 
   function buildStreakGuide(s) {
@@ -3359,7 +3359,7 @@
     var sub = document.getElementById('sgHeaderSub');
     var nextMs = _SG_MILESTONES.find(function(m){ return m.day > s; });
     if (nextMs) sub.textContent = 'Növbəti: ' + nextMs.day + ' gün — ' + nextMs.label;
-    else sub.textContent = 'Bütün mükafatlar qazanıldı! 🎉';
+    else sub.textContent = 'Bütün mükafatlar qazanıldı!';
 
     var container = document.getElementById('sgMilestones');
     container.innerHTML = '';
