@@ -2288,6 +2288,7 @@
     d._lottieInst = lottie.loadAnimation({
       container: d,
       renderer: 'svg',
+      rendererSettings: { preserveAspectRatio: 'none' },
       loop: true,
       autoplay: true,
       path: path
@@ -2595,11 +2596,13 @@
         el.style.setProperty('--av-glow-color', gC);
         el.classList.add('av-spin'); break;
       case 'floframe':
-        el.style.boxShadow = base;
-        _addLottieFrame(el, '/lottie/floframeprof.json'); break;
+        el.style.boxShadow = base + ', 0 0 0 2.5px #06b6d4, 0 0 12px 3px rgba(6,182,212,0.55)';
+        el.style.outline = '2px dashed rgba(6,182,212,0.7)';
+        el.style.outlineOffset = '3px'; break;
       case 'starframe':
-        el.style.boxShadow = base;
-        _addLottieFrame(el, '/lottie/starframeprof.json'); break;
+        el.style.boxShadow = base + ', 0 0 0 2.5px #f59e0b, 0 0 12px 3px rgba(245,158,11,0.55)';
+        el.style.outline = '2px dashed rgba(245,158,11,0.7)';
+        el.style.outlineOffset = '3px'; break;
       default:
         el.style.boxShadow = base;
     }
@@ -3229,6 +3232,7 @@
         lottie.loadAnimation({
           container: goldFrame,
           renderer: 'svg',
+          rendererSettings: { preserveAspectRatio: 'none' },
           loop: true,
           autoplay: true,
           path: '/lottie/goldenframe.json'
