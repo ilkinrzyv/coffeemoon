@@ -3297,9 +3297,9 @@
       // Wrapper + forma auraları + tier class (::before üçün)
       var wrap = document.createElement('div');
       wrap.className = 'tc-wrap';
-      if      (s >= 40) { wrap.classList.add('aura-tier-gold');   addSparkleAura(wrap); }
-      else if (s >= 20) { wrap.classList.add('aura-tier-silver'); addStarAura(wrap); }
-      else if (s >= 7)  { wrap.classList.add('aura-tier-bronze'); addEmberAura(wrap); }
+      if      (s >= 40) wrap.classList.add('aura-tier-gold');
+      else if (s >= 20) wrap.classList.add('aura-tier-silver');
+      else if (s >= 7)  wrap.classList.add('aura-tier-bronze');
 
       // Yer nişanı (ilk 3)
       if (idx < 3) {
