@@ -622,7 +622,7 @@
   }
   .tc-wrap.aura-tier-bronze {
     background:conic-gradient(from var(--bronze-angle),
-      #3d1a00, #cd7f32, #f0c070, #fffbe8, #f0c070, #cd7f32, #3d1a00);
+      #3b0d00, #a8360c, #c85f28, #e8874a, #ffe0c8, #e8874a, #c85f28, #a8360c, #3b0d00);
     animation:bronze-spin 4s linear infinite;
   }
   .tc-wrap.aura-tier-silver {
@@ -632,7 +632,7 @@
   }
   .tc-wrap.aura-tier-gold {
     background:conic-gradient(from var(--gold-angle),
-      #78350f, #f59e0b, #fde68a, #ffffff, #fde68a, #f59e0b, #78350f);
+      #78350f, #d97706, #fbbf24, #fefce8, #ffffff, #fefce8, #fbbf24, #d97706, #78350f);
     animation:gold-spin 2s linear infinite;
   }
 
@@ -3180,18 +3180,18 @@
 
       // Aura sinfi
       var s = m.streak || 0;
-      if      (s >= 60) card.classList.add('aura-gold');
-      else if (s >= 40) card.classList.add('aura-silver');
-      else if (s >= 15) card.classList.add('aura-bronze');
+      if      (s >= 40) card.classList.add('aura-gold');
+      else if (s >= 20) card.classList.add('aura-silver');
+      else if (s >= 7)  card.classList.add('aura-bronze');
 
       // Aura kartlarda: neytral fon + avatar shadow (mərkəz parıltını ləğv edir)
-      if (s >= 15) {
+      if (s >= 7) {
         card.style.background = 'rgba(255,255,255,0.96)';
         avWrap.style.boxShadow = '0 3px 8px rgba(0,0,0,0.18), 0 0 0 2.5px rgba(255,255,255,0.9)';
       }
 
-      // Shimmer (60+)
-      if (s >= 60) {
+      // Shimmer (40+)
+      if (s >= 40) {
         var holo = document.createElement('div');
         holo.className = 'holo-overlay';
         card.appendChild(holo);
@@ -3202,9 +3202,9 @@
       // Wrapper + forma auraları + tier class (::before üçün)
       var wrap = document.createElement('div');
       wrap.className = 'tc-wrap';
-      if      (s >= 60) { wrap.classList.add('aura-tier-gold');   addSparkleAura(wrap); }
-      else if (s >= 40) { wrap.classList.add('aura-tier-silver'); addStarAura(wrap); }
-      else if (s >= 15) { wrap.classList.add('aura-tier-bronze'); addEmberAura(wrap); }
+      if      (s >= 40) { wrap.classList.add('aura-tier-gold');   addSparkleAura(wrap); }
+      else if (s >= 20) { wrap.classList.add('aura-tier-silver'); addStarAura(wrap); }
+      else if (s >= 7)  { wrap.classList.add('aura-tier-bronze'); addEmberAura(wrap); }
 
       // Yer nişanı (ilk 3)
       if (idx < 3) {
