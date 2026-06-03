@@ -831,7 +831,28 @@
     50%    {box-shadow:0 0 0 2px rgba(180,50,255,.8),0 0 20px 8px rgba(140,0,220,.5),0 0 40px 15px rgba(60,0,100,.25)}
   }
 
+  @keyframes fr-rainbow-cycle {
+    0%  {box-shadow:0 0 0 3px #ff0080,0 0 12px 3px rgba(255,0,128,.5)}
+    16% {box-shadow:0 0 0 3px #ff6030,0 0 12px 3px rgba(255,96,48,.5)}
+    33% {box-shadow:0 0 0 3px #ffd700,0 0 12px 3px rgba(255,215,0,.5)}
+    50% {box-shadow:0 0 0 3px #00e676,0 0 12px 3px rgba(0,230,118,.5)}
+    66% {box-shadow:0 0 0 3px #00b8d9,0 0 12px 3px rgba(0,184,217,.5)}
+    83% {box-shadow:0 0 0 3px #a855f7,0 0 12px 3px rgba(168,85,247,.5)}
+    100%{box-shadow:0 0 0 3px #ff0080,0 0 12px 3px rgba(255,0,128,.5)}
+  }
+  @keyframes fr-spin-color {
+    0%  {box-shadow:0 0 0 3px #ff0080,0 0 18px 5px rgba(255,0,128,.4), 0 -9px 0 1.5px rgba(255,0,128,.7)}
+    16% {box-shadow:0 0 0 3px #ff6030,0 0 18px 5px rgba(255,96,48,.4), 9px 0 0 1.5px rgba(255,96,48,.7)}
+    33% {box-shadow:0 0 0 3px #ffd700,0 0 18px 5px rgba(255,215,0,.4), 0 9px 0 1.5px rgba(255,215,0,.7)}
+    50% {box-shadow:0 0 0 3px #00e676,0 0 18px 5px rgba(0,230,118,.4), -9px 0 0 1.5px rgba(0,230,118,.7)}
+    66% {box-shadow:0 0 0 3px #00b8d9,0 0 18px 5px rgba(0,184,217,.4), 0 -9px 0 1.5px rgba(0,184,217,.7)}
+    83% {box-shadow:0 0 0 3px #a855f7,0 0 18px 5px rgba(168,85,247,.4),9px 0 0 1.5px rgba(168,85,247,.7)}
+    100%{box-shadow:0 0 0 3px #ff0080,0 0 18px 5px rgba(255,0,128,.4), 0 -9px 0 1.5px rgba(255,0,128,.7)}
+  }
+
   /* Animated frame classes */
+  .av-fr-rainbow    {animation:fr-rainbow-cycle 2.5s linear infinite}
+  .av-fr-spin       {animation:fr-spin-color    1.1s linear infinite}
   .av-fr-fire-ring  {animation:fr-fire-ring   2s   ease-in-out infinite}
   .av-fr-neon-pulse {animation:fr-neon-pulse  1.8s ease-in-out infinite}
   .av-fr-electric   {animation:fr-electric    0.6s linear      infinite}
@@ -2643,7 +2664,7 @@
     }
   }
 
-  var _ANIM_FR_CLS = ['av-fr-fire-ring','av-fr-neon-pulse','av-fr-electric','av-fr-ice','av-fr-lightning','av-fr-matrix','av-fr-quake','av-fr-ripple','av-fr-aura','av-fr-galaxy','av-fr-aurora-bor','av-fr-hipnoz','av-fr-magma','av-fr-solar','av-fr-glitch','av-fr-current','av-fr-blackhole'];
+  var _ANIM_FR_CLS = ['av-fr-rainbow','av-fr-spin','av-fr-fire-ring','av-fr-neon-pulse','av-fr-electric','av-fr-ice','av-fr-lightning','av-fr-matrix','av-fr-quake','av-fr-ripple','av-fr-aura','av-fr-galaxy','av-fr-aurora-bor','av-fr-hipnoz','av-fr-magma','av-fr-solar','av-fr-glitch','av-fr-current','av-fr-blackhole'];
 
   function applyAvatarEffects(el, glowStyle, frameStyle, accent, sz) {
     if (!el) return;
@@ -2669,6 +2690,8 @@
       case 'dotted':   el.style.outline = '3px dotted '+accent; el.style.outlineOffset = '3px'; break;
       case 'glow':     base += ', 0 0 0 3px '+accent+', 0 0 18px 5px '+hexToRgba(accent,0.5); break;
       case 'neon':     base = '0 0 0 2px '+accent+', 0 0 10px 4px '+hexToRgba(accent,0.7)+', 0 0 24px 8px '+hexToRgba(accent,0.3); break;
+      case 'rainbow_anim':animFr=true; el.classList.add('av-fr-rainbow'); break;
+      case 'spin_fr':     animFr=true; el.classList.add('av-fr-spin'); break;
       case 'fire_ring':   animFr=true; el.classList.add('av-fr-fire-ring'); break;
       case 'neon_pulse':  animFr=true; el.classList.add('av-fr-neon-pulse'); break;
       case 'electric':    animFr=true; el.classList.add('av-fr-electric'); break;
@@ -2761,6 +2784,8 @@
     {id:'dotted',      label:'Nöqtəli',   unlock:7  },
     {id:'glow',        label:'İşıqlı',    unlock:21 },
     {id:'neon',        label:'Neon',      unlock:45 },
+    {id:'rainbow_anim',label:'Göy Qurşağı',unlock:7  },
+    {id:'spin_fr',     label:'Döndər',    unlock:14 },
     {id:'neon_pulse',  label:'Neon Nəbz', unlock:14 },
     {id:'ripple',      label:'Dalğa Hlq', unlock:14 },
     {id:'lightning',   label:'Şimşək',    unlock:14 },
@@ -2832,6 +2857,8 @@
       case 'dotted':  el.style.outline='2.5px dotted '+accent; el.style.outlineOffset='2px'; break;
       case 'glow':    el.style.boxShadow='0 4px 10px rgba(0,0,0,0.18),0 0 0 3px '+accent+',0 0 14px 4px '+hexToRgba(accent,0.5); break;
       case 'neon':    el.style.boxShadow='0 0 0 2px '+accent+',0 0 8px 3px '+hexToRgba(accent,0.7)+',0 0 20px 6px '+hexToRgba(accent,0.3); break;
+      case 'rainbow_anim':el.classList.add('av-fr-rainbow');    el.style.boxShadow=''; break;
+      case 'spin_fr':     el.classList.add('av-fr-spin');       el.style.boxShadow=''; break;
       case 'fire_ring':   el.classList.add('av-fr-fire-ring');  el.style.boxShadow=''; break;
       case 'neon_pulse':  el.classList.add('av-fr-neon-pulse'); el.style.boxShadow=''; break;
       case 'electric':    el.classList.add('av-fr-electric');   el.style.boxShadow=''; break;
