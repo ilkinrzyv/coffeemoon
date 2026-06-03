@@ -1130,9 +1130,9 @@
 
   /* ── STREAK BƏLƏDÇİSİ ── */
   .sg-card {
-    background:rgba(255,255,255,0.82);backdrop-filter:blur(12px);
-    border-radius:18px; border:1.5px solid rgba(15,23,42,0.07);
-    box-shadow:0 1px 8px rgba(0,0,0,0.07); overflow:hidden;
+    background:rgba(15,22,42,0.88); backdrop-filter:blur(12px);
+    border-radius:18px; border:1.5px solid rgba(255,255,255,0.09);
+    box-shadow:0 4px 20px rgba(0,0,0,0.35); overflow:hidden;
   }
   .sg-header {
     padding:14px 16px; display:flex; align-items:center; gap:10px;
@@ -1142,53 +1142,53 @@
     width:34px; height:34px; border-radius:11px; flex-shrink:0;
     background:linear-gradient(135deg,#6366f1,#818cf8);
     display:flex; align-items:center; justify-content:center;
-    font-size:0.9rem; color:#fff; box-shadow:0 3px 8px rgba(99,102,241,0.28);
+    font-size:0.9rem; color:#fff; box-shadow:0 3px 8px rgba(99,102,241,0.4);
   }
   .sg-header-text { flex:1; }
-  .sg-header-text strong { display:block; font-size:0.82rem; font-weight:800; color:var(--text-main); }
-  .sg-header-text span   { font-size:0.72rem; color:var(--text-muted); font-weight:500; }
-  .sg-chevron { color:var(--text-soft); font-size:0.78rem; transition:transform 0.25s; }
+  .sg-header-text strong { display:block; font-size:0.82rem; font-weight:800; color:#e2e8f0; }
+  .sg-header-text span   { font-size:0.72rem; color:#94a3b8; font-weight:500; }
+  .sg-chevron { color:#64748b; font-size:0.78rem; transition:transform 0.25s; }
   .sg-chevron.open { transform:rotate(180deg); }
   .sg-body { display:none; padding:0 16px 16px; animation:fadeIn 0.2s ease; }
   .sg-body.open { display:block; }
   .sg-section-title {
-    font-size:0.68rem; font-weight:800; color:var(--text-muted);
+    font-size:0.68rem; font-weight:800; color:#64748b;
     text-transform:uppercase; letter-spacing:1px; margin:0 0 10px;
   }
   .sg-milestone-row {
     display:flex; align-items:center; gap:10px;
-    padding:9px 0; border-bottom:1px solid rgba(15,23,42,0.05);
+    padding:9px 0; border-bottom:1px solid rgba(255,255,255,0.06);
   }
   .sg-milestone-row:last-child { border-bottom:none; }
   .sg-ms-badge {
     min-width:38px; height:28px; border-radius:9px;
     display:flex; align-items:center; justify-content:center;
     font-size:0.68rem; font-weight:900; letter-spacing:-0.3px;
-    background:rgba(15,23,42,0.06); color:var(--text-muted); flex-shrink:0;
+    background:rgba(255,255,255,0.08); color:#94a3b8; flex-shrink:0;
   }
-  .sg-ms-badge.done { background:rgba(15,186,125,0.12); color:#059669; }
-  .sg-ms-badge.next { background:rgba(91,94,244,0.12); color:var(--primary); }
+  .sg-ms-badge.done { background:rgba(15,186,125,0.22); color:#34d399; }
+  .sg-ms-badge.next { background:rgba(91,94,244,0.22); color:#a5b4fc; }
   .sg-ms-icon { font-size:1.1rem; flex-shrink:0; }
   .sg-ms-info { flex:1; min-width:0; }
-  .sg-ms-label { font-size:0.76rem; font-weight:700; color:var(--text-main); }
-  .sg-ms-desc  { font-size:0.66rem; color:var(--text-muted); margin-top:1px; line-height:1.4; }
-  .sg-milestone-row.done .sg-ms-label { color:var(--text-soft); }
-  .sg-milestone-row.next .sg-ms-label { color:var(--primary); }
-  .sg-milestone-row.next { background:rgba(91,94,244,0.03); border-radius:10px; margin:0 -8px; padding:9px 8px; }
-  .sg-divider { border:none; border-top:1px solid rgba(15,23,42,0.07); margin:14px 0; }
+  .sg-ms-label { font-size:0.76rem; font-weight:700; color:#e2e8f0; }
+  .sg-ms-desc  { font-size:0.66rem; color:#94a3b8; margin-top:1px; line-height:1.4; }
+  .sg-milestone-row.done .sg-ms-label { color:#64748b; }
+  .sg-milestone-row.next .sg-ms-label { color:#a5b4fc; }
+  .sg-milestone-row.next { background:rgba(91,94,244,0.08); border-radius:10px; margin:0 -8px; padding:9px 8px; }
+  .sg-divider { border:none; border-top:1px solid rgba(255,255,255,0.07); margin:14px 0; }
   .sg-rule-row {
     display:flex; align-items:flex-start; gap:10px; padding:7px 0;
   }
-  .sg-rule-row:not(:last-child) { border-bottom:1px solid rgba(15,23,42,0.05); }
+  .sg-rule-row:not(:last-child) { border-bottom:1px solid rgba(255,255,255,0.06); }
   .sg-rule-icon {
     width:28px; height:28px; border-radius:9px; flex-shrink:0;
     display:flex; align-items:center; justify-content:center; font-size:0.85rem;
   }
-  .sg-rule-icon.green  { background:rgba(15,186,125,0.12); }
-  .sg-rule-icon.red    { background:rgba(240,69,80,0.1); }
-  .sg-rule-icon.yellow { background:rgba(245,158,11,0.12); }
-  .sg-rule-text { font-size:0.74rem; color:var(--text-main); font-weight:500; line-height:1.45; padding-top:4px; }
-  .sg-rule-text b { color:var(--text-main); font-weight:800; }
+  .sg-rule-icon.green  { background:rgba(15,186,125,0.2); }
+  .sg-rule-icon.red    { background:rgba(240,69,80,0.2); }
+  .sg-rule-icon.yellow { background:rgba(245,158,11,0.2); }
+  .sg-rule-text { font-size:0.74rem; color:#cbd5e1; font-weight:500; line-height:1.45; padding-top:4px; }
+  .sg-rule-text b { color:#f1f5f9; font-weight:800; }
 
   .emergency-btn {
     width:100%; padding:14px; margin-top:10px;
@@ -1661,19 +1661,19 @@
       <hr class="sg-divider">
       <div class="sg-section-title">📋 Qaydalar</div>
       <div class="sg-rule-row">
-        <div class="sg-rule-icon green"><i class="fa-solid fa-check" style="color:#059669;font-size:0.75rem;"></i></div>
+        <div class="sg-rule-icon green"><i class="fa-solid fa-check" style="color:#34d399;font-size:0.75rem;"></i></div>
         <div class="sg-rule-text">Hər gün <b>vaxtında gəliş</b> davamiyyəti +1 artırır</div>
       </div>
       <div class="sg-rule-row">
-        <div class="sg-rule-icon red"><i class="fa-solid fa-xmark" style="color:#e11d48;font-size:0.75rem;"></i></div>
+        <div class="sg-rule-icon red"><i class="fa-solid fa-xmark" style="color:#fb7185;font-size:0.75rem;"></i></div>
         <div class="sg-rule-text"><b>Gecikmə:</b> davamiyyətə −5 cəza tətbiq edilir</div>
       </div>
       <div class="sg-rule-row">
-        <div class="sg-rule-icon red"><i class="fa-solid fa-calendar-xmark" style="color:#e11d48;font-size:0.75rem;"></i></div>
+        <div class="sg-rule-icon red"><i class="fa-solid fa-calendar-xmark" style="color:#fb7185;font-size:0.75rem;"></i></div>
         <div class="sg-rule-text"><b>İcazəsiz iş buraxmaq:</b> davamiyyət tamamilə itir</div>
       </div>
       <div class="sg-rule-row">
-        <div class="sg-rule-icon yellow"><i class="fa-solid fa-clock" style="color:#d97706;font-size:0.75rem;"></i></div>
+        <div class="sg-rule-icon yellow"><i class="fa-solid fa-clock" style="color:#fbbf24;font-size:0.75rem;"></i></div>
         <div class="sg-rule-text"><b>Təsdiqlənmiş icazə:</b> davamiyyət nə artır, nə azalır — qorunur</div>
       </div>
     </div>
