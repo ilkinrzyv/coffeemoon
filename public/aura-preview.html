@@ -183,8 +183,8 @@ body {
    Gradient 0-50% → 50-100% eyni rəng ardıcıllığı → seamless linear loop
    background-position: 0% → 100% bir tam dövrü tamamlayır, kəsintisiz ── */
 @keyframes holo-flow {
-  from { background-position: 0% 50%; }
-  to   { background-position: 100% 50%; }
+  from { background-position: 100% 50%; }
+  to   { background-position: 0% 50%; }
 }
 @keyframes holo-pulse {
   0%,100% { opacity:0.82; }
@@ -193,22 +193,26 @@ body {
 
 .holo-overlay {
   position:absolute; inset:0; border-radius:inherit; pointer-events:none; z-index:3;
-  /* Zərif iridescent — solğun bənövşə/göy/qızıl, aşağı opacity */
+  /* Chromatic iridescent — prizma tərzi, zərif */
   background: linear-gradient(108deg,
     transparent              0%,
-    rgba(190,170,255,0.14)   7%,
-    rgba(150,200,255,0.13)  16%,
-    rgba(255,240,180,0.13)  25%,
-    rgba(255,255,255,0.20)  30%,
-    rgba(170,225,255,0.14)  38%,
-    rgba(200,170,255,0.13)  44%,
+    rgba(190,170,255,0.22)   6%,
+    rgba(130,205,255,0.20)  13%,
+    rgba(100,225,210,0.20)  20%,
+    rgba(255,240,180,0.20)  27%,
+    rgba(255,255,255,0.32)  31%,
+    rgba(255,175,200,0.19)  37%,
+    rgba(170,225,255,0.21)  43%,
+    rgba(200,165,255,0.20)  48%,
     transparent             50%,
-    rgba(190,170,255,0.14)  57%,
-    rgba(150,200,255,0.13)  66%,
-    rgba(255,240,180,0.13)  75%,
-    rgba(255,255,255,0.20)  80%,
-    rgba(170,225,255,0.14)  88%,
-    rgba(200,170,255,0.13)  94%,
+    rgba(190,170,255,0.22)  56%,
+    rgba(130,205,255,0.20)  63%,
+    rgba(100,225,210,0.20)  70%,
+    rgba(255,240,180,0.20)  77%,
+    rgba(255,255,255,0.32)  81%,
+    rgba(255,175,200,0.19)  87%,
+    rgba(170,225,255,0.21)  93%,
+    rgba(200,165,255,0.20)  98%,
     transparent            100%);
   background-size: 200% 100%;
   animation: holo-flow 5s linear infinite,
