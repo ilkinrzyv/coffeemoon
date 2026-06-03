@@ -1184,20 +1184,6 @@
   .ticket[data-theme="minimal"] { background:#fff !important; border-color:rgba(15,23,42,0.06) !important; box-shadow:0 2px 16px rgba(15,23,42,0.06),0 0 0 1px rgba(15,23,42,0.04) !important; backdrop-filter:none !important; -webkit-backdrop-filter:none !important; }
   .ticket[data-theme="minimal"] .ticket-header { background:none !important; }
 
-  /* ── AVATAR PARILTISI ─────────────────────────────────────────── */
-  @keyframes av-glow-pulse   { 0%,100%{box-shadow:var(--av-base-shadow)} 50%{box-shadow:var(--av-base-shadow), 0 0 0 10px var(--av-glow-sm)} }
-  @keyframes av-glow-shine   { 0%,100%{filter:brightness(1) drop-shadow(0 0 4px var(--av-glow-color))} 50%{filter:brightness(1.1) drop-shadow(0 0 16px var(--av-glow-color))} }
-  @keyframes av-glow-breathe { 0%,100%{box-shadow:var(--av-base-shadow), 0 0 8px 2px var(--av-glow-sm)} 50%{box-shadow:var(--av-base-shadow), 0 0 28px 10px var(--av-glow-sm)} }
-  @keyframes av-glow-flicker { 0%,100%{opacity:1} 20%{opacity:0.85} 40%{opacity:1} 60%{opacity:0.75} 80%{opacity:0.95} }
-  @keyframes av-glow-spin    { 0%{filter:drop-shadow(0 0 8px var(--av-glow-color)) hue-rotate(0deg)} 100%{filter:drop-shadow(0 0 8px var(--av-glow-color)) hue-rotate(360deg)} }
-  @keyframes av-glow-burst   { 0%,100%{box-shadow:var(--av-base-shadow), 0 0 0 0 var(--av-glow-sm)} 50%{box-shadow:var(--av-base-shadow), 0 0 0 18px transparent} }
-  .av-pulse   { animation:av-glow-pulse   2.2s ease-in-out infinite; }
-  .av-shine   { animation:av-glow-shine   2s   ease-in-out infinite; }
-  .av-breathe { animation:av-glow-breathe 3s   ease-in-out infinite; }
-  .av-flicker { animation:av-glow-flicker 1.8s linear      infinite; }
-  .av-spin    { animation:av-glow-spin    4s   linear      infinite; }
-  .av-burst   { animation:av-glow-burst   1.6s ease-out    infinite; }
-
   /* ── ÇƏRÇIVƏ SEÇİCİ ──────────────────────────────────────────── */
   .frame-picker-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
   .frame-pick-item {
@@ -1731,11 +1717,6 @@
             <div class="cpicker" id="themePicker"></div>
           </div>
 
-          <!-- Parıltı -->
-          <div>
-            <div class="profile-section-label">Avatar Parıltısı</div>
-            <div class="frame-picker-grid" id="glowPicker"></div>
-          </div>
           <!-- Çərçivə -->
           <div>
             <div class="profile-section-label">Çərçivə</div>
@@ -2029,12 +2010,11 @@
           _editPhotoData   = p.photoData;
           _editBannerStyle = p.bannerStyle || 'none';
           _editCardTheme   = p.cardTheme  || 'glass';
-          _editGlowEffect  = p.glowEffect || 'none';
           _editFrameStyle  = p.frameStyle || 'none';
           updateTicketAvatar(p);
           var accent = p.accentColor || '#5b5ef4';
           applyCardTheme(p.cardTheme, accent);
-          applyAvatarEffects(document.getElementById('avatarDiv'), p.glowEffect, p.frameStyle, accent, 76);
+          applyAvatarEffects(document.getElementById('avatarDiv'), p.frameStyle, accent, 76);
         }).getMyProfile(SECRET);
 
       } else {
@@ -2604,22 +2584,8 @@
     {id:'minimal',  label:'Minimal',  ic:'fa-minus'},
     {id:'gradient', label:'Gradient', ic:'fa-palette'},
   ];
-  var GLOW_OPTS = [
-    {id:'none',    label:'Yoxdur',  unlock:0  },
-    {id:'soft',    label:'Yumşaq',  unlock:0  },
-    {id:'solid',   label:'Sabit',   unlock:7  },
-    {id:'wide',    label:'Geniş',   unlock:7  },
-    {id:'pulse',   label:'Nəbz',    unlock:14 },
-    {id:'breathe', label:'Nəfəs',   unlock:14 },
-    {id:'burst',   label:'Dalğa',   unlock:21 },
-    {id:'shine',   label:'Parıltı', unlock:30 },
-    {id:'flicker', label:'Titrəmə', unlock:45 },
-    {id:'spin',    label:'Fırlan',  unlock:60 },
-  ];
-
   var _editBannerStyle = 'none';
   var _editCardTheme   = 'glass';
-  var _editGlowEffect  = 'none';
   var _editFrameStyle  = 'none';
 
   function getBannerBg(style, accent) {
@@ -2666,17 +2632,11 @@
 
   var _ANIM_FR_CLS = ['av-fr-rainbow','av-fr-spin','av-fr-fire-ring','av-fr-neon-pulse','av-fr-electric','av-fr-ice','av-fr-lightning','av-fr-matrix','av-fr-quake','av-fr-ripple','av-fr-aura','av-fr-galaxy','av-fr-aurora-bor','av-fr-hipnoz','av-fr-magma','av-fr-solar','av-fr-glitch','av-fr-current','av-fr-blackhole'];
 
-  function applyAvatarEffects(el, glowStyle, frameStyle, accent, sz) {
+  function applyAvatarEffects(el, frameStyle, accent, sz) {
     if (!el) return;
     sz = sz || 88;
-    var gColor = hexToRgba(accent, 0.45);
-    var gSm    = hexToRgba(accent, 0.18);
     var base   = '0 '+(sz*0.18|0)+'px '+(sz*0.4|0)+'px '+hexToRgba(accent,0.38)+',0 0 0 4px rgba(255,255,255,0.12)';
-    el.classList.remove('av-pulse','av-shine');
     el.style.outline = 'none'; el.style.outlineOffset = '';
-    el.style.removeProperty('--av-base-shadow');
-    el.style.removeProperty('--av-glow-sm');
-    el.style.removeProperty('--av-glow-color');
     // Animated frame cleanup
     _ANIM_FR_CLS.forEach(function(c){ el.classList.remove(c); });
     el.style.setProperty('--fr-col', hexToRgba(accent, 0.8));
@@ -2710,52 +2670,8 @@
       case 'current':     animFr=true; el.classList.add('av-fr-current'); el.style.outline='3px solid rgba(0,255,255,0.7)'; el.style.outlineOffset='3px'; break;
       case 'blackhole':   animFr=true; el.classList.add('av-fr-blackhole'); break;
     }
-    // Glow
-    el.classList.remove('av-pulse','av-breathe','av-flicker','av-spin','av-burst','av-shine');
-    el.style.removeProperty('--av-base-shadow');
-    el.style.removeProperty('--av-glow-sm');
-    el.style.removeProperty('--av-glow-color');
-    el.style.filter = '';
-    switch(glowStyle) {
-      case 'soft':
-        base += ', 0 0 12px 3px '+hexToRgba(accent,0.3);
-        el.style.boxShadow = base; break;
-      case 'solid':
-        base += ', 0 0 20px 6px '+gColor;
-        el.style.boxShadow = base; break;
-      case 'wide':
-        base += ', 0 0 36px 12px '+hexToRgba(accent,0.32);
-        el.style.boxShadow = base; break;
-      case 'pulse':
-        base += ', 0 0 18px 6px '+gColor;
-        el.style.setProperty('--av-base-shadow', base);
-        el.style.setProperty('--av-glow-sm', gSm);
-        el.classList.add('av-pulse'); break;
-      case 'breathe':
-        el.style.setProperty('--av-base-shadow', base);
-        el.style.setProperty('--av-glow-sm', gSm);
-        el.classList.add('av-breathe'); break;
-      case 'burst':
-        base += ', 0 0 18px 6px '+gColor;
-        el.style.setProperty('--av-base-shadow', base);
-        el.style.setProperty('--av-glow-sm', gSm);
-        el.classList.add('av-burst'); break;
-      case 'shine':
-        el.style.setProperty('--av-glow-color', gColor);
-        el.classList.add('av-shine');
-        el.style.boxShadow = base; break;
-      case 'flicker':
-        base += ', 0 0 16px 5px '+gColor;
-        el.classList.add('av-flicker');
-        el.style.boxShadow = base; break;
-      case 'spin':
-        el.style.setProperty('--av-glow-color', gColor);
-        el.classList.add('av-spin');
-        el.style.boxShadow = base; break;
-      default:
-        el.style.boxShadow = base;
-    }
     if (animFr) { el.style.boxShadow = ''; }
+    else { el.style.boxShadow = base; }
   }
 
   function applyCardTheme(themeId, accent) {
@@ -2891,91 +2807,6 @@
     _lockToastTimer = setTimeout(function(){ el.remove(); }, 2200);
   }
 
-  function buildGlowPicker(cur, accent, onChange) {
-    var c = document.getElementById('glowPicker');
-    if (!c) return;
-    c.innerHTML = '';
-    GLOW_OPTS.forEach(function(o) {
-      var locked = (o.unlock || 0) > _myStreakCount;
-      var item = document.createElement('div');
-      item.className = 'frame-pick-item' + (cur === o.id ? ' on' : '') + (locked ? ' locked' : '');
-      item.style.position = 'relative';
-
-      var prev = document.createElement('div');
-      prev.className = 'frame-pick-preview';
-      prev.innerHTML = '<i class="fa-solid fa-mug-hot"></i>';
-      applyGlowPreview(prev, o.id, accent);
-
-      var lbl = document.createElement('div');
-      lbl.className = 'frame-pick-label';
-      lbl.textContent = o.label;
-
-      if (locked) {
-        var lockBadge = document.createElement('div');
-        lockBadge.className = 'frame-pick-lock';
-        lockBadge.innerHTML = '<i class="fa-solid fa-fire" style="font-size:0.5rem;color:#f59e0b;"></i>' + o.unlock;
-        item.appendChild(lockBadge);
-      }
-
-      item.appendChild(prev);
-      item.appendChild(lbl);
-      item.onclick = function() {
-        if (locked) { showLockToast(o.unlock); return; }
-        c.querySelectorAll('.frame-pick-item').forEach(function(x){ x.classList.remove('on'); });
-        item.classList.add('on');
-        onChange(o.id);
-      };
-      c.appendChild(item);
-    });
-  }
-
-  function applyGlowPreview(el, glowStyle, accent) {
-    var base = '0 4px 10px rgba(0,0,0,0.18)';
-    var gC   = hexToRgba(accent, 0.55);
-    var gSm  = hexToRgba(accent, 0.25);
-    el.classList.remove('av-pulse','av-breathe','av-flicker','av-spin','av-burst','av-shine');
-    el.style.removeProperty('--av-base-shadow');
-    el.style.removeProperty('--av-glow-sm');
-    el.style.removeProperty('--av-glow-color');
-    el.style.filter = '';
-    switch(glowStyle) {
-      case 'soft':
-        el.style.boxShadow = base + ', 0 0 10px 3px ' + hexToRgba(accent, 0.3); break;
-      case 'solid':
-        el.style.boxShadow = base + ', 0 0 16px 5px ' + gC; break;
-      case 'wide':
-        el.style.boxShadow = base + ', 0 0 30px 10px ' + hexToRgba(accent, 0.35); break;
-      case 'pulse':
-        el.style.boxShadow = base + ', 0 0 18px 6px ' + gC;
-        el.style.setProperty('--av-base-shadow', base);
-        el.style.setProperty('--av-glow-sm', gSm);
-        el.classList.add('av-pulse'); break;
-      case 'breathe':
-        el.style.boxShadow = base + ', 0 0 14px 4px ' + gC;
-        el.style.setProperty('--av-base-shadow', base);
-        el.style.setProperty('--av-glow-sm', gSm);
-        el.classList.add('av-breathe'); break;
-      case 'burst':
-        el.style.boxShadow = base + ', 0 0 18px 6px ' + gC;
-        el.style.setProperty('--av-base-shadow', base);
-        el.style.setProperty('--av-glow-sm', gSm);
-        el.classList.add('av-burst'); break;
-      case 'shine':
-        el.style.boxShadow = base;
-        el.style.setProperty('--av-glow-color', gC);
-        el.classList.add('av-shine'); break;
-      case 'flicker':
-        el.style.boxShadow = base + ', 0 0 14px 4px ' + gC;
-        el.classList.add('av-flicker'); break;
-      case 'spin':
-        el.style.boxShadow = base;
-        el.style.setProperty('--av-glow-color', gC);
-        el.classList.add('av-spin'); break;
-      default:
-        el.style.boxShadow = base;
-    }
-  }
-
   function buildBannerPicker(cur, accent, onChange) {
     var c = document.getElementById('bannerPicker');
     if (!c) return;
@@ -3102,7 +2933,6 @@
         _editPhotoData   = p.photoData;
         _editBannerStyle = p.bannerStyle || 'none';
         _editCardTheme   = p.cardTheme  || 'glass';
-        _editGlowEffect  = p.glowEffect || 'none';
         _editFrameStyle  = p.frameStyle || 'none';
         renderOwnProfileView(p);
         updateTicketAvatar(p);
@@ -3208,7 +3038,7 @@
     // Card theme
     applyCardTheme(p.cardTheme, accent);
     // Avatar glow + frame
-    applyAvatarEffects(bigEl, p.glowEffect, p.frameStyle, accent, 88);
+    applyAvatarEffects(bigEl, p.frameStyle, accent, 88);
     // Streak effektləri (alov + header + tier badge)
     var streakVal = p.testMode ? 999 : (p.streak || 0);
     applyOwnProfileStreakEffects(streakVal, accent);
@@ -3224,7 +3054,6 @@
     _editPhotoData   = _myProfile ? _myProfile.photoData   : '';
     _editBannerStyle = _myProfile ? (_myProfile.bannerStyle || 'none')  : 'none';
     _editCardTheme   = _myProfile ? (_myProfile.cardTheme  || 'glass')  : 'glass';
-    _editGlowEffect  = _myProfile ? (_myProfile.glowEffect || 'none')   : 'none';
     _editFrameStyle  = _myProfile ? (_myProfile.frameStyle || 'none')   : 'none';
     document.getElementById('bioInput').value = _myProfile ? (_myProfile.bio || '') : '';
     buildPresetsGrid();
@@ -3237,13 +3066,9 @@
     buildPicker('themePicker', THEME_OPTS, _editCardTheme, function(v){
       _editCardTheme = v; applyCardTheme(v, _editAccentColor);
     });
-    buildGlowPicker(_editGlowEffect, _editAccentColor, function(v){
-      _editGlowEffect = v;
-      applyAvatarEffects(document.getElementById('profileAvatarBig'), v, _editFrameStyle, _editAccentColor, 88);
-    });
     buildFramePicker(_editFrameStyle, _editAccentColor, function(v){
       _editFrameStyle = v;
-      applyAvatarEffects(document.getElementById('profileAvatarBig'), _editGlowEffect, v, _editAccentColor, 88);
+      applyAvatarEffects(document.getElementById('profileAvatarBig'), v, _editAccentColor, 88);
     });
     document.getElementById('profileSaveStatus').innerText = '';
     switchAvatarTab(_editAvatarType === 'photo' ? 'photo' : 'preset');
@@ -3293,10 +3118,7 @@
     var bnEl = document.getElementById('profileBannerBg');
     applyBannerStyle(bnEl, _editBannerStyle, hex);
     applyCardTheme(_editCardTheme, hex);
-    applyAvatarEffects(document.getElementById('profileAvatarBig'), _editGlowEffect, _editFrameStyle, hex, 88);
-    document.querySelectorAll('#glowPicker .frame-pick-preview').forEach(function(el, i) {
-      if (GLOW_OPTS[i]) applyGlowPreview(el, GLOW_OPTS[i].id, hex);
-    });
+    applyAvatarEffects(document.getElementById('profileAvatarBig'), _editFrameStyle, hex, 88);
     document.querySelectorAll('#framePicker .frame-pick-preview').forEach(function(el, i) {
       if (_FRAME_OPTS[i]) applyFramePreview(el, _FRAME_OPTS[i].id, hex);
     });
@@ -3381,7 +3203,6 @@
       photoData:   _editAvatarType === 'photo' ? _editPhotoData : '',
       bannerStyle: _editBannerStyle,
       cardTheme:   _editCardTheme,
-      glowEffect:  _editGlowEffect,
       frameStyle:  _editFrameStyle,
     };
     google.script.run
@@ -3521,7 +3342,7 @@
         avWrap.style.background = 'linear-gradient(135deg,'+pr.bg+','+shadeColor(pr.bg,-20)+')';
         avWrap.innerHTML = '<i class="fa-solid ' + pr.icon + '"></i>';
       }
-      applyAvatarEffects(avWrap, m.glowEffect, m.frameStyle, accent, 52);
+      applyAvatarEffects(avWrap, m.frameStyle, accent, 52);
 
       // Ad + filial
       var nameEl = document.createElement('div');
@@ -3807,7 +3628,7 @@
           avEl.style.background = 'linear-gradient(135deg,'+pr.bg+','+shadeColor(pr.bg,-20)+')';
           avEl.innerHTML = '<i class="fa-solid ' + pr.icon + '"></i>';
         }
-        applyAvatarEffects(avEl, p.glowEffect, p.frameStyle, accent, 92);
+        applyAvatarEffects(avEl, p.frameStyle, accent, 92);
         // Alov effekti
         applyPmodalFireEffect(p.streak || 0);
         document.getElementById('pmodalName').innerText = p.empName;
