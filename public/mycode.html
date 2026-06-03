@@ -714,6 +714,13 @@
     100% { opacity:0;   transform:translate(calc(-50% + var(--sx)),calc(-50% + var(--sy))) scale(1.3); }
   }
 
+  /* ── BANNER ANİMASİYA ── */
+  @keyframes banner-holo-anim {
+    0%   { background-position: 0% 50%; }
+    50%  { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+
   /* ── HOLOGRAM — seamless loop ── */
   @keyframes holo-flow {
     from { background-position:0% 50%; }
@@ -2431,6 +2438,14 @@
     {id:'rose',      label:'Gül',      unlock:30 },
     {id:'carbon',    label:'Karbon',   unlock:45 },
     {id:'aurora',    label:'Aurora',   unlock:60 },
+    {id:'candy',     label:'Konfet',   unlock:7  },
+    {id:'retro',     label:'Retrodalğa', unlock:30},
+    {id:'neon_grid', label:'Neon Şəb.', unlock:21},
+    {id:'fire',      label:'Alov',     unlock:30 },
+    {id:'smoke',     label:'Tüstü',    unlock:30 },
+    {id:'galaxy',    label:'Qalaktika',unlock:45 },
+    {id:'prism',     label:'Prizm',    unlock:60 },
+    {id:'holo_water',label:'Holo Su',  unlock:60 },
   ];
   var THEME_OPTS = [
     {id:'glass',    label:'Glass',    ic:'fa-layer-group'},
@@ -2473,7 +2488,29 @@
       case 'diagonal':  return 'repeating-linear-gradient(45deg,rgba(255,255,255,0.12) 0,rgba(255,255,255,0.12) 3px,transparent 0,transparent 14px),linear-gradient(135deg,'+accent+','+dk+')';
       case 'mesh':      return 'linear-gradient(rgba(255,255,255,0.1) 1px,transparent 1px) 0 0/14px 14px,linear-gradient(90deg,rgba(255,255,255,0.1) 1px,transparent 1px) 0 0/14px 14px,linear-gradient(135deg,'+accent+','+dk+')';
       case 'geometric': return 'repeating-linear-gradient(60deg,transparent,transparent 10px,rgba(255,255,255,0.08) 10px,rgba(255,255,255,0.08) 11px),repeating-linear-gradient(-60deg,transparent,transparent 10px,rgba(255,255,255,0.08) 10px,rgba(255,255,255,0.08) 11px),linear-gradient(135deg,'+accent+','+dk+')';
+      case 'candy':     return 'repeating-linear-gradient(45deg,#fda4af 0,#fda4af 10px,#c4b5fd 10px,#c4b5fd 20px,#93c5fd 20px,#93c5fd 30px,#6ee7b7 30px,#6ee7b7 40px,#fde68a 40px,#fde68a 50px)';
+      case 'retro':     return 'repeating-linear-gradient(90deg,rgba(255,0,200,0.18) 0,rgba(255,0,200,0.18) 1px,transparent 0,transparent 28px),repeating-linear-gradient(0deg,rgba(0,200,255,0.14) 0,rgba(0,200,255,0.14) 1px,transparent 0,transparent 18px),linear-gradient(to bottom,#1a0040 0%,#2d0060 35%,#3d0070 60%,#4a0050 80%,#ff1493 100%)';
+      case 'neon_grid': return 'repeating-linear-gradient(0deg,rgba(0,255,255,0.12) 0,rgba(0,255,255,0.12) 1px,transparent 0,transparent 32px),repeating-linear-gradient(90deg,rgba(0,255,255,0.12) 0,rgba(0,255,255,0.12) 1px,transparent 0,transparent 32px),repeating-linear-gradient(0deg,rgba(255,0,200,0.07) 0,rgba(255,0,200,0.07) 1px,transparent 0,transparent 8px),repeating-linear-gradient(90deg,rgba(255,0,200,0.07) 0,rgba(255,0,200,0.07) 1px,transparent 0,transparent 8px),linear-gradient(160deg,#060020 0%,#0d002e 50%,#001a35 100%)';
+      case 'fire':      return 'linear-gradient(0deg,#3b0000 0%,#7f1d1d 15%,#b91c1c 30%,#ef4444 50%,#f97316 68%,#fbbf24 84%,#fef9c3 100%)';
+      case 'smoke':     return 'radial-gradient(ellipse 80% 80% at 20% 50%,rgba(100,116,139,0.35) 0%,transparent 60%),radial-gradient(ellipse 60% 60% at 80% 30%,rgba(71,85,105,0.3) 0%,transparent 55%),radial-gradient(ellipse 70% 70% at 50% 80%,rgba(51,65,85,0.4) 0%,transparent 60%),linear-gradient(160deg,#0f172a 0%,#1e293b 50%,#0f172a 100%)';
+      case 'galaxy':    return 'radial-gradient(circle at 20% 60%,rgba(139,92,246,0.55) 0%,transparent 45%),radial-gradient(circle at 75% 25%,rgba(236,72,153,0.4) 0%,transparent 40%),radial-gradient(circle at 55% 80%,rgba(59,130,246,0.4) 0%,transparent 38%),radial-gradient(circle,rgba(255,255,255,0.85) 1px,transparent 1px) 0 0/22px 22px,radial-gradient(circle,rgba(255,255,255,0.5) 1px,transparent 1px) 11px 11px/22px 22px,linear-gradient(160deg,#050010 0%,#0f0525 50%,#020010 100%)';
+      case 'prism':     return 'linear-gradient(135deg,#ff0080 0%,#ff2060 8%,#ff6030 18%,#ff9500 28%,#ffd700 38%,#a8ff00 48%,#00e676 58%,#00b8d9 68%,#2979ff 78%,#7c4dff 88%,#e040fb 95%,#ff0080 100%)';
+      case 'holo_water': return 'linear-gradient(135deg,#00d2ff 0%,#3a7bd5 18%,#00d2ff 36%,#928dab 54%,#1f1c2c 72%,#928dab 82%,#00d2ff 100%)';
       default: return 'none';
+    }
+  }
+
+  function applyBannerStyle(el, style, accent, fallback) {
+    if (!el) return;
+    var bg = getBannerBg(style, accent);
+    if (bg === 'none' && fallback) bg = fallback;
+    el.style.background = bg !== 'none' ? bg : '';
+    if (style === 'holo_water') {
+      el.style.backgroundSize = '300% 300%';
+      el.style.animation = 'banner-holo-anim 4s ease infinite';
+    } else {
+      el.style.backgroundSize = '';
+      el.style.animation = '';
     }
   }
 
@@ -2786,7 +2823,7 @@
         prev.style.background = 'repeating-linear-gradient(45deg,#f1f5f9 0,#f1f5f9 4px,#e2e8f0 4px,#e2e8f0 8px)';
         prev.innerHTML = '<i class="fa-solid fa-ban" style="color:#cbd5e1;font-size:0.9rem;"></i>';
       } else {
-        prev.style.background = getBannerBg(o.id, accent);
+        applyBannerStyle(prev, o.id, accent);
       }
 
       var lbl = document.createElement('div');
@@ -2998,7 +3035,7 @@
     if (editBtn) { editBtn.style.borderColor=hexToRgba(accent,0.3); editBtn.style.background=hexToRgba(accent,0.08); editBtn.style.color=accent; }
     // Banner
     var bannerEl = document.getElementById('profileBannerBg');
-    if (bannerEl) { var bg = getBannerBg(p.bannerStyle, accent); bannerEl.style.background = bg; bannerEl.style.opacity = '0.82'; }
+    if (bannerEl) { applyBannerStyle(bannerEl, p.bannerStyle, accent); bannerEl.style.opacity = '0.82'; }
     // Card theme
     applyCardTheme(p.cardTheme, accent);
     // Avatar glow + frame
@@ -3025,9 +3062,8 @@
     buildColorPalette();
     buildBannerPicker(_editBannerStyle, _editAccentColor, function(v){
       _editBannerStyle = v;
-      var bg = getBannerBg(v, _editAccentColor);
       var el = document.getElementById('profileBannerBg');
-      if (el) { el.style.background = bg; }
+      applyBannerStyle(el, v, _editAccentColor);
     });
     buildPicker('themePicker', THEME_OPTS, _editCardTheme, function(v){
       _editCardTheme = v; applyCardTheme(v, _editAccentColor);
@@ -3086,7 +3122,7 @@
     avEl.innerHTML = '<i class="fa-solid '+preset.icon+'" style="color:#fff;font-size:1.15rem;"></i>';
     // Canlı effekt yeniləmə
     var bnEl = document.getElementById('profileBannerBg');
-    if (bnEl) { var nbg = getBannerBg(_editBannerStyle, hex); bnEl.style.background = nbg; }
+    applyBannerStyle(bnEl, _editBannerStyle, hex);
     applyCardTheme(_editCardTheme, hex);
     applyAvatarEffects(document.getElementById('profileAvatarBig'), _editGlowEffect, _editFrameStyle, hex, 88);
     document.querySelectorAll('#glowPicker .frame-pick-preview').forEach(function(el, i) {
@@ -3098,7 +3134,7 @@
     document.querySelectorAll('#bannerPicker .banner-pick-preview').forEach(function(el, i) {
       var opt = BANNER_OPTS[i];
       if (!opt || opt.id === 'none') return;
-      el.style.background = getBannerBg(opt.id, hex);
+      applyBannerStyle(el, opt.id, hex);
     });
   }
 
@@ -3300,8 +3336,7 @@
       // Rəng zolağı
       var stripe = document.createElement('div');
       stripe.className = 'team-card-stripe';
-      var sBg = getBannerBg(m.bannerStyle, accent);
-      stripe.style.background = sBg !== 'none' ? sBg : 'linear-gradient(90deg,'+accent+','+shadeColor(accent,-18)+')';
+      applyBannerStyle(stripe, m.bannerStyle, accent, 'linear-gradient(90deg,'+accent+','+shadeColor(accent,-18)+')');
       card.appendChild(stripe);
 
       // Avatar
@@ -3581,8 +3616,7 @@
         // Banner + animasiya
         var bannerEl2 = document.getElementById('pmodalBannerBg');
         if (bannerEl2) {
-          var pbg = getBannerBg(p.bannerStyle, accent);
-          bannerEl2.style.background = pbg !== 'none' ? pbg : 'none';
+          applyBannerStyle(bannerEl2, p.bannerStyle, accent);
           bannerEl2.style.opacity = '0.78';
         }
         // Hero fon (streak tirinə görə güclənir)

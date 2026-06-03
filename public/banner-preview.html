@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Banner Önizləmə — Yeni Dizaynlar</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #060b14;
+    --card: rgba(14,20,38,0.9);
+    --border: rgba(255,255,255,0.08);
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --soft: #475569;
+    --accent: #5b5ef4;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body {
+    font-family:'Inter',sans-serif;
+    background: var(--bg);
+    background-image:
+      radial-gradient(ellipse 80% 50% at 10% 0%, rgba(91,94,244,0.12), transparent 55%),
+      radial-gradient(ellipse 60% 40% at 90% 100%, rgba(217,119,6,0.08), transparent 55%);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 2rem 1rem 4rem;
+  }
+
+  .page-title {
+    text-align: center;
+    font-size: 1.5rem;
+    font-weight: 900;
+    letter-spacing: -0.5px;
+    margin-bottom: 6px;
+    background: linear-gradient(135deg, #a5b4fc, #818cf8);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .page-sub {
+    text-align: center;
+    font-size: 0.82rem;
+    color: var(--muted);
+    margin-bottom: 2.5rem;
+    font-weight: 500;
+  }
+
+  /* ── SECTION ── */
+  .section {
+    max-width: 760px;
+    margin: 0 auto 2.5rem;
+  }
+  .section-label {
+    font-size: 0.68rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--soft);
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* ── BANNER GRID ── */
+  .banner-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 12px;
+  }
+
+  /* ── BANNER CARD ── */
+  .bcard {
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1.5px solid var(--border);
+    background: var(--card);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+    transition: transform 0.2s, box-shadow 0.2s;
+    cursor: pointer;
+    position: relative;
+  }
+  .bcard:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    border-color: rgba(255,255,255,0.16);
+  }
+  .bcard.new-banner {
+    border-color: rgba(91,94,244,0.35);
+  }
+  .bcard.new-banner::before {
+    content: 'YENİ';
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    font-size: 0.52rem;
+    font-weight: 900;
+    letter-spacing: 1px;
+    background: linear-gradient(135deg, #5b5ef4, #818cf8);
+    color: #fff;
+    padding: 3px 7px;
+    border-radius: 6px;
+    z-index: 10;
+    box-shadow: 0 2px 8px rgba(91,94,244,0.4);
+  }
+
+  /* Banner strip — simulates team-card-stripe */
+  .bstrip {
+    width: 100%;
+    height: 64px;
+    position: relative;
+    flex-shrink: 0;
+  }
+  .bstrip::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 20px;
+    background: linear-gradient(to bottom, transparent, rgba(14,20,38,0.85));
+    pointer-events: none;
+  }
+
+  /* Card body */
+  .binfo {
+    padding: 10px 12px 12px;
+  }
+  .bname {
+    font-size: 0.78rem;
+    font-weight: 800;
+    color: var(--text);
+    margin-bottom: 3px;
+  }
+  .bmeta {
+    font-size: 0.63rem;
+    color: var(--muted);
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .bmeta .unlock-badge {
+    font-size: 0.58rem;
+    font-weight: 800;
+    background: rgba(245,158,11,0.15);
+    color: #fbbf24;
+    border: 1px solid rgba(245,158,11,0.2);
+    padding: 1px 6px;
+    border-radius: 5px;
+  }
+  .bmeta .free-badge {
+    font-size: 0.58rem;
+    font-weight: 800;
+    background: rgba(15,186,125,0.15);
+    color: #34d399;
+    border: 1px solid rgba(15,186,125,0.2);
+    padding: 1px 6px;
+    border-radius: 5px;
+  }
+
+  /* Avatar sim */
+  .bcard-body-inner {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 12px 10px;
+  }
+  .bav {
+    width: 36px; height: 36px; border-radius: 10px;
+    background: linear-gradient(135deg, #4f46e5, #818cf8);
+    border: 2px solid rgba(255,255,255,0.15);
+    flex-shrink: 0;
+    margin-top: -14px;
+    position: relative;
+    z-index: 2;
+    box-shadow: 0 4px 12px rgba(91,94,244,0.4);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.9rem;
+  }
+  .bav-name { font-size: 0.7rem; font-weight: 700; color: var(--text); line-height: 1.2; margin-top: -6px; }
+  .bav-dept { font-size: 0.58rem; color: var(--muted); }
+
+  /* ── BANNER CSS DEFINITIONS ── */
+
+  /* — MÖVCUD BANNERLƏR — */
+  .b-none    { background: rgba(255,255,255,0.04); border: 1px dashed rgba(255,255,255,0.1); }
+  .b-gradient { background: linear-gradient(135deg, #5b5ef4 0%, #3730a3 100%); }
+  .b-waves   { background:
+    repeating-linear-gradient(135deg, rgba(91,94,244,0.9) 0, rgba(91,94,244,0.9) 4px, rgba(91,94,244,0.55) 4px, rgba(91,94,244,0.55) 8px, transparent 8px, transparent 20px) 0 0/30px 30px,
+    linear-gradient(135deg, #5b5ef4, #3730a3); }
+  .b-dots    { background:
+    radial-gradient(circle, rgba(91,94,244,0.9) 1.5px, transparent 1.5px) 0 0/10px 10px,
+    linear-gradient(135deg, #5b5ef4, #3730a3); }
+  .b-diagonal { background:
+    repeating-linear-gradient(45deg, rgba(255,255,255,0.12) 0, rgba(255,255,255,0.12) 3px, transparent 0, transparent 14px),
+    linear-gradient(135deg, #5b5ef4, #3730a3); }
+  .b-mesh    { background:
+    linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px) 0 0/14px 14px,
+    linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px) 0 0/14px 14px,
+    linear-gradient(135deg, #5b5ef4, #3730a3); }
+  .b-geometric { background:
+    repeating-linear-gradient(60deg, transparent, transparent 10px, rgba(255,255,255,0.08) 10px, rgba(255,255,255,0.08) 11px),
+    repeating-linear-gradient(-60deg, transparent, transparent 10px, rgba(255,255,255,0.08) 10px, rgba(255,255,255,0.08) 11px),
+    linear-gradient(135deg, #5b5ef4, #3730a3); }
+  .b-ocean   { background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 40%, #0c4a6e 100%); }
+  .b-sunset  { background: linear-gradient(135deg, #f97316 0%, #ec4899 50%, #8b5cf6 100%); }
+  .b-rose    { background: linear-gradient(135deg, #fda4af 0%, #fb7185 40%, #e11d48 100%); }
+  .b-carbon  { background: repeating-linear-gradient(45deg, #1e293b 0px, #1e293b 4px, #0f172a 4px, #0f172a 8px); }
+  .b-aurora  { background: linear-gradient(135deg, #06b6d4 0%, #6366f1 45%, #8b5cf6 75%, #ec4899 100%); }
+
+  /* — YENİ BANNERLƏR — */
+
+  /* 1. Neon Şəbəkə */
+  .b-neon-grid {
+    background:
+      repeating-linear-gradient(0deg,   rgba(0,255,255,0.12) 0, rgba(0,255,255,0.12) 1px, transparent 0, transparent 32px),
+      repeating-linear-gradient(90deg,  rgba(0,255,255,0.12) 0, rgba(0,255,255,0.12) 1px, transparent 0, transparent 32px),
+      repeating-linear-gradient(0deg,   rgba(255,0,200,0.07) 0, rgba(255,0,200,0.07) 1px, transparent 0, transparent 8px),
+      repeating-linear-gradient(90deg,  rgba(255,0,200,0.07) 0, rgba(255,0,200,0.07) 1px, transparent 0, transparent 8px),
+      linear-gradient(160deg, #060020 0%, #0d002e 50%, #001a35 100%);
+  }
+
+  /* 2. Alov */
+  .b-fire {
+    background: linear-gradient(0deg,
+      #3b0000 0%, #7f1d1d 15%,
+      #b91c1c 30%, #ef4444 50%,
+      #f97316 68%, #fbbf24 84%,
+      #fef9c3 100%);
+  }
+
+  /* 3. Qalaktika */
+  .b-galaxy {
+    background:
+      radial-gradient(circle at 20% 60%, rgba(139,92,246,0.55) 0%, transparent 45%),
+      radial-gradient(circle at 75% 25%, rgba(236,72,153,0.4) 0%, transparent 40%),
+      radial-gradient(circle at 55% 80%, rgba(59,130,246,0.4) 0%, transparent 38%),
+      radial-gradient(circle, rgba(255,255,255,0.85) 1px, transparent 1px) 0 0/22px 22px,
+      radial-gradient(circle, rgba(255,255,255,0.5) 1px, transparent 1px) 11px 11px/22px 22px,
+      linear-gradient(160deg, #050010 0%, #0f0525 50%, #020010 100%);
+  }
+
+  /* 4. Prizm */
+  .b-prism {
+    background: linear-gradient(135deg,
+      #ff0080 0%, #ff2060 8%,
+      #ff6030 18%, #ff9500 28%,
+      #ffd700 38%, #a8ff00 48%,
+      #00e676 58%, #00b8d9 68%,
+      #2979ff 78%, #7c4dff 88%,
+      #e040fb 95%, #ff0080 100%);
+  }
+
+  /* 5. Retrodalğa */
+  .b-retro {
+    background:
+      repeating-linear-gradient(90deg,
+        rgba(255,0,200,0.18) 0, rgba(255,0,200,0.18) 1px,
+        transparent 0, transparent 28px),
+      repeating-linear-gradient(0deg,
+        rgba(0,200,255,0.14) 0, rgba(0,200,255,0.14) 1px,
+        transparent 0, transparent 18px),
+      linear-gradient(to bottom,
+        #1a0040 0%, #2d0060 35%,
+        #3d0070 60%, #4a0050 80%,
+        #ff1493 100%);
+  }
+
+  /* 6. Kristal */
+  .b-crystal {
+    background:
+      repeating-linear-gradient(60deg,
+        transparent, transparent 18px,
+        rgba(255,255,255,0.18) 18px, rgba(255,255,255,0.18) 19px),
+      repeating-linear-gradient(-60deg,
+        transparent, transparent 18px,
+        rgba(255,255,255,0.18) 18px, rgba(255,255,255,0.18) 19px),
+      repeating-linear-gradient(0deg,
+        transparent, transparent 18px,
+        rgba(255,255,255,0.08) 18px, rgba(255,255,255,0.08) 19px),
+      linear-gradient(135deg, #a855f7 0%, #6366f1 45%, #3b82f6 100%);
+  }
+
+  /* 7. Vulkan */
+  .b-volcanic {
+    background:
+      radial-gradient(ellipse 100% 60% at 50% 110%,
+        rgba(251,146,60,0.95) 0%,
+        rgba(239,68,68,0.75) 30%,
+        rgba(185,28,28,0.45) 55%,
+        transparent 75%),
+      radial-gradient(ellipse 60% 40% at 30% 90%,
+        rgba(253,186,116,0.5) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 40% at 70% 90%,
+        rgba(253,186,116,0.5) 0%, transparent 60%),
+      linear-gradient(0deg, #1c0500 0%, #3b0d00 40%, #1a0800 70%, #0d0400 100%);
+  }
+
+  /* 8. Okean Dərinliyi */
+  .b-deep-ocean {
+    background:
+      radial-gradient(ellipse 80% 60% at 50% 110%,
+        rgba(14,165,233,0.5) 0%, transparent 55%),
+      repeating-linear-gradient(170deg,
+        rgba(255,255,255,0.04) 0, rgba(255,255,255,0.04) 1px,
+        transparent 0, transparent 14px),
+      linear-gradient(160deg,
+        #001428 0%, #002952 30%,
+        #003d78 60%, #001e4a 100%);
+  }
+
+  /* 9. Meşə */
+  .b-forest {
+    background:
+      repeating-linear-gradient(120deg,
+        rgba(0,0,0,0.15) 0, rgba(0,0,0,0.15) 1px,
+        transparent 0, transparent 18px),
+      radial-gradient(ellipse 80% 50% at 50% 110%,
+        rgba(74,222,128,0.25) 0%, transparent 55%),
+      linear-gradient(160deg,
+        #052e16 0%, #14532d 35%,
+        #166534 65%, #052e16 100%);
+  }
+
+  /* 10. Ulduzlu Gecə */
+  .b-starnight {
+    background:
+      radial-gradient(circle, rgba(255,255,255,0.95) 1px, transparent 1px) 0 0/18px 18px,
+      radial-gradient(circle, rgba(255,255,255,0.6) 1px, transparent 1px) 9px 9px/18px 18px,
+      radial-gradient(circle, rgba(255,255,255,0.3) 1.5px, transparent 1.5px) 4px 4px/24px 24px,
+      radial-gradient(ellipse 60% 40% at 40% 30%, rgba(99,102,241,0.3) 0%, transparent 60%),
+      linear-gradient(160deg, #020510 0%, #060a1e 50%, #030815 100%);
+  }
+
+  /* 11. Şimşək */
+  .b-lightning {
+    background:
+      repeating-linear-gradient(-55deg,
+        rgba(255,255,255,0.07) 0, rgba(255,255,255,0.07) 2px,
+        transparent 0, transparent 22px),
+      repeating-linear-gradient(55deg,
+        rgba(255,255,255,0.04) 0, rgba(255,255,255,0.04) 1px,
+        transparent 0, transparent 16px),
+      radial-gradient(ellipse 80% 50% at 50% 0%,
+        rgba(250,204,21,0.3) 0%, rgba(234,179,8,0.1) 40%, transparent 70%),
+      linear-gradient(160deg, #0c1020 0%, #1a2040 50%, #0c1020 100%);
+  }
+
+  /* 12. Konfet */
+  .b-candy {
+    background: repeating-linear-gradient(45deg,
+      #fda4af 0, #fda4af 10px,
+      #c4b5fd 10px, #c4b5fd 20px,
+      #93c5fd 20px, #93c5fd 30px,
+      #6ee7b7 30px, #6ee7b7 40px,
+      #fde68a 40px, #fde68a 50px,
+      #fda4af 50px);
+  }
+
+  /* 13. Çöl (Desert) */
+  .b-desert {
+    background:
+      repeating-linear-gradient(170deg,
+        rgba(255,255,255,0.04) 0, rgba(255,255,255,0.04) 1px,
+        transparent 0, transparent 20px),
+      radial-gradient(ellipse 90% 50% at 50% 110%,
+        rgba(251,191,36,0.4) 0%, transparent 55%),
+      linear-gradient(160deg,
+        #431407 0%, #7c2d12 30%,
+        #9a3412 60%, #7c2d12 100%);
+  }
+
+  /* 14. Buz */
+  .b-ice {
+    background:
+      repeating-linear-gradient(30deg,
+        rgba(186,230,253,0.25) 0, rgba(186,230,253,0.25) 1px,
+        transparent 0, transparent 20px),
+      repeating-linear-gradient(-30deg,
+        rgba(186,230,253,0.15) 0, rgba(186,230,253,0.15) 1px,
+        transparent 0, transparent 20px),
+      linear-gradient(160deg,
+        #e0f2fe 0%, #bae6fd 30%,
+        #7dd3fc 65%, #38bdf8 100%);
+  }
+
+  /* 15. Tüstü */
+  .b-smoke {
+    background:
+      radial-gradient(ellipse 80% 80% at 20% 50%, rgba(100,116,139,0.35) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 60% at 80% 30%, rgba(71,85,105,0.3) 0%, transparent 55%),
+      radial-gradient(ellipse 70% 70% at 50% 80%, rgba(51,65,85,0.4) 0%, transparent 60%),
+      linear-gradient(160deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+  }
+
+  /* 16. Titan (metal) */
+  .b-titan {
+    background:
+      repeating-linear-gradient(90deg,
+        rgba(255,255,255,0.06) 0, rgba(255,255,255,0.06) 1px,
+        transparent 0, transparent 6px),
+      repeating-linear-gradient(0deg,
+        rgba(255,255,255,0.03) 0, rgba(255,255,255,0.03) 1px,
+        transparent 0, transparent 6px),
+      linear-gradient(160deg,
+        #0a0a0a 0%, #1c1c1e 20%,
+        #2c2c2e 40%, #3a3a3c 60%,
+        #1c1c1e 80%, #0a0a0a 100%);
+  }
+
+  /* 17. Şəfalı Su (holographic water) */
+  .b-holo-water {
+    background: linear-gradient(135deg,
+      #00d2ff 0%, #3a7bd5 18%,
+      #00d2ff 36%, #928dab 54%,
+      #1f1c2c 72%, #928dab 82%,
+      #00d2ff 100%);
+    background-size: 300% 300%;
+    animation: holo-water-anim 4s ease infinite;
+  }
+  @keyframes holo-water-anim {
+    0%   { background-position: 0% 50%; }
+    50%  { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+
+  /* 18. Elektrik */
+  .b-electric {
+    background:
+      repeating-linear-gradient(90deg,
+        transparent 0, transparent 3px,
+        rgba(250,204,21,0.15) 3px, rgba(250,204,21,0.15) 4px,
+        transparent 4px, transparent 12px,
+        rgba(250,204,21,0.08) 12px, rgba(250,204,21,0.08) 13px),
+      linear-gradient(160deg,
+        #0f1a00 0%, #1a2e00 30%,
+        #1e3a00 60%, #0f1a00 100%);
+  }
+
+  /* 19. Şam Işığı */
+  .b-candlelight {
+    background:
+      radial-gradient(ellipse 60% 70% at 50% 100%,
+        rgba(254,215,170,0.7) 0%,
+        rgba(251,146,60,0.5) 25%,
+        rgba(194,65,12,0.3) 50%,
+        transparent 75%),
+      linear-gradient(0deg, #1c0a00 0%, #2d1200 40%, #1c0a00 100%);
+  }
+
+  /* 20. Neon Dairələr */
+  .b-neon-circles {
+    background:
+      radial-gradient(circle at 25% 50%, transparent 22px, rgba(0,255,255,0.2) 23px, transparent 24px),
+      radial-gradient(circle at 25% 50%, transparent 38px, rgba(0,255,255,0.12) 39px, transparent 40px),
+      radial-gradient(circle at 75% 50%, transparent 22px, rgba(255,0,200,0.2) 23px, transparent 24px),
+      radial-gradient(circle at 75% 50%, transparent 38px, rgba(255,0,200,0.12) 39px, transparent 40px),
+      radial-gradient(circle at 50% 50%, transparent 30px, rgba(255,255,0,0.15) 31px, transparent 32px),
+      linear-gradient(160deg, #060020 0%, #0d002e 100%);
+  }
+
+  /* ── ANIMASIYALI TAG ── */
+  @keyframes shimmer {
+    0%   { left: -100%; }
+    100% { left: 200%; }
+  }
+  .bcard.new-banner .bstrip::before {
+    content: '';
+    position: absolute;
+    top: 0; left: -100%; width: 60%; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.12), transparent);
+    animation: shimmer 2.5s ease-in-out infinite;
+    z-index: 5;
+  }
+
+  /* ── COMPARE TABLE ── */
+  .compare-table {
+    max-width: 760px;
+    margin: 0 auto;
+    background: var(--card);
+    border: 1.5px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+  }
+  .ct-head {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr 1fr 1fr;
+    background: rgba(255,255,255,0.04);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 16px;
+    font-size: 0.65rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--soft);
+  }
+  .ct-row {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr 1fr 1fr;
+    padding: 10px 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    align-items: center;
+    font-size: 0.78rem;
+  }
+  .ct-row:last-child { border-bottom: none; }
+  .ct-row:hover { background: rgba(255,255,255,0.03); }
+  .ct-name { font-weight: 700; color: var(--text); }
+  .ct-id   { font-weight: 600; color: var(--muted); font-family: monospace; font-size: 0.72rem; }
+  .ct-unlock { color: #fbbf24; font-weight: 700; font-size: 0.72rem; }
+  .ct-type { font-size: 0.68rem; font-weight: 600; }
+  .ct-type.animated { color: #34d399; }
+  .ct-type.static   { color: var(--muted); }
+
+  .chip {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 0.6rem; font-weight: 800;
+    padding: 2px 8px; border-radius: 6px;
+  }
+  .chip.new    { background: rgba(91,94,244,0.2);  color: #a5b4fc; border: 1px solid rgba(91,94,244,0.3); }
+  .chip.exist  { background: rgba(100,116,139,0.15); color: #64748b; border: 1px solid rgba(100,116,139,0.2); }
+  .chip.anim   { background: rgba(15,186,125,0.15); color: #34d399; border: 1px solid rgba(15,186,125,0.25); }
+</style>
+</head>
+<body>
+
+<div class="page-title">Banner Önizləmə</div>
+<div class="page-sub">Mövcud + 8 yeni banner dizaynı · Təsdiqlədikdən sonra mycode.html-ə tətbiq ediləcək</div>
+
+<!-- ── MÖVCUD BANNERLƏR ── -->
+<div class="section">
+  <div class="section-label">Mövcud bannerlər (12 ədəd)</div>
+  <div class="banner-grid">
+
+    <div class="bcard">
+      <div class="bstrip b-none" style="display:flex;align-items:center;justify-content:center;font-size:0.7rem;color:#475569;font-weight:700;">YOX</div>
+      <div class="bcard-body-inner"><div class="bav">☕</div><div><div class="bav-name">İşçi Adı</div><div class="bav-dept">Filial</div></div></div>
+      <div class="binfo"><div class="bname">Yoxdur</div><div class="bmeta"><span class="free-badge">Pulsuz</span></div></div>
+    </div>
+
+    <div class="bcard">
+      <div class="bstrip b-gradient"></div>
+      <div class="bcard-body-inner"><div class="bav">☕</div><div><div class="bav-name">İşçi Adı</div><div class="bav-dept">Filial</div></div></div>
+      <div class="binfo"><div class="bname">Gradient</div><div class="bmeta"><span class="free-badge">Pulsuz</span></div></div>
+    </div>
+
+    <div class="bcard">
+      <div class="bstrip b-waves"></div>
+      <div class="bcard-body-inner"><div class="bav">☕</div><div><div class="bav-name">İşçi Adı</div><div class="bav-dept">Filial</div></div></div>
+      <div class="binfo"><div class="bname">Dalğa</div><div class="bmeta"><span class="free-badge">Pulsuz</span></div></div>
+    </div>
+
+    <div class="bcard">
+      <div class="bstrip b-dots"></div>
+      <div class="bcard-body-inner"><div class="bav">☕</div><div><div class="bav-name">İşçi Adı</div><div class="bav-dept">Filial</div></div></div>
+      <div class="binfo"><div class="bname">Nöqtə</div><div class="bmeta"><span class="unlock-badge">🔥 7 gün</span></div></div>
+    </div>
+
+    <div class="bcard">
+      <div class="bstrip b-diagonal"></div>
+      <div class="bcard-body-inner"><div class="bav">☕</div><div><div class="bav-name">İşçi Adı</div><div class="bav-dept">Filial</div></div></div>
+      <div class="binfo"><div class="bname">Zolaq</div><div class="bmeta"><span class="unlock-badge">🔥 7 gün</span></div></div>
+    </div>
+
+    <div class="bcard">
+      <div class="bstrip b-mesh"></div>
+      <div class="bcard-body-inner"><div class="bav">☕</div><div><div class="bav-name">İşçi Adı</div><div class="bav-dept">Filial</div></div></div>
+      <div class="binfo"><div class="bname">Tor</div><div class="bmeta"><span class="unlock-badge">🔥 14 gün</span></div></div>
+    </div>
+
+    <div class="bcard">
+      <div class="bstrip b-geometric"></div>
+      <div class="bcard-body-inner"><div class="bav">☕</div><div><div class="bav-name">İşçi Adı</div><div class="bav-dept">Filial</div></div></div>
+      <div class="binfo"><div class="bname">Həndəsi</div><div class="bmeta"><span class="unlock-badge">🔥 14 gün</span></div></div>
+    </div>
+
+    <div class="bcard">
+      <div class="bstrip b-ocean"></div>
+      <div class="bcard-body-inner"><div class="bav">☕</div><div><div class="bav-name">İşçi Adı</div><div class="bav-dept">Filial</div></div></div>
+      <div class="binfo"><div class="bname">Okean</div><div class="bmeta"><span class="unlock-badge">🔥 21 gün</span></div></div>
+    </div>
+
+    <div class="bcard">
+      <div class="bstrip b-sunset"></div>
+      <div class="bcard-body-inner"><div class="bav">☕</div><div><div class="bav-name">İşçi Adı</div><div class="bav-dept">Filial</div></div></div>
+      <div class="binfo"><div class="bname">Günbatan</div><div class="bmeta"><span class="unlock-badge">🔥 30 gün</span></div></div>
+    </div>
+
+    <div class="bcard">
+      <div class="bstrip b-rose"></div>
+      <div class="bcard-body-inner"><div class="bav">☕</div><div><div class="bav-name">İşçi Adı</div><div class="bav-dept">Filial</div></div></div>
+      <div class="binfo"><div class="bname">Gül</div><div class="bmeta"><span class="unlock-badge">🔥 30 gün</span></div></div>
+    </div>
+
+    <div class="bcard">
+      <div class="bstrip b-carbon"></div>
+      <div class="bcard-body-inner"><div class="bav">☕</div><div><div class="bav-name">İşçi Adı</div><div class="bav-dept">Filial</div></div></div>
+      <div class="binfo"><div class="bname">Karbon</div><div class="bmeta"><span class="unlock-badge">🔥 45 gün</span></div></div>
+    </div>
+
+    <div class="bcard">
+      <div class="bstrip b-aurora"></div>
+      <div class="bcard-body-inner"><div class="bav">☕</div><div><div class="bav-name">İşçi Adı</div><div class="bav-dept">Filial</div></div></div>
+      <div class="binfo"><div class="bname">Aurora</div><div class="bmeta"><span class="unlock-badge">🔥 60 gün</span></div></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── YENİ BANNERLƏR ── -->
+<div class="section">
+  <div class="section-label">Təklif edilən yeni bannerlər (8 ədəd)</div>
+  <div class="banner-grid">
+
+    <div class="bcard new-banner">
+      <div class="bstrip b-neon-grid"></div>
+      <div class="bcard-body-inner"><div class="bav">☕</div><div><div class="bav-name">İşçi Adı</div><div class="bav-dept">Filial</div></div></div>
+      <div class="binfo"><div class="bname">Neon Şəbəkə</div><div class="bmeta"><span class="unlock-badge">🔥 21 gün</span></div></div>
+    </div>
+
+    <div class="bcard new-banner">
+      <div class="bstrip b-fire"></div>
+      <div class="bcard-body-inner"><div class="bav">☕</div><div><div class="bav-name">İşçi Adı</div><div class="bav-dept">Filial</div></div></div>
+      <div class="binfo"><div class="bname">Alov</div><div class="bmeta"><span class="unlock-badge">🔥 30 gün</span></div></div>
+    </div>
+
+    <div class="bcard new-banner">
+      <div class="bstrip b-galaxy"></div>
+      <div class="bcard-body-inner"><div class="bav">☕</div><div><div class="bav-name">İşçi Adı</div><div class="bav-dept">Filial</div></div></div>
+      <div class="binfo"><div class="bname">Qalaktika</div><div class="bmeta"><span class="unlock-badge">🔥 45 gün</span></div></div>
+    </div>
+
+    <div class="bcard new-banner">
+      <div class="bstrip b-prism"></div>
+      <div class="bcard-body-inner"><div class="bav">☕</div><div><div class="bav-name">İşçi Adı</div><div class="bav-dept">Filial</div></div></div>
+      <div class="binfo"><div class="bname">Prizm</div><div class="bmeta"><span class="unlock-badge">🔥 60 gün</span></div></div>
+    </div>
+
+    <div class="bcard new-banner">
+      <div class="bstrip b-retro"></div>
+      <div class="bcard-body-inner"><div class="bav">☕</div><div><div class="bav-name">İşçi Adı</div><div class="bav-dept">Filial</div></div></div>
+      <div class="binfo"><div class="bname">Retrodalğa</div><div class="bmeta"><span class="unlock-badge">🔥 30 gün</span></div></div>
+    </div>
+
+    <div class="bcard new-banner">
+      <div class="bstrip b-crystal"></div>
+      <div class="bcard-body-inner"><div class="bav">☕</div><div><div class="bav-name">İşçi Adı</div><div class="bav-dept">Filial</div></div></div>
+      <div class="binfo"><div class="bname">Kristal</div><div class="bmeta"><span class="unlock-badge">🔥 21 gün</span></div></div>
+    </div>
+
+    <div class="bcard new-banner">
+      <div class="bstrip b-volcanic"></div>
+      <div class="bcard-body-inner"><div class="bav">☕</div><div><div class="bav-name">İşçi Adı</div><div class="bav-dept">Filial</div></div></div>
+      <div class="binfo"><div class="bname">Vulkan</div><div class="bmeta"><span class="unlock-badge">🔥 45 gün</span></div></div>
+    </div>
+
+    <div class="bcard new-banner">
+      <div class="bstrip b-galaxy" style="background:
+        radial-gradient(ellipse 80% 60% at 50% 110%, rgba(14,165,233,0.5) 0%, transparent 55%),
+        repeating-linear-gradient(170deg, rgba(255,255,255,0.04) 0, rgba(255,255,255,0.04) 1px, transparent 0, transparent 14px),
+        linear-gradient(160deg, #001428 0%, #002952 30%, #003d78 60%, #001e4a 100%);"></div>
+      <div class="bcard-body-inner"><div class="bav">☕</div><div><div class="bav-name">İşçi Adı</div><div class="bav-dept">Filial</div></div></div>
+      <div class="binfo"><div class="bname">Dərin Okean</div><div class="bmeta"><span class="unlock-badge">🔥 21 gün</span></div></div>
+    </div>
+
+    <div class="bcard new-banner">
+      <div class="bstrip b-forest"></div>
+      <div class="bcard-body-inner"><div class="bav">☕</div><div><div class="bav-name">İşçi Adı</div><div class="bav-dept">Filial</div></div></div>
+      <div class="binfo"><div class="bname">Meşə</div><div class="bmeta"><span class="unlock-badge">🔥 14 gün</span></div></div>
+    </div>
+
+    <div class="bcard new-banner">
+      <div class="bstrip b-starnight"></div>
+      <div class="bcard-body-inner"><div class="bav">☕</div><div><div class="bav-name">İşçi Adı</div><div class="bav-dept">Filial</div></div></div>
+      <div class="binfo"><div class="bname">Ulduzlu Gecə</div><div class="bmeta"><span class="unlock-badge">🔥 45 gün</span></div></div>
+    </div>
+
+    <div class="bcard new-banner">
+      <div class="bstrip b-lightning"></div>
+      <div class="bcard-body-inner"><div class="bav">☕</div><div><div class="bav-name">İşçi Adı</div><div class="bav-dept">Filial</div></div></div>
+      <div class="binfo"><div class="bname">Şimşək</div><div class="bmeta"><span class="unlock-badge">🔥 14 gün</span></div></div>
+    </div>
+
+    <div class="bcard new-banner">
+      <div class="bstrip b-candy"></div>
+      <div class="bcard-body-inner"><div class="bav">☕</div><div><div class="bav-name">İşçi Adı</div><div class="bav-dept">Filial</div></div></div>
+      <div class="binfo"><div class="bname">Konfet</div><div class="bmeta"><span class="unlock-badge">🔥 7 gün</span></div></div>
+    </div>
+
+    <div class="bcard new-banner">
+      <div class="bstrip b-desert"></div>
+      <div class="bcard-body-inner"><div class="bav">☕</div><div><div class="bav-name">İşçi Adı</div><div class="bav-dept">Filial</div></div></div>
+      <div class="binfo"><div class="bname">Çöl</div><div class="bmeta"><span class="unlock-badge">🔥 14 gün</span></div></div>
+    </div>
+
+    <div class="bcard new-banner">
+      <div class="bstrip b-ice"></div>
+      <div class="bcard-body-inner"><div class="bav" style="background:linear-gradient(135deg,#38bdf8,#0ea5e9);">☕</div><div><div class="bav-name">İşçi Adı</div><div class="bav-dept">Filial</div></div></div>
+      <div class="binfo"><div class="bname">Buz</div><div class="bmeta"><span class="unlock-badge">🔥 21 gün</span></div></div>
+    </div>
+
+    <div class="bcard new-banner">
+      <div class="bstrip b-smoke"></div>
+      <div class="bcard-body-inner"><div class="bav">☕</div><div><div class="bav-name">İşçi Adı</div><div class="bav-dept">Filial</div></div></div>
+      <div class="binfo"><div class="bname">Tüstü</div><div class="bmeta"><span class="unlock-badge">🔥 30 gün</span></div></div>
+    </div>
+
+    <div class="bcard new-banner">
+      <div class="bstrip b-titan"></div>
+      <div class="bcard-body-inner"><div class="bav" style="background:linear-gradient(135deg,#374151,#1f2937);">☕</div><div><div class="bav-name">İşçi Adı</div><div class="bav-dept">Filial</div></div></div>
+      <div class="binfo"><div class="bname">Titan</div><div class="bmeta"><span class="unlock-badge">🔥 45 gün</span></div></div>
+    </div>
+
+    <div class="bcard new-banner">
+      <div class="bstrip b-holo-water"></div>
+      <div class="bcard-body-inner"><div class="bav">☕</div><div><div class="bav-name">İşçi Adı</div><div class="bav-dept">Filial</div></div></div>
+      <div class="binfo">
+        <div class="bname">Hologram Su <span class="chip anim">Animasiyalı</span></div>
+        <div class="bmeta"><span class="unlock-badge">🔥 60 gün</span></div>
+      </div>
+    </div>
+
+    <div class="bcard new-banner">
+      <div class="bstrip b-electric"></div>
+      <div class="bcard-body-inner"><div class="bav" style="background:linear-gradient(135deg,#a3e635,#65a30d);">☕</div><div><div class="bav-name">İşçi Adı</div><div class="bav-dept">Filial</div></div></div>
+      <div class="binfo"><div class="bname">Elektrik</div><div class="bmeta"><span class="unlock-badge">🔥 30 gün</span></div></div>
+    </div>
+
+    <div class="bcard new-banner">
+      <div class="bstrip b-candlelight"></div>
+      <div class="bcard-body-inner"><div class="bav" style="background:linear-gradient(135deg,#f97316,#b45309);">☕</div><div><div class="bav-name">İşçi Adı</div><div class="bav-dept">Filial</div></div></div>
+      <div class="binfo"><div class="bname">Şam Işığı</div><div class="bmeta"><span class="unlock-badge">🔥 7 gün</span></div></div>
+    </div>
+
+    <div class="bcard new-banner">
+      <div class="bstrip b-neon-circles"></div>
+      <div class="bcard-body-inner"><div class="bav">☕</div><div><div class="bav-name">İşçi Adı</div><div class="bav-dept">Filial</div></div></div>
+      <div class="binfo"><div class="bname">Neon Dairə</div><div class="bmeta"><span class="unlock-badge">🔥 30 gün</span></div></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── SUMMARY TABLE ── -->
+<div class="section">
+  <div class="section-label">Xülasə cədvəl — Yeni bannerlər</div>
+  <div class="compare-table">
+    <div class="ct-head">
+      <span>Adı</span><span>ID (kod)</span><span>Açılır</span><span>Növ</span>
+    </div>
+    <div class="ct-row"><span class="ct-name">Neon Şəbəkə</span><span class="ct-id">neon_grid</span><span class="ct-unlock">🔥 21 gün</span><span class="ct-type static">Statik</span></div>
+    <div class="ct-row"><span class="ct-name">Alov</span><span class="ct-id">fire</span><span class="ct-unlock">🔥 30 gün</span><span class="ct-type static">Statik</span></div>
+    <div class="ct-row"><span class="ct-name">Qalaktika</span><span class="ct-id">galaxy</span><span class="ct-unlock">🔥 45 gün</span><span class="ct-type static">Statik</span></div>
+    <div class="ct-row"><span class="ct-name">Prizm</span><span class="ct-id">prism</span><span class="ct-unlock">🔥 60 gün</span><span class="ct-type static">Statik</span></div>
+    <div class="ct-row"><span class="ct-name">Retrodalğa</span><span class="ct-id">retro</span><span class="ct-unlock">🔥 30 gün</span><span class="ct-type static">Statik</span></div>
+    <div class="ct-row"><span class="ct-name">Kristal</span><span class="ct-id">crystal</span><span class="ct-unlock">🔥 21 gün</span><span class="ct-type static">Statik</span></div>
+    <div class="ct-row"><span class="ct-name">Vulkan</span><span class="ct-id">volcanic</span><span class="ct-unlock">🔥 45 gün</span><span class="ct-type static">Statik</span></div>
+    <div class="ct-row"><span class="ct-name">Dərin Okean</span><span class="ct-id">deep_ocean</span><span class="ct-unlock">🔥 21 gün</span><span class="ct-type static">Statik</span></div>
+    <div class="ct-row"><span class="ct-name">Meşə</span><span class="ct-id">forest</span><span class="ct-unlock">🔥 14 gün</span><span class="ct-type static">Statik</span></div>
+    <div class="ct-row"><span class="ct-name">Ulduzlu Gecə</span><span class="ct-id">starnight</span><span class="ct-unlock">🔥 45 gün</span><span class="ct-type static">Statik</span></div>
+    <div class="ct-row"><span class="ct-name">Şimşək</span><span class="ct-id">lightning</span><span class="ct-unlock">🔥 14 gün</span><span class="ct-type static">Statik</span></div>
+    <div class="ct-row"><span class="ct-name">Konfet</span><span class="ct-id">candy</span><span class="ct-unlock">🔥 7 gün</span><span class="ct-type static">Statik</span></div>
+    <div class="ct-row"><span class="ct-name">Çöl</span><span class="ct-id">desert</span><span class="ct-unlock">🔥 14 gün</span><span class="ct-type static">Statik</span></div>
+    <div class="ct-row"><span class="ct-name">Buz</span><span class="ct-id">ice</span><span class="ct-unlock">🔥 21 gün</span><span class="ct-type static">Statik</span></div>
+    <div class="ct-row"><span class="ct-name">Tüstü</span><span class="ct-id">smoke</span><span class="ct-unlock">🔥 30 gün</span><span class="ct-type static">Statik</span></div>
+    <div class="ct-row"><span class="ct-name">Titan</span><span class="ct-id">titan</span><span class="ct-unlock">🔥 45 gün</span><span class="ct-type static">Statik</span></div>
+    <div class="ct-row"><span class="ct-name">Hologram Su</span><span class="ct-id">holo_water</span><span class="ct-unlock">🔥 60 gün</span><span class="ct-type animated">Animasiyalı</span></div>
+    <div class="ct-row"><span class="ct-name">Elektrik</span><span class="ct-id">electric</span><span class="ct-unlock">🔥 30 gün</span><span class="ct-type static">Statik</span></div>
+    <div class="ct-row"><span class="ct-name">Şam Işığı</span><span class="ct-id">candlelight</span><span class="ct-unlock">🔥 7 gün</span><span class="ct-type static">Statik</span></div>
+    <div class="ct-row"><span class="ct-name">Neon Dairə</span><span class="ct-id">neon_circles</span><span class="ct-unlock">🔥 30 gün</span><span class="ct-type static">Statik</span></div>
+  </div>
+</div>
+
+</body>
+</html>
