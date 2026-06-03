@@ -724,33 +724,33 @@
     to   { filter:hue-rotate(360deg); }
   }
   @keyframes holo-pulse {
-    0%,100% { opacity:0.82; }
-    50%     { opacity:1; }
+    0%,100% { opacity:0.52; }
+    50%     { opacity:0.72; }
   }
   .holo-overlay {
     position:absolute; inset:0; border-radius:inherit; pointer-events:none; z-index:3;
     background: linear-gradient(108deg,
       transparent              0%,
-      rgba(190,170,255,0.36)   6%,
-      rgba(130,205,255,0.33)  13%,
-      rgba(100,225,210,0.33)  20%,
-      rgba(255,240,180,0.33)  27%,
-      rgba(255,255,255,0.48)  31%,
-      rgba(255,175,200,0.32)  37%,
-      rgba(170,225,255,0.35)  43%,
-      rgba(200,165,255,0.34)  48%,
+      rgba(200,80,255,0.55)    6%,
+      rgba(60,190,255,0.50)   13%,
+      rgba(0,255,210,0.48)    20%,
+      rgba(255,230,50,0.48)   27%,
+      rgba(255,255,255,0.28)  31%,
+      rgba(255,60,180,0.50)   37%,
+      rgba(80,210,255,0.52)   43%,
+      rgba(180,80,255,0.52)   48%,
       transparent             50%,
-      rgba(190,170,255,0.36)  56%,
-      rgba(130,205,255,0.33)  63%,
-      rgba(100,225,210,0.33)  70%,
-      rgba(255,240,180,0.33)  77%,
-      rgba(255,255,255,0.48)  81%,
-      rgba(255,175,200,0.32)  87%,
-      rgba(170,225,255,0.35)  93%,
-      rgba(200,165,255,0.34)  98%,
+      rgba(200,80,255,0.55)   56%,
+      rgba(60,190,255,0.50)   63%,
+      rgba(0,255,210,0.48)    70%,
+      rgba(255,230,50,0.48)   77%,
+      rgba(255,255,255,0.28)  81%,
+      rgba(255,60,180,0.50)   87%,
+      rgba(80,210,255,0.52)   93%,
+      rgba(180,80,255,0.52)   98%,
       transparent            100%);
     background-size:200% 100%;
-    animation:holo-flow 3s ease-in-out infinite alternate, holo-pulse 5s ease-in-out infinite, holo-hue 8s linear infinite;
+    animation:holo-flow 3s ease-in-out infinite alternate, holo-pulse 5s ease-in-out infinite, holo-hue 6s linear infinite;
   }
 
   /* ── PROFİL DARK TEMA ── */
