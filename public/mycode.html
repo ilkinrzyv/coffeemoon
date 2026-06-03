@@ -588,11 +588,37 @@
   .team-react-btn.active .r-count { color:#5b5ef4; }
   .team-react-btn:active { transform:scale(0.8); }
 
-  /* ── KÖZ ── */
+  /* ── KÖZ (bronze) ── */
   @keyframes ember-rise {
     0%   { transform:translateY(0) translateX(0) scale(1); opacity:0.92; }
     40%  { opacity:0.75; }
     100% { transform:translateY(-62px) translateX(var(--ex)) scale(0.18); opacity:0; }
+  }
+
+  /* ── BUZLU KRİSTALLAR (silver) ── */
+  @keyframes ice-fall {
+    0%   { transform:translateY(0) translateX(0) rotate(0deg); opacity:0; }
+    8%   { opacity:0.75; }
+    88%  { opacity:0.35; }
+    100% { transform:translateY(var(--fy)) translateX(var(--fx)) rotate(var(--fr)); opacity:0; }
+  }
+
+  /* Silver shimmer sweep */
+  .silver-shimmer {
+    position:absolute; inset:0; border-radius:inherit; pointer-events:none; z-index:3; overflow:hidden;
+  }
+  .silver-shimmer::after {
+    content:'';
+    position:absolute; top:-50%; left:-80%; width:55%; height:200%;
+    background:linear-gradient(90deg,transparent,rgba(203,213,225,0.22),rgba(255,255,255,0.5),rgba(203,213,225,0.22),transparent);
+    transform:rotate(-15deg);
+    animation:silver-sweep 3.5s ease-in-out infinite;
+  }
+  @keyframes silver-sweep {
+    0%       { left:-80%; opacity:0; }
+    8%       { opacity:1; }
+    48%      { left:135%; opacity:1; }
+    52%,100% { left:135%; opacity:0; }
   }
 
   /* ── AURA çərçivəsi — statik gradient + glow pulse (yüngül) ── */
@@ -3156,18 +3182,27 @@
     }
   }
 
-  // ── Fırlanan ulduzlar (silver) ───────────────────────────────────
-  function addStarAura(wrap) {
-    var N=6, DUR=9;
-    var COLS=['#e2e8f0','#f1f5f9','#b8cfe0','#94a3b8','#dde8f2','#f8fafc'];
-    var SZ=[9,7,8,6,9,7];
-    for (var i=0; i<N; i++) {
-      var el = document.createElement('div');
-      el.style.cssText = 'position:absolute;top:50%;left:50%;width:calc(100% + 32px);height:calc(100% + 32px);margin-top:calc(-50% - 16px);margin-left:calc(-50% - 16px);pointer-events:none;z-index:5;animation:star-orbit '+DUR+'s linear '+(-((i/N)*DUR).toFixed(2))+'s infinite;';
-      var dot = document.createElement('span');
-      dot.textContent='✦';
-      dot.style.cssText='position:absolute;top:-7px;left:50%;transform:translateX(-50%);font-size:'+SZ[i]+'px;color:'+COLS[i]+';line-height:1;filter:drop-shadow(0 0 5px rgba(203,213,225,0.95));';
-      el.appendChild(dot); wrap.appendChild(el);
+  // ── Buzlu kristallar (silver) ─────────────────────────────────────
+  function addIceAura(wrap) {
+    var CHARS  = ['❄','❅','❆','✦','·','❄','✦','❅'];
+    var COLORS = ['rgba(203,213,225,0.8)','rgba(241,245,249,0.7)','rgba(186,210,222,0.75)',
+                  'rgba(148,163,184,0.65)','rgba(226,232,240,0.8)','rgba(203,213,225,0.7)',
+                  'rgba(255,255,255,0.65)','rgba(186,210,222,0.8)'];
+    var SIZES = [9,7,8,5,4,10,6,7];
+    var DURS  = [3.2,2.8,3.6,2.5,3.0,3.4,2.7,3.1];
+    var LEFTS = [10,22,38,55,68,78,47,30];
+    for (var k=0; k<8; k++) {
+      var ic = document.createElement('div');
+      ic.textContent = CHARS[k];
+      var driftX = (k%2===0?1:-1)*(3+k*1.2);
+      ic.style.cssText =
+        'position:absolute;top:4px;left:'+LEFTS[k]+'%;'+
+        'font-size:'+SIZES[k]+'px;color:'+COLORS[k]+';line-height:1;'+
+        'pointer-events:none;z-index:5;'+
+        'filter:drop-shadow(0 0 5px rgba(203,213,225,0.95));'+
+        '--fy:'+(130+k*5)+'px;--fx:'+driftX+'px;--fr:'+(90+k*40)+'deg;'+
+        'animation:ice-fall '+DURS[k]+'s '+(-(k*0.38).toFixed(2))+'s linear infinite;';
+      wrap.appendChild(ic);
     }
   }
 
@@ -3285,21 +3320,33 @@
         avWrap.style.boxShadow = '0 3px 8px rgba(0,0,0,0.18), 0 0 0 2.5px rgba(255,255,255,0.9)';
       }
 
-      // Shimmer (60+)
+      // Hologram (60+)
       if (s >= 60) {
         var holo = document.createElement('div');
         holo.className = 'holo-overlay';
         card.appendChild(holo);
       }
 
+      // Silver shimmer sweep (inside card)
+      if (s >= 20 && s < 40) {
+        var shimmer = document.createElement('div');
+        shimmer.className = 'silver-shimmer';
+        card.appendChild(shimmer);
+      }
+
       card.addEventListener('click', function(){ openPmodal(m.empId); });
 
-      // Wrapper + forma auraları + tier class (::before üçün)
+      // Wrapper + forma auraları + tier class
       var wrap = document.createElement('div');
       wrap.className = 'tc-wrap';
       if      (s >= 40) wrap.classList.add('aura-tier-gold');
       else if (s >= 20) wrap.classList.add('aura-tier-silver');
       else if (s >= 7)  wrap.classList.add('aura-tier-bronze');
+
+      // Particle effektlər
+      if (s >= 40)       addSparkleAura(wrap);
+      else if (s >= 20)  addIceAura(wrap);
+      else if (s >= 7)   addEmberAura(wrap);
 
       // Yer nişanı (ilk 3)
       if (idx < 3) {
