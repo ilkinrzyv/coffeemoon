@@ -198,29 +198,30 @@ body {
 
 .holo-overlay {
   position:absolute; inset:0; border-radius:inherit; pointer-events:none; z-index:3;
-  /* Chromatic iridescent — prizma tərzi, zərif */
+  /* Xameleon iridescent */
   background: linear-gradient(108deg,
     transparent              0%,
-    rgba(190,170,255,0.22)   6%,
-    rgba(130,205,255,0.20)  13%,
-    rgba(100,225,210,0.20)  20%,
-    rgba(255,240,180,0.20)  27%,
-    rgba(255,255,255,0.32)  31%,
-    rgba(255,175,200,0.19)  37%,
-    rgba(170,225,255,0.21)  43%,
-    rgba(200,165,255,0.20)  48%,
+    rgba(190,170,255,0.36)   6%,
+    rgba(130,205,255,0.33)  13%,
+    rgba(100,225,210,0.33)  20%,
+    rgba(255,240,180,0.33)  27%,
+    rgba(255,255,255,0.48)  31%,
+    rgba(255,175,200,0.32)  37%,
+    rgba(170,225,255,0.35)  43%,
+    rgba(200,165,255,0.34)  48%,
     transparent             50%,
-    rgba(190,170,255,0.22)  56%,
-    rgba(130,205,255,0.20)  63%,
-    rgba(100,225,210,0.20)  70%,
-    rgba(255,240,180,0.20)  77%,
-    rgba(255,255,255,0.32)  81%,
-    rgba(255,175,200,0.19)  87%,
-    rgba(170,225,255,0.21)  93%,
-    rgba(200,165,255,0.20)  98%,
+    rgba(190,170,255,0.36)  56%,
+    rgba(130,205,255,0.33)  63%,
+    rgba(100,225,210,0.33)  70%,
+    rgba(255,240,180,0.33)  77%,
+    rgba(255,255,255,0.48)  81%,
+    rgba(255,175,200,0.32)  87%,
+    rgba(170,225,255,0.35)  93%,
+    rgba(200,165,255,0.34)  98%,
     transparent            100%);
   background-size: 200% 100%;
-  animation: holo-flow 5s linear infinite,
+  /* alternate: 0%→100%→0% — kart sağa-sola əyilmiş illüziyası */
+  animation: holo-flow 3s ease-in-out infinite alternate,
              holo-pulse 5s ease-in-out infinite,
              holo-hue 8s linear infinite;
 }
