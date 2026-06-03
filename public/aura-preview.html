@@ -183,12 +183,17 @@ body {
    Gradient 0-50% → 50-100% eyni rəng ardıcıllığı → seamless linear loop
    background-position: 0% → 100% bir tam dövrü tamamlayır, kəsintisiz ── */
 @keyframes holo-flow {
-  from { background-position: 100% 50%; }
-  to   { background-position: 0% 50%; }
+  from { background-position: 0% 50%; }
+  to   { background-position: 100% 50%; }
 }
 @keyframes holo-pulse {
   0%,100% { opacity:0.82; }
   50%     { opacity:1; }
+}
+/* Xameleon: bütün hue spektri dövr edir */
+@keyframes holo-hue {
+  from { filter: hue-rotate(0deg); }
+  to   { filter: hue-rotate(360deg); }
 }
 
 .holo-overlay {
@@ -216,7 +221,8 @@ body {
     transparent            100%);
   background-size: 200% 100%;
   animation: holo-flow 5s linear infinite,
-             holo-pulse 5s ease-in-out infinite;
+             holo-pulse 5s ease-in-out infinite,
+             holo-hue 8s linear infinite;
 }
 
 /* Silver: falling ice crystals */

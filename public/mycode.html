@@ -716,8 +716,12 @@
 
   /* ── HOLOGRAM — seamless loop ── */
   @keyframes holo-flow {
-    from { background-position:100% 50%; }
-    to   { background-position:0% 50%; }
+    from { background-position:0% 50%; }
+    to   { background-position:100% 50%; }
+  }
+  @keyframes holo-hue {
+    from { filter:hue-rotate(0deg); }
+    to   { filter:hue-rotate(360deg); }
   }
   @keyframes holo-pulse {
     0%,100% { opacity:0.82; }
@@ -742,7 +746,7 @@
       rgba(200,170,255,0.13)  94%,
       transparent            100%);
     background-size:200% 100%;
-    animation:holo-flow 4s linear infinite, holo-pulse 4s ease-in-out infinite;
+    animation:holo-flow 4s linear infinite, holo-pulse 4s ease-in-out infinite, holo-hue 8s linear infinite;
   }
 
   /* ── PROFİL DARK TEMA ── */
