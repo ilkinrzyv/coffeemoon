@@ -603,22 +603,36 @@
     100% { transform:translateY(var(--fy)) translateX(var(--fx)) rotate(var(--fr)); opacity:0; }
   }
 
-  /* Silver shimmer sweep */
-  .silver-shimmer {
+  /* Shimmer — SAĞ → SOL, bütün tier-lər */
+  @keyframes shimmer-rtl {
+    0%       { left:135%; opacity:0; }
+    8%       { opacity:1; }
+    48%      { left:-80%; opacity:1; }
+    52%,100% { left:-80%; opacity:0; }
+  }
+  .silver-shimmer, .bronze-shimmer, .gold-shimmer {
     position:absolute; inset:0; border-radius:inherit; pointer-events:none; z-index:3; overflow:hidden;
   }
   .silver-shimmer::after {
     content:'';
-    position:absolute; top:-50%; left:-80%; width:55%; height:200%;
-    background:linear-gradient(90deg,transparent,rgba(203,213,225,0.22),rgba(255,255,255,0.5),rgba(203,213,225,0.22),transparent);
+    position:absolute; top:-50%; left:135%; width:55%; height:200%;
+    background:linear-gradient(90deg,transparent,rgba(203,213,225,0.22),rgba(255,255,255,0.55),rgba(203,213,225,0.22),transparent);
     transform:rotate(-15deg);
-    animation:silver-sweep 3.5s ease-in-out infinite;
+    animation:shimmer-rtl 3.5s ease-in-out infinite;
   }
-  @keyframes silver-sweep {
-    0%       { left:-80%; opacity:0; }
-    8%       { opacity:1; }
-    48%      { left:135%; opacity:1; }
-    52%,100% { left:135%; opacity:0; }
+  .bronze-shimmer::after {
+    content:'';
+    position:absolute; top:-50%; left:135%; width:55%; height:200%;
+    background:linear-gradient(90deg,transparent,rgba(180,83,9,0.18),rgba(255,190,75,0.45),rgba(180,83,9,0.18),transparent);
+    transform:rotate(-15deg);
+    animation:shimmer-rtl 3.8s ease-in-out infinite;
+  }
+  .gold-shimmer::after {
+    content:'';
+    position:absolute; top:-50%; left:135%; width:55%; height:200%;
+    background:linear-gradient(90deg,transparent,rgba(217,119,6,0.22),rgba(255,240,110,0.58),rgba(217,119,6,0.22),transparent);
+    transform:rotate(-15deg);
+    animation:shimmer-rtl 3.2s ease-in-out infinite;
   }
 
   /* ── AURA çərçivəsi — statik gradient + glow pulse (yüngül) ── */
@@ -3434,10 +3448,18 @@
         card.appendChild(holo);
       }
 
-      // Silver shimmer sweep (inside card)
-      if (s >= 20 && s < 40) {
+      // Shimmer (hər tier üçün öz rəngi)
+      if (s >= 40) {
+        var shimmer = document.createElement('div');
+        shimmer.className = 'gold-shimmer';
+        card.appendChild(shimmer);
+      } else if (s >= 20) {
         var shimmer = document.createElement('div');
         shimmer.className = 'silver-shimmer';
+        card.appendChild(shimmer);
+      } else if (s >= 7) {
+        var shimmer = document.createElement('div');
+        shimmer.className = 'bronze-shimmer';
         card.appendChild(shimmer);
       }
 
