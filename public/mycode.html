@@ -2648,8 +2648,6 @@
       case 'simple':   el.style.outline = '3px solid '+accent; el.style.outlineOffset = '3px'; break;
       case 'dashed':   el.style.outline = '3px dashed '+accent; el.style.outlineOffset = '3px'; break;
       case 'dotted':   el.style.outline = '3px dotted '+accent; el.style.outlineOffset = '3px'; break;
-      case 'glow':     base += ', 0 0 0 3px '+accent+', 0 0 18px 5px '+hexToRgba(accent,0.5); break;
-      case 'neon':     base = '0 0 0 2px '+accent+', 0 0 10px 4px '+hexToRgba(accent,0.7)+', 0 0 24px 8px '+hexToRgba(accent,0.3); break;
       case 'rainbow_anim':animFr=true; el.classList.add('av-fr-rainbow'); break;
       case 'spin_fr':     animFr=true; el.classList.add('av-fr-spin'); break;
       case 'fire_ring':   animFr=true; el.classList.add('av-fr-fire-ring'); break;
@@ -2698,8 +2696,6 @@
     {id:'simple',      label:'Sadə',      unlock:0  },
     {id:'dashed',      label:'Kəsik',     unlock:0  },
     {id:'dotted',      label:'Nöqtəli',   unlock:7  },
-    {id:'glow',        label:'İşıqlı',    unlock:21 },
-    {id:'neon',        label:'Neon',      unlock:45 },
     {id:'rainbow_anim',label:'Göy Qurşağı',unlock:7  },
     {id:'spin_fr',     label:'Döndər',    unlock:14 },
     {id:'neon_pulse',  label:'Neon Nəbz', unlock:14 },
@@ -2771,8 +2767,6 @@
       case 'simple':  el.style.outline='2.5px solid '+accent; el.style.outlineOffset='2px'; break;
       case 'dashed':  el.style.outline='2.5px dashed '+accent; el.style.outlineOffset='2px'; break;
       case 'dotted':  el.style.outline='2.5px dotted '+accent; el.style.outlineOffset='2px'; break;
-      case 'glow':    el.style.boxShadow='0 4px 10px rgba(0,0,0,0.18),0 0 0 3px '+accent+',0 0 14px 4px '+hexToRgba(accent,0.5); break;
-      case 'neon':    el.style.boxShadow='0 0 0 2px '+accent+',0 0 8px 3px '+hexToRgba(accent,0.7)+',0 0 20px 6px '+hexToRgba(accent,0.3); break;
       case 'rainbow_anim':el.classList.add('av-fr-rainbow');    el.style.boxShadow=''; break;
       case 'spin_fr':     el.classList.add('av-fr-spin');       el.style.boxShadow=''; break;
       case 'fire_ring':   el.classList.add('av-fr-fire-ring');  el.style.boxShadow=''; break;
