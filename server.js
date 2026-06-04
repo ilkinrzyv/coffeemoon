@@ -621,7 +621,7 @@ API.logManagerCheckin = async (branchKey, type) => {
   if (type === 'GELIS') {
     if (todayLogs.some(r => r.type === 'GELIS' || r.type === 'GƏLİŞ')) return { valid: false, reason: 'Giriş artıq qeydə alınıb!' };
     await sb.from('attendance').insert({ emp_id: MGR_ID, emp_name: mgrName, dept, timestamp: ts.toISOString(), type: 'GELIS', overtime: '', shift_type: '' });
-    await U.sendTelegramMsg(`<b>İdarəçi</b> smendə.\n${U.fmtTime(ts)}`, dept);
+    await U.sendTelegramMsg(`<b>Manager</b> işdə.\n${U.fmtTime(ts)}`, dept);
     return { valid: true, type: 'GELIS', time: U.fmtTime(ts) };
   }
   if (type === 'CIXIS') {
@@ -632,7 +632,7 @@ API.logManagerCheckin = async (branchKey, type) => {
     const dh = Math.floor(diffMs / 3600000), dm = Math.floor((diffMs % 3600000) / 60000);
     const dur = `${dh} saat ${dm} dəq`;
     await sb.from('attendance').insert({ emp_id: MGR_ID, emp_name: mgrName, dept, timestamp: ts.toISOString(), type: 'CIXIS', overtime: dur, shift_type: '' });
-    await U.sendTelegramMsg(`<b>İdarəçi</b> smendən çıxdı.\n${U.fmtTime(ts)} — ${dur}`, dept);
+    await U.sendTelegramMsg(`<b>Manager</b> smendən işdə.\n${U.fmtTime(ts)} — ${dur}`, dept);
     return { valid: true, type: 'CIXIS', time: U.fmtTime(ts), duration: dur };
   }
   return { valid: false, reason: 'Yanlış əməliyyat.' };
