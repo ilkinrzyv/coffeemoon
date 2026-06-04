@@ -190,11 +190,18 @@ const TRAINER_NAME = '<?= trainerName ?>';
 const BASE = '<?= scriptUrl ?>';
 
 async function api(fn, ...args) {
-  const r = await fetch(`${BASE}/api/${fn}`, {
-    method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ args })
-  });
-  return r.json();
+  try {
+    const r = await fetch(`${BASE}/api/${fn}`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ args })
+    });
+    const data = await r.json();
+    if (!r.ok) { console.error('[API]', fn, data); return null; }
+    return data;
+  } catch(e) {
+    console.error('[API fetch error]', fn, e);
+    return null;
+  }
 }
 
 let _toastTimer;
@@ -237,8 +244,10 @@ async function selectBranch(dept, btn) {
   const empList = document.getElementById('empList');
   empList.innerHTML = '<div class="empty"><i class="fa-solid fa-circle-notch fa-spin"></i><p>Yüklənir...</p></div>';
 
-  const emps = await api('getEmployeesByDept', dept);
-  if (!emps || !emps.length) {
+  let emps = null;
+  try { emps = await api('getEmployeesByDept', dept); } catch(_) {}
+
+  if (!emps || !Array.isArray(emps) || !emps.length) {
     empList.innerHTML = '<div class="empty"><i class="fa-solid fa-users-slash"></i><p>Bu filialda işçi tapılmadı.</p></div>';
     return;
   }
@@ -266,7 +275,9 @@ async function selectEmp(id, name, btn) {
 
   // Çeklist elementlərini yalnız bir dəfə yüklə
   if (!allItems.length) {
-    allItems = await api('getActiveTrainerItems');
+    let items = null;
+    try { items = await api('getActiveTrainerItems'); } catch(_) {}
+    allItems = Array.isArray(items) ? items : [];
   }
 
   checks = {};
