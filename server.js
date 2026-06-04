@@ -109,9 +109,11 @@ app.get('/trainer', (req, res) => {
   const trainerKey = U.getSetting('TRAINER_KEY');
   if (!trainerKey || trainerKey !== key)
     return res.send('<h2 style="color:red;font-family:sans-serif;padding:2rem">İcazəsiz giriş.</h2>');
+  const trainerName = U.getSetting('TRAINER_NAME') || 'Treninq Meneceri';
   res.send(replaceVars(readTemplate('trainer.html'), {
-    trainerKey: key,
-    scriptUrl: `${req.protocol}://${req.get('host')}`,
+    trainerKey:  key,
+    trainerName: trainerName,
+    scriptUrl:   `${req.protocol}://${req.get('host')}`,
   }));
 });
 
@@ -1431,7 +1433,13 @@ API.getTrainerKey = async () => {
     key = 'TR' + Math.random().toString(36).substring(2, 12).toUpperCase();
     await U.setSetting('TRAINER_KEY', key);
   }
-  return { key };
+  const name = U.getSetting('TRAINER_NAME') || '';
+  return { key, name };
+};
+
+API.setTrainerName = async (name) => {
+  await U.setSetting('TRAINER_NAME', String(name || '').trim());
+  return { success: true };
 };
 
 API.regenerateTrainerKey = async () => {

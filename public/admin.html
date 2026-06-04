@@ -715,15 +715,28 @@ input:focus,select:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(7
 <!-- TREYNİNQ TAB -->
 <div class="page" id="tab-trainer">
 
-  <!-- Giriş açarı -->
+  <!-- Treynər məlumatları -->
   <div class="card">
-    <div class="tg-section-title"><i class="fa-solid fa-key"></i> Treynər Giriş Açarı</div>
-    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-      <div style="flex:1;background:#f8fafc;border:1px solid rgba(15,23,42,0.07);border-radius:11px;padding:0.7rem 1rem;font-family:monospace;font-size:0.95rem;font-weight:700;color:var(--primary);min-width:200px;" id="trKeyDisplay">—</div>
-      <button class="btn sm" onclick="copyTrainerLink()"><i class="fa-solid fa-copy"></i> Linki Kopyala</button>
-      <button class="btn sm danger" onclick="regenTrainerKey()"><i class="fa-solid fa-rotate"></i> Yenilə</button>
+    <div class="tg-section-title"><i class="fa-solid fa-graduation-cap"></i> Treynər Məlumatları</div>
+
+    <!-- Ad -->
+    <div class="tg-section" style="margin-bottom:1.2rem;">
+      <div class="tg-section-title" style="font-size:0.72rem;margin-bottom:0.6rem;"><i class="fa-solid fa-user-tie"></i> Treynərin Adı</div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <input type="text" id="trNameInput" placeholder="Ad Soyad..." style="flex:1;min-width:200px;">
+        <button class="btn primary" onclick="saveTrainerName()"><i class="fa-solid fa-floppy-disk"></i> Saxla</button>
+      </div>
+      <div id="tr-save-result" class="tg-result" style="display:none;margin-top:0.6rem;"></div>
     </div>
-    <div id="trKeyLink" style="display:none;margin-top:0.7rem;font-size:0.8rem;color:var(--text-muted);word-break:break-all;"></div>
+
+    <!-- Sabit link -->
+    <div>
+      <div class="tg-section-title" style="font-size:0.72rem;margin-bottom:0.6rem;"><i class="fa-solid fa-link"></i> Treynər Paneli Linki (sabit)</div>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <div style="flex:1;background:#f8fafc;border:1px solid rgba(15,23,42,0.07);border-radius:11px;padding:0.7rem 1rem;font-size:0.8rem;font-weight:600;color:var(--primary);min-width:200px;word-break:break-all;" id="trKeyLink">—</div>
+        <button class="btn sm" onclick="copyTrainerLink()"><i class="fa-solid fa-copy"></i> Kopyala</button>
+      </div>
+    </div>
   </div>
 
   <!-- Çeklist elementləri -->
@@ -750,8 +763,8 @@ input:focus,select:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(7
         <i class="fa-solid fa-circle-notch fa-spin"></i> Yüklənir...
       </div>
     </div>
-    <div style="margin-top:1rem;display:flex;gap:8px;justify-content:flex-end;align-items:center;">
-      <div id="tr-save-result" class="tg-result" style="display:none;"></div>
+    <div id="tr-items-save-result" class="tg-result" style="display:none;margin-top:0.6rem;"></div>
+    <div style="margin-top:0.8rem;display:flex;gap:8px;justify-content:flex-end;">
       <button class="btn primary" onclick="trSaveItems()">
         <i class="fa-solid fa-floppy-disk"></i> Dəyişiklikləri Saxla
       </button>
@@ -1867,25 +1880,22 @@ function loadTrainerKey() {
   google.script.run
     .withSuccessHandler(function(res) {
       trKeyVal = res.key || '';
-      document.getElementById('trKeyDisplay').textContent = trKeyVal;
       var link = location.origin + '/trainer?key=' + trKeyVal;
       document.getElementById('trKeyLink').textContent = link;
-      document.getElementById('trKeyLink').style.display = 'block';
+      // Treynər adını göstər
+      if (res.name) document.getElementById('trNameInput').value = res.name;
     })
     .getTrainerKey();
 }
 
-function regenTrainerKey() {
-  if (!confirm('Açarı yeniləsəniz köhnə link işləməyəcək. Davam edilsin?')) return;
+function saveTrainerName() {
+  var name = document.getElementById('trNameInput').value.trim();
+  if (!name) { alert('Ad daxil edin!'); return; }
   google.script.run
-    .withSuccessHandler(function(res) {
-      trKeyVal = res.key || '';
-      document.getElementById('trKeyDisplay').textContent = trKeyVal;
-      var link = location.origin + '/trainer?key=' + trKeyVal;
-      document.getElementById('trKeyLink').textContent = link;
-      alert('Yeni açar yaradıldı!');
+    .withSuccessHandler(function() {
+      showResult('tr-save-result', true, '<i class="fa-solid fa-check"></i> Treynər adı saxlandı!');
     })
-    .regenerateTrainerKey();
+    .setTrainerName(name);
 }
 
 function copyTrainerLink() {
@@ -1939,7 +1949,7 @@ function trDeleteItem(i) {
 function trSaveItems() {
   google.script.run
     .withSuccessHandler(function(res) {
-      if (res.success) showResult('tr-save-result', true, '<i class="fa-solid fa-check"></i> Saxlandı!');
+      if (res.success) showResult('tr-items-save-result', true, '<i class="fa-solid fa-check"></i> Çeklist saxlandı!');
     })
     .saveTrainerItems(trItems);
 }
