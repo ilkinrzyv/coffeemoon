@@ -104,6 +104,17 @@ app.get('/admin', (req, res) => {
   }));
 });
 
+app.get('/trainer', (req, res) => {
+  const { key = '' } = req.query;
+  const trainerKey = U.getSetting('TRAINER_KEY');
+  if (!trainerKey || trainerKey !== key)
+    return res.send('<h2 style="color:red;font-family:sans-serif;padding:2rem">İcazəsiz giriş.</h2>');
+  res.send(replaceVars(readTemplate('trainer.html'), {
+    trainerKey: key,
+    scriptUrl: `${req.protocol}://${req.get('host')}`,
+  }));
+});
+
 app.get('/', (req, res) => res.redirect(`/admin?key=${ADMIN_KEY}`));
 
 // ══════════════════════════════════════════════════════════════════
@@ -632,7 +643,7 @@ API.logManagerCheckin = async (branchKey, type) => {
     const dh = Math.floor(diffMs / 3600000), dm = Math.floor((diffMs % 3600000) / 60000);
     const dur = `${dh} saat ${dm} dəq`;
     await sb.from('attendance').insert({ emp_id: MGR_ID, emp_name: mgrName, dept, timestamp: ts.toISOString(), type: 'CIXIS', overtime: dur, shift_type: '' });
-    await U.sendTelegramMsg(`<b>Manager</b> smendən işdə.\n${U.fmtTime(ts)} — ${dur}`, dept);
+    await U.sendTelegramMsg(`<b>Manager</b> smendən çıxdı.\n${U.fmtTime(ts)} — ${dur}`, dept);
     return { valid: true, type: 'CIXIS', time: U.fmtTime(ts), duration: dur };
   }
   return { valid: false, reason: 'Yanlış əməliyyat.' };
@@ -1411,6 +1422,88 @@ API.getManagerDashboard = async (branchKey, weekStart) => {
 };
 
 // ══════════════════════════════════════════════════════════════════
+//  TREYNİNQ MANECERİ API
+// ══════════════════════════════════════════════════════════════════
+
+API.getTrainerKey = async () => {
+  let key = U.getSetting('TRAINER_KEY');
+  if (!key) {
+    key = 'TR' + Math.random().toString(36).substring(2, 12).toUpperCase();
+    await U.setSetting('TRAINER_KEY', key);
+  }
+  return { key };
+};
+
+API.regenerateTrainerKey = async () => {
+  const key = 'TR' + Math.random().toString(36).substring(2, 12).toUpperCase();
+  await U.setSetting('TRAINER_KEY', key);
+  return { key };
+};
+
+API.getAllTrainerItems = async () => {
+  const { data } = await sb.from('trainer_checklist_items').select('*').order('sort_order');
+  return (data || []).map(r => ({ id: r.item_id, text: r.text, category: r.category || '', active: r.active !== false }));
+};
+
+API.getActiveTrainerItems = async () => {
+  const { data } = await sb.from('trainer_checklist_items').select('*').eq('active', true).order('sort_order');
+  return (data || []).map(r => ({ id: r.item_id, text: r.text, category: r.category || '' }));
+};
+
+API.saveTrainerItems = async (items) => {
+  await sb.from('trainer_checklist_items').delete().neq('item_id', 'x');
+  if (items && items.length) {
+    const rows = items.map((item, i) => ({
+      item_id:    item.id || ('TCI-' + Date.now().toString(36).toUpperCase() + i),
+      text:       String(item.text || '').trim(),
+      category:   item.category || '',
+      active:     item.active !== false,
+      sort_order: i,
+    }));
+    await sb.from('trainer_checklist_items').insert(rows);
+  }
+  return { success: true };
+};
+
+API.getEmployeesByDept = async (dept) => {
+  const { data } = await sb.from('employees').select('id,name,dept').eq('dept', dept).order('name');
+  return (data || []).map(r => ({ id: r.id, name: r.name }));
+};
+
+API.submitTrainerLog = async (trainerKey, trainerName, dept, empId, empName, items, note) => {
+  if (!U.getSetting('TRAINER_KEY') || U.getSetting('TRAINER_KEY') !== trainerKey)
+    return { success: false, reason: 'İcazəsiz əməliyyat.' };
+  const ts    = new Date();
+  const logId = 'TL-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substring(2, 4).toUpperCase();
+  await sb.from('trainer_logs').insert({
+    log_id:       logId,
+    trainer_name: String(trainerName || 'Naməlum').trim(),
+    dept,
+    emp_id:       String(empId),
+    emp_name:     String(empName || ''),
+    date_str:     U.getLogicalYMD(ts),
+    items:        items || [],
+    general_note: note || '',
+    created_at:   ts.toISOString(),
+  });
+  return { success: true };
+};
+
+API.getTodayTrainerLogs = async (trainerKey) => {
+  if (!U.getSetting('TRAINER_KEY') || U.getSetting('TRAINER_KEY') !== trainerKey)
+    return { logs: [] };
+  const date = U.getLogicalYMD(new Date());
+  const { data } = await sb.from('trainer_logs').select('*').eq('date_str', date).order('created_at', { ascending: false });
+  return { logs: data || [] };
+};
+
+API.getTrainerLogs = async (dateStr) => {
+  const date = dateStr || U.getLogicalYMD(new Date());
+  const { data } = await sb.from('trainer_logs').select('*').eq('date_str', date).order('created_at', { ascending: false });
+  return { date, logs: data || [] };
+};
+
+// ══════════════════════════════════════════════════════════════════
 //  SERVER BAŞLAT
 // ══════════════════════════════════════════════════════════════════
 
@@ -1431,6 +1524,8 @@ API.getManagerDashboard = async (branchKey, weekStart) => {
       for (const [dept, key] of Object.entries(keys)) {
         console.log(`🏪  ${dept}: http://localhost:${PORT}/manager?key=${key}`);
       }
+      const trKey = await API.getTrainerKey();
+      console.log(`🎓  Treynər: http://localhost:${PORT}/trainer?key=${trKey.key}`);
     });
   } catch (e) {
     console.error('❌  Başlama xətası:', e.message);

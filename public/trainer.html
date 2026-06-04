@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Treninq Meneceri</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+:root {
+  --bg: #f0f4f8;
+  --surface: rgba(255,255,255,0.88);
+  --border: rgba(255,255,255,0.78);
+  --primary: #0d9488;
+  --primary-dark: #0f766e;
+  --primary-light: rgba(13,148,136,0.09);
+  --success: #10b981;
+  --danger: #ef4444;
+  --warning: #f59e0b;
+  --text-main: #0d1526;
+  --text-muted: #64748b;
+  --text-soft: #94a3b8;
+  --card-shadow: 0 8px 28px -6px rgba(15,23,42,0.09), 0 0 0 1px rgba(15,23,42,0.045);
+  --card-shadow-lg: 0 20px 50px -10px rgba(15,23,42,0.12), 0 0 0 1px rgba(15,23,42,0.04);
+}
+* { box-sizing:border-box; margin:0; padding:0; font-family:'Inter',sans-serif; -webkit-font-smoothing:antialiased; touch-action:manipulation; }
+body {
+  background: var(--bg);
+  background-image:
+    radial-gradient(ellipse 75% 55% at 10% 0%, rgba(13,148,136,0.12) 0%, transparent 60%),
+    radial-gradient(ellipse 65% 50% at 90% 100%, rgba(16,185,129,0.09) 0%, transparent 55%);
+  color: var(--text-main); min-height:100vh; padding:1.4rem 1rem 3rem;
+}
+.glow-1 { position:fixed; top:-12%; left:-12%; width:52vw; height:52vw; background:radial-gradient(circle,#ccfbf1,#d1fae5); border-radius:50%; filter:blur(90px); opacity:0.55; z-index:0; pointer-events:none; }
+.glow-2 { position:fixed; bottom:-12%; right:-12%; width:52vw; height:52vw; background:radial-gradient(circle,#a7f3d0,#6ee7b7); border-radius:50%; filter:blur(90px); opacity:0.35; z-index:0; pointer-events:none; }
+.wrap { position:relative; z-index:1; max-width:680px; margin:0 auto; }
+
+/* Header */
+header {
+  background: linear-gradient(135deg, rgba(255,255,255,0.94) 0%, rgba(240,253,250,0.92) 100%);
+  backdrop-filter:blur(40px); -webkit-backdrop-filter:blur(40px);
+  border:1px solid rgba(255,255,255,0.85);
+  border-radius:22px; padding:1.1rem 1.5rem;
+  display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;
+  margin-bottom:1rem; box-shadow:var(--card-shadow-lg);
+}
+.logo { font-size:0.9rem; font-weight:900; display:flex; align-items:center; gap:9px; text-transform:uppercase; letter-spacing:4px; color:var(--text-main); opacity:0.82; }
+.logo i { color:#92400e; font-size:1.05rem; }
+.trainer-badge {
+  background:linear-gradient(135deg, rgba(13,148,136,0.1), rgba(13,148,136,0.06));
+  color:var(--primary); border:1px solid rgba(13,148,136,0.2);
+  padding:7px 16px; border-radius:100px; font-size:0.83rem; font-weight:700;
+  display:flex; align-items:center; gap:7px;
+}
+
+/* Trainer name card */
+.name-card {
+  background:var(--surface); backdrop-filter:blur(20px);
+  border:1px solid var(--border); border-radius:18px;
+  padding:1.1rem 1.3rem; margin-bottom:1rem;
+  box-shadow:var(--card-shadow);
+  display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+}
+.name-label { font-size:0.8rem; font-weight:700; color:var(--text-muted); white-space:nowrap; display:flex; align-items:center; gap:6px; }
+.name-input {
+  flex:1; min-width:160px; border:1.5px solid rgba(13,148,136,0.2);
+  border-radius:11px; padding:0.65rem 1rem; font-size:0.92rem; font-weight:600;
+  color:var(--text-main); outline:none; background:#fff; font-family:'Inter',sans-serif;
+  transition:border-color 0.2s;
+}
+.name-input:focus { border-color:var(--primary); box-shadow:0 0 0 3px rgba(13,148,136,0.08); }
+
+/* Tab bar */
+.tab-bar {
+  background:rgba(255,255,255,0.88); backdrop-filter:blur(30px);
+  border:1px solid rgba(255,255,255,0.8); border-radius:20px;
+  padding:6px; display:flex; gap:6px; margin-bottom:1.2rem;
+  box-shadow:var(--card-shadow);
+}
+.tab-btn {
+  flex:1; padding:0.75rem 1rem; border:none; border-radius:14px; cursor:pointer;
+  font-size:0.87rem; font-weight:700; color:var(--text-soft); background:transparent;
+  display:flex; align-items:center; justify-content:center; gap:7px;
+  transition:all 0.22s cubic-bezier(0.16,1,0.3,1); font-family:'Inter',sans-serif;
+}
+.tab-btn.active {
+  background:linear-gradient(135deg, rgba(13,148,136,0.12), rgba(13,148,136,0.07));
+  color:var(--primary); box-shadow:0 2px 8px rgba(13,148,136,0.12);
+}
+
+/* Card */
+.card {
+  background:var(--surface); backdrop-filter:blur(20px);
+  border:1px solid var(--border); border-radius:20px;
+  padding:1.3rem 1.4rem; margin-bottom:1rem;
+  box-shadow:var(--card-shadow);
+}
+.section-label {
+  font-size:0.72rem; font-weight:700; color:var(--text-muted);
+  text-transform:uppercase; letter-spacing:1.5px;
+  margin-bottom:0.9rem; display:flex; align-items:center; gap:6px;
+}
+.section-label .num {
+  width:22px; height:22px; border-radius:50%; background:var(--primary);
+  color:#fff; font-size:0.75rem; display:flex; align-items:center; justify-content:center;
+  flex-shrink:0;
+}
+
+/* Branch selector */
+.branch-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.branch-btn {
+  padding:0.85rem 1rem; border:2px solid rgba(15,23,42,0.07);
+  border-radius:14px; background:#fff; cursor:pointer;
+  font-size:0.88rem; font-weight:700; color:var(--text-muted);
+  display:flex; align-items:center; gap:8px;
+  transition:all 0.2s cubic-bezier(0.16,1,0.3,1); font-family:'Inter',sans-serif;
+}
+.branch-btn:hover { border-color:rgba(13,148,136,0.3); color:var(--primary); background:rgba(13,148,136,0.04); }
+.branch-btn.selected { border-color:var(--primary); color:var(--primary); background:rgba(13,148,136,0.07); box-shadow:0 0 0 3px rgba(13,148,136,0.08); }
+
+/* Employee list */
+.emp-list { display:flex; flex-direction:column; gap:7px; }
+.emp-btn {
+  padding:0.8rem 1rem; border:1.5px solid rgba(15,23,42,0.07);
+  border-radius:13px; background:#fff; cursor:pointer;
+  font-size:0.92rem; font-weight:600; color:var(--text-main);
+  display:flex; align-items:center; gap:10px;
+  transition:all 0.2s; font-family:'Inter',sans-serif; text-align:left;
+}
+.emp-btn:hover { border-color:rgba(13,148,136,0.3); background:rgba(13,148,136,0.04); }
+.emp-btn.selected { border-color:var(--primary); background:rgba(13,148,136,0.07); color:var(--primary); }
+.emp-avatar {
+  width:34px; height:34px; border-radius:10px;
+  background:rgba(13,148,136,0.1); color:var(--primary);
+  display:flex; align-items:center; justify-content:center;
+  font-size:0.85rem; font-weight:800; flex-shrink:0;
+}
+.emp-btn.selected .emp-avatar { background:var(--primary); color:#fff; }
+
+/* Checklist items */
+.cl-item {
+  background:#fff; border:1.5px solid rgba(15,23,42,0.06);
+  border-radius:14px; margin-bottom:8px; overflow:hidden;
+  transition:all 0.2s;
+}
+.cl-item.checked { border-color:rgba(16,185,129,0.3); background:rgba(16,185,129,0.03); }
+.cl-item-main {
+  display:flex; align-items:center; gap:12px;
+  padding:0.9rem 1rem; cursor:pointer; user-select:none;
+}
+.cl-circle {
+  width:26px; height:26px; border-radius:50%; border:2px solid rgba(15,23,42,0.12);
+  display:flex; align-items:center; justify-content:center; flex-shrink:0;
+  background:#fff; transition:all 0.22s;
+}
+.cl-circle i { font-size:0.65rem; color:#fff; opacity:0; transition:opacity 0.15s; }
+.cl-item.checked .cl-circle { background:var(--success); border-color:var(--success); }
+.cl-item.checked .cl-circle i { opacity:1; }
+.cl-item-text { flex:1; font-size:0.9rem; font-weight:600; color:var(--text-main); transition:color 0.2s; }
+.cl-item.checked .cl-item-text { color:var(--text-muted); text-decoration:line-through; }
+.cl-cat-tag { font-size:0.7rem; font-weight:700; color:var(--primary); background:rgba(13,148,136,0.08); padding:2px 7px; border-radius:6px; white-space:nowrap; }
+.cl-note-wrap { padding:0 1rem 0.85rem; }
+.cl-note-input {
+  width:100%; border:1px solid rgba(15,23,42,0.08); border-radius:10px;
+  padding:0.55rem 0.8rem; font-size:0.82rem; font-weight:500; color:var(--text-main);
+  resize:none; outline:none; background:#fff; font-family:'Inter',sans-serif;
+  transition:border-color 0.2s;
+}
+.cl-note-input:focus { border-color:var(--primary); box-shadow:0 0 0 2px rgba(13,148,136,0.07); }
+.cl-cat-sep {
+  font-size:0.7rem; font-weight:700; color:var(--text-muted);
+  text-transform:uppercase; letter-spacing:1.2px;
+  padding:8px 0 5px; display:flex; align-items:center; gap:6px;
+}
+.cl-cat-sep::before { content:''; display:inline-block; width:3px; height:11px; background:var(--primary); border-radius:2px; }
+
+/* Progress bar */
+.prog-wrap { margin-bottom:1.2rem; }
+.prog-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem; }
+.prog-label { font-size:0.78rem; font-weight:700; color:var(--text-muted); }
+.prog-count { font-size:0.9rem; font-weight:800; color:var(--primary); }
+.prog-bar-bg { height:7px; background:rgba(15,23,42,0.07); border-radius:100px; overflow:hidden; }
+.prog-bar-fill { height:100%; background:linear-gradient(90deg,var(--primary),var(--success)); border-radius:100px; transition:width 0.4s cubic-bezier(0.16,1,0.3,1); }
+
+/* General note */
+.general-note-input {
+  width:100%; border:1.5px solid rgba(15,23,42,0.08); border-radius:12px;
+  padding:0.75rem 1rem; font-size:0.88rem; font-weight:500; color:var(--text-main);
+  resize:vertical; min-height:70px; outline:none; background:#fff;
+  font-family:'Inter',sans-serif; transition:border-color 0.2s;
+}
+.general-note-input:focus { border-color:var(--primary); box-shadow:0 0 0 3px rgba(13,148,136,0.07); }
+
+/* Submit button */
+.submit-btn {
+  width:100%; padding:1rem; border:none; border-radius:16px;
+  background:linear-gradient(135deg, var(--primary), var(--primary-dark));
+  color:#fff; font-size:1rem; font-weight:700; cursor:pointer;
+  display:flex; align-items:center; justify-content:center; gap:10px;
+  box-shadow:0 6px 20px rgba(13,148,136,0.25);
+  transition:all 0.2s; font-family:'Inter',sans-serif;
+  margin-top:0.5rem;
+}
+.submit-btn:hover { transform:translateY(-1px); box-shadow:0 10px 28px rgba(13,148,136,0.3); }
+.submit-btn:active { transform:translateY(0); }
+.submit-btn:disabled { opacity:0.5; cursor:not-allowed; transform:none; }
+
+/* Today logs */
+.log-card {
+  background:#fff; border:1px solid rgba(15,23,42,0.06);
+  border-radius:16px; padding:1rem 1.1rem; margin-bottom:0.75rem;
+}
+.log-header { display:flex; align-items:center; gap:10px; margin-bottom:0.6rem; flex-wrap:wrap; }
+.log-emp { font-weight:700; font-size:0.95rem; color:var(--text-main); flex:1; }
+.log-dept { font-size:0.75rem; font-weight:700; color:var(--primary); background:rgba(13,148,136,0.08); padding:3px 9px; border-radius:7px; }
+.log-time { font-size:0.75rem; font-weight:700; color:var(--text-muted); font-family:monospace; }
+.log-score { font-size:0.8rem; font-weight:700; color:var(--success); }
+.log-items-done { font-size:0.78rem; color:var(--text-muted); margin-top:3px; }
+.log-note { font-size:0.8rem; color:var(--text-muted); margin-top:6px; padding:6px 9px; background:rgba(245,158,11,0.07); border-radius:9px; border:1px solid rgba(245,158,11,0.15); }
+
+/* Empty state */
+.empty-state { text-align:center; padding:2.5rem 1rem; color:var(--text-muted); }
+.empty-state i { font-size:2rem; margin-bottom:0.75rem; display:block; opacity:0.4; }
+.empty-state p { font-size:0.88rem; font-weight:500; }
+
+/* Toast */
+#toast {
+  position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(80px);
+  background:#0d1526; color:#fff; padding:11px 20px; border-radius:14px;
+  font-size:0.86rem; font-weight:600; z-index:200; opacity:0;
+  transition:all 0.35s cubic-bezier(0.16,1,0.3,1); white-space:nowrap;
+  box-shadow:0 8px 24px rgba(15,23,42,0.2);
+}
+#toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+#toast.ok { background:#0d9488; }
+#toast.err { background:#ef4444; }
+
+.hidden { display:none !important; }
+</style>
+</head>
+<body>
+<div class="glow-1"></div>
+<div class="glow-2"></div>
+<div class="wrap">
+
+<!-- Header -->
+<header>
+  <div class="logo"><i class="fa-solid fa-mug-hot"></i> Coffeemoon</div>
+  <div class="trainer-badge"><i class="fa-solid fa-graduation-cap"></i> Treninq Meneceri</div>
+</header>
+
+<!-- Trainer name -->
+<div class="name-card">
+  <div class="name-label"><i class="fa-solid fa-user-tie"></i> Adınız:</div>
+  <input class="name-input" id="trainerName" placeholder="Adınızı daxil edin..." oninput="saveName()">
+</div>
+
+<!-- Tab bar -->
+<div class="tab-bar">
+  <button class="tab-btn active" id="tabNew" onclick="switchTab('new')">
+    <i class="fa-solid fa-clipboard-list"></i> Yeni Treninq
+  </button>
+  <button class="tab-btn" id="tabToday" onclick="switchTab('today')">
+    <i class="fa-solid fa-clock-rotate-left"></i> Bu gün
+  </button>
+</div>
+
+<!-- ── YENİ TREYNİNQ TAB ── -->
+<div id="panelNew">
+
+  <!-- Step 1: Branch -->
+  <div class="card">
+    <div class="section-label"><span class="num">1</span> Filial seçin</div>
+    <div class="branch-grid">
+      <button class="branch-btn" onclick="selectBranch('Elmlər',this)"><i class="fa-solid fa-store"></i> Elmlər</button>
+      <button class="branch-btn" onclick="selectBranch('Sahil',this)"><i class="fa-solid fa-store"></i> Sahil</button>
+      <button class="branch-btn" onclick="selectBranch('Gənclik',this)"><i class="fa-solid fa-store"></i> Gənclik</button>
+      <button class="branch-btn" onclick="selectBranch('Ağ Şəhər',this)"><i class="fa-solid fa-store"></i> Ağ Şəhər</button>
+    </div>
+  </div>
+
+  <!-- Step 2: Employee -->
+  <div class="card hidden" id="empCard">
+    <div class="section-label"><span class="num">2</span> İşçi seçin — <span id="empDeptLabel" style="font-weight:600;color:var(--primary);text-transform:none;letter-spacing:0;"></span></div>
+    <div class="emp-list" id="empList">
+      <div class="empty-state"><i class="fa-solid fa-circle-notch fa-spin"></i><p>Yüklənir...</p></div>
+    </div>
+  </div>
+
+  <!-- Step 3: Checklist -->
+  <div class="card hidden" id="clCard">
+    <div class="section-label"><span class="num">3</span> Çeklist — <span id="clEmpLabel" style="font-weight:700;color:var(--text-main);text-transform:none;letter-spacing:0;"></span></div>
+    <div class="prog-wrap" id="progWrap">
+      <div class="prog-header">
+        <span class="prog-label">Tamamlanma</span>
+        <span class="prog-count" id="progCount">0 / 0</span>
+      </div>
+      <div class="prog-bar-bg"><div class="prog-bar-fill" id="progBar" style="width:0%"></div></div>
+    </div>
+    <div id="clItems"></div>
+
+    <div style="margin-top:1.2rem;">
+      <div class="section-label" style="margin-bottom:0.5rem;"><i class="fa-solid fa-note-sticky"></i> Ümumi qeyd (istəyə bağlı)</div>
+      <textarea class="general-note-input" id="generalNote" placeholder="Əlavə qeydlər..."></textarea>
+    </div>
+
+    <button class="submit-btn" id="submitBtn" onclick="submitChecklist()">
+      <i class="fa-solid fa-paper-plane"></i> Treninqi Tamamla
+    </button>
+  </div>
+
+</div><!-- /panelNew -->
+
+<!-- ── BU GÜN TAB ── -->
+<div id="panelToday" class="hidden">
+  <div class="card">
+    <div class="section-label"><i class="fa-solid fa-calendar-check"></i> Bu günkü treninqlər</div>
+    <div id="todayLogs">
+      <div class="empty-state"><i class="fa-solid fa-circle-notch fa-spin"></i><p>Yüklənir...</p></div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /wrap -->
+<div id="toast"></div>
+
+<script>
+const TRAINER_KEY = '<?= trainerKey ?>';
+const BASE = '<?= scriptUrl ?>';
+
+// ── Helpers ──────────────────────────────────────────────────────
+async function api(fn, ...args) {
+  const r = await fetch(`${BASE}/api/${fn}`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ args })
+  });
+  return r.json();
+}
+
+let toastTimer;
+function toast(msg, type='ok') {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.className = 'show ' + type;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.className = '', 3000);
+}
+
+// ── State ────────────────────────────────────────────────────────
+let selectedBranch = null;
+let selectedEmpId  = null;
+let selectedEmpName = null;
+let allItems = [];    // [{id,text,category}]
+let checks   = {};   // {itemId: {checked, note}}
+
+// ── Trainer name ─────────────────────────────────────────────────
+function saveName() {
+  localStorage.setItem('trainerName', document.getElementById('trainerName').value);
+}
+function loadName() {
+  const saved = localStorage.getItem('trainerName') || '';
+  document.getElementById('trainerName').value = saved;
+}
+
+// ── Tabs ─────────────────────────────────────────────────────────
+function switchTab(tab) {
+  document.getElementById('tabNew').classList.toggle('active', tab === 'new');
+  document.getElementById('tabToday').classList.toggle('active', tab === 'today');
+  document.getElementById('panelNew').classList.toggle('hidden', tab !== 'new');
+  document.getElementById('panelToday').classList.toggle('hidden', tab !== 'today');
+  if (tab === 'today') loadTodayLogs();
+}
+
+// ── Branch select ────────────────────────────────────────────────
+async function selectBranch(dept, btn) {
+  document.querySelectorAll('.branch-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  selectedBranch = dept;
+  selectedEmpId = null;
+  selectedEmpName = null;
+
+  document.getElementById('empDeptLabel').textContent = dept;
+  document.getElementById('empCard').classList.remove('hidden');
+  document.getElementById('clCard').classList.add('hidden');
+
+  const empList = document.getElementById('empList');
+  empList.innerHTML = '<div class="empty-state"><i class="fa-solid fa-circle-notch fa-spin"></i><p>Yüklənir...</p></div>';
+
+  const emps = await api('getEmployeesByDept', dept);
+  if (!emps.length) {
+    empList.innerHTML = '<div class="empty-state"><i class="fa-solid fa-users-slash"></i><p>Bu filialda işçi tapılmadı.</p></div>';
+    return;
+  }
+  empList.innerHTML = emps.map(e => `
+    <button class="emp-btn" onclick="selectEmp('${e.id}','${e.name.replace(/'/g,"\\'")}',this)">
+      <div class="emp-avatar">${e.name.charAt(0)}</div>
+      <span>${e.name}</span>
+    </button>
+  `).join('');
+}
+
+// ── Employee select ──────────────────────────────────────────────
+async function selectEmp(id, name, btn) {
+  document.querySelectorAll('.emp-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  selectedEmpId   = id;
+  selectedEmpName = name;
+  document.getElementById('clEmpLabel').textContent = name;
+
+  const clCard = document.getElementById('clCard');
+  clCard.classList.remove('hidden');
+  document.getElementById('clItems').innerHTML = '<div class="empty-state"><i class="fa-solid fa-circle-notch fa-spin"></i><p>Yüklənir...</p></div>';
+
+  if (!allItems.length) {
+    allItems = await api('getActiveTrainerItems');
+  }
+
+  checks = {};
+  renderChecklist();
+
+  clCard.scrollIntoView({ behavior:'smooth', block:'start' });
+}
+
+// ── Render checklist ─────────────────────────────────────────────
+function renderChecklist() {
+  const container = document.getElementById('clItems');
+  if (!allItems.length) {
+    container.innerHTML = '<div class="empty-state"><i class="fa-solid fa-list-check"></i><p>Çeklist elementi tapılmadı.<br>Admin paneldən əlavə edin.</p></div>';
+    updateProgress();
+    return;
+  }
+
+  // Group by category
+  const cats = {};
+  allItems.forEach(item => {
+    const c = item.category || 'Digər';
+    if (!cats[c]) cats[c] = [];
+    cats[c].push(item);
+  });
+
+  let html = '';
+  Object.entries(cats).forEach(([cat, items]) => {
+    html += `<div class="cl-cat-sep">${cat}</div>`;
+    items.forEach(item => {
+      const c = checks[item.id] || {};
+      html += `
+        <div class="cl-item${c.checked ? ' checked' : ''}" id="ci-${item.id}">
+          <div class="cl-item-main" onclick="toggleItem('${item.id}')">
+            <div class="cl-circle"><i class="fa-solid fa-check"></i></div>
+            <span class="cl-item-text">${item.text}</span>
+            <span class="cl-cat-tag">${item.category || ''}</span>
+          </div>
+          <div class="cl-note-wrap">
+            <textarea class="cl-note-input" rows="1" placeholder="Qeyd əlavə et..." id="note-${item.id}"
+              oninput="updateNote('${item.id}',this.value)">${c.note||''}</textarea>
+          </div>
+        </div>`;
+    });
+  });
+  container.innerHTML = html;
+  updateProgress();
+}
+
+function toggleItem(id) {
+  if (!checks[id]) checks[id] = { checked:false, note:'' };
+  checks[id].checked = !checks[id].checked;
+  const el = document.getElementById('ci-' + id);
+  if (el) el.classList.toggle('checked', checks[id].checked);
+  updateProgress();
+}
+
+function updateNote(id, val) {
+  if (!checks[id]) checks[id] = { checked:false, note:'' };
+  checks[id].note = val;
+}
+
+function updateProgress() {
+  const total   = allItems.length;
+  const done    = allItems.filter(i => checks[i.id]?.checked).length;
+  const pct     = total ? Math.round(done / total * 100) : 0;
+  document.getElementById('progCount').textContent = `${done} / ${total}`;
+  document.getElementById('progBar').style.width   = pct + '%';
+}
+
+// ── Submit ───────────────────────────────────────────────────────
+async function submitChecklist() {
+  const trainerName = document.getElementById('trainerName').value.trim();
+  if (!trainerName) { toast('Zəhmət olmasa adınızı daxil edin.', 'err'); return; }
+  if (!selectedBranch) { toast('Filial seçin.', 'err'); return; }
+  if (!selectedEmpId)  { toast('İşçi seçin.', 'err'); return; }
+
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Göndərilir...';
+
+  const items = allItems.map(item => ({
+    id:       item.id,
+    text:     item.text,
+    category: item.category,
+    checked:  checks[item.id]?.checked || false,
+    note:     checks[item.id]?.note    || '',
+  }));
+  const note = document.getElementById('generalNote').value.trim();
+
+  const res = await api('submitTrainerLog', TRAINER_KEY, trainerName, selectedBranch, selectedEmpId, selectedEmpName, items, note);
+  if (res.success) {
+    toast('Treninq qeyd edildi ✓', 'ok');
+    resetForm();
+  } else {
+    toast(res.reason || 'Xəta baş verdi.', 'err');
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Treninqi Tamamla';
+}
+
+function resetForm() {
+  selectedEmpId   = null;
+  selectedEmpName = null;
+  checks = {};
+  document.getElementById('clCard').classList.add('hidden');
+  document.getElementById('empCard').classList.add('hidden');
+  document.querySelectorAll('.branch-btn').forEach(b => b.classList.remove('selected'));
+  selectedBranch = null;
+  document.getElementById('generalNote').value = '';
+  window.scrollTo({ top:0, behavior:'smooth' });
+}
+
+// ── Today logs ───────────────────────────────────────────────────
+async function loadTodayLogs() {
+  const el = document.getElementById('todayLogs');
+  el.innerHTML = '<div class="empty-state"><i class="fa-solid fa-circle-notch fa-spin"></i><p>Yüklənir...</p></div>';
+  const res = await api('getTodayTrainerLogs', TRAINER_KEY);
+  const logs = res.logs || [];
+  if (!logs.length) {
+    el.innerHTML = '<div class="empty-state"><i class="fa-solid fa-clipboard"></i><p>Bu gün hələ treninq qeyd edilməyib.</p></div>';
+    return;
+  }
+  el.innerHTML = logs.map(log => {
+    const items = log.items || [];
+    const done  = items.filter(i => i.checked).length;
+    const total = items.length;
+    const pct   = total ? Math.round(done/total*100) : 0;
+    const time  = log.created_at ? new Date(log.created_at).toLocaleTimeString('az-AZ',{hour:'2-digit',minute:'2-digit'}) : '';
+    return `
+      <div class="log-card">
+        <div class="log-header">
+          <div class="log-emp">${log.emp_name || '—'}</div>
+          <span class="log-dept">${log.dept}</span>
+          <span class="log-time">${time}</span>
+        </div>
+        <div class="log-score"><i class="fa-solid fa-check-double"></i> ${done}/${total} (${pct}%) tamamlandı · <span style="color:var(--text-muted)">Treynər: ${log.trainer_name}</span></div>
+        ${log.general_note ? `<div class="log-note"><i class="fa-solid fa-note-sticky"></i> ${log.general_note}</div>` : ''}
+      </div>`;
+  }).join('');
+}
+
+// ── Init ─────────────────────────────────────────────────────────
+loadName();
+</script>
+</body>
+</html>
