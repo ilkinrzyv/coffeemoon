@@ -761,19 +761,25 @@ API.getChecklistItems = async () => {
 };
 
 API.saveChecklistItems = async (items) => {
+  // Əvvəlcə hamısını sil
+  const { error: delErr } = await sb.from('checklist_items').delete().neq('item_id', 'x');
+  if (delErr) return { success: false, reason: 'Silmə xətası: ' + delErr.message };
+
+  if (!items || !items.length) return { success: true };
+
   const incoming = items.map((item, i) => ({
-    item_id: item.itemId || item.item_id, text: item.text,
-    category: item.category, sort_order: i + 1, active: !!item.active,
-  }));
-  if (incoming.length) {
-    const { error } = await sb.from('checklist_items')
-      .upsert(incoming, { onConflict: 'item_id' });
-    if (error) return { success: false, reason: error.message };
-    const keepIds = incoming.map(r => r.item_id);
-    await sb.from('checklist_items').delete().not('item_id', 'in', `(${keepIds.map(id => `'${id}'`).join(',')})`);
-  } else {
-    await sb.from('checklist_items').delete().neq('item_id', '');
-  }
+    item_id:    String(item.itemId || item.item_id || ('CI-' + Date.now().toString(36).toUpperCase() + i)),
+    text:       String(item.text || '').trim(),
+    category:   String(item.category || 'Digər'),
+    sort_order: i + 1,
+    active:     item.active !== false,
+  })).filter(r => r.text);
+
+  if (!incoming.length) return { success: true };
+
+  const { error: insErr } = await sb.from('checklist_items').insert(incoming);
+  if (insErr) return { success: false, reason: 'Əlavə xətası: ' + insErr.message };
+
   return { success: true };
 };
 

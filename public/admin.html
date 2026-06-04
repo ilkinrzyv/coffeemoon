@@ -1508,10 +1508,17 @@ function clSaveItems() {
   });
   google.script.run
     .withSuccessHandler(function(res) {
-      showResult('cl-save-result', true, '<i class="fa-solid fa-check"></i> Elementlər saxlandı!');
-      loadChecklistReport();
+      if (res && res.success) {
+        showResult('cl-save-result', true, '<i class="fa-solid fa-check"></i> Elementlər saxlandı!');
+        loadChecklistReport();
+        loadChecklistItemsMgmt();
+      } else {
+        showResult('cl-save-result', false, '<i class="fa-solid fa-xmark"></i> Xəta: ' + (res && res.reason ? res.reason : 'bilinmir'));
+      }
     })
-    .withFailureHandler(function(err){ console.error('saveChecklistItems:', err); })
+    .withFailureHandler(function(err){
+      showResult('cl-save-result', false, '<i class="fa-solid fa-xmark"></i> Server xətası: ' + (err && err.message ? err.message : 'bilinmir'));
+    })
     .saveChecklistItems(clItems);
 }
  
