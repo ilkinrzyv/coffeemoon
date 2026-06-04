@@ -1474,7 +1474,9 @@ API.saveTrainerItems = async (items) => {
 };
 
 API.getEmployeesByDept = async (dept) => {
-  const { data } = await sb.from('employees').select('id,name,dept').eq('dept', dept).order('name');
+  const { data, error } = await sb.from('employees').select('id,name,dept').eq('dept', dept).order('name');
+  if (error) console.error('[getEmployeesByDept] error:', error.message, '| dept:', dept);
+  console.log('[getEmployeesByDept] dept:', dept, '| count:', (data||[]).length);
   return (data || []).map(r => ({ id: r.id, name: r.name }));
 };
 

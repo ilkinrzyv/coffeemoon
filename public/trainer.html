@@ -247,7 +247,11 @@ async function selectBranch(dept, btn) {
   let emps = null;
   try { emps = await api('getEmployeesByDept', dept); } catch(_) {}
 
-  if (!emps || !Array.isArray(emps) || !emps.length) {
+  if (emps === null) {
+    empList.innerHTML = '<div class="empty"><i class="fa-solid fa-circle-exclamation"></i><p>Server xətası. Sayfanı yeniləyin.</p></div>';
+    return;
+  }
+  if (!Array.isArray(emps) || !emps.length) {
     empList.innerHTML = '<div class="empty"><i class="fa-solid fa-users-slash"></i><p>Bu filialda işçi tapılmadı.</p></div>';
     return;
   }
