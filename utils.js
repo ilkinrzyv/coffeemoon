@@ -80,7 +80,7 @@ function isLate(dept, dateObj) {
   let tot = h * 60 + dateObj.getMinutes();
   if (h < 3) tot += 24 * 60;
   const lim = (h >= 3 && h < 13)
-    ? 7 * 60 + 30
+    ? 7 * 60 + 15
     : (dept === 'Gənclik' || dept === 'Ağ Şəhər') ? 16 * 60 : 15 * 60;
   return tot > lim;
 }
