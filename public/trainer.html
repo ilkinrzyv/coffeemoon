@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Treninq — <?= trainerName ?></title>
+<title>Training Manager — <?= trainerName ?></title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <style>
@@ -112,7 +112,7 @@ header{background:linear-gradient(135deg,rgba(255,255,255,0.94) 0%,rgba(240,253,
 
 <div class="tab-bar">
   <button class="tab-btn active" id="tabNew" onclick="switchTab('new')">
-    <i class="fa-solid fa-clipboard-list"></i> Yeni Treninq
+    <i class="fa-solid fa-clipboard-list"></i> Yeni Təlim
   </button>
   <button class="tab-btn" id="tabToday" onclick="switchTab('today')">
     <i class="fa-solid fa-clock-rotate-left"></i> Bu gün
@@ -165,7 +165,7 @@ header{background:linear-gradient(135deg,rgba(255,255,255,0.94) 0%,rgba(240,253,
       <textarea class="gen-note" id="generalNote" placeholder="Əlavə qeydlər..."></textarea>
     </div>
     <button class="submit-btn" id="submitBtn" onclick="submitChecklist()">
-      <i class="fa-solid fa-paper-plane"></i> Treninqi Tamamla
+      <i class="fa-solid fa-paper-plane"></i> Təlimi Tamamla
     </button>
   </div>
 
@@ -174,7 +174,7 @@ header{background:linear-gradient(135deg,rgba(255,255,255,0.94) 0%,rgba(240,253,
 <!-- BU GÜN -->
 <div id="panelToday" class="hidden">
   <div class="card">
-    <div class="sec-label"><i class="fa-solid fa-calendar-check"></i> Bu günkü treninqlər</div>
+    <div class="sec-label"><i class="fa-solid fa-calendar-check"></i> Bu günkü təlimlər (yoxlanışlar)</div>
     <div id="todayLogs">
       <div class="empty"><i class="fa-solid fa-circle-notch fa-spin"></i><p>Yüklənir...</p></div>
     </div>
@@ -380,9 +380,9 @@ function submitChecklist() {
   google.script.run
     .withSuccessHandler(function(res) {
       btn.disabled = false;
-      btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Treninqi Tamamla';
+      btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Təlimi Tamamla';
       if (res && res.success) {
-        toast('Treninq qeyd edildi ✓', 'ok');
+        toast('Təlim qeyd edildi ✓', 'ok');
         resetForm();
       } else {
         toast((res && res.reason) || 'Xəta baş verdi.', 'err');
@@ -390,7 +390,7 @@ function submitChecklist() {
     })
     .withFailureHandler(function(e) {
       btn.disabled = false;
-      btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Treninqi Tamamla';
+      btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Təlimi Tamamla';
       toast('Xəta: ' + (e.message||'bilinmir'), 'err');
     })
     .submitTrainerLog(TRAINER_KEY, TRAINER_NAME, selBranch, selEmpId, selEmpName, items,
@@ -426,7 +426,7 @@ function renderTodayLogs(res) {
   var logs = (res && res.logs) ? res.logs : [];
 
   if (!logs.length) {
-    el.innerHTML = '<div class="empty"><i class="fa-solid fa-clipboard"></i><p>Bu gün hələ treninq qeyd edilməyib.</p></div>';
+    el.innerHTML = '<div class="empty"><i class="fa-solid fa-clipboard"></i><p>Bu gün hələ təlim qeyd edilməyib.</p></div>';
     return;
   }
 

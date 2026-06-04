@@ -344,61 +344,80 @@ input:focus,select:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(7
   </div>
 </div>
 
-<!-- İZİN -->
-<div id="tab-izin" class="page">
-  <div class="card">
-    <div style="font-size:0.95rem;font-weight:700;margin-bottom:1.1rem;"><i class="fa-solid fa-plus" style="color:var(--primary);margin-right:6px;"></i>Yeni İcazə Əlavə Et</div>
-    <div class="add-form" style="margin-bottom:0;">
-      <select id="izinEmp" style="min-width:200px;"><option value="" disabled selected>İşçi seçin</option></select>
-      <input type="date" id="izinStart" style="min-width:150px;flex:unset;">
-      <input type="date" id="izinEnd" style="min-width:150px;flex:unset;">
-      <select id="izinType" style="min-width:130px;flex:unset;"><option value="İcazə">İcazə</option><option value="Xəstəlik">Xəstəlik</option><option value="Digər">Digər</option></select>
-      <input id="izinNote" placeholder="Qeyd (istəyə bağlı)">
-      <button class="btn primary" onclick="addIzinAdmin()"><i class="fa-solid fa-plus"></i> Əlavə et</button>
-    </div>
-  </div>
-  <div class="card" id="izinList">Yüklənir...</div>
-</div>
+<!-- TREYNİNQ TAB -->
+<div class="page" id="tab-trainer">
 
-<!-- CİHAZLAR -->
-<div id="tab-dev" class="page">
-  <div class="card" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
-    <div><div style="font-size:0.95rem;font-weight:700;">Scan Cihazları</div><div style="font-size:0.82rem;color:var(--text-muted);">Passpage açmaq icazəsi olan cihazlar</div></div>
-    <button class="btn primary" onclick="loadDevices()"><i class="fa-solid fa-rotate"></i> Yenilə</button>
-  </div>
-  <div id="devList">Yüklənir...</div>
-</div>
-
-<!-- TELEGRAM -->
-<div id="tab-tg" class="page">
+  <!-- Treynər məlumatları -->
   <div class="card">
-    <div class="toggle-row">
-      <div class="toggle-desc"><b><i class="fa-brands fa-telegram" style="color:#2AABEE;margin-right:5px;"></i>Telegram Bildirişləri</b><span>Gəliş, çıxış, gecikmə və cihaz bildirişləri</span></div>
-      <label class="toggle"><input type="checkbox" id="tgEnabled"><span class="toggle-slider"></span></label>
+    <div class="tg-section-title"><i class="fa-solid fa-graduation-cap"></i> Təlimçi Məlumatları</div>
+
+    <!-- Ad -->
+    <div class="tg-section" style="margin-bottom:1.2rem;">
+      <div class="tg-section-title" style="font-size:0.72rem;margin-bottom:0.6rem;"><i class="fa-solid fa-user-tie"></i> Təlim Meneceri Adı</div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <input type="text" id="trNameInput" placeholder="Ad Soyad..." style="flex:1;min-width:200px;">
+        <button class="btn primary" onclick="saveTrainerName()"><i class="fa-solid fa-floppy-disk"></i> Saxla</button>
+      </div>
+      <div id="tr-save-result" class="tg-result" style="display:none;margin-top:0.6rem;"></div>
     </div>
-    <div class="tg-section">
-      <div class="tg-section-title"><i class="fa-solid fa-robot"></i> Bot Məlumatları</div>
-      <div class="tg-grid">
-        <div class="tg-field"><label>Bot Token</label><input id="tgToken" placeholder="123456:AAF..."></div>
-        <div class="tg-field"><label>Admin Chat ID</label><input id="tgAdminChat" placeholder="-100123..."></div>
+
+    <!-- Sabit link -->
+    <div>
+      <div class="tg-section-title" style="font-size:0.72rem;margin-bottom:0.6rem;"><i class="fa-solid fa-link"></i> Təlim Paneli Linki (sabit)</div>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <div style="flex:1;background:#f8fafc;border:1px solid rgba(15,23,42,0.07);border-radius:11px;padding:0.7rem 1rem;font-size:0.8rem;font-weight:600;color:var(--primary);min-width:200px;word-break:break-all;" id="trKeyLink">—</div>
+        <button class="btn sm" onclick="copyTrainerLink()"><i class="fa-solid fa-copy"></i> Kopyala</button>
       </div>
     </div>
-    <div class="tg-section">
-      <div class="tg-section-title"><i class="fa-solid fa-briefcase"></i> Filial Chat ID-ləri (istəyə bağlı)</div>
-      <div class="tg-grid">
-        <div class="tg-field"><label><span style="width:9px;height:9px;background:#bfdbfe;border-radius:2px;display:inline-block;margin-right:4px;"></span>Elmlər</label><input id="tgElmler" placeholder="Chat ID"></div>
-        <div class="tg-field"><label><span style="width:9px;height:9px;background:#fbcfe8;border-radius:2px;display:inline-block;margin-right:4px;"></span>Sahil</label><input id="tgSahil" placeholder="Chat ID"></div>
-        <div class="tg-field"><label><span style="width:9px;height:9px;background:#bbf7d0;border-radius:2px;display:inline-block;margin-right:4px;"></span>Gənclik</label><input id="tgGenclik" placeholder="Chat ID"></div>
-        <div class="tg-field"><label><span style="width:9px;height:9px;background:#fef08a;border-radius:2px;display:inline-block;margin-right:4px;"></span>Ağ Şəhər</label><input id="tgAgSeher" placeholder="Chat ID"></div>
+  </div>
+
+  <!-- Çeklist elementləri -->
+  <div class="card">
+    <div class="tg-section-title"><i class="fa-solid fa-list-check"></i> Treninq Çeklist Elementləri</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1.2rem;align-items:flex-end;">
+      <div style="flex:2;min-width:200px;">
+        <label style="font-size:0.76rem;font-weight:600;color:var(--text-muted);display:block;margin-bottom:4px;">Element mətni</label>
+        <input type="text" id="tr-new-text" placeholder="Yeni tapşırıq...">
+      </div>
+      <div style="flex:1;min-width:130px;">
+        <label style="font-size:0.76rem;font-weight:600;color:var(--text-muted);display:block;margin-bottom:4px;">Kateqoriya</label>
+        <select id="tr-new-cat">
+          <option>Qarşılama</option><option>Məhsul Biliyi</option><option>Satış Texnikası</option>
+          <option>Xidmət Standartı</option><option>Gigiyena</option><option>Davranış</option><option>Digər</option>
+        </select>
+      </div>
+      <button class="btn success" onclick="trAddItem()" style="height:42px;align-self:flex-end;">
+        <i class="fa-solid fa-plus"></i> Əlavə et
+      </button>
+    </div>
+    <div id="tr-items-list">
+      <div style="text-align:center;padding:1.5rem;color:var(--text-muted);font-size:0.88rem;">
+        <i class="fa-solid fa-circle-notch fa-spin"></i> Yüklənir...
       </div>
     </div>
-    <div class="tg-actions">
-      <button class="btn primary" onclick="saveTg()"><i class="fa-solid fa-floppy-disk"></i> Saxla</button>
-      <button class="btn" onclick="testTg()"><i class="fa-solid fa-paper-plane"></i> Test Göndər</button>
+    <div id="tr-items-save-result" class="tg-result" style="display:none;margin-top:0.6rem;"></div>
+    <div style="margin-top:0.8rem;display:flex;gap:8px;justify-content:flex-end;">
+      <button class="btn primary" onclick="trSaveItems()">
+        <i class="fa-solid fa-floppy-disk"></i> Dəyişiklikləri Saxla
+      </button>
     </div>
-    <div class="tg-result" id="tgResult"></div>
   </div>
-</div>
+
+  <!-- Qeydlər -->
+  <div class="card">
+    <div style="display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:1.2rem;">
+      <div class="tg-section-title" style="margin-bottom:0;flex:1;"><i class="fa-solid fa-clipboard-list"></i> Treninq Qeydləri</div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <input type="date" id="tr-date-pick" style="min-width:140px;">
+        <button class="btn sm primary" onclick="loadTrainerLogs()"><i class="fa-solid fa-magnifying-glass"></i> Göstər</button>
+      </div>
+    </div>
+    <div id="tr-logs-area">
+      <div style="text-align:center;padding:2rem;color:var(--text-muted);font-size:0.88rem;">Tarix seçib "Göstər" basın</div>
+    </div>
+  </div>
+
+</div><!-- /tab-trainer -->
 
 <!-- MENECERLƏR -->
 <div id="tab-mgr" class="page">
@@ -511,6 +530,63 @@ input:focus,select:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(7
     <div class="tg-result" id="mgrResult" style="margin-top:0.8rem;"></div>
   </div>
 
+</div>
+
+
+<!-- İZİN -->
+<div id="tab-izin" class="page">
+  <div class="card">
+    <div style="font-size:0.95rem;font-weight:700;margin-bottom:1.1rem;"><i class="fa-solid fa-plus" style="color:var(--primary);margin-right:6px;"></i>Yeni İcazə Əlavə Et</div>
+    <div class="add-form" style="margin-bottom:0;">
+      <select id="izinEmp" style="min-width:200px;"><option value="" disabled selected>İşçi seçin</option></select>
+      <input type="date" id="izinStart" style="min-width:150px;flex:unset;">
+      <input type="date" id="izinEnd" style="min-width:150px;flex:unset;">
+      <select id="izinType" style="min-width:130px;flex:unset;"><option value="İcazə">İcazə</option><option value="Xəstəlik">Xəstəlik</option><option value="Digər">Digər</option></select>
+      <input id="izinNote" placeholder="Qeyd (istəyə bağlı)">
+      <button class="btn primary" onclick="addIzinAdmin()"><i class="fa-solid fa-plus"></i> Əlavə et</button>
+    </div>
+  </div>
+  <div class="card" id="izinList">Yüklənir...</div>
+</div>
+
+<!-- CİHAZLAR -->
+<div id="tab-dev" class="page">
+  <div class="card" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+    <div><div style="font-size:0.95rem;font-weight:700;">Scan Cihazları</div><div style="font-size:0.82rem;color:var(--text-muted);">Passpage açmaq icazəsi olan cihazlar</div></div>
+    <button class="btn primary" onclick="loadDevices()"><i class="fa-solid fa-rotate"></i> Yenilə</button>
+  </div>
+  <div id="devList">Yüklənir...</div>
+</div>
+
+<!-- TELEGRAM -->
+<div id="tab-tg" class="page">
+  <div class="card">
+    <div class="toggle-row">
+      <div class="toggle-desc"><b><i class="fa-brands fa-telegram" style="color:#2AABEE;margin-right:5px;"></i>Telegram Bildirişləri</b><span>Gəliş, çıxış, gecikmə və cihaz bildirişləri</span></div>
+      <label class="toggle"><input type="checkbox" id="tgEnabled"><span class="toggle-slider"></span></label>
+    </div>
+    <div class="tg-section">
+      <div class="tg-section-title"><i class="fa-solid fa-robot"></i> Bot Məlumatları</div>
+      <div class="tg-grid">
+        <div class="tg-field"><label>Bot Token</label><input id="tgToken" placeholder="123456:AAF..."></div>
+        <div class="tg-field"><label>Admin Chat ID</label><input id="tgAdminChat" placeholder="-100123..."></div>
+      </div>
+    </div>
+    <div class="tg-section">
+      <div class="tg-section-title"><i class="fa-solid fa-briefcase"></i> Filial Chat ID-ləri (istəyə bağlı)</div>
+      <div class="tg-grid">
+        <div class="tg-field"><label><span style="width:9px;height:9px;background:#bfdbfe;border-radius:2px;display:inline-block;margin-right:4px;"></span>Elmlər</label><input id="tgElmler" placeholder="Chat ID"></div>
+        <div class="tg-field"><label><span style="width:9px;height:9px;background:#fbcfe8;border-radius:2px;display:inline-block;margin-right:4px;"></span>Sahil</label><input id="tgSahil" placeholder="Chat ID"></div>
+        <div class="tg-field"><label><span style="width:9px;height:9px;background:#bbf7d0;border-radius:2px;display:inline-block;margin-right:4px;"></span>Gənclik</label><input id="tgGenclik" placeholder="Chat ID"></div>
+        <div class="tg-field"><label><span style="width:9px;height:9px;background:#fef08a;border-radius:2px;display:inline-block;margin-right:4px;"></span>Ağ Şəhər</label><input id="tgAgSeher" placeholder="Chat ID"></div>
+      </div>
+    </div>
+    <div class="tg-actions">
+      <button class="btn primary" onclick="saveTg()"><i class="fa-solid fa-floppy-disk"></i> Saxla</button>
+      <button class="btn" onclick="testTg()"><i class="fa-solid fa-paper-plane"></i> Test Göndər</button>
+    </div>
+    <div class="tg-result" id="tgResult"></div>
+  </div>
 </div>
 
 <!-- WiFi -->
@@ -711,81 +787,6 @@ input:focus,select:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(7
     </div>
   </div>
 </div>
-
-<!-- TREYNİNQ TAB -->
-<div class="page" id="tab-trainer">
-
-  <!-- Treynər məlumatları -->
-  <div class="card">
-    <div class="tg-section-title"><i class="fa-solid fa-graduation-cap"></i> Treynər Məlumatları</div>
-
-    <!-- Ad -->
-    <div class="tg-section" style="margin-bottom:1.2rem;">
-      <div class="tg-section-title" style="font-size:0.72rem;margin-bottom:0.6rem;"><i class="fa-solid fa-user-tie"></i> Treynərin Adı</div>
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-        <input type="text" id="trNameInput" placeholder="Ad Soyad..." style="flex:1;min-width:200px;">
-        <button class="btn primary" onclick="saveTrainerName()"><i class="fa-solid fa-floppy-disk"></i> Saxla</button>
-      </div>
-      <div id="tr-save-result" class="tg-result" style="display:none;margin-top:0.6rem;"></div>
-    </div>
-
-    <!-- Sabit link -->
-    <div>
-      <div class="tg-section-title" style="font-size:0.72rem;margin-bottom:0.6rem;"><i class="fa-solid fa-link"></i> Treynər Paneli Linki (sabit)</div>
-      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-        <div style="flex:1;background:#f8fafc;border:1px solid rgba(15,23,42,0.07);border-radius:11px;padding:0.7rem 1rem;font-size:0.8rem;font-weight:600;color:var(--primary);min-width:200px;word-break:break-all;" id="trKeyLink">—</div>
-        <button class="btn sm" onclick="copyTrainerLink()"><i class="fa-solid fa-copy"></i> Kopyala</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Çeklist elementləri -->
-  <div class="card">
-    <div class="tg-section-title"><i class="fa-solid fa-list-check"></i> Treninq Çeklist Elementləri</div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1.2rem;align-items:flex-end;">
-      <div style="flex:2;min-width:200px;">
-        <label style="font-size:0.76rem;font-weight:600;color:var(--text-muted);display:block;margin-bottom:4px;">Element mətni</label>
-        <input type="text" id="tr-new-text" placeholder="Yeni tapşırıq...">
-      </div>
-      <div style="flex:1;min-width:130px;">
-        <label style="font-size:0.76rem;font-weight:600;color:var(--text-muted);display:block;margin-bottom:4px;">Kateqoriya</label>
-        <select id="tr-new-cat">
-          <option>Qarşılama</option><option>Məhsul Biliyi</option><option>Satış Texnikası</option>
-          <option>Xidmət Standartı</option><option>Gigiyena</option><option>Davranış</option><option>Digər</option>
-        </select>
-      </div>
-      <button class="btn success" onclick="trAddItem()" style="height:42px;align-self:flex-end;">
-        <i class="fa-solid fa-plus"></i> Əlavə et
-      </button>
-    </div>
-    <div id="tr-items-list">
-      <div style="text-align:center;padding:1.5rem;color:var(--text-muted);font-size:0.88rem;">
-        <i class="fa-solid fa-circle-notch fa-spin"></i> Yüklənir...
-      </div>
-    </div>
-    <div id="tr-items-save-result" class="tg-result" style="display:none;margin-top:0.6rem;"></div>
-    <div style="margin-top:0.8rem;display:flex;gap:8px;justify-content:flex-end;">
-      <button class="btn primary" onclick="trSaveItems()">
-        <i class="fa-solid fa-floppy-disk"></i> Dəyişiklikləri Saxla
-      </button>
-    </div>
-  </div>
-
-  <!-- Qeydlər -->
-  <div class="card">
-    <div style="display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:1.2rem;">
-      <div class="tg-section-title" style="margin-bottom:0;flex:1;"><i class="fa-solid fa-clipboard-list"></i> Treninq Qeydləri</div>
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-        <input type="date" id="tr-date-pick" style="min-width:140px;">
-        <button class="btn sm primary" onclick="loadTrainerLogs()"><i class="fa-solid fa-magnifying-glass"></i> Göstər</button>
-      </div>
-    </div>
-    <div id="tr-logs-area">
-      <div style="text-align:center;padding:2rem;color:var(--text-muted);font-size:0.88rem;">Tarix seçib "Göstər" basın</div>
-    </div>
-  </div>
-
-</div><!-- /tab-trainer -->
 
 <!-- Shift Seçici Panel -->
 <div class="shift-popup" id="shiftPopup">
@@ -1893,7 +1894,7 @@ function saveTrainerName() {
   if (!name) { alert('Ad daxil edin!'); return; }
   google.script.run
     .withSuccessHandler(function() {
-      showResult('tr-save-result', true, '<i class="fa-solid fa-check"></i> Treynər adı saxlandı!');
+      showResult('tr-save-result', true, '<i class="fa-solid fa-check"></i> Təlimçi adı saxlandı!');
     })
     .setTrainerName(name);
 }
