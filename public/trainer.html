@@ -184,23 +184,10 @@ header{background:linear-gradient(135deg,rgba(255,255,255,0.94) 0%,rgba(240,253,
 </div>
 <div id="toast"></div>
 
+<script src="/gsr-shim.js"></script>
 <script>
 const TRAINER_KEY  = '<?= trainerKey ?>';
 const TRAINER_NAME = '<?= trainerName ?>';
-const BASE = '<?= scriptUrl ?>';
-
-async function api(fn, ...args) {
-  try {
-    const r = await fetch(`${BASE}/api/${fn}`, {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ args })
-    });
-    return await r.json();
-  } catch(e) {
-    console.error('[API]', fn, e);
-    return null;
-  }
-}
 
 let _toastTimer;
 function toast(msg, type='ok') {
@@ -212,11 +199,12 @@ function toast(msg, type='ok') {
 }
 
 // ── State ─────────────────────────────────────────────────────────
-let selBranch   = null;
-let selEmpId    = null;
-let selEmpName  = null;
-let allItems    = [];   // [{id,text,category}]
-let checks      = {};   // {id:{checked,note}}
+var selBranch  = null;
+var selEmpId   = null;
+var selEmpName = null;
+var allEmps    = [];  // bütün işçilər (bir dəfə yüklənir)
+var allItems   = [];  // çeklist elementləri
+var checks     = {};
 
 // ── Tabs ─────────────────────────────────────────────────────────
 function switchTab(tab) {
@@ -228,8 +216,8 @@ function switchTab(tab) {
 }
 
 // ── Filial seçimi ─────────────────────────────────────────────────
-async function selectBranch(dept, btn) {
-  document.querySelectorAll('.branch-btn').forEach(b => b.classList.remove('sel'));
+function selectBranch(dept, btn) {
+  document.querySelectorAll('.branch-btn').forEach(function(b){ b.classList.remove('sel'); });
   btn.classList.add('sel');
   selBranch  = dept;
   selEmpId   = null;
@@ -239,52 +227,71 @@ async function selectBranch(dept, btn) {
   document.getElementById('empCard').classList.remove('hidden');
   document.getElementById('clCard').classList.add('hidden');
 
-  const empList = document.getElementById('empList');
+  var empList = document.getElementById('empList');
   empList.innerHTML = '<div class="empty"><i class="fa-solid fa-circle-notch fa-spin"></i><p>Yüklənir...</p></div>';
 
-  let emps = null;
-  try { emps = await api('getEmployeesByDept', dept); } catch(_) {}
-
-  if (emps === null) {
-    empList.innerHTML = '<div class="empty"><i class="fa-solid fa-circle-exclamation"></i><p>Server xətası. Sayfanı yeniləyin.</p></div>';
+  if (allEmps.length) {
+    renderEmpList(dept);
     return;
   }
-  if (!Array.isArray(emps) || !emps.length) {
+  // getEmployees() admin paneldə işləyən eyni funksiya
+  google.script.run
+    .withSuccessHandler(function(data) {
+      allEmps = data || [];
+      renderEmpList(dept);
+    })
+    .withFailureHandler(function(e) {
+      document.getElementById('empList').innerHTML =
+        '<div class="empty"><i class="fa-solid fa-triangle-exclamation"></i><p>Xəta: ' + (e.message||'bilinmir') + '</p></div>';
+    })
+    .getEmployees();
+}
+
+function renderEmpList(dept) {
+  var empList = document.getElementById('empList');
+  var filtered = allEmps.filter(function(e){ return e.dept === dept; });
+  if (!filtered.length) {
     empList.innerHTML = '<div class="empty"><i class="fa-solid fa-users-slash"></i><p>Bu filialda işçi tapılmadı.</p></div>';
     return;
   }
-  empList.innerHTML = emps.map(e =>
-    `<button class="emp-btn" onclick="selectEmp('${e.id}','${e.name.replace(/'/g,"\\'")}',this)">
-      <div class="emp-av">${e.name.charAt(0)}</div>
-      <span>${e.name}</span>
-    </button>`
-  ).join('');
-
+  empList.innerHTML = filtered.map(function(e) {
+    return '<button class="emp-btn" onclick="selectEmp(\'' + e.id + '\',\'' + e.name.replace(/'/g,"\\'") + '\',this)">' +
+      '<div class="emp-av">' + e.name.charAt(0) + '</div>' +
+      '<span>' + e.name + '</span></button>';
+  }).join('');
   document.getElementById('empCard').scrollIntoView({ behavior:'smooth', block:'nearest' });
 }
 
 // ── İşçi seçimi ──────────────────────────────────────────────────
-async function selectEmp(id, name, btn) {
-  document.querySelectorAll('.emp-btn').forEach(b => b.classList.remove('sel'));
+function selectEmp(id, name, btn) {
+  document.querySelectorAll('.emp-btn').forEach(function(b){ b.classList.remove('sel'); });
   btn.classList.add('sel');
   selEmpId   = id;
   selEmpName = name;
   document.getElementById('clEmpLbl').textContent = '— ' + name;
 
-  const clCard = document.getElementById('clCard');
+  var clCard = document.getElementById('clCard');
   clCard.classList.remove('hidden');
   document.getElementById('clItems').innerHTML = '<div class="empty"><i class="fa-solid fa-circle-notch fa-spin"></i><p>Yüklənir...</p></div>';
 
-  // Çeklist elementlərini yalnız bir dəfə yüklə
-  if (!allItems.length) {
-    let items = null;
-    try { items = await api('getActiveTrainerItems'); } catch(_) {}
-    allItems = Array.isArray(items) ? items : [];
-  }
-
   checks = {};
-  renderChecklist();
-  clCard.scrollIntoView({ behavior:'smooth', block:'start' });
+
+  if (allItems.length) {
+    renderChecklist();
+    clCard.scrollIntoView({ behavior:'smooth', block:'start' });
+    return;
+  }
+  google.script.run
+    .withSuccessHandler(function(data) {
+      allItems = data || [];
+      renderChecklist();
+      clCard.scrollIntoView({ behavior:'smooth', block:'start' });
+    })
+    .withFailureHandler(function() {
+      allItems = [];
+      renderChecklist();
+    })
+    .getActiveTrainerItems();
 }
 
 // ── Çeklist render ────────────────────────────────────────────────
@@ -351,43 +358,43 @@ function updateProg() {
 }
 
 // ── Göndər ───────────────────────────────────────────────────────
-async function submitChecklist() {
-  if (!selBranch)  { toast('Filial seçin.', 'err');  return; }
-  if (!selEmpId)   { toast('İşçi seçin.', 'err');    return; }
+function submitChecklist() {
+  if (!selBranch)       { toast('Filial seçin.', 'err');  return; }
+  if (!selEmpId)        { toast('İşçi seçin.', 'err');    return; }
   if (!allItems.length) { toast('Çeklist boşdur.', 'err'); return; }
 
-  const btn = document.getElementById('submitBtn');
+  var btn = document.getElementById('submitBtn');
   btn.disabled = true;
   btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Göndərilir...';
 
-  const items = allItems.map(item => ({
-    id:       item.id,
-    text:     item.text,
-    category: item.category,
-    checked:  checks[item.id]?.checked || false,
-    note:     checks[item.id]?.note    || '',
-  }));
+  var items = allItems.map(function(item) {
+    return {
+      id:       item.id,
+      text:     item.text,
+      category: item.category,
+      checked:  (checks[item.id] && checks[item.id].checked) || false,
+      note:     (checks[item.id] && checks[item.id].note)    || '',
+    };
+  });
 
-  const res = await api(
-    'submitTrainerLog',
-    TRAINER_KEY,
-    TRAINER_NAME,
-    selBranch,
-    selEmpId,
-    selEmpName,
-    items,
-    document.getElementById('generalNote').value.trim()
-  );
-
-  btn.disabled = false;
-  btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Treninqi Tamamla';
-
-  if (res && res.success) {
-    toast('Treninq qeyd edildi ✓', 'ok');
-    resetForm();
-  } else {
-    toast((res && res.reason) || 'Xəta baş verdi.', 'err');
-  }
+  google.script.run
+    .withSuccessHandler(function(res) {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Treninqi Tamamla';
+      if (res && res.success) {
+        toast('Treninq qeyd edildi ✓', 'ok');
+        resetForm();
+      } else {
+        toast((res && res.reason) || 'Xəta baş verdi.', 'err');
+      }
+    })
+    .withFailureHandler(function(e) {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Treninqi Tamamla';
+      toast('Xəta: ' + (e.message||'bilinmir'), 'err');
+    })
+    .submitTrainerLog(TRAINER_KEY, TRAINER_NAME, selBranch, selEmpId, selEmpName, items,
+      document.getElementById('generalNote').value.trim());
 }
 
 function resetForm() {
@@ -401,43 +408,51 @@ function resetForm() {
 }
 
 // ── Bu gün ───────────────────────────────────────────────────────
-async function loadTodayLogs() {
-  const el = document.getElementById('todayLogs');
+function loadTodayLogs() {
+  var el = document.getElementById('todayLogs');
   el.innerHTML = '<div class="empty"><i class="fa-solid fa-circle-notch fa-spin"></i><p>Yüklənir...</p></div>';
 
-  const res  = await api('getTodayTrainerLogs', TRAINER_KEY);
-  const logs = (res && res.logs) ? res.logs : [];
+  google.script.run
+    .withSuccessHandler(function(res) { renderTodayLogs(res); })
+    .withFailureHandler(function() {
+      document.getElementById('todayLogs').innerHTML =
+        '<div class="empty"><i class="fa-solid fa-triangle-exclamation"></i><p>Yüklənə bilmədi.</p></div>';
+    })
+    .getTodayTrainerLogs(TRAINER_KEY);
+}
+
+function renderTodayLogs(res) {
+  var el = document.getElementById('todayLogs');
+  var logs = (res && res.logs) ? res.logs : [];
 
   if (!logs.length) {
     el.innerHTML = '<div class="empty"><i class="fa-solid fa-clipboard"></i><p>Bu gün hələ treninq qeyd edilməyib.</p></div>';
     return;
   }
 
-  el.innerHTML = logs.map(log => {
-    const items = log.items || [];
-    const done  = items.filter(i => i.checked).length;
-    const total = items.length;
-    const pct   = total ? Math.round(done/total*100) : 0;
-    const clr   = pct>=80 ? 'var(--success)' : pct>=50 ? 'var(--warning)' : 'var(--danger)';
-    const time  = log.created_at
+  el.innerHTML = logs.map(function(log) {
+    var items = log.items || [];
+    var done  = items.filter(function(i){ return i.checked; }).length;
+    var total = items.length;
+    var pct   = total ? Math.round(done/total*100) : 0;
+    var clr   = pct>=80 ? 'var(--success)' : pct>=50 ? 'var(--warning)' : 'var(--danger)';
+    var time  = log.created_at
       ? new Date(log.created_at).toLocaleTimeString('az-AZ',{hour:'2-digit',minute:'2-digit'})
       : '';
-    const notOk = items.filter(i => !i.checked);
-    return `
-      <div class="log-card">
-        <div class="log-head">
-          <div class="log-emp">${log.emp_name||'—'}</div>
-          <span class="log-dept">${log.dept}</span>
-          <span class="log-time">${time}</span>
-        </div>
-        <div class="log-score" style="color:${clr};margin-bottom:${notOk.length?'6':'0'}px;">
-          <i class="fa-solid fa-check-double"></i> ${done}/${total} (${pct}%)
-        </div>
-        ${notOk.length ? `<div style="font-size:0.78rem;color:var(--danger);">
-          <i class="fa-solid fa-triangle-exclamation"></i> Tamamlanmayan: ${notOk.map(i=>`<b>${i.text}</b>`).join(', ')}
-        </div>` : ''}
-        ${log.general_note ? `<div class="log-note"><i class="fa-solid fa-note-sticky"></i> ${log.general_note}</div>` : ''}
-      </div>`;
+    var notOk = items.filter(function(i){ return !i.checked; });
+    return '<div class="log-card">' +
+      '<div class="log-head">' +
+        '<div class="log-emp">' + (log.emp_name||'—') + '</div>' +
+        '<span class="log-dept">' + log.dept + '</span>' +
+        '<span class="log-time">' + time + '</span>' +
+      '</div>' +
+      '<div class="log-score" style="color:' + clr + ';margin-bottom:' + (notOk.length?'6':'0') + 'px;">' +
+        '<i class="fa-solid fa-check-double"></i> ' + done + '/' + total + ' (' + pct + '%)' +
+      '</div>' +
+      (notOk.length ? '<div style="font-size:0.78rem;color:var(--danger);"><i class="fa-solid fa-triangle-exclamation"></i> Tamamlanmayan: ' +
+        notOk.map(function(i){ return '<b>'+i.text+'</b>'; }).join(', ') + '</div>' : '') +
+      (log.general_note ? '<div class="log-note"><i class="fa-solid fa-note-sticky"></i> ' + log.general_note + '</div>' : '') +
+      '</div>';
   }).join('');
 }
 </script>
