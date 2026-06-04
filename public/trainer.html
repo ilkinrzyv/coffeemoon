@@ -195,11 +195,9 @@ async function api(fn, ...args) {
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ args })
     });
-    const data = await r.json();
-    if (!r.ok) { console.error('[API]', fn, data); return null; }
-    return data;
+    return await r.json();
   } catch(e) {
-    console.error('[API fetch error]', fn, e);
+    console.error('[API]', fn, e);
     return null;
   }
 }
