@@ -268,79 +268,26 @@ header{background:linear-gradient(135deg,rgba(255,255,255,0.94) 0%,rgba(240,253,
 <div id="panel-imtahan" class="hidden">
 
   <div class="sub-tab-bar">
-    <button class="sub-tab-btn active" id="subtab-new"     onclick="switchImtahanTab('new')"><i class="fa-solid fa-pen-to-square"></i> Yeni</button>
-    <button class="sub-tab-btn"        id="subtab-suallar" onclick="switchImtahanTab('suallar')"><i class="fa-solid fa-list-check"></i> Suallar</button>
+    <button class="sub-tab-btn active" id="subtab-suallar" onclick="switchImtahanTab('suallar')"><i class="fa-solid fa-list-check"></i> Suallar</button>
     <button class="sub-tab-btn"        id="subtab-results" onclick="switchImtahanTab('results')"><i class="fa-solid fa-trophy"></i> Nəticələr</button>
   </div>
 
-  <!-- ─ Yeni İmtahan ─ -->
-  <div id="imtahan-panel-new">
-
-    <!-- Addım 1: Filial -->
-    <div class="card">
-      <div class="sec-label"><span class="sec-num">1</span> Filial seçin</div>
-      <div class="branch-grid">
-        <button class="branch-btn" onclick="examSelectBranch('Elmlər',this)"><i class="fa-solid fa-store"></i> Elmlər</button>
-        <button class="branch-btn" onclick="examSelectBranch('Sahil',this)"><i class="fa-solid fa-store"></i> Sahil</button>
-        <button class="branch-btn" onclick="examSelectBranch('Gənclik',this)"><i class="fa-solid fa-store"></i> Gənclik</button>
-        <button class="branch-btn" onclick="examSelectBranch('Ağ Şəhər',this)"><i class="fa-solid fa-store"></i> Ağ Şəhər</button>
-      </div>
-    </div>
-
-    <!-- Addım 2: İşçi -->
-    <div class="card hidden" id="examEmpCard">
-      <div class="sec-label"><span class="sec-num">2</span> İşçi seçin
-        <span id="examEmpDeptLbl" style="font-weight:700;color:var(--primary);text-transform:none;letter-spacing:0;margin-left:4px;"></span>
-      </div>
-      <div class="emp-list" id="examEmpList"></div>
-    </div>
-
-    <!-- Addım 3: Vəzifə -->
-    <div class="card hidden" id="examRoleCard">
-      <div class="sec-label"><span class="sec-num">3</span> Vəzifə seçin
-        <span id="examRoleEmpLbl" style="font-weight:700;color:var(--text-main);text-transform:none;letter-spacing:0;margin-left:4px;"></span>
-      </div>
-      <div class="role-select-grid">
-        <button class="role-select-btn" id="examRoleBtnKassir" onclick="examSelectRole('kassir',this)">
-          <i class="fa-solid fa-cash-register"></i>
-          <span>Kassir</span>
-        </button>
-        <button class="role-select-btn" id="examRoleBtnBarista" onclick="examSelectRole('barista',this)">
-          <i class="fa-solid fa-mug-hot"></i>
-          <span>Barista</span>
-        </button>
-      </div>
-    </div>
-
-    <!-- Addım 4: Suallar -->
-    <div class="card hidden" id="examQCard">
-      <div class="sec-label"><span class="sec-num">4</span> İmtahan
-        <span id="examEmpLbl" style="font-weight:700;color:var(--text-main);text-transform:none;letter-spacing:0;margin-left:4px;"></span>
-        <span id="examRoleLbl" style="font-size:0.7rem;font-weight:800;padding:2px 8px;border-radius:6px;margin-left:4px;"></span>
-      </div>
-      <p style="font-size:0.79rem;color:var(--text-soft);margin-bottom:0.9rem;">
-        Test: işçinin seçdiyi variantı tapın. Açıq sual: <b style="color:var(--success);">Düzgün</b> / <b style="color:var(--danger);">Yanlış</b>.
-      </p>
-      <div class="score-box">
-        <div><div class="score-sub">Düzgün cavab</div><div class="score-main" id="examScoreVal">0 / 0</div></div>
-        <div style="text-align:right;"><div class="score-sub" style="margin-bottom:5px;">Qiymət</div><span class="grade-badge grade-f" id="examGradeBadge">—</span></div>
-      </div>
-      <div id="examItems"></div>
-      <div style="margin-top:1.2rem;">
-        <div class="sec-label" style="margin-bottom:0.5rem;font-size:0.72rem;"><i class="fa-solid fa-note-sticky"></i> Qeyd (istəyə bağlı)</div>
-        <textarea class="gen-note" id="examNote" placeholder="Əlavə qeydlər..."></textarea>
-      </div>
-      <button class="submit-btn" id="examSubmitBtn" onclick="submitExam_()"
-        style="background:linear-gradient(135deg,var(--purple),var(--purple-dark));box-shadow:0 6px 20px rgba(124,58,237,0.22);">
-        <i class="fa-solid fa-check-double"></i> İmtahanı Tamamla
-      </button>
-    </div>
-  </div>
-
   <!-- ─ Suallar ─ -->
-  <div id="imtahan-panel-suallar" class="hidden">
+  <div id="imtahan-panel-suallar">
     <div class="card">
       <div class="sec-label"><i class="fa-solid fa-list-check"></i> İmtahan Sualları</div>
+
+      <!-- İşçi imtahan linki -->
+      <div style="background:rgba(13,148,136,0.06);border:1.5px solid rgba(13,148,136,0.15);border-radius:14px;padding:0.85rem 1rem;margin-bottom:1rem;display:flex;align-items:center;gap:10px;">
+        <i class="fa-solid fa-link" style="color:var(--primary);flex-shrink:0;"></i>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:0.72rem;font-weight:700;color:var(--text-muted);margin-bottom:2px;">İşçi İmtahan Linki</div>
+          <div id="examLinkText" style="font-size:0.8rem;font-weight:600;color:var(--primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
+        </div>
+        <button onclick="copyExamLink()" style="border:none;background:var(--primary);color:#fff;padding:5px 10px;border-radius:9px;cursor:pointer;font-size:0.75rem;font-weight:700;font-family:'Inter',sans-serif;flex-shrink:0;" title="Linki kopyala">
+          <i class="fa-solid fa-copy"></i>
+        </button>
+      </div>
 
       <!-- Filtrlər: hamısı / kassir / barista -->
       <div style="display:flex;gap:6px;margin-bottom:1rem;" id="qFilterBar">
@@ -429,16 +376,11 @@ var allMaterials      = [];
 var allExamQuestions  = [];
 var materialsLoaded   = false;
 var examQsLoaded      = false;
-var imtahanSubTab     = 'new';
+var imtahanSubTab     = 'suallar';
 var qListFilter       = 'all';
 
 // Yeni Təlim
 var selBranch=null, selEmpId=null, selEmpName=null, checks={};
-
-// İmtahan
-var examBranch=null, examEmpId=null, examEmpName=null, examRole=null;
-var examAnswers={};
-var examSessionQuestions=[];   // role ilə filtrlənmiş suallar
 
 // Sual formu
 var newQType='test', newQRole='kassir', newQCorrect='';
@@ -451,18 +393,28 @@ function switchTab(t) {
   });
   if (t==='today')   loadTodayLogs();
   if (t==='talim')   loadMaterials();
-  if (t==='imtahan'&&imtahanSubTab==='results') loadTodayExams();
-  if (t==='imtahan'&&imtahanSubTab==='suallar') loadExamQuestions();
+  if (t==='imtahan') { loadExamQuestions(); setExamLink(); }
 }
 
 function switchImtahanTab(s) {
   imtahanSubTab=s;
-  ['new','suallar','results'].forEach(function(x){
+  ['suallar','results'].forEach(function(x){
     document.getElementById('subtab-'+x).classList.toggle('active',x===s);
     document.getElementById('imtahan-panel-'+x).classList.toggle('hidden',x!==s);
   });
   if (s==='results') loadTodayExams();
   if (s==='suallar') loadExamQuestions();
+}
+
+function setExamLink() {
+  var url = window.location.origin + '/exam';
+  var el  = document.getElementById('examLinkText');
+  if (el) el.textContent = url;
+}
+
+function copyExamLink() {
+  var url = window.location.origin + '/exam';
+  navigator.clipboard.writeText(url).then(function(){ toast('Link kopyalandı ✓', 'ok'); }).catch(function(){ toast('Kopyalama alınmadı', 'err'); });
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -653,144 +605,6 @@ function submitNewQuestion(){
     .saveExamQuestion(TRAINER_KEY,{text:text,type:newQType,options:options,correct:correct,category:cat,role:newQRole});
 }
 function deleteExamQ(id){if(!confirm('Bu sualı silmək istədiyinizə əminsiniz?'))return;google.script.run.withSuccessHandler(function(r){if(r&&r.success){toast('Silindi','ok');examQsLoaded=false;loadExamQuestions();}else toast('Silinə bilmədi.','err');}).withFailureHandler(function(){toast('Xəta.','err');}).deleteExamQuestion(TRAINER_KEY,id);}
-
-// ════════════════════════════════════════════════════════════════
-//  İMTAHAN — YENİ İMTAHAN
-// ════════════════════════════════════════════════════════════════
-function examSelectBranch(dept,btn){
-  document.querySelectorAll('#imtahan-panel-new .branch-btn').forEach(function(b){b.classList.remove('sel');});
-  btn.classList.add('sel'); examBranch=dept; examEmpId=null; examEmpName=null; examRole=null;
-  document.getElementById('examEmpDeptLbl').textContent='— '+dept;
-  document.getElementById('examEmpCard').classList.remove('hidden');
-  document.getElementById('examRoleCard').classList.add('hidden');
-  document.getElementById('examQCard').classList.add('hidden');
-  document.getElementById('examEmpList').innerHTML='<div class="empty"><i class="fa-solid fa-circle-notch fa-spin"></i><p>Yüklənir...</p></div>';
-  if (allEmps.length){renderExamEmpList(dept);return;}
-  google.script.run.withSuccessHandler(function(d){allEmps=d||[];renderExamEmpList(dept);})
-    .withFailureHandler(function(e){document.getElementById('examEmpList').innerHTML='<div class="empty"><i class="fa-solid fa-triangle-exclamation"></i><p>'+(e.message||'Xəta')+'</p></div>';}).getEmployees();
-}
-
-function renderExamEmpList(dept){
-  var list=document.getElementById('examEmpList'),f=allEmps.filter(function(e){return e.dept===dept;});
-  if (!f.length){list.innerHTML='<div class="empty"><i class="fa-solid fa-users-slash"></i><p>İşçi tapılmadı.</p></div>';return;}
-  list.innerHTML=f.map(function(e){return '<button class="emp-btn" onclick="examSelectEmp(\''+e.id+'\',\''+e.name.replace(/'/g,"\\'")+'\',this)"><div class="emp-av">'+e.name.charAt(0)+'</div><span>'+e.name+'</span></button>';}).join('');
-  document.getElementById('examEmpCard').scrollIntoView({behavior:'smooth',block:'nearest'});
-}
-
-function examSelectEmp(id,name,btn){
-  document.querySelectorAll('#examEmpList .emp-btn').forEach(function(b){b.classList.remove('sel');});
-  btn.classList.add('sel'); examEmpId=id; examEmpName=name; examRole=null;
-  document.getElementById('examRoleEmpLbl').textContent='— '+name;
-  // Vəzifə seçim addımını göstər
-  document.getElementById('examRoleCard').classList.remove('hidden');
-  document.getElementById('examQCard').classList.add('hidden');
-  document.querySelectorAll('#examRoleCard .role-select-btn').forEach(function(b){b.className='role-select-btn';});
-  document.getElementById('examRoleCard').scrollIntoView({behavior:'smooth',block:'nearest'});
-}
-
-function examSelectRole(role,btn){
-  examRole=role; examAnswers={}; examSessionQuestions=[];
-  document.querySelectorAll('#examRoleCard .role-select-btn').forEach(function(b){b.className='role-select-btn';});
-  btn.classList.add('sel-'+role);
-  // Başlıq badge
-  var lbl=document.getElementById('examRoleLbl');
-  lbl.className='role-badge role-'+role;
-  lbl.textContent=role==='kassir'?'Kassir':'Barista';
-  document.getElementById('examEmpLbl').textContent='— '+examEmpName;
-  var qc=document.getElementById('examQCard'); qc.classList.remove('hidden');
-  document.getElementById('examItems').innerHTML='<div class="empty"><i class="fa-solid fa-circle-notch fa-spin"></i><p>Yüklənir...</p></div>';
-  if (allExamQuestions.length){buildExamSession();qc.scrollIntoView({behavior:'smooth',block:'start'});return;}
-  google.script.run.withSuccessHandler(function(d){allExamQuestions=d||[];examQsLoaded=true;buildExamSession();qc.scrollIntoView({behavior:'smooth',block:'start'});})
-    .withFailureHandler(function(){allExamQuestions=[];buildExamSession();}).getExamQuestions();
-}
-
-function buildExamSession(){
-  // Seçilmiş rol + "hər ikisi" suallarını filtrlə
-  examSessionQuestions=allExamQuestions.filter(function(q){return q.role===examRole||q.role==='umumi';});
-  renderExamConduct();
-}
-
-function renderExamConduct(){
-  var el=document.getElementById('examItems');
-  if (!examSessionQuestions.length){
-    el.innerHTML='<div class="empty"><i class="fa-solid fa-list-check"></i><p>'+(examRole==='kassir'?'Kassir':'Barista')+' üçün sual tapılmadı.<br>"Suallar" tabından əlavə edin.</p></div>';
-    updateExamScore();return;
-  }
-  var html='';
-  examSessionQuestions.forEach(function(q,qi){
-    var isTest=q.type==='test';
-    html+='<div class="eq-card"><div style="display:flex;align-items:center;flex-wrap:wrap;margin-bottom:0.55rem;">'+
-      '<span class="eq-type '+(isTest?'eq-type-test':'eq-type-open')+'"><i class="fa-solid '+(isTest?'fa-list-check':'fa-comment-dots')+'"></i> '+(isTest?'Test':'Açıq Sual')+'</span>'+
-      (q.category?'<span style="font-size:0.68rem;color:var(--text-soft);margin-left:6px;">'+q.category+'</span>':'')+
-    '</div>'+
-    '<div class="eq-text">'+(qi+1)+'. '+q.text+'</div>';
-    if (isTest){
-      html+='<div class="eq-options" id="eq-opts-'+q.questionId+'">';
-      (q.options||[]).forEach(function(opt){html+='<button class="eq-opt" data-lbl="'+opt.label+'" onclick="tapOption(\''+q.questionId+'\',\''+opt.label+'\')"><span class="eq-opt-lbl">'+opt.label+'</span>'+opt.text+'</button>';});
-      html+='</div>';
-    } else {
-      html+='<div class="eq-open-btns"><button class="eq-open-btn" id="eq-pass-'+q.questionId+'" onclick="tapOpenAnswer(\''+q.questionId+'\',true)"><i class="fa-solid fa-check"></i> Düzgün</button><button class="eq-open-btn" id="eq-fail-'+q.questionId+'" onclick="tapOpenAnswer(\''+q.questionId+'\',false)"><i class="fa-solid fa-xmark"></i> Yanlış</button></div>';
-    }
-    html+='</div>';
-  });
-  el.innerHTML=html; updateExamScore();
-}
-
-function tapOption(qId,lbl){
-  var q=examSessionQuestions.find(function(x){return x.questionId===qId;}); if(!q)return;
-  var passed=lbl===q.correct; examAnswers[qId]={type:'test',given:lbl,passed:passed};
-  document.querySelectorAll('#eq-opts-'+qId+' .eq-opt').forEach(function(btn){
-    btn.classList.remove('sel-ok','sel-bad','show-correct');
-    var bl=btn.getAttribute('data-lbl');
-    if(bl===lbl)btn.classList.add(passed?'sel-ok':'sel-bad');
-    else if(!passed&&bl===q.correct)btn.classList.add('show-correct');
-  });
-  updateExamScore();
-}
-
-function tapOpenAnswer(qId,passed){
-  examAnswers[qId]={type:'open',passed:passed};
-  var pb=document.getElementById('eq-pass-'+qId),fb=document.getElementById('eq-fail-'+qId);
-  if(pb)pb.className='eq-open-btn'+(passed?' ok':'');
-  if(fb)fb.className='eq-open-btn'+(!passed?' bad':'');
-  updateExamScore();
-}
-
-function updateExamScore(){
-  var total=examSessionQuestions.length;
-  var passed=examSessionQuestions.filter(function(q){return examAnswers[q.questionId]&&examAnswers[q.questionId].passed===true;}).length;
-  var answered=Object.keys(examAnswers).length,pct=total>0?Math.round(passed/total*100):0;
-  document.getElementById('examScoreVal').textContent=passed+' / '+total;
-  var badge=document.getElementById('examGradeBadge'); badge.className='grade-badge';
-  if(!answered||!total){badge.textContent='—';}
-  else if(pct>=90){badge.classList.add('grade-a');badge.textContent=pct+'% — Əla';}
-  else if(pct>=75){badge.classList.add('grade-b');badge.textContent=pct+'% — Yaxşı';}
-  else if(pct>=60){badge.classList.add('grade-c');badge.textContent=pct+'% — Orta';}
-  else{badge.classList.add('grade-f');badge.textContent=pct+'% — Zəif';}
-}
-
-function submitExam_(){
-  if(!examBranch){toast('Filial seçin.','err');return;} if(!examEmpId){toast('İşçi seçin.','err');return;}
-  if(!examRole){toast('Vəzifə seçin.','err');return;}
-  if(!examSessionQuestions.length){toast('Bu vəzifə üçün sual yoxdur.','err');return;}
-  if(!Object.keys(examAnswers).length){toast('Ən azı 1 suala cavab verin.','err');return;}
-  var passed=examSessionQuestions.filter(function(q){return examAnswers[q.questionId]&&examAnswers[q.questionId].passed===true;}).length;
-  var maxScore=examSessionQuestions.length;
-  var answers=examSessionQuestions.map(function(q){var a=examAnswers[q.questionId]||{};return{questionId:q.questionId,text:q.text,type:q.type,category:q.category,role:q.role,options:q.options,correct:q.correct,given:a.given||null,passed:a.passed===true,answered:!!examAnswers[q.questionId]};});
-  var btn=document.getElementById('examSubmitBtn'); btn.disabled=true; btn.innerHTML='<i class="fa-solid fa-circle-notch fa-spin"></i> Göndərilir...';
-  google.script.run
-    .withSuccessHandler(function(r){btn.disabled=false;btn.innerHTML='<i class="fa-solid fa-check-double"></i> İmtahanı Tamamla';if(r&&r.success){toast('İmtahan qeyd edildi ✓','ok');resetExamForm();}else toast((r&&r.reason)||'Xəta.','err');})
-    .withFailureHandler(function(e){btn.disabled=false;btn.innerHTML='<i class="fa-solid fa-check-double"></i> İmtahanı Tamamla';toast('Xəta: '+(e.message||'bilinmir'),'err');})
-    .submitExam(TRAINER_KEY,TRAINER_NAME,examBranch,examEmpId,examEmpName,passed,maxScore,answers,document.getElementById('examNote').value.trim());
-}
-
-function resetExamForm(){
-  examEmpId=null;examEmpName=null;examRole=null;examAnswers={};examSessionQuestions=[];
-  ['examQCard','examRoleCard','examEmpCard'].forEach(function(id){document.getElementById(id).classList.add('hidden');});
-  document.querySelectorAll('#imtahan-panel-new .branch-btn').forEach(function(b){b.classList.remove('sel');});
-  examBranch=null; document.getElementById('examNote').value='';
-  window.scrollTo({top:0,behavior:'smooth'});
-}
 
 // ════════════════════════════════════════════════════════════════
 //  İMTAHAN — NƏTİCƏLƏR
