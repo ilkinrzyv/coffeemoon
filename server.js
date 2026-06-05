@@ -1648,40 +1648,64 @@ API.deleteExamQuestion = async (trainerKey, questionId) => {
 
 // ── İŞÇİ ÖZÜ İMTAHAN ────────────────────────────────────────────
 
-// Düzgün cavablar göndərilmir — yalnız sual + variantlar
+API.getExamStatus = async () => ({
+  active: U.getSetting('EXAM_ACTIVE') === 'true',
+});
+
+API.setExamStatus = async (trainerKey, active) => {
+  if (!U.getSetting('TRAINER_KEY') || U.getSetting('TRAINER_KEY') !== trainerKey)
+    return { success: false };
+  await U.setSetting('EXAM_ACTIVE', active ? 'true' : 'false');
+  return { success: true, active };
+};
+
+// Düzgün cavablar göndərilmir — test + açıq suallar birlikdə qaytarılır
 API.getExamQuestionsPublic = async (role) => {
   if (!['kassir','barista'].includes(role)) return [];
   const { data } = await sb.from('exam_questions')
     .select('question_id,text,type,options,category,role')
-    .eq('active', true).eq('type', 'test').order('sort_order');
+    .eq('active', true).order('sort_order');
   return (data || [])
     .filter(q => q.role === role || q.role === 'umumi')
     .map(q => ({
       questionId: q.question_id,
       text:       q.text,
-      options:    q.options  || [],
+      type:       q.type,
+      options:    q.type === 'test' ? (q.options || []) : [],
       category:   q.category || '',
       role:       q.role     || 'umumi',
     }));
 };
 
-// Server-side qiymətləndirmə — client heç vaxt doğru cavabı bilmir
+// Server-side qiymətləndirmə: test → avtomatik, açıq → saxlanır (null)
 API.submitEmployeeExam = async (empId, empName, dept, role, answers) => {
   if (!empId || !empName || !dept || !role || !answers?.length)
     return { success: false, reason: 'Məlumatlar natamamdır.' };
-  const questionIds = answers.map(a => a.questionId).filter(Boolean);
-  const { data: questions } = await sb.from('exam_questions')
-    .select('question_id,correct').in('question_id', questionIds);
+
+  const testIds = answers.filter(a => a.type === 'test').map(a => a.questionId).filter(Boolean);
   const cMap = {};
-  for (const q of questions || []) cMap[q.question_id] = q.correct;
-  let score = 0;
+  if (testIds.length) {
+    const { data: qs } = await sb.from('exam_questions')
+      .select('question_id,correct').in('question_id', testIds);
+    for (const q of qs || []) cMap[q.question_id] = q.correct;
+  }
+
+  let score = 0, testTotal = 0;
   const graded = answers.map(a => {
-    const correct = cMap[a.questionId] || '';
-    const passed  = !!correct && a.given === correct;
-    if (passed) score++;
-    return { questionId:a.questionId, text:a.text, category:a.category,
-             options:a.options||[], correct, given:a.given||null, passed, type:'test' };
+    if (a.type === 'test') {
+      testTotal++;
+      const correct = cMap[a.questionId] || '';
+      const passed  = !!correct && a.given === correct;
+      if (passed) score++;
+      return { questionId:a.questionId, text:a.text, category:a.category,
+               options:a.options||[], correct, given:a.given||null, passed, type:'test' };
+    } else {
+      // Açıq sual — mətni saxla, qiymət trainer tərəfindən
+      return { questionId:a.questionId, text:a.text, category:a.category,
+               options:[], correct:'', given:null, givenText:a.givenText||'', passed:null, type:'open' };
+    }
   });
+
   const ts     = new Date();
   const examId = 'EX-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substring(2,4).toUpperCase();
   const { error } = await sb.from('trainer_exams').insert({
@@ -1691,14 +1715,14 @@ API.submitEmployeeExam = async (empId, empName, dept, role, answers) => {
     emp_id:       String(empId),
     emp_name:     String(empName),
     score,
-    max_score:    answers.length,
+    max_score:    testTotal,
     answers:      graded,
     note:         '',
     date_str:     U.getLogicalYMD(ts),
     created_at:   ts.toISOString(),
   });
   sbErr('submitEmployeeExam', error);
-  return { success: !error, score, maxScore: answers.length, answers: graded };
+  return { success: !error, score, maxScore: testTotal, answers: graded };
 };
 
 // ══════════════════════════════════════════════════════════════════

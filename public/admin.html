@@ -371,49 +371,76 @@ input:focus,select:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(7
     </div>
   </div>
 
-  <!-- Çeklist elementləri -->
-  <div class="card">
-    <div class="tg-section-title"><i class="fa-solid fa-list-check"></i> Training Çeklist Elementləri</div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1.2rem;align-items:flex-end;">
-      <div style="flex:2;min-width:200px;">
-        <label style="font-size:0.76rem;font-weight:600;color:var(--text-muted);display:block;margin-bottom:4px;">Element mətni</label>
-        <input type="text" id="tr-new-text" placeholder="Yeni tapşırıq...">
+  <!-- Sub-tab bar -->
+  <div style="display:flex;gap:6px;margin-bottom:1rem;">
+    <button class="btn sm primary" id="trSubNew" onclick="switchTrainerSub('checklist')"
+      style="flex:1;justify-content:center;border-radius:12px;padding:0.6rem 0.75rem;font-size:0.82rem;">
+      <i class="fa-solid fa-list-check"></i> Çeklist
+    </button>
+    <button class="btn sm" id="trSubImtahan" onclick="switchTrainerSub('imtahan')"
+      style="flex:1;justify-content:center;border-radius:12px;padding:0.6rem 0.75rem;font-size:0.82rem;background:rgba(15,23,42,0.05);color:var(--text-muted);border:1.5px solid rgba(15,23,42,0.08);">
+      <i class="fa-solid fa-file-pen"></i> İmtahan
+    </button>
+  </div>
+
+  <!-- ─ Çeklist sub-panel ─ -->
+  <div id="trPanel-checklist">
+    <div class="card">
+      <div class="tg-section-title"><i class="fa-solid fa-list-check"></i> Training Çeklist Elementləri</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1.2rem;align-items:flex-end;">
+        <div style="flex:2;min-width:200px;">
+          <label style="font-size:0.76rem;font-weight:600;color:var(--text-muted);display:block;margin-bottom:4px;">Element mətni</label>
+          <input type="text" id="tr-new-text" placeholder="Yeni tapşırıq...">
+        </div>
+        <div style="flex:1;min-width:130px;">
+          <label style="font-size:0.76rem;font-weight:600;color:var(--text-muted);display:block;margin-bottom:4px;">Kateqoriya</label>
+          <select id="tr-new-cat">
+            <option>Qarşılama</option><option>Məhsul Biliyi</option><option>Satış Texnikası</option>
+            <option>Xidmət Standartı</option><option>Gigiyena</option><option>Davranış</option><option>Digər</option>
+          </select>
+        </div>
+        <button class="btn success" onclick="trAddItem()" style="height:42px;align-self:flex-end;">
+          <i class="fa-solid fa-plus"></i> Əlavə et
+        </button>
       </div>
-      <div style="flex:1;min-width:130px;">
-        <label style="font-size:0.76rem;font-weight:600;color:var(--text-muted);display:block;margin-bottom:4px;">Kateqoriya</label>
-        <select id="tr-new-cat">
-          <option>Qarşılama</option><option>Məhsul Biliyi</option><option>Satış Texnikası</option>
-          <option>Xidmət Standartı</option><option>Gigiyena</option><option>Davranış</option><option>Digər</option>
-        </select>
+      <div id="tr-items-list">
+        <div style="text-align:center;padding:1.5rem;color:var(--text-muted);font-size:0.88rem;">
+          <i class="fa-solid fa-circle-notch fa-spin"></i> Yüklənir...
+        </div>
       </div>
-      <button class="btn success" onclick="trAddItem()" style="height:42px;align-self:flex-end;">
-        <i class="fa-solid fa-plus"></i> Əlavə et
-      </button>
+      <div id="tr-items-save-result" class="tg-result" style="display:none;margin-top:0.6rem;"></div>
+      <div style="margin-top:0.8rem;display:flex;gap:8px;justify-content:flex-end;">
+        <button class="btn primary" onclick="trSaveItems()">
+          <i class="fa-solid fa-floppy-disk"></i> Dəyişiklikləri Saxla
+        </button>
+      </div>
     </div>
-    <div id="tr-items-list">
-      <div style="text-align:center;padding:1.5rem;color:var(--text-muted);font-size:0.88rem;">
-        <i class="fa-solid fa-circle-notch fa-spin"></i> Yüklənir...
+
+    <div class="card">
+      <div style="display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:1.2rem;">
+        <div class="tg-section-title" style="margin-bottom:0;flex:1;"><i class="fa-solid fa-clipboard-list"></i> Training Qeydləri</div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <input type="date" id="tr-date-pick" style="min-width:140px;">
+          <button class="btn sm primary" onclick="loadTrainerLogs()"><i class="fa-solid fa-magnifying-glass"></i> Göstər</button>
+        </div>
       </div>
-    </div>
-    <div id="tr-items-save-result" class="tg-result" style="display:none;margin-top:0.6rem;"></div>
-    <div style="margin-top:0.8rem;display:flex;gap:8px;justify-content:flex-end;">
-      <button class="btn primary" onclick="trSaveItems()">
-        <i class="fa-solid fa-floppy-disk"></i> Dəyişiklikləri Saxla
-      </button>
+      <div id="tr-logs-area">
+        <div style="text-align:center;padding:2rem;color:var(--text-muted);font-size:0.88rem;">Tarix seçib "Göstər" basın</div>
+      </div>
     </div>
   </div>
 
-  <!-- Qeydlər -->
-  <div class="card">
-    <div style="display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:1.2rem;">
-      <div class="tg-section-title" style="margin-bottom:0;flex:1;"><i class="fa-solid fa-clipboard-list"></i> Training Qeydləri</div>
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-        <input type="date" id="tr-date-pick" style="min-width:140px;">
-        <button class="btn sm primary" onclick="loadTrainerLogs()"><i class="fa-solid fa-magnifying-glass"></i> Göstər</button>
+  <!-- ─ İmtahan sub-panel ─ -->
+  <div id="trPanel-imtahan" style="display:none;">
+    <div class="card">
+      <div class="tg-section-title"><i class="fa-solid fa-file-pen"></i> İmtahan Nəticələri</div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:1.2rem;">
+        <input type="date" id="ex-date-pick" style="min-width:140px;flex:1;">
+        <button class="btn sm primary" onclick="loadAdminExamLogs()"><i class="fa-solid fa-magnifying-glass"></i> Göstər</button>
       </div>
-    </div>
-    <div id="tr-logs-area">
-      <div style="text-align:center;padding:2rem;color:var(--text-muted);font-size:0.88rem;">Tarix seçib "Göstər" basın</div>
+      <div id="ex-logs-area">
+        <div style="text-align:center;padding:2rem;color:var(--text-muted);font-size:0.88rem;">Tarix seçib "Göstər" basın</div>
+      </div>
     </div>
   </div>
 
@@ -2047,6 +2074,109 @@ function loadTrainerLogs() {
     .withSuccessHandler(trRenderLogs)
     .withFailureHandler(function(){ area.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--danger);">Xəta baş verdi.</div>'; })
     .getTrainerLogs(dateVal);
+}
+
+// ── Training sub-tabs ─────────────────────────────────────────────
+var _trSub = 'checklist';
+function switchTrainerSub(sub) {
+  _trSub = sub;
+  var isCheck = sub === 'checklist';
+  document.getElementById('trPanel-checklist').style.display = isCheck ? '' : 'none';
+  document.getElementById('trPanel-imtahan').style.display   = isCheck ? 'none' : '';
+  document.getElementById('trSubNew').className    = 'btn sm ' + (isCheck ? 'primary' : '');
+  document.getElementById('trSubImtahan').className= 'btn sm ' + (!isCheck ? 'primary' : '');
+  if (!isCheck) {
+    document.getElementById('trSubNew').style.cssText = 'flex:1;justify-content:center;border-radius:12px;padding:0.6rem 0.75rem;font-size:0.82rem;background:rgba(15,23,42,0.05);color:var(--text-muted);border:1.5px solid rgba(15,23,42,0.08);';
+    document.getElementById('trSubImtahan').style.cssText = 'flex:1;justify-content:center;border-radius:12px;padding:0.6rem 0.75rem;font-size:0.82rem;';
+    // default today
+    var today = new Date().toISOString().slice(0,10);
+    if (!document.getElementById('ex-date-pick').value) {
+      document.getElementById('ex-date-pick').value = today;
+      loadAdminExamLogs();
+    }
+  } else {
+    document.getElementById('trSubNew').style.cssText = 'flex:1;justify-content:center;border-radius:12px;padding:0.6rem 0.75rem;font-size:0.82rem;';
+    document.getElementById('trSubImtahan').style.cssText = 'flex:1;justify-content:center;border-radius:12px;padding:0.6rem 0.75rem;font-size:0.82rem;background:rgba(15,23,42,0.05);color:var(--text-muted);border:1.5px solid rgba(15,23,42,0.08);';
+  }
+}
+
+// ── İmtahan Nəticələri ────────────────────────────────────────────
+function loadAdminExamLogs() {
+  var dateVal = document.getElementById('ex-date-pick').value;
+  if (!dateVal) return;
+  var area = document.getElementById('ex-logs-area');
+  area.innerHTML = '<div style="text-align:center;padding:1.5rem;color:var(--text-muted);"><i class="fa-solid fa-circle-notch fa-spin"></i></div>';
+  google.script.run
+    .withSuccessHandler(function(res){ renderAdminExamLogs(res); })
+    .withFailureHandler(function(){ area.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--danger);">Xəta baş verdi.</div>'; })
+    .getExamLogs(dateVal);
+}
+
+function renderAdminExamLogs(res) {
+  var area = document.getElementById('ex-logs-area');
+  var exams = (res && res.exams) ? res.exams : [];
+  if (!exams.length) {
+    area.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--text-muted);font-size:0.88rem;">Bu tarixdə imtahan nəticəsi yoxdur.</div>';
+    return;
+  }
+  area.innerHTML = exams.map(function(exam, i){ return buildAdminExamCard(exam, 'exad-'+i); }).join('');
+}
+
+function buildAdminExamCard(exam, uid) {
+  var score=Number(exam.score)||0, max=Number(exam.max_score)||0;
+  var pct=max>0?Math.round(score/max*100):0;
+  var clr=pct>=75?'#10b981':pct>=60?'#f59e0b':'#ef4444';
+  var grLbl=pct>=90?'Əla':pct>=75?'Yaxşı':pct>=60?'Orta':'Zəif';
+  var time=exam.created_at?new Date(exam.created_at).toLocaleTimeString('az-AZ',{hour:'2-digit',minute:'2-digit'}):'';
+  var answers=exam.answers||[];
+  // role detection
+  var roleVal=answers.length&&answers[0].role?answers[0].role:'';
+  var roleBadge=roleVal?('<span style="font-size:0.7rem;font-weight:800;padding:2px 7px;border-radius:6px;margin-left:4px;background:'+(roleVal==='kassir'?'rgba(79,70,229,0.1)':'rgba(217,119,6,0.1)')+';color:'+(roleVal==='kassir'?'#4f46e5':'#d97706')+';">'+(roleVal==='kassir'?'Kassir':'Barista')+'</span>'):'';
+  var srcBadge=exam.trainer_name==='Özü'?'<span style="font-size:0.7rem;font-weight:700;background:rgba(13,148,136,0.08);color:#0d9488;padding:2px 7px;border-radius:6px;">Özü</span>':'<span style="font-size:0.7rem;font-weight:700;background:rgba(124,58,237,0.08);color:#7c3aed;padding:2px 7px;border-radius:6px;">'+exam.trainer_name+'</span>';
+
+  var rows = answers.map(function(a){
+    var isTest=a.type==='test', ok=a.passed===true, pending=a.passed===null;
+    var rowClr=ok?'#10b981':pending?'#94a3b8':'#ef4444';
+    var rowBg=ok?'rgba(16,185,129,0.12)':pending?'rgba(15,23,42,0.06)':'rgba(239,68,68,0.07)';
+    var rowIco=ok?'fa-check':pending?'fa-pen-line':'fa-xmark';
+    var givenOpt  =isTest?(a.options||[]).find(function(o){return o.label===a.given;}):null;
+    var correctOpt=isTest?(a.options||[]).find(function(o){return o.label===a.correct;}):null;
+    return '<div style="display:flex;align-items:flex-start;gap:8px;padding:5px 0;border-bottom:1px solid rgba(15,23,42,0.04);">'+
+      '<div style="width:20px;height:20px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;margin-top:1px;background:'+rowBg+';">'+
+        '<i class="fa-solid '+rowIco+'" style="font-size:0.6rem;color:'+rowClr+';"></i>'+
+      '</div>'+
+      '<div style="flex:1;min-width:0;">'+
+        '<div style="font-size:0.83rem;font-weight:600;color:'+(ok?'var(--text-main)':'var(--danger)')+';">'+a.text+'</div>'+
+        (isTest&&a.given?'<div style="font-size:0.74rem;color:var(--text-muted);margin-top:2px;">Cavab: <b>'+a.given+'</b>'+(a.given!==a.correct?' → Düzgün: <b style="color:#10b981">'+a.correct+'</b>':'')+'</div>':'') +
+        (!isTest&&a.givenText?'<div style="font-size:0.78rem;color:var(--text-muted);margin-top:3px;font-style:italic;">'+a.givenText+'</div>':'') +
+        (pending&&!a.givenText?'<div style="font-size:0.74rem;color:var(--text-soft);margin-top:2px;">Cavab yazılmayıb</div>':'')+
+      '</div>'+
+      '<span style="font-size:0.65rem;color:var(--text-soft);white-space:nowrap;padding-top:3px;">'+(a.category||'')+'</span>'+
+    '</div>';
+  }).join('');
+
+  return '<div style="background:#fff;border:1px solid rgba(15,23,42,0.06);border-radius:14px;padding:1rem 1.1rem;margin-bottom:8px;">'+
+    '<div onclick="trToggle(\''+uid+'\')" style="cursor:pointer;">'+
+      '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;">'+
+        '<div style="font-weight:700;font-size:0.95rem;flex:1;">'+exam.emp_name+roleBadge+'</div>'+
+        srcBadge+
+        '<span style="font-size:0.75rem;font-weight:700;color:var(--text-muted);background:rgba(15,23,42,0.05);padding:2px 7px;border-radius:6px;">'+exam.dept+'</span>'+
+        '<span style="font-family:monospace;font-size:0.75rem;font-weight:700;color:var(--text-muted);">'+time+'</span>'+
+      '</div>'+
+      '<div style="display:flex;align-items:center;gap:10px;">'+
+        '<div style="flex:1;height:6px;background:rgba(15,23,42,0.06);border-radius:6px;overflow:hidden;">'+
+          '<div style="height:100%;width:'+pct+'%;background:'+clr+';border-radius:6px;"></div>'+
+        '</div>'+
+        (max>0?'<span style="font-size:0.8rem;font-weight:700;color:'+clr+';white-space:nowrap;">'+score+'/'+max+' ('+pct+'%) '+grLbl+'</span>':'<span style="font-size:0.78rem;color:var(--text-soft);">Açıq suallar</span>')+
+        '<i class="fa-solid fa-chevron-down" id="ico-'+uid+'" style="font-size:0.75rem;color:var(--text-muted);transition:transform 0.25s;flex-shrink:0;"></i>'+
+      '</div>'+
+    '</div>'+
+    '<div id="det-'+uid+'" style="overflow:hidden;max-height:0;transition:max-height 0.35s ease;">'+
+      '<div style="padding-top:10px;border-top:1px solid rgba(15,23,42,0.05);margin-top:10px;">'+rows+
+        (exam.note?'<div style="font-size:0.8rem;color:#92400e;background:rgba(245,158,11,0.07);border:1px solid rgba(245,158,11,0.15);border-radius:9px;padding:6px 10px;margin-top:8px;"><i class="fa-solid fa-note-sticky" style="margin-right:5px;"></i><b>Qeyd:</b> '+exam.note+'</div>':'')+
+      '</div>'+
+    '</div>'+
+  '</div>';
 }
 </script>
 </body>

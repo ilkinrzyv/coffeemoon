@@ -277,6 +277,15 @@ header{background:linear-gradient(135deg,rgba(255,255,255,0.94) 0%,rgba(240,253,
     <div class="card">
       <div class="sec-label"><i class="fa-solid fa-list-check"></i> İmtahan Sualları</div>
 
+      <!-- İmtahan aktivlik toggle -->
+      <div id="examStatusBar" style="background:rgba(15,23,42,0.04);border:1.5px solid rgba(15,23,42,0.08);border-radius:14px;padding:0.85rem 1rem;margin-bottom:0.75rem;display:flex;align-items:center;gap:10px;">
+        <div style="flex:1;">
+          <div style="font-size:0.72rem;font-weight:700;color:var(--text-muted);margin-bottom:2px;">İmtahan Statusu</div>
+          <div id="examStatusLbl" style="font-size:0.85rem;font-weight:700;color:var(--text-soft);">Yüklənir...</div>
+        </div>
+        <button id="examToggleBtn" onclick="toggleExamActive()" style="border:none;padding:6px 14px;border-radius:10px;cursor:pointer;font-size:0.8rem;font-weight:800;font-family:'Inter',sans-serif;transition:all 0.2s;background:rgba(15,23,42,0.07);color:var(--text-muted);">—</button>
+      </div>
+
       <!-- İşçi imtahan linki -->
       <div style="background:rgba(13,148,136,0.06);border:1.5px solid rgba(13,148,136,0.15);border-radius:14px;padding:0.85rem 1rem;margin-bottom:1rem;display:flex;align-items:center;gap:10px;">
         <i class="fa-solid fa-link" style="color:var(--primary);flex-shrink:0;"></i>
@@ -406,10 +415,58 @@ function switchImtahanTab(s) {
   if (s==='suallar') loadExamQuestions();
 }
 
+var _examActive = false;
+
 function setExamLink() {
   var url = window.location.origin + '/exam';
   var el  = document.getElementById('examLinkText');
   if (el) el.textContent = url;
+  loadExamStatus();
+}
+
+function loadExamStatus() {
+  google.script.run
+    .withSuccessHandler(function(r){ applyExamStatus(r && r.active); })
+    .withFailureHandler(function(){})
+    .getExamStatus();
+}
+
+function applyExamStatus(active) {
+  _examActive = !!active;
+  var lbl = document.getElementById('examStatusLbl');
+  var btn = document.getElementById('examToggleBtn');
+  var bar = document.getElementById('examStatusBar');
+  if (!lbl || !btn) return;
+  if (_examActive) {
+    lbl.textContent = '✅ Aktiv — işçilər imtahan verə bilər';
+    lbl.style.color = 'var(--success)';
+    btn.textContent = 'Deaktiv et';
+    btn.style.background = 'rgba(239,68,68,0.1)';
+    btn.style.color = 'var(--danger)';
+    bar.style.borderColor = 'rgba(16,185,129,0.25)';
+    bar.style.background  = 'rgba(16,185,129,0.05)';
+  } else {
+    lbl.textContent = '🔒 Deaktiv — işçilər daxil ola bilməz';
+    lbl.style.color = 'var(--text-soft)';
+    btn.textContent = 'Aktiv et';
+    btn.style.background = 'rgba(16,185,129,0.1)';
+    btn.style.color = 'var(--success)';
+    bar.style.borderColor = 'rgba(15,23,42,0.08)';
+    bar.style.background  = 'rgba(15,23,42,0.04)';
+  }
+}
+
+function toggleExamActive() {
+  var newActive = !_examActive;
+  google.script.run
+    .withSuccessHandler(function(r){
+      if (r && r.success) {
+        applyExamStatus(r.active);
+        toast(r.active ? 'İmtahan aktiv edildi ✓' : 'İmtahan deaktiv edildi', r.active ? 'ok' : 'err');
+      }
+    })
+    .withFailureHandler(function(){ toast('Xəta baş verdi','err'); })
+    .setExamStatus(TRAINER_KEY, newActive);
 }
 
 function copyExamLink() {

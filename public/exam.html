@@ -12,8 +12,7 @@
   --surface:rgba(255,255,255,0.9);
   --primary:#0d9488; --primary-dark:#0f766e;
   --success:#10b981; --danger:#ef4444; --warning:#f59e0b;
-  --kassir:#4f46e5; --barista:#d97706;
-  --purple:#7c3aed;
+  --kassir:#4f46e5; --barista:#d97706; --purple:#7c3aed;
   --text-main:#0d1526; --text-muted:#64748b; --text-soft:#94a3b8;
   --shadow:0 8px 28px -6px rgba(15,23,42,0.09),0 0 0 1px rgba(15,23,42,0.045);
   --shadow-lg:0 20px 50px -10px rgba(15,23,42,0.13),0 0 0 1px rgba(15,23,42,0.04);
@@ -25,25 +24,21 @@ body{background:var(--bg);background-image:radial-gradient(ellipse 80% 60% at 20
 .wrap{position:relative;z-index:1;max-width:520px;margin:0 auto;padding:1.4rem 1rem 4rem;}
 .hidden{display:none!important;}
 
-/* ── HEADER ── */
 .page-header{text-align:center;margin-bottom:1.8rem;}
 .page-logo{font-size:0.82rem;font-weight:900;text-transform:uppercase;letter-spacing:4px;color:var(--text-muted);margin-bottom:0.6rem;display:flex;align-items:center;justify-content:center;gap:8px;}
 .page-logo i{color:#92400e;}
 .page-title{font-size:1.65rem;font-weight:900;color:var(--text-main);letter-spacing:-0.5px;}
 .page-sub{font-size:0.87rem;color:var(--text-muted);margin-top:0.35rem;}
 
-/* ── CARDS ── */
 .card{background:var(--surface);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,0.8);border-radius:20px;padding:1.3rem 1.4rem;margin-bottom:1rem;box-shadow:var(--shadow);}
 .sec-label{font-size:0.71rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:0.85rem;display:flex;align-items:center;gap:7px;}
 .sec-num{width:22px;height:22px;border-radius:50%;background:var(--primary);color:#fff;font-size:0.75rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
 
-/* ── BRANCH / EMP GRID ── */
 .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
 .sel-btn{padding:0.82rem 1rem;border:2px solid rgba(15,23,42,0.07);border-radius:14px;background:#fff;cursor:pointer;font-size:0.87rem;font-weight:700;color:var(--text-muted);display:flex;align-items:center;gap:8px;transition:all 0.2s;font-family:'Inter',sans-serif;}
 .sel-btn:hover{border-color:rgba(13,148,136,0.35);color:var(--primary);background:rgba(13,148,136,0.04);}
 .sel-btn.active{border-color:var(--primary);color:var(--primary);background:rgba(13,148,136,0.07);box-shadow:0 0 0 3px rgba(13,148,136,0.08);}
 
-/* ── EMPLOYEE LIST ── */
 .emp-list{display:flex;flex-direction:column;gap:7px;}
 .emp-btn{padding:0.75rem 1rem;border:1.5px solid rgba(15,23,42,0.07);border-radius:13px;background:#fff;cursor:pointer;font-size:0.9rem;font-weight:600;color:var(--text-main);display:flex;align-items:center;gap:10px;transition:all 0.2s;font-family:'Inter',sans-serif;}
 .emp-btn:hover{border-color:rgba(13,148,136,0.3);background:rgba(13,148,136,0.04);}
@@ -51,7 +46,6 @@ body{background:var(--bg);background-image:radial-gradient(ellipse 80% 60% at 20
 .emp-av{width:34px;height:34px;border-radius:10px;background:rgba(13,148,136,0.1);color:var(--primary);display:flex;align-items:center;justify-content:center;font-size:0.88rem;font-weight:800;flex-shrink:0;}
 .emp-btn.active .emp-av{background:var(--primary);color:#fff;}
 
-/* ── ROLE SELECTION ── */
 .role-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
 .role-btn{padding:1.3rem 1rem;border:2.5px solid rgba(15,23,42,0.07);border-radius:18px;background:#fff;cursor:pointer;font-size:1rem;font-weight:800;color:var(--text-muted);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;transition:all 0.22s;font-family:'Inter',sans-serif;}
 .role-btn i{font-size:2rem;}
@@ -59,12 +53,10 @@ body{background:var(--bg);background-image:radial-gradient(ellipse 80% 60% at 20
 .role-btn.active-kassir{border-color:var(--kassir);color:var(--kassir);background:rgba(79,70,229,0.05);box-shadow:0 0 0 3px rgba(79,70,229,0.1);}
 .role-btn.active-barista{border-color:var(--barista);color:var(--barista);background:rgba(217,119,6,0.05);box-shadow:0 0 0 3px rgba(217,119,6,0.1);}
 
-/* ── START BUTTON ── */
 .start-btn{width:100%;padding:1.1rem;border:none;border-radius:16px;background:linear-gradient(135deg,var(--primary),var(--primary-dark));color:#fff;font-size:1.05rem;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;box-shadow:0 8px 24px rgba(13,148,136,0.28);transition:all 0.22s;font-family:'Inter',sans-serif;margin-top:0.5rem;}
-.start-btn:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 12px 30px rgba(13,148,136,0.32);}
+.start-btn:hover:not(:disabled){transform:translateY(-2px);}
 .start-btn:disabled{opacity:0.38;cursor:not-allowed;transform:none;}
 
-/* ── EXAM PROGRESS ── */
 .exam-header{display:flex;align-items:center;gap:12px;margin-bottom:1.3rem;}
 .q-counter{font-size:0.8rem;font-weight:700;color:var(--text-muted);white-space:nowrap;}
 .prog-bar{flex:1;height:7px;background:rgba(15,23,42,0.08);border-radius:100px;overflow:hidden;}
@@ -72,15 +64,16 @@ body{background:var(--bg);background-image:radial-gradient(ellipse 80% 60% at 20
 .prog-kassir{background:linear-gradient(90deg,var(--kassir),#818cf8);}
 .prog-barista{background:linear-gradient(90deg,var(--barista),#fbbf24);}
 
-/* ── QUESTION CARD ── */
 .q-card{background:var(--surface);border:1px solid rgba(255,255,255,0.8);border-radius:22px;padding:1.5rem 1.4rem;margin-bottom:1.1rem;box-shadow:var(--shadow-lg);animation:fadeUp 0.3s ease;}
 @keyframes fadeUp{from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:translateY(0);}}
 .q-meta{display:flex;align-items:center;gap:8px;margin-bottom:0.75rem;}
 .q-num-badge{width:28px;height:28px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:0.78rem;font-weight:800;color:#fff;flex-shrink:0;}
-.q-cat{font-size:0.72rem;font-weight:700;color:var(--text-soft);}
+.q-type-badge{font-size:0.68rem;font-weight:800;padding:2px 8px;border-radius:6px;}
+.q-type-test{background:rgba(124,58,237,0.1);color:var(--purple);}
+.q-type-open{background:rgba(13,148,136,0.1);color:var(--primary);}
+.q-cat{font-size:0.72rem;font-weight:600;color:var(--text-soft);}
 .q-text{font-size:1.02rem;font-weight:700;color:var(--text-main);line-height:1.5;margin-bottom:1.1rem;}
 
-/* ── OPTIONS ── */
 .options{display:flex;flex-direction:column;gap:8px;}
 .opt-btn{padding:0.85rem 1rem;border:2px solid rgba(15,23,42,0.07);border-radius:14px;background:#fff;cursor:pointer;font-size:0.9rem;font-weight:600;color:var(--text-main);display:flex;align-items:center;gap:12px;transition:all 0.18s;font-family:'Inter',sans-serif;text-align:left;}
 .opt-btn:hover:not(.picked){border-color:rgba(124,58,237,0.3);background:rgba(124,58,237,0.03);}
@@ -88,21 +81,24 @@ body{background:var(--bg);background-image:radial-gradient(ellipse 80% 60% at 20
 .opt-btn.picked{border-color:var(--purple);background:rgba(124,58,237,0.07);color:var(--purple);}
 .opt-btn.picked .opt-lbl{background:var(--purple);color:#fff;}
 
-/* ── NAVIGATION ── */
+.open-answer{width:100%;border:1.5px solid rgba(15,23,42,0.09);border-radius:13px;padding:0.85rem 1rem;font-size:0.9rem;font-weight:500;color:var(--text-main);resize:vertical;min-height:90px;outline:none;background:#fff;font-family:'Inter',sans-serif;transition:border-color 0.2s;line-height:1.5;}
+.open-answer:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(13,148,136,0.07);}
+.open-hint{font-size:0.77rem;color:var(--text-soft);margin-bottom:0.6rem;display:flex;align-items:center;gap:5px;}
+
 .nav-row{display:flex;gap:10px;margin-top:0.2rem;}
 .nav-btn{flex:1;padding:0.9rem;border:2px solid rgba(15,23,42,0.08);border-radius:14px;background:#fff;cursor:pointer;font-size:0.9rem;font-weight:700;color:var(--text-muted);display:flex;align-items:center;justify-content:center;gap:7px;transition:all 0.2s;font-family:'Inter',sans-serif;}
-.nav-btn:hover{border-color:var(--primary);color:var(--primary);}
+.nav-btn:hover:not(:disabled){border-color:var(--primary);color:var(--primary);}
+.nav-btn:disabled{opacity:0.35;cursor:not-allowed;}
 .nav-next{background:linear-gradient(135deg,var(--primary),var(--primary-dark));color:#fff;border-color:transparent;box-shadow:0 4px 14px rgba(13,148,136,0.22);}
-.nav-next:hover{transform:translateY(-1px);box-shadow:0 7px 20px rgba(13,148,136,0.28);}
-.nav-submit{background:linear-gradient(135deg,var(--purple),var(--purple-dark));color:#fff;border-color:transparent;box-shadow:0 4px 14px rgba(124,58,237,0.22);}
-.nav-submit:hover{transform:translateY(-1px);box-shadow:0 7px 20px rgba(124,58,237,0.28);}
-.nav-btn:disabled{opacity:0.35;cursor:not-allowed;transform:none;}
+.nav-next:hover:not(:disabled){transform:translateY(-1px);}
+.nav-submit{background:linear-gradient(135deg,var(--purple),#6d28d9);color:#fff;border-color:transparent;box-shadow:0 4px 14px rgba(124,58,237,0.22);}
+.nav-submit:hover:not(:disabled){transform:translateY(-1px);}
 
-/* ── RESULT ── */
 .result-hero{text-align:center;padding:1.5rem 1rem 1rem;}
 .result-emoji{font-size:3.5rem;margin-bottom:0.5rem;display:block;}
-.result-score{font-size:3.2rem;font-weight:900;letter-spacing:-1px;line-height:1;}
+.result-score{font-size:3rem;font-weight:900;letter-spacing:-1px;line-height:1;}
 .result-pct{font-size:1rem;font-weight:700;color:var(--text-muted);margin-top:0.35rem;}
+.result-open-note{font-size:0.8rem;color:var(--text-soft);margin-top:0.5rem;}
 .grade-chip{display:inline-flex;align-items:center;gap:6px;padding:6px 16px;border-radius:100px;font-size:0.88rem;font-weight:800;margin-top:0.8rem;}
 .gc-a{background:rgba(16,185,129,0.12);color:#059669;}
 .gc-b{background:rgba(16,185,129,0.08);color:#10b981;}
@@ -114,33 +110,50 @@ body{background:var(--bg);background-image:radial-gradient(ellipse 80% 60% at 20
 .review-icon{width:24px;height:24px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:0.65rem;color:#fff;flex-shrink:0;margin-top:1px;}
 .rv-ok{background:var(--success);}
 .rv-bad{background:var(--danger);}
+.rv-open{background:var(--text-soft);}
 .review-q{flex:1;font-size:0.87rem;font-weight:600;color:var(--text-main);line-height:1.4;}
 .review-body{padding:0 1rem 0.85rem;border-top:1px solid rgba(15,23,42,0.05);overflow:hidden;max-height:0;transition:max-height 0.3s ease;}
-.review-row{display:flex;align-items:center;gap:7px;margin-top:7px;font-size:0.82rem;font-weight:600;}
-.rv-label{font-size:0.7rem;font-weight:700;color:var(--text-soft);width:58px;flex-shrink:0;}
-
-.retry-btn{width:100%;padding:1rem;border:2px solid rgba(15,23,42,0.08);border-radius:16px;background:#fff;cursor:pointer;font-size:0.95rem;font-weight:700;color:var(--text-muted);display:flex;align-items:center;justify-content:center;gap:8px;transition:all 0.2s;font-family:'Inter',sans-serif;margin-top:0.75rem;}
-.retry-btn:hover{border-color:var(--primary);color:var(--primary);}
+.review-row{display:flex;align-items:flex-start;gap:7px;margin-top:7px;font-size:0.82rem;font-weight:600;}
+.rv-label{font-size:0.7rem;font-weight:700;color:var(--text-soft);width:58px;flex-shrink:0;padding-top:1px;}
 
 .empty{text-align:center;padding:2rem 1rem;color:var(--text-muted);}
 .empty i{font-size:1.8rem;margin-bottom:0.6rem;display:block;opacity:0.3;}
 .empty p{font-size:0.86rem;font-weight:500;}
+
+/* Loading spinner */
+.spin{animation:spin 0.8s linear infinite;display:inline-block;}
+@keyframes spin{to{transform:rotate(360deg);}}
 </style>
 </head>
 <body>
-<div class="glow-1"></div>
-<div class="glow-2"></div>
+<div class="glow-1"></div><div class="glow-2"></div>
 <div class="wrap">
 
-<!-- ══════════════ QURAŞDIRMA ══════════════ -->
-<div id="s-setup">
+<!-- ══ YÜKLƏNIR ══ -->
+<div id="s-loading" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;gap:1rem;">
+  <i class="fa-solid fa-circle-notch fa-spin" style="font-size:2rem;color:var(--primary);"></i>
+  <p style="font-size:0.88rem;color:var(--text-muted);font-weight:600;">Yüklənir...</p>
+</div>
+
+<!-- ══ AKTİV DEYİL ══ -->
+<div id="s-inactive" class="hidden" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:70vh;text-align:center;gap:0.75rem;">
+  <div style="width:80px;height:80px;border-radius:24px;background:rgba(15,23,42,0.06);display:flex;align-items:center;justify-content:center;margin-bottom:0.5rem;">
+    <i class="fa-solid fa-lock" style="font-size:2rem;color:var(--text-soft);"></i>
+  </div>
+  <div style="font-size:1.3rem;font-weight:800;color:var(--text-main);">İmtahan aktiv deyil</div>
+  <div style="font-size:0.88rem;color:var(--text-muted);max-width:280px;line-height:1.55;">
+    Treynər imtahanı aktiv etdikdən sonra bu səhifəyə daxil ola bilərsiniz.
+  </div>
+</div>
+
+<!-- ══ QURAŞDIRMA ══ -->
+<div id="s-setup" class="hidden">
   <div class="page-header">
     <div class="page-logo"><i class="fa-solid fa-mug-hot"></i> Coffeemoon</div>
     <div class="page-title">İmtahan</div>
-    <div class="page-sub">Filial, ad və vəzifənizi seçib imtahana başlayın</div>
+    <div class="page-sub">Filial, ad və vəzifənizi seçib başlayın</div>
   </div>
 
-  <!-- Addım 1: Filial -->
   <div class="card">
     <div class="sec-label"><span class="sec-num">1</span> Filialınız</div>
     <div class="grid-2">
@@ -151,7 +164,6 @@ body{background:var(--bg);background-image:radial-gradient(ellipse 80% 60% at 20
     </div>
   </div>
 
-  <!-- Addım 2: İşçi -->
   <div class="card hidden" id="empCard">
     <div class="sec-label"><span class="sec-num">2</span> Adınız
       <span id="branchLbl" style="font-weight:700;color:var(--primary);text-transform:none;letter-spacing:0;margin-left:4px;"></span>
@@ -161,17 +173,14 @@ body{background:var(--bg);background-image:radial-gradient(ellipse 80% 60% at 20
     </div>
   </div>
 
-  <!-- Addım 3: Vəzifə -->
   <div class="card hidden" id="roleCard">
     <div class="sec-label"><span class="sec-num">3</span> Vəzifəniz</div>
     <div class="role-grid">
       <button class="role-btn" id="roleKassir" onclick="pickRole('kassir',this)">
-        <i class="fa-solid fa-cash-register"></i>
-        <span>Kassir</span>
+        <i class="fa-solid fa-cash-register"></i><span>Kassir</span>
       </button>
       <button class="role-btn" id="roleBarista" onclick="pickRole('barista',this)">
-        <i class="fa-solid fa-mug-hot"></i>
-        <span>Barista</span>
+        <i class="fa-solid fa-mug-hot"></i><span>Barista</span>
       </button>
     </div>
   </div>
@@ -181,20 +190,15 @@ body{background:var(--bg);background-image:radial-gradient(ellipse 80% 60% at 20
   </button>
 </div>
 
-<!-- ══════════════ İMTAHAN ══════════════ -->
+<!-- ══ İMTAHAN ══ -->
 <div id="s-exam" class="hidden">
-  <!-- Progress -->
   <div class="exam-header">
     <span class="q-counter" id="qCounter">1 / 1</span>
     <div class="prog-bar"><div class="prog-fill" id="progFill" style="width:0%"></div></div>
   </div>
-
-  <!-- Question -->
   <div id="qWrap"></div>
-
-  <!-- Navigation -->
-  <div class="nav-row" id="navRow">
-    <button class="nav-btn" id="btnPrev" onclick="goQ(-1)">
+  <div class="nav-row">
+    <button class="nav-btn" id="btnPrev" onclick="goQ(-1)" disabled>
       <i class="fa-solid fa-chevron-left"></i> Əvvəlki
     </button>
     <button class="nav-btn nav-next" id="btnNext" onclick="goQ(1)">
@@ -206,7 +210,7 @@ body{background:var(--bg);background-image:radial-gradient(ellipse 80% 60% at 20
   </div>
 </div>
 
-<!-- ══════════════ NƏTİCƏ ══════════════ -->
+<!-- ══ NƏTİCƏ ══ -->
 <div id="s-result" class="hidden">
   <div class="card">
     <div class="result-hero" id="resultHero"></div>
@@ -215,44 +219,55 @@ body{background:var(--bg);background-image:radial-gradient(ellipse 80% 60% at 20
     <div class="sec-label"><i class="fa-solid fa-clipboard-list"></i> Cavabların icmalı</div>
     <div id="resultReview"></div>
   </div>
-  <button class="retry-btn" onclick="retryExam()">
-    <i class="fa-solid fa-rotate-right"></i> Yenidən cəhd et
-  </button>
+  <!-- Yenidən cəhd yoxdur -->
 </div>
 
-</div><!-- /wrap -->
+</div>
 <script src="/gsr-shim.js"></script>
 <script>
-// ── State ──────────────────────────────────────────────────────────
-var selBranch = null, selEmpId = null, selEmpName = null, selRole = null;
-var allEmps = [];
-var examQs  = [];   // loaded questions (no correct answers)
-var curIdx  = 0;
-var answers = {};   // { questionId: givenLabel }
+// ── State ─────────────────────────────────────────────────────────
+var selBranch=null, selEmpId=null, selEmpName=null, selRole=null;
+var allEmps=[], examQs=[], curIdx=0;
+var testAnswers={};   // questionId → option label (test sualları)
+var openAnswers={};   // questionId → text (açıq suallar)
 
-// ── Setup ──────────────────────────────────────────────────────────
+// ── Yüklənmə — aktivlik yoxlaması ────────────────────────────────
+google.script.run
+  .withSuccessHandler(function(status) {
+    document.getElementById('s-loading').style.display = 'none';
+    if (status && status.active) {
+      document.getElementById('s-setup').classList.remove('hidden');
+    } else {
+      document.getElementById('s-inactive').classList.remove('hidden');
+    }
+  })
+  .withFailureHandler(function() {
+    document.getElementById('s-loading').style.display = 'none';
+    document.getElementById('s-inactive').classList.remove('hidden');
+  })
+  .getExamStatus();
+
+// ── Quraşdırma ────────────────────────────────────────────────────
 function pickBranch(dept, btn) {
   document.querySelectorAll('#s-setup .sel-btn').forEach(function(b){ b.classList.remove('active'); });
   btn.classList.add('active');
-  selBranch = dept; selEmpId = null; selEmpName = null; selRole = null;
-  document.getElementById('branchLbl').textContent = '— ' + dept;
+  selBranch=dept; selEmpId=null; selEmpName=null; selRole=null;
+  document.getElementById('branchLbl').textContent='— '+dept;
   document.getElementById('roleCard').classList.add('hidden');
   document.getElementById('empCard').classList.remove('hidden');
-  document.getElementById('empList').innerHTML = '<div class="empty"><i class="fa-solid fa-circle-notch fa-spin"></i><p>Yüklənir...</p></div>';
-  resetRoleBtns();
-  checkStart();
+  document.getElementById('empList').innerHTML='<div class="empty"><i class="fa-solid fa-circle-notch fa-spin"></i><p>Yüklənir...</p></div>';
+  resetRoleBtns(); checkStart();
   if (allEmps.length) { renderEmps(dept); return; }
   google.script.run
-    .withSuccessHandler(function(d){ allEmps = d||[]; renderEmps(dept); })
-    .withFailureHandler(function(){ document.getElementById('empList').innerHTML = '<div class="empty"><i class="fa-solid fa-triangle-exclamation"></i><p>Xəta baş verdi.</p></div>'; })
+    .withSuccessHandler(function(d){ allEmps=d||[]; renderEmps(dept); })
+    .withFailureHandler(function(){ document.getElementById('empList').innerHTML='<div class="empty"><i class="fa-solid fa-triangle-exclamation"></i><p>Xəta baş verdi.</p></div>'; })
     .getEmployees();
 }
 
 function renderEmps(dept) {
-  var list = document.getElementById('empList');
-  var f = allEmps.filter(function(e){ return e.dept === dept; });
-  if (!f.length) { list.innerHTML = '<div class="empty"><i class="fa-solid fa-users-slash"></i><p>Bu filialda işçi tapılmadı.</p></div>'; return; }
-  list.innerHTML = f.map(function(e){
+  var list=document.getElementById('empList'), f=allEmps.filter(function(e){ return e.dept===dept; });
+  if (!f.length) { list.innerHTML='<div class="empty"><i class="fa-solid fa-users-slash"></i><p>İşçi tapılmadı.</p></div>'; return; }
+  list.innerHTML=f.map(function(e){
     return '<button class="emp-btn" onclick="pickEmp(\''+e.id+'\',\''+e.name.replace(/'/g,"\\'")+'\',this)"><div class="emp-av">'+e.name.charAt(0)+'</div><span>'+e.name+'</span></button>';
   }).join('');
   document.getElementById('empCard').scrollIntoView({ behavior:'smooth', block:'nearest' });
@@ -261,7 +276,7 @@ function renderEmps(dept) {
 function pickEmp(id, name, btn) {
   document.querySelectorAll('#empList .emp-btn').forEach(function(b){ b.classList.remove('active'); });
   btn.classList.add('active');
-  selEmpId = id; selEmpName = name; selRole = null;
+  selEmpId=id; selEmpName=name; selRole=null;
   resetRoleBtns();
   document.getElementById('roleCard').classList.remove('hidden');
   document.getElementById('roleCard').scrollIntoView({ behavior:'smooth', block:'nearest' });
@@ -269,208 +284,222 @@ function pickEmp(id, name, btn) {
 }
 
 function pickRole(role, btn) {
-  resetRoleBtns();
-  btn.classList.add('active-' + role);
-  selRole = role;
+  resetRoleBtns(); btn.classList.add('active-'+role); selRole=role;
   checkStart();
   document.getElementById('startBtn').scrollIntoView({ behavior:'smooth', block:'nearest' });
 }
 
 function resetRoleBtns() {
-  document.getElementById('roleKassir').className  = 'role-btn';
-  document.getElementById('roleBarista').className = 'role-btn';
+  document.getElementById('roleKassir').className='role-btn';
+  document.getElementById('roleBarista').className='role-btn';
 }
 
 function checkStart() {
   document.getElementById('startBtn').disabled = !(selBranch && selEmpId && selRole);
 }
 
-// ── Exam Start ─────────────────────────────────────────────────────
+// ── İmtahan başlat ────────────────────────────────────────────────
 function startExam() {
-  document.getElementById('startBtn').disabled = true;
-  document.getElementById('startBtn').innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Suallar yüklənir...';
+  var btn=document.getElementById('startBtn');
+  btn.disabled=true; btn.innerHTML='<i class="fa-solid fa-circle-notch fa-spin"></i> Yüklənir...';
   google.script.run
     .withSuccessHandler(function(qs) {
-      document.getElementById('startBtn').innerHTML = '<i class="fa-solid fa-play"></i> İmtahana Başla';
-      document.getElementById('startBtn').disabled = false;
+      btn.innerHTML='<i class="fa-solid fa-play"></i> İmtahana Başla';
+      btn.disabled=false;
       if (!qs || !qs.length) {
-        alert('Bu vəzifə üçün hələ sual əlavə edilməyib. Zəhmət olmasa treynerlə əlaqə saxlayın.');
+        alert('Bu vəzifə üçün hələ sual əlavə edilməyib. Treynerlə əlaqə saxlayın.');
         return;
       }
-      examQs = qs; curIdx = 0; answers = {};
-      showScreen('exam');
-      renderQ(0);
+      examQs=qs; curIdx=0; testAnswers={}; openAnswers={};
+      showScreen('exam'); renderQ(0);
     })
     .withFailureHandler(function(e) {
-      document.getElementById('startBtn').disabled = false;
-      document.getElementById('startBtn').innerHTML = '<i class="fa-solid fa-play"></i> İmtahana Başla';
-      alert('Xəta: ' + (e.message||'bilinmir'));
+      btn.disabled=false; btn.innerHTML='<i class="fa-solid fa-play"></i> İmtahana Başla';
+      alert('Xəta: '+(e.message||'bilinmir'));
     })
     .getExamQuestionsPublic(selRole);
 }
 
-// ── Exam ───────────────────────────────────────────────────────────
+// ── Sual render ───────────────────────────────────────────────────
 function renderQ(idx) {
-  var q   = examQs[idx];
-  var tot = examQs.length;
-  var pct = Math.round((idx + 1) / tot * 100);
-  var given = answers[q.questionId];
+  var q=examQs[idx], tot=examQs.length;
+  var pct=Math.round((idx+1)/tot*100);
+  document.getElementById('qCounter').textContent=(idx+1)+' / '+tot;
+  var fill=document.getElementById('progFill');
+  fill.style.width=pct+'%'; fill.className='prog-fill prog-'+selRole;
 
-  // Progress
-  document.getElementById('qCounter').textContent = (idx+1) + ' / ' + tot;
-  var fill = document.getElementById('progFill');
-  fill.style.width = pct + '%';
-  fill.className = 'prog-fill prog-' + selRole;
+  var roleColor = selRole==='kassir'?'var(--kassir)':'var(--barista)';
+  var isTest = q.type==='test';
+  var html='<div class="q-card">'+
+    '<div class="q-meta">'+
+      '<div class="q-num-badge" style="background:'+roleColor+';">'+(idx+1)+'</div>'+
+      '<span class="q-type-badge '+(isTest?'q-type-test':'q-type-open')+'">'+(isTest?'Test':'Açıq sual')+'</span>'+
+      (q.category?'<span class="q-cat">'+q.category+'</span>':'')+
+    '</div>'+
+    '<div class="q-text">'+q.text+'</div>';
 
-  // Question card
-  var roleColor = selRole === 'kassir' ? 'var(--kassir)' : 'var(--barista)';
-  var html = '<div class="q-card">' +
-    '<div class="q-meta">' +
-      '<div class="q-num-badge" style="background:' + roleColor + ';">' + (idx+1) + '</div>' +
-      (q.category ? '<span class="q-cat">' + q.category + '</span>' : '') +
-    '</div>' +
-    '<div class="q-text">' + q.text + '</div>' +
-    '<div class="options">';
-  (q.options || []).forEach(function(opt) {
-    var picked = given === opt.label;
-    html += '<button class="opt-btn' + (picked ? ' picked' : '') + '" onclick="pickOpt(\'' + q.questionId + '\',\'' + opt.label + '\')">' +
-      '<span class="opt-lbl">' + opt.label + '</span>' +
-      opt.text +
-    '</button>';
-  });
-  html += '</div></div>';
-  document.getElementById('qWrap').innerHTML = html;
+  if (isTest) {
+    html+='<div class="options">';
+    (q.options||[]).forEach(function(opt){
+      var picked = testAnswers[q.questionId]===opt.label;
+      html+='<button class="opt-btn'+(picked?' picked':'')+'" onclick="pickOpt(\''+q.questionId+'\',\''+opt.label+'\')">'+
+        '<span class="opt-lbl">'+opt.label+'</span>'+opt.text+'</button>';
+    });
+    html+='</div>';
+  } else {
+    html+='<div class="open-hint"><i class="fa-solid fa-pen-line"></i> Cavabınızı yazın (istəyə bağlı)</div>'+
+      '<textarea class="open-answer" id="oa-'+q.questionId+'" placeholder="Cavabınızı burada yazın..." oninput="saveOpenAnswer(\''+q.questionId+'\',this.value)">'+
+        (openAnswers[q.questionId]||'')+
+      '</textarea>';
+  }
+  html+='</div>';
+  document.getElementById('qWrap').innerHTML=html;
 
-  // Nav buttons
-  var isLast = idx === tot - 1;
-  document.getElementById('btnPrev').disabled = idx === 0;
-  document.getElementById('btnNext').classList.toggle('hidden', isLast);
-  document.getElementById('btnSubmit').classList.toggle('hidden', !isLast);
+  var isLast=idx===tot-1;
+  document.getElementById('btnPrev').disabled=idx===0;
+  document.getElementById('btnNext').classList.toggle('hidden',isLast);
+  document.getElementById('btnSubmit').classList.toggle('hidden',!isLast);
 }
 
 function pickOpt(qId, lbl) {
-  answers[qId] = lbl;
-  // Update button styles without full re-render
-  document.querySelectorAll('.opt-btn').forEach(function(btn) {
+  testAnswers[qId]=lbl;
+  document.querySelectorAll('.opt-btn').forEach(function(btn){
     btn.classList.remove('picked');
-    if (btn.querySelector('.opt-lbl') && btn.querySelector('.opt-lbl').textContent === lbl) {
-      btn.classList.add('picked');
-    }
+    var l=btn.querySelector('.opt-lbl');
+    if (l && l.textContent===lbl) btn.classList.add('picked');
   });
 }
 
-function goQ(dir) {
-  var next = curIdx + dir;
-  if (next < 0 || next >= examQs.length) return;
-  curIdx = next;
-  renderQ(curIdx);
+function saveOpenAnswer(qId, val) {
+  openAnswers[qId] = val;
 }
 
-// ── Submit ──────────────────────────────────────────────────────────
-function submitExam() {
-  // Check unanswered
-  var unanswered = examQs.filter(function(q){ return !answers[q.questionId]; }).length;
-  if (unanswered > 0) {
-    if (!confirm(unanswered + ' suala cavab verməmisiniz. Yenə də göndərməк istəyirsiniz?')) return;
+function goQ(dir) {
+  // Açıq sual cavabını kaydet before navigating
+  var curQ=examQs[curIdx];
+  if (curQ && curQ.type==='open') {
+    var ta=document.getElementById('oa-'+curQ.questionId);
+    if (ta) openAnswers[curQ.questionId]=ta.value;
   }
-  var btn = document.getElementById('btnSubmit');
-  btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Göndərilir...';
+  var next=curIdx+dir;
+  if (next<0||next>=examQs.length) return;
+  curIdx=next; renderQ(curIdx);
+}
 
-  var payload = examQs.map(function(q) {
-    return { questionId: q.questionId, text: q.text, category: q.category, options: q.options, given: answers[q.questionId] || null };
+// ── Göndər ────────────────────────────────────────────────────────
+function submitExam() {
+  // Axırıncı açıq sualın cavabını qeydə al
+  var curQ=examQs[curIdx];
+  if (curQ && curQ.type==='open') {
+    var ta=document.getElementById('oa-'+curQ.questionId);
+    if (ta) openAnswers[curQ.questionId]=ta.value;
+  }
+
+  var unanswered = examQs.filter(function(q){
+    return q.type==='test' && !testAnswers[q.questionId];
+  }).length;
+  if (unanswered>0) {
+    if (!confirm(unanswered+' test sualına cavab verməmisiniz. Yenə də göndərmək istəyirsiniz?')) return;
+  }
+
+  var btn=document.getElementById('btnSubmit');
+  btn.disabled=true; btn.innerHTML='<i class="fa-solid fa-circle-notch fa-spin"></i> Göndərilir...';
+
+  var payload=examQs.map(function(q){
+    if (q.type==='test') {
+      return { questionId:q.questionId, text:q.text, category:q.category, options:q.options, type:'test', given:testAnswers[q.questionId]||null };
+    } else {
+      return { questionId:q.questionId, text:q.text, category:q.category, type:'open', givenText:openAnswers[q.questionId]||'' };
+    }
   });
 
   google.script.run
     .withSuccessHandler(function(res) {
-      if (res && res.success) {
-        showResults(res);
-      } else {
-        btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-check-double"></i> Bitir';
-        alert((res && res.reason) || 'Xəta baş verdi. Yenidən cəhd edin.');
+      if (res && res.success) { showResults(res); }
+      else {
+        btn.disabled=false; btn.innerHTML='<i class="fa-solid fa-check-double"></i> Bitir';
+        alert((res&&res.reason)||'Xəta baş verdi.');
       }
     })
-    .withFailureHandler(function(e) {
-      btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-check-double"></i> Bitir';
-      alert('Xəta: ' + (e.message||'bilinmir'));
+    .withFailureHandler(function(e){
+      btn.disabled=false; btn.innerHTML='<i class="fa-solid fa-check-double"></i> Bitir';
+      alert('Xəta: '+(e.message||'bilinmir'));
     })
     .submitEmployeeExam(selEmpId, selEmpName, selBranch, selRole, payload);
 }
 
-// ── Results ─────────────────────────────────────────────────────────
+// ── Nəticə ────────────────────────────────────────────────────────
 function showResults(res) {
-  var score    = res.score    || 0;
-  var maxScore = res.maxScore || examQs.length;
-  var pct      = maxScore > 0 ? Math.round(score / maxScore * 100) : 0;
+  var score=res.score||0, maxScore=res.maxScore||0;
+  var pct=maxScore>0?Math.round(score/maxScore*100):0;
   var gradeClass, gradeLabel, emoji;
-  if (pct >= 90)      { gradeClass='gc-a'; gradeLabel='Əla';   emoji='🎉'; }
-  else if (pct >= 75) { gradeClass='gc-b'; gradeLabel='Yaxşı'; emoji='😊'; }
-  else if (pct >= 60) { gradeClass='gc-c'; gradeLabel='Orta';  emoji='😐'; }
-  else                { gradeClass='gc-f'; gradeLabel='Zəif';  emoji='😕'; }
+  if (pct>=90)     { gradeClass='gc-a'; gradeLabel='Əla';   emoji='🎉'; }
+  else if (pct>=75){ gradeClass='gc-b'; gradeLabel='Yaxşı'; emoji='😊'; }
+  else if (pct>=60){ gradeClass='gc-c'; gradeLabel='Orta';  emoji='😐'; }
+  else             { gradeClass='gc-f'; gradeLabel='Zəif';  emoji='😕'; }
 
-  var roleColor = selRole === 'kassir' ? 'var(--kassir)' : 'var(--barista)';
-  document.getElementById('resultHero').innerHTML =
-    '<span class="result-emoji">' + emoji + '</span>' +
-    '<div class="result-score" style="color:' + roleColor + ';">' + score + ' / ' + maxScore + '</div>' +
-    '<div class="result-pct">' + pct + '% düzgün cavab</div>' +
-    '<div><span class="grade-chip ' + gradeClass + '"><i class="fa-solid fa-star"></i> ' + gradeLabel + '</span></div>';
+  var roleColor=selRole==='kassir'?'var(--kassir)':'var(--barista)';
+  var hasOpen=examQs.some(function(q){ return q.type==='open'; });
+  document.getElementById('resultHero').innerHTML=
+    '<span class="result-emoji">'+emoji+'</span>'+
+    '<div class="result-score" style="color:'+roleColor+';">'+score+' / '+maxScore+'</div>'+
+    '<div class="result-pct">Test suallarından '+pct+'% düzgün cavab</div>'+
+    '<div><span class="grade-chip '+gradeClass+'"><i class="fa-solid fa-star"></i> '+gradeLabel+'</span></div>'+
+    (hasOpen?'<div class="result-open-note" style="margin-top:0.75rem;"><i class="fa-solid fa-info-circle"></i> Açıq suallarınız treynər tərəfindən yoxlanılacaq</div>':'');
 
-  // Answer review
-  var graded = res.answers || [];
-  var rvHtml = '';
-  graded.forEach(function(a, i) {
-    var ok = a.passed;
-    var uid = 'rv-' + i;
-    var givenOpt  = (a.options||[]).find(function(o){ return o.label === a.given;  });
-    var correctOpt= (a.options||[]).find(function(o){ return o.label === a.correct;});
-    rvHtml +=
-      '<div class="review-card">' +
-        '<div class="review-head" onclick="toggleRv(\'' + uid + '\')">' +
-          '<div class="review-icon ' + (ok?'rv-ok':'rv-bad') + '"><i class="fa-solid ' + (ok?'fa-check':'fa-xmark') + '"></i></div>' +
-          '<div class="review-q">' + (i+1) + '. ' + a.text + '</div>' +
-          '<i class="fa-solid fa-chevron-down" id="' + uid + '-ico" style="font-size:0.7rem;color:var(--text-soft);transition:transform 0.25s;flex-shrink:0;margin-top:3px;"></i>' +
-        '</div>' +
-        '<div class="review-body" id="' + uid + '-body">' +
-          '<div class="review-row">' +
-            '<span class="rv-label">Cavabın:</span>' +
-            '<span style="color:' + (ok?'var(--success)':'var(--danger)') + ';font-weight:700;">' +
-              (a.given ? (a.given + (givenOpt?' — '+givenOpt.text:'')) : '—') +
-            '</span>' +
-          '</div>' +
-          (!ok ?
-            '<div class="review-row">' +
-              '<span class="rv-label">Düzgün:</span>' +
-              '<span style="color:var(--success);font-weight:700;">' + a.correct + (correctOpt?' — '+correctOpt.text:'') + '</span>' +
-            '</div>'
-          : '') +
-        '</div>' +
-      '</div>';
+  var graded=res.answers||[], rvHtml='';
+  graded.forEach(function(a,i){
+    var isTest=a.type==='test', ok=a.passed===true;
+    var uid='rv-'+i;
+    var iconCls = isTest ? (ok?'rv-ok':'rv-bad') : 'rv-open';
+    var iconIco = isTest ? (ok?'fa-check':'fa-xmark') : 'fa-pen-line';
+    var givenOpt  = isTest ? (a.options||[]).find(function(o){ return o.label===a.given; })  : null;
+    var correctOpt= isTest ? (a.options||[]).find(function(o){ return o.label===a.correct; }) : null;
+    rvHtml+=
+      '<div class="review-card">'+
+        '<div class="review-head" onclick="toggleRv(\''+uid+'\')">'+
+          '<div class="review-icon '+iconCls+'"><i class="fa-solid '+iconIco+'"></i></div>'+
+          '<div class="review-q">'+(i+1)+'. '+a.text+'</div>'+
+          '<i class="fa-solid fa-chevron-down" id="'+uid+'-ico" style="font-size:0.7rem;color:var(--text-soft);transition:transform 0.25s;flex-shrink:0;margin-top:3px;"></i>'+
+        '</div>'+
+        '<div class="review-body" id="'+uid+'-body">';
+    if (isTest) {
+      rvHtml+=
+        '<div class="review-row"><span class="rv-label">Cavabın:</span>'+
+          '<span style="color:'+(ok?'var(--success)':'var(--danger)')+';">'+
+            (a.given?(a.given+(givenOpt?' — '+givenOpt.text:'')):'—')+
+          '</span></div>'+
+        (!ok?'<div class="review-row"><span class="rv-label">Düzgün:</span>'+
+          '<span style="color:var(--success);">'+a.correct+(correctOpt?' — '+correctOpt.text:'')+'</span></div>':'')+
+        (a.given===null?'<div style="font-size:0.78rem;color:var(--text-soft);margin-top:6px;">Cavab verilməyib</div>':'');
+    } else {
+      rvHtml+=
+        '<div class="review-row"><span class="rv-label">Cavabın:</span>'+
+          '<span style="color:var(--text-main);">'+(a.givenText||'<i style="color:var(--text-soft)">Yazılmayıb</i>')+'</span></div>'+
+        '<div style="font-size:0.76rem;color:var(--text-soft);margin-top:5px;"><i class="fa-solid fa-clock"></i> Treynər tərəfindən yoxlanılacaq</div>';
+    }
+    rvHtml+='</div></div>';
   });
-  document.getElementById('resultReview').innerHTML = rvHtml || '<div class="empty"><i class="fa-solid fa-clipboard"></i><p>Nəticə məlumatı yoxdur.</p></div>';
+  document.getElementById('resultReview').innerHTML = rvHtml||'<div class="empty"><p>Nəticə məlumatı yoxdur.</p></div>';
   showScreen('result');
 }
 
-function toggleRv(uid) {
-  var body = document.getElementById(uid+'-body'), ico = document.getElementById(uid+'-ico');
-  if (!body) return;
-  var open = body.style.maxHeight && body.style.maxHeight !== '0px';
-  body.style.maxHeight = open ? '0px' : body.scrollHeight + 'px';
-  if (ico) ico.style.transform = open ? '' : 'rotate(180deg)';
+function toggleRv(uid){
+  var body=document.getElementById(uid+'-body'), ico=document.getElementById(uid+'-ico');
+  if(!body)return;
+  var open=body.style.maxHeight&&body.style.maxHeight!=='0px';
+  body.style.maxHeight=open?'0px':body.scrollHeight+'px';
+  if(ico)ico.style.transform=open?'':'rotate(180deg)';
 }
 
-function retryExam() {
-  examQs = []; curIdx = 0; answers = {};
-  // Keep selections, just restart
-  showScreen('setup');
-  document.getElementById('startBtn').disabled = !(selBranch && selEmpId && selRole);
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-}
-
-// ── Screen switch ──────────────────────────────────────────────────
-function showScreen(name) {
-  ['setup','exam','result'].forEach(function(s) {
-    document.getElementById('s-' + s).classList.toggle('hidden', s !== name);
+function showScreen(name){
+  ['loading','inactive','setup','exam','result'].forEach(function(s){
+    var el=document.getElementById('s-'+s);
+    if (!el) return;
+    if (s==='loading') el.style.display='none';
+    else el.classList.toggle('hidden', s!==name);
   });
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+  window.scrollTo({ top:0, behavior:'smooth' });
 }
 </script>
 </body>
