@@ -384,6 +384,21 @@ input:focus,select:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(7
   </div>
 
   <!-- ─ Çeklist sub-panel ─ -->
+
+  <div class="card">
+      <div style="display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:1.2rem;">
+        <div class="tg-section-title" style="margin-bottom:0;flex:1;"><i class="fa-solid fa-clipboard-list"></i> Training Qeydləri</div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <input type="date" id="tr-date-pick" style="min-width:140px;">
+          <button class="btn sm primary" onclick="loadTrainerLogs()"><i class="fa-solid fa-magnifying-glass"></i> Göstər</button>
+        </div>
+      </div>
+      <div id="tr-logs-area">
+        <div style="text-align:center;padding:2rem;color:var(--text-muted);font-size:0.88rem;">Tarix seçib "Göstər" basın</div>
+      </div>
+    </div>
+  </div>
+  
   <div id="trPanel-checklist">
     <div class="card">
       <div class="tg-section-title"><i class="fa-solid fa-list-check"></i> Training Çeklist Elementləri</div>
@@ -415,20 +430,6 @@ input:focus,select:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(7
         </button>
       </div>
     </div>
-
-    <div class="card">
-      <div style="display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:1.2rem;">
-        <div class="tg-section-title" style="margin-bottom:0;flex:1;"><i class="fa-solid fa-clipboard-list"></i> Training Qeydləri</div>
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-          <input type="date" id="tr-date-pick" style="min-width:140px;">
-          <button class="btn sm primary" onclick="loadTrainerLogs()"><i class="fa-solid fa-magnifying-glass"></i> Göstər</button>
-        </div>
-      </div>
-      <div id="tr-logs-area">
-        <div style="text-align:center;padding:2rem;color:var(--text-muted);font-size:0.88rem;">Tarix seçib "Göstər" basın</div>
-      </div>
-    </div>
-  </div>
 
   <!-- ─ İmtahan sub-panel ─ -->
   <div id="trPanel-imtahan" style="display:none;">
