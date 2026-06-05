@@ -1543,6 +1543,26 @@ API.submitExam = async (trainerKey, trainerName, dept, empId, empName, score, ma
   return { success: !error, reason: error?.message };
 };
 
+API.gradeOpenAnswer = async (trainerKey, examId, questionId, passed) => {
+  if (!U.getSetting('TRAINER_KEY') || U.getSetting('TRAINER_KEY') !== trainerKey)
+    return { success: false, reason: 'İcazəsiz.' };
+  if (!examId || !questionId || typeof passed !== 'boolean')
+    return { success: false, reason: 'Məlumatlar natamamdır.' };
+
+  const { data: rows, error: fetchErr } = await sb.from('trainer_exams').select('*').eq('exam_id', examId).limit(1);
+  if (fetchErr || !rows?.length) return { success: false, reason: 'İmtahan tapılmadı.' };
+
+  const exam = rows[0];
+  const answers = (exam.answers || []).map(a =>
+    a.questionId === questionId && a.type === 'open' ? { ...a, passed } : a
+  );
+  const score = answers.filter(a => a.passed === true).length;
+
+  const { error } = await sb.from('trainer_exams').update({ answers, score }).eq('exam_id', examId);
+  sbErr('gradeOpenAnswer', error);
+  return { success: !error, score, answers };
+};
+
 API.getTodayExams = async (trainerKey) => {
   if (!U.getSetting('TRAINER_KEY') || U.getSetting('TRAINER_KEY') !== trainerKey)
     return { exams: [] };
@@ -1715,7 +1735,7 @@ API.submitEmployeeExam = async (empId, empName, dept, role, answers) => {
     emp_id:       String(empId),
     emp_name:     String(empName),
     score,
-    max_score:    testTotal,
+    max_score:    graded.length,
     answers:      graded,
     note:         '',
     date_str:     U.getLogicalYMD(ts),
