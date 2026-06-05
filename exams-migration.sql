@@ -23,14 +23,17 @@ CREATE INDEX IF NOT EXISTS trainer_exams_emp_idx  ON trainer_exams (emp_id);
 CREATE TABLE IF NOT EXISTS exam_questions (
   question_id  text         PRIMARY KEY,
   text         text         NOT NULL DEFAULT '',
-  type         text         NOT NULL DEFAULT 'open',  -- 'test' | 'open'
-  options      jsonb        NOT NULL DEFAULT '[]',    -- [{label:'A', text:'...'}, ...]
-  correct      text         NOT NULL DEFAULT '',      -- 'A' | 'B' | 'C' | 'D'
+  type         text         NOT NULL DEFAULT 'open',    -- 'test' | 'open'
+  options      jsonb        NOT NULL DEFAULT '[]',      -- [{label:'A', text:'...'}, ...]
+  correct      text         NOT NULL DEFAULT '',        -- 'A' | 'B' | 'C' | 'D'
   category     text         NOT NULL DEFAULT '',
+  role         text         NOT NULL DEFAULT 'umumi',   -- 'kassir' | 'barista' | 'umumi'
   active       boolean      NOT NULL DEFAULT true,
   sort_order   integer      NOT NULL DEFAULT 0,
   created_at   timestamptz  NOT NULL DEFAULT now()
 );
+-- Mövcud cədvələ role sütunu əlavə etmək üçün (əgər artıq yaradılıbsa):
+ALTER TABLE exam_questions ADD COLUMN IF NOT EXISTS role text NOT NULL DEFAULT 'umumi';
 CREATE INDEX IF NOT EXISTS exam_questions_active_idx ON exam_questions (active);
 
 -- 3. Trainer öz təlim materialları

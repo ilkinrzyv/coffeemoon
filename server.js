@@ -1605,6 +1605,7 @@ API.getExamQuestions = async () => {
     options:    q.options  || [],
     correct:    q.correct  || '',
     category:   q.category || '',
+    role:       q.role     || 'umumi',
   }));
 };
 
@@ -1628,6 +1629,7 @@ API.saveExamQuestion = async (trainerKey, question) => {
     options:     question.options || [],
     correct:     question.correct || '',
     category:    (question.category || '').trim(),
+    role:        ['kassir','barista','umumi'].includes(question.role) ? question.role : 'umumi',
     active:      true,
     sort_order:  sortOrder,
   });
