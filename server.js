@@ -1555,6 +1555,93 @@ API.getExamLogs = async (dateStr) => {
   return { date, exams: data || [] };
 };
 
+// ── TƏLİM MATERİALLARI (Trainer öz materialları) ─────────────────
+
+API.getTrainerMaterials = async () => {
+  const { data } = await sb.from('trainer_materials').select('*').eq('active', true).order('sort_order');
+  return (data || []).map(m => ({
+    materialId: m.material_id,
+    title:      m.title,
+    body:       m.body     || '',
+    category:   m.category || '',
+  }));
+};
+
+API.saveTrainerMaterial = async (trainerKey, material) => {
+  if (!U.getSetting('TRAINER_KEY') || U.getSetting('TRAINER_KEY') !== trainerKey)
+    return { success: false, reason: 'İcazəsiz.' };
+  if (!material?.title?.trim()) return { success: false, reason: 'Başlıq boş ola bilməz.' };
+  const { data: last } = await sb.from('trainer_materials')
+    .select('sort_order').eq('active', true).order('sort_order', { ascending: false }).limit(1);
+  const sortOrder = (last?.length ? last[0].sort_order : 0) + 1;
+  const id = 'TM-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substring(2, 4).toUpperCase();
+  const { error } = await sb.from('trainer_materials').insert({
+    material_id: id,
+    title:       material.title.trim(),
+    body:        (material.body     || '').trim(),
+    category:    (material.category || '').trim(),
+    active:      true,
+    sort_order:  sortOrder,
+  });
+  sbErr('saveTrainerMaterial', error);
+  return { success: !error, materialId: id };
+};
+
+API.deleteTrainerMaterial = async (trainerKey, materialId) => {
+  if (!U.getSetting('TRAINER_KEY') || U.getSetting('TRAINER_KEY') !== trainerKey)
+    return { success: false };
+  const { error } = await sb.from('trainer_materials').update({ active: false }).eq('material_id', materialId);
+  return { success: !error };
+};
+
+// ── İMTAHAN SUALLARI (Trainer öz sualları) ───────────────────────
+
+API.getExamQuestions = async () => {
+  const { data } = await sb.from('exam_questions').select('*').eq('active', true).order('sort_order');
+  return (data || []).map(q => ({
+    questionId: q.question_id,
+    text:       q.text,
+    type:       q.type,
+    options:    q.options  || [],
+    correct:    q.correct  || '',
+    category:   q.category || '',
+  }));
+};
+
+API.saveExamQuestion = async (trainerKey, question) => {
+  if (!U.getSetting('TRAINER_KEY') || U.getSetting('TRAINER_KEY') !== trainerKey)
+    return { success: false, reason: 'İcazəsiz.' };
+  if (!question?.text?.trim()) return { success: false, reason: 'Sual mətni boş ola bilməz.' };
+  if (question.type === 'test') {
+    const opts = (question.options || []).filter(o => o.text?.trim());
+    if (opts.length < 2) return { success: false, reason: 'Test üçün ən azı 2 variant lazımdır.' };
+    if (!question.correct) return { success: false, reason: 'Düzgün cavabı seçin.' };
+  }
+  const { data: last } = await sb.from('exam_questions')
+    .select('sort_order').eq('active', true).order('sort_order', { ascending: false }).limit(1);
+  const sortOrder = (last?.length ? last[0].sort_order : 0) + 1;
+  const id = 'EQ-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substring(2, 4).toUpperCase();
+  const { error } = await sb.from('exam_questions').insert({
+    question_id: id,
+    text:        question.text.trim(),
+    type:        question.type || 'open',
+    options:     question.options || [],
+    correct:     question.correct || '',
+    category:    (question.category || '').trim(),
+    active:      true,
+    sort_order:  sortOrder,
+  });
+  sbErr('saveExamQuestion', error);
+  return { success: !error, questionId: id };
+};
+
+API.deleteExamQuestion = async (trainerKey, questionId) => {
+  if (!U.getSetting('TRAINER_KEY') || U.getSetting('TRAINER_KEY') !== trainerKey)
+    return { success: false };
+  const { error } = await sb.from('exam_questions').update({ active: false }).eq('question_id', questionId);
+  return { success: !error };
+};
+
 // ══════════════════════════════════════════════════════════════════
 //  SERVER BAŞLAT
 // ══════════════════════════════════════════════════════════════════
