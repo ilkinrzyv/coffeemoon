@@ -117,6 +117,8 @@ app.get('/trainer', (req, res) => {
   }));
 });
 
+app.get('/exam', (req, res) => res.send(readTemplate('exam.html')));
+
 app.get('/', (req, res) => res.redirect(`/admin?key=${ADMIN_KEY}`));
 
 // ══════════════════════════════════════════════════════════════════
@@ -1642,6 +1644,61 @@ API.deleteExamQuestion = async (trainerKey, questionId) => {
     return { success: false };
   const { error } = await sb.from('exam_questions').update({ active: false }).eq('question_id', questionId);
   return { success: !error };
+};
+
+// ── İŞÇİ ÖZÜ İMTAHAN ────────────────────────────────────────────
+
+// Düzgün cavablar göndərilmir — yalnız sual + variantlar
+API.getExamQuestionsPublic = async (role) => {
+  if (!['kassir','barista'].includes(role)) return [];
+  const { data } = await sb.from('exam_questions')
+    .select('question_id,text,type,options,category,role')
+    .eq('active', true).eq('type', 'test').order('sort_order');
+  return (data || [])
+    .filter(q => q.role === role || q.role === 'umumi')
+    .map(q => ({
+      questionId: q.question_id,
+      text:       q.text,
+      options:    q.options  || [],
+      category:   q.category || '',
+      role:       q.role     || 'umumi',
+    }));
+};
+
+// Server-side qiymətləndirmə — client heç vaxt doğru cavabı bilmir
+API.submitEmployeeExam = async (empId, empName, dept, role, answers) => {
+  if (!empId || !empName || !dept || !role || !answers?.length)
+    return { success: false, reason: 'Məlumatlar natamamdır.' };
+  const questionIds = answers.map(a => a.questionId).filter(Boolean);
+  const { data: questions } = await sb.from('exam_questions')
+    .select('question_id,correct').in('question_id', questionIds);
+  const cMap = {};
+  for (const q of questions || []) cMap[q.question_id] = q.correct;
+  let score = 0;
+  const graded = answers.map(a => {
+    const correct = cMap[a.questionId] || '';
+    const passed  = !!correct && a.given === correct;
+    if (passed) score++;
+    return { questionId:a.questionId, text:a.text, category:a.category,
+             options:a.options||[], correct, given:a.given||null, passed, type:'test' };
+  });
+  const ts     = new Date();
+  const examId = 'EX-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substring(2,4).toUpperCase();
+  const { error } = await sb.from('trainer_exams').insert({
+    exam_id:      examId,
+    trainer_name: 'Özü',
+    dept,
+    emp_id:       String(empId),
+    emp_name:     String(empName),
+    score,
+    max_score:    answers.length,
+    answers:      graded,
+    note:         '',
+    date_str:     U.getLogicalYMD(ts),
+    created_at:   ts.toISOString(),
+  });
+  sbErr('submitEmployeeExam', error);
+  return { success: !error, score, maxScore: answers.length, answers: graded };
 };
 
 // ══════════════════════════════════════════════════════════════════
