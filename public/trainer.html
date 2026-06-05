@@ -13,6 +13,7 @@
   --border:rgba(255,255,255,0.78);
   --primary:#0d9488; --primary-dark:#0f766e;
   --success:#10b981; --danger:#ef4444; --warning:#f59e0b;
+  --purple:#7c3aed; --purple-dark:#6d28d9;
   --text-main:#0d1526; --text-muted:#64748b; --text-soft:#94a3b8;
   --shadow:0 8px 28px -6px rgba(15,23,42,0.09),0 0 0 1px rgba(15,23,42,0.045);
   --shadow-lg:0 20px 50px -10px rgba(15,23,42,0.12),0 0 0 1px rgba(15,23,42,0.04);
@@ -28,8 +29,9 @@ header{background:linear-gradient(135deg,rgba(255,255,255,0.94) 0%,rgba(240,253,
 .logo i{color:#92400e;font-size:1.05rem;}
 .trainer-badge{background:linear-gradient(135deg,rgba(13,148,136,0.1),rgba(13,148,136,0.06));color:var(--primary);border:1px solid rgba(13,148,136,0.2);padding:7px 16px;border-radius:100px;font-size:0.83rem;font-weight:700;display:flex;align-items:center;gap:7px;}
 
-.tab-bar{background:rgba(255,255,255,0.88);backdrop-filter:blur(30px);border:1px solid rgba(255,255,255,0.8);border-radius:20px;padding:6px;display:flex;gap:6px;margin-bottom:1.2rem;box-shadow:var(--shadow);}
-.tab-btn{flex:1;padding:0.75rem 1rem;border:none;border-radius:14px;cursor:pointer;font-size:0.87rem;font-weight:700;color:var(--text-soft);background:transparent;display:flex;align-items:center;justify-content:center;gap:7px;transition:all 0.22s cubic-bezier(0.16,1,0.3,1);font-family:'Inter',sans-serif;}
+/* ── 4-tab grid ─────────────────────────────── */
+.tab-bar{background:rgba(255,255,255,0.88);backdrop-filter:blur(30px);border:1px solid rgba(255,255,255,0.8);border-radius:20px;padding:6px;display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:1.2rem;box-shadow:var(--shadow);}
+.tab-btn{padding:0.7rem 0.6rem;border:none;border-radius:14px;cursor:pointer;font-size:0.81rem;font-weight:700;color:var(--text-soft);background:transparent;display:flex;align-items:center;justify-content:center;gap:6px;transition:all 0.22s cubic-bezier(0.16,1,0.3,1);font-family:'Inter',sans-serif;white-space:nowrap;}
 .tab-btn.active{background:linear-gradient(135deg,rgba(13,148,136,0.12),rgba(13,148,136,0.07));color:var(--primary);box-shadow:0 2px 8px rgba(13,148,136,0.12);}
 
 .card{background:var(--surface);backdrop-filter:blur(20px);border:1px solid var(--border);border-radius:20px;padding:1.3rem 1.4rem;margin-bottom:1rem;box-shadow:var(--shadow);}
@@ -96,6 +98,53 @@ header{background:linear-gradient(135deg,rgba(255,255,255,0.94) 0%,rgba(240,253,
 #toast.ok{background:#0d9488;}
 #toast.err{background:#ef4444;}
 .hidden{display:none!important;}
+
+/* ── Sub-tabs ───────────────────────────────── */
+.sub-tab-bar{display:flex;gap:6px;margin-bottom:1rem;}
+.sub-tab-btn{flex:1;padding:0.6rem 0.75rem;border:1.5px solid rgba(15,23,42,0.08);border-radius:12px;background:#fff;cursor:pointer;font-size:0.82rem;font-weight:700;color:var(--text-muted);display:flex;align-items:center;justify-content:center;gap:6px;transition:all 0.2s;font-family:'Inter',sans-serif;}
+.sub-tab-btn.active{border-color:var(--purple);background:rgba(124,58,237,0.07);color:var(--purple);}
+
+/* ── Exam items ─────────────────────────────── */
+.ex-item{background:#fff;border:1.5px solid rgba(15,23,42,0.06);border-radius:14px;margin-bottom:8px;transition:all 0.2s;cursor:pointer;user-select:none;}
+.ex-item.pass{border-color:rgba(16,185,129,0.35);background:rgba(16,185,129,0.04);}
+.ex-item.fail{border-color:rgba(239,68,68,0.25);background:rgba(239,68,68,0.03);}
+.ex-item-top{display:flex;align-items:center;gap:12px;padding:0.85rem 1rem;}
+.ex-toggle{width:26px;height:26px;border-radius:50%;border:2px solid rgba(15,23,42,0.12);display:flex;align-items:center;justify-content:center;flex-shrink:0;background:#fff;transition:all 0.22s;}
+.ex-item.pass .ex-toggle{background:var(--success);border-color:var(--success);}
+.ex-item.fail .ex-toggle{background:rgba(239,68,68,0.1);border-color:rgba(239,68,68,0.3);}
+.ex-toggle .ex-i{font-size:0.65rem;color:transparent;transition:color 0.15s;}
+.ex-item.pass .ex-toggle .ex-i{color:#fff;}
+.ex-item.fail .ex-toggle .ex-i{color:#ef4444;}
+.ex-item-txt{flex:1;font-size:0.9rem;font-weight:600;color:var(--text-main);}
+.ex-state{font-size:0.72rem;font-weight:700;padding:2px 8px;border-radius:6px;flex-shrink:0;transition:all 0.2s;background:rgba(15,23,42,0.05);color:var(--text-soft);}
+.ex-item.pass .ex-state{background:rgba(16,185,129,0.1);color:var(--success);}
+.ex-item.fail .ex-state{background:rgba(239,68,68,0.09);color:var(--danger);}
+
+/* ── Score box ──────────────────────────────── */
+.score-box{display:flex;align-items:center;justify-content:space-between;padding:0.8rem 1rem;background:rgba(124,58,237,0.05);border:1.5px solid rgba(124,58,237,0.1);border-radius:14px;margin-bottom:1rem;}
+.score-main{font-size:1.4rem;font-weight:900;color:var(--purple);}
+.score-sub{font-size:0.75rem;font-weight:600;color:var(--text-muted);}
+.grade-badge{font-size:0.78rem;font-weight:800;padding:4px 11px;border-radius:8px;}
+.grade-a{background:rgba(16,185,129,0.12);color:#059669;}
+.grade-b{background:rgba(16,185,129,0.08);color:#10b981;}
+.grade-c{background:rgba(245,158,11,0.12);color:#d97706;}
+.grade-f{background:rgba(239,68,68,0.10);color:#ef4444;}
+
+/* ── Exam result card score chip ────────────── */
+.exam-score-chip{display:inline-flex;align-items:center;gap:5px;font-size:0.78rem;font-weight:800;padding:3px 10px;border-radius:8px;white-space:nowrap;}
+
+/* ── Təlim study cards ──────────────────────── */
+.study-cat{background:var(--surface);border:1px solid var(--border);border-radius:16px;margin-bottom:0.75rem;overflow:hidden;box-shadow:var(--shadow);}
+.study-cat-head{display:flex;align-items:center;gap:10px;padding:0.9rem 1.1rem;cursor:pointer;user-select:none;transition:background 0.15s;}
+.study-cat-head:hover{background:rgba(13,148,136,0.03);}
+.study-cat-icon{width:34px;height:34px;border-radius:10px;background:rgba(13,148,136,0.1);color:var(--primary);display:flex;align-items:center;justify-content:center;font-size:0.85rem;flex-shrink:0;}
+.study-cat-title{flex:1;font-size:0.92rem;font-weight:700;color:var(--text-main);}
+.study-cat-count{font-size:0.72rem;font-weight:700;color:var(--primary);background:rgba(13,148,136,0.09);padding:2px 8px;border-radius:6px;flex-shrink:0;}
+.study-cat-chev{font-size:0.72rem;color:var(--text-soft);transition:transform 0.25s;flex-shrink:0;}
+.study-cat-body{max-height:0;overflow:hidden;transition:max-height 0.4s ease;}
+.study-item{display:flex;align-items:flex-start;gap:10px;padding:0.65rem 1.1rem;border-top:1px solid rgba(15,23,42,0.04);}
+.study-dot{width:6px;height:6px;border-radius:50%;background:var(--primary);flex-shrink:0;margin-top:8px;}
+.study-item-txt{font-size:0.87rem;font-weight:500;color:var(--text-main);line-height:1.5;}
 </style>
 </head>
 <body>
@@ -110,19 +159,25 @@ header{background:linear-gradient(135deg,rgba(255,255,255,0.94) 0%,rgba(240,253,
   </div>
 </header>
 
+<!-- 4 tab, 2×2 grid -->
 <div class="tab-bar">
-  <button class="tab-btn active" id="tabNew" onclick="switchTab('new')">
+  <button class="tab-btn active" id="tab-new"     onclick="switchTab('new')">
     <i class="fa-solid fa-clipboard-list"></i> Yeni Təlim
   </button>
-  <button class="tab-btn" id="tabToday" onclick="switchTab('today')">
+  <button class="tab-btn" id="tab-today"   onclick="switchTab('today')">
     <i class="fa-solid fa-clock-rotate-left"></i> Bu gün
+  </button>
+  <button class="tab-btn" id="tab-talim"   onclick="switchTab('talim')">
+    <i class="fa-solid fa-book-open"></i> Təlim
+  </button>
+  <button class="tab-btn" id="tab-imtahan" onclick="switchTab('imtahan')">
+    <i class="fa-solid fa-file-pen"></i> İmtahan
   </button>
 </div>
 
-<!-- YENİ TREYNİNQ -->
-<div id="panelNew">
+<!-- ══════════ YENİ TREYNİNQ ══════════ -->
+<div id="panel-new">
 
-  <!-- Addım 1: Filial -->
   <div class="card">
     <div class="sec-label"><span class="sec-num">1</span> Filial seçin</div>
     <div class="branch-grid">
@@ -133,7 +188,6 @@ header{background:linear-gradient(135deg,rgba(255,255,255,0.94) 0%,rgba(240,253,
     </div>
   </div>
 
-  <!-- Addım 2: İşçi -->
   <div class="card hidden" id="empCard">
     <div class="sec-label">
       <span class="sec-num">2</span> İşçi seçin
@@ -144,7 +198,6 @@ header{background:linear-gradient(135deg,rgba(255,255,255,0.94) 0%,rgba(240,253,
     </div>
   </div>
 
-  <!-- Addım 3: Çeklist -->
   <div class="card hidden" id="clCard">
     <div class="sec-label">
       <span class="sec-num">3</span> Çeklist
@@ -169,19 +222,118 @@ header{background:linear-gradient(135deg,rgba(255,255,255,0.94) 0%,rgba(240,253,
     </button>
   </div>
 
-</div><!-- /panelNew -->
+</div><!-- /panel-new -->
 
-<!-- BU GÜN -->
-<div id="panelToday" class="hidden">
+<!-- ══════════ BU GÜN ══════════ -->
+<div id="panel-today" class="hidden">
   <div class="card">
-    <div class="sec-label"><i class="fa-solid fa-calendar-check"></i> Bu günkü təlimlər (yoxlanışlar)</div>
+    <div class="sec-label"><i class="fa-solid fa-calendar-check"></i> Bu günkü təlimlər</div>
     <div id="todayLogs">
       <div class="empty"><i class="fa-solid fa-circle-notch fa-spin"></i><p>Yüklənir...</p></div>
     </div>
   </div>
 </div>
 
+<!-- ══════════ TƏLİM (Materiallar) ══════════ -->
+<div id="panel-talim" class="hidden">
+  <div class="card">
+    <div class="sec-label"><i class="fa-solid fa-book-open"></i> Təlim Materialları</div>
+    <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:1.1rem;line-height:1.55;">
+      Aşağıdakı mövzular admin tərəfindən müəyyən edilmiş aktiv təlim meyarlarıdır.
+      Təlim sessiyası zamanı istinad kimi istifadə edin.
+    </p>
+    <div id="studyCats">
+      <div class="empty"><i class="fa-solid fa-circle-notch fa-spin"></i><p>Yüklənir...</p></div>
+    </div>
+  </div>
 </div>
+
+<!-- ══════════ İMTAHAN ══════════ -->
+<div id="panel-imtahan" class="hidden">
+
+  <!-- Sub-tabs -->
+  <div class="sub-tab-bar">
+    <button class="sub-tab-btn active" id="subtab-new"     onclick="switchImtahanTab('new')">
+      <i class="fa-solid fa-pen-to-square"></i> Yeni İmtahan
+    </button>
+    <button class="sub-tab-btn"        id="subtab-results" onclick="switchImtahanTab('results')">
+      <i class="fa-solid fa-trophy"></i> Nəticələr
+    </button>
+  </div>
+
+  <!-- ─── Yeni İmtahan ─── -->
+  <div id="imtahan-panel-new">
+
+    <div class="card">
+      <div class="sec-label"><span class="sec-num">1</span> Filial seçin</div>
+      <div class="branch-grid">
+        <button class="branch-btn" onclick="examSelectBranch('Elmlər',this)"><i class="fa-solid fa-store"></i> Elmlər</button>
+        <button class="branch-btn" onclick="examSelectBranch('Sahil',this)"><i class="fa-solid fa-store"></i> Sahil</button>
+        <button class="branch-btn" onclick="examSelectBranch('Gənclik',this)"><i class="fa-solid fa-store"></i> Gənclik</button>
+        <button class="branch-btn" onclick="examSelectBranch('Ağ Şəhər',this)"><i class="fa-solid fa-store"></i> Ağ Şəhər</button>
+      </div>
+    </div>
+
+    <div class="card hidden" id="examEmpCard">
+      <div class="sec-label">
+        <span class="sec-num">2</span> İşçi seçin
+        <span id="examEmpDeptLbl" style="font-weight:700;color:var(--primary);text-transform:none;letter-spacing:0;margin-left:4px;"></span>
+      </div>
+      <div class="emp-list" id="examEmpList">
+        <div class="empty"><i class="fa-solid fa-circle-notch fa-spin"></i><p>Yüklənir...</p></div>
+      </div>
+    </div>
+
+    <div class="card hidden" id="examQCard">
+      <div class="sec-label">
+        <span class="sec-num">3</span> Suallar
+        <span id="examEmpLbl" style="font-weight:700;color:var(--text-main);text-transform:none;letter-spacing:0;margin-left:4px;"></span>
+      </div>
+      <p style="font-size:0.79rem;color:var(--text-soft);margin-bottom:0.9rem;">
+        Hər mövzu üçün işçinin biliyi qeyd edin: <b style="color:var(--success);">Bilir</b> / <b style="color:var(--danger);">Bilmir</b>. Cavabsız buraxıla bilər.
+      </p>
+
+      <!-- Xal paneli -->
+      <div class="score-box">
+        <div>
+          <div class="score-sub">Düzgün cavab</div>
+          <div class="score-main" id="examScoreVal">0 / 0</div>
+        </div>
+        <div style="text-align:right;">
+          <div class="score-sub" style="margin-bottom:5px;">Qiymət</div>
+          <span class="grade-badge grade-f" id="examGradeBadge">—</span>
+        </div>
+      </div>
+
+      <div id="examItems"></div>
+
+      <div style="margin-top:1.2rem;">
+        <div class="sec-label" style="margin-bottom:0.5rem;font-size:0.72rem;">
+          <i class="fa-solid fa-note-sticky"></i> Ümumi qeyd (istəyə bağlı)
+        </div>
+        <textarea class="gen-note" id="examNote" placeholder="Əlavə qeydlər..."></textarea>
+      </div>
+      <button class="submit-btn" id="examSubmitBtn" onclick="submitExam()"
+        style="background:linear-gradient(135deg,var(--purple),var(--purple-dark));box-shadow:0 6px 20px rgba(124,58,237,0.22);">
+        <i class="fa-solid fa-check-double"></i> İmtahanı Tamamla
+      </button>
+    </div>
+
+  </div><!-- /imtahan-panel-new -->
+
+  <!-- ─── Nəticələr ─── -->
+  <div id="imtahan-panel-results" class="hidden">
+    <div class="card">
+      <div class="sec-label"><i class="fa-solid fa-trophy"></i> Bu günkü imtahan nəticələri</div>
+      <div id="examResultsList">
+        <div class="empty"><i class="fa-solid fa-circle-notch fa-spin"></i><p>Yüklənir...</p></div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /panel-imtahan -->
+
+</div><!-- /wrap -->
 <div id="toast"></div>
 
 <script src="/gsr-shim.js"></script>
@@ -198,48 +350,63 @@ function toast(msg, type='ok') {
   _toastTimer = setTimeout(() => { el.className = ''; }, 3000);
 }
 
-// ── State ─────────────────────────────────────────────────────────
+// ── Paylaşılan state ──────────────────────────────────────────────
+var allEmps       = [];   // bir dəfə yüklənir, hər iki panel istifadə edir
+var allItems      = [];   // aktiv trainer items (bir dəfə yüklənir)
+var talimLoaded   = false;
+var imtahanSubTab = 'new';
+
+// Yeni Təlim state
 var selBranch  = null;
 var selEmpId   = null;
 var selEmpName = null;
-var allEmps    = [];  // bütün işçilər (bir dəfə yüklənir)
-var allItems   = [];  // çeklist elementləri
 var checks     = {};
 
-// ── Tabs ─────────────────────────────────────────────────────────
+// İmtahan state
+var examBranch  = null;
+var examEmpId   = null;
+var examEmpName = null;
+var examChecks  = {}; // true = bilir, false = bilmir, undefined = cavabsız
+
+// ── Tab keçidi ────────────────────────────────────────────────────
+const ALL_TABS = ['new','today','talim','imtahan'];
 function switchTab(tab) {
-  document.getElementById('tabNew').classList.toggle('active', tab==='new');
-  document.getElementById('tabToday').classList.toggle('active', tab==='today');
-  document.getElementById('panelNew').classList.toggle('hidden', tab!=='new');
-  document.getElementById('panelToday').classList.toggle('hidden', tab!=='today');
-  if (tab==='today') loadTodayLogs();
+  ALL_TABS.forEach(function(t) {
+    document.getElementById('tab-' + t).classList.toggle('active', t === tab);
+    document.getElementById('panel-' + t).classList.toggle('hidden', t !== tab);
+  });
+  if (tab === 'today')   loadTodayLogs();
+  if (tab === 'talim')   loadTalimItems();
+  if (tab === 'imtahan' && imtahanSubTab === 'results') loadTodayExams();
 }
 
-// ── Filial seçimi ─────────────────────────────────────────────────
+function switchImtahanTab(sub) {
+  imtahanSubTab = sub;
+  document.getElementById('subtab-new').classList.toggle('active',     sub === 'new');
+  document.getElementById('subtab-results').classList.toggle('active', sub === 'results');
+  document.getElementById('imtahan-panel-new').classList.toggle('hidden',     sub !== 'new');
+  document.getElementById('imtahan-panel-results').classList.toggle('hidden', sub !== 'results');
+  if (sub === 'results') loadTodayExams();
+}
+
+// ════════════════════════════════════════════════════════════════
+//  YENİ TƏLİM
+// ════════════════════════════════════════════════════════════════
+
 function selectBranch(dept, btn) {
-  document.querySelectorAll('.branch-btn').forEach(function(b){ b.classList.remove('sel'); });
+  document.querySelectorAll('#panel-new .branch-btn').forEach(function(b){ b.classList.remove('sel'); });
   btn.classList.add('sel');
   selBranch  = dept;
   selEmpId   = null;
   selEmpName = null;
-
   document.getElementById('empDeptLbl').textContent = '— ' + dept;
   document.getElementById('empCard').classList.remove('hidden');
   document.getElementById('clCard').classList.add('hidden');
-
-  var empList = document.getElementById('empList');
-  empList.innerHTML = '<div class="empty"><i class="fa-solid fa-circle-notch fa-spin"></i><p>Yüklənir...</p></div>';
-
-  if (allEmps.length) {
-    renderEmpList(dept);
-    return;
-  }
-  // getEmployees() admin paneldə işləyən eyni funksiya
+  document.getElementById('empList').innerHTML =
+    '<div class="empty"><i class="fa-solid fa-circle-notch fa-spin"></i><p>Yüklənir...</p></div>';
+  if (allEmps.length) { renderEmpList(dept); return; }
   google.script.run
-    .withSuccessHandler(function(data) {
-      allEmps = data || [];
-      renderEmpList(dept);
-    })
+    .withSuccessHandler(function(data) { allEmps = data || []; renderEmpList(dept); })
     .withFailureHandler(function(e) {
       document.getElementById('empList').innerHTML =
         '<div class="empty"><i class="fa-solid fa-triangle-exclamation"></i><p>Xəta: ' + (e.message||'bilinmir') + '</p></div>';
@@ -248,88 +415,65 @@ function selectBranch(dept, btn) {
 }
 
 function renderEmpList(dept) {
-  var empList = document.getElementById('empList');
+  var list     = document.getElementById('empList');
   var filtered = allEmps.filter(function(e){ return e.dept === dept; });
   if (!filtered.length) {
-    empList.innerHTML = '<div class="empty"><i class="fa-solid fa-users-slash"></i><p>Bu filialda işçi tapılmadı.</p></div>';
+    list.innerHTML = '<div class="empty"><i class="fa-solid fa-users-slash"></i><p>Bu filialda işçi tapılmadı.</p></div>';
     return;
   }
-  empList.innerHTML = filtered.map(function(e) {
+  list.innerHTML = filtered.map(function(e) {
     return '<button class="emp-btn" onclick="selectEmp(\'' + e.id + '\',\'' + e.name.replace(/'/g,"\\'") + '\',this)">' +
-      '<div class="emp-av">' + e.name.charAt(0) + '</div>' +
-      '<span>' + e.name + '</span></button>';
+      '<div class="emp-av">' + e.name.charAt(0) + '</div><span>' + e.name + '</span></button>';
   }).join('');
   document.getElementById('empCard').scrollIntoView({ behavior:'smooth', block:'nearest' });
 }
 
-// ── İşçi seçimi ──────────────────────────────────────────────────
 function selectEmp(id, name, btn) {
-  document.querySelectorAll('.emp-btn').forEach(function(b){ b.classList.remove('sel'); });
+  document.querySelectorAll('#empList .emp-btn').forEach(function(b){ b.classList.remove('sel'); });
   btn.classList.add('sel');
   selEmpId   = id;
   selEmpName = name;
   document.getElementById('clEmpLbl').textContent = '— ' + name;
-
   var clCard = document.getElementById('clCard');
   clCard.classList.remove('hidden');
-  document.getElementById('clItems').innerHTML = '<div class="empty"><i class="fa-solid fa-circle-notch fa-spin"></i><p>Yüklənir...</p></div>';
-
+  document.getElementById('clItems').innerHTML =
+    '<div class="empty"><i class="fa-solid fa-circle-notch fa-spin"></i><p>Yüklənir...</p></div>';
   checks = {};
-
-  if (allItems.length) {
-    renderChecklist();
-    clCard.scrollIntoView({ behavior:'smooth', block:'start' });
-    return;
-  }
+  if (allItems.length) { renderChecklist(); clCard.scrollIntoView({ behavior:'smooth', block:'start' }); return; }
   google.script.run
-    .withSuccessHandler(function(data) {
-      allItems = data || [];
-      renderChecklist();
-      clCard.scrollIntoView({ behavior:'smooth', block:'start' });
-    })
-    .withFailureHandler(function() {
-      allItems = [];
-      renderChecklist();
-    })
+    .withSuccessHandler(function(data) { allItems = data || []; renderChecklist(); clCard.scrollIntoView({ behavior:'smooth', block:'start' }); })
+    .withFailureHandler(function() { allItems = []; renderChecklist(); })
     .getActiveTrainerItems();
 }
 
-// ── Çeklist render ────────────────────────────────────────────────
 function renderChecklist() {
-  const container = document.getElementById('clItems');
+  var container = document.getElementById('clItems');
   if (!allItems.length) {
     container.innerHTML = '<div class="empty"><i class="fa-solid fa-list-check"></i><p>Çeklist elementi yoxdur.<br>Admin paneldən əlavə edin.</p></div>';
     updateProg();
     return;
   }
-
-  // Kateqoriyaya görə qruplaşdır
-  const cats = {};
-  allItems.forEach(item => {
-    const c = item.category || 'Digər';
-    if (!cats[c]) cats[c] = [];
+  var cats = {}, order = [];
+  allItems.forEach(function(item) {
+    var c = item.category || 'Digər';
+    if (!cats[c]) { cats[c] = []; order.push(c); }
     cats[c].push(item);
   });
-
-  let html = '';
-  Object.entries(cats).forEach(([cat, items]) => {
-    html += `<div class="cl-cat-sep">${cat}</div>`;
-    items.forEach(item => {
-      const c = checks[item.id] || {};
-      html += `
-        <div class="cl-item${c.checked?' chk':''}" id="ci-${item.id}">
-          <div class="cl-item-top" onclick="toggleItem('${item.id}')">
-            <div class="cl-circle"><i class="fa-solid fa-check"></i></div>
-            <span class="cl-item-txt">${item.text}</span>
-            <span class="cl-cat-tag">${item.category||''}</span>
-          </div>
-          <div class="cl-note-wrap">
-            <textarea class="cl-note-input" rows="1"
-              placeholder="Qeyd əlavə et..."
-              id="note-${item.id}"
-              oninput="updateNote('${item.id}',this.value)">${c.note||''}</textarea>
-          </div>
-        </div>`;
+  var html = '';
+  order.forEach(function(cat) {
+    html += '<div class="cl-cat-sep">' + cat + '</div>';
+    cats[cat].forEach(function(item) {
+      var c = checks[item.id] || {};
+      html += '<div class="cl-item' + (c.checked?' chk':'') + '" id="ci-' + item.id + '">' +
+        '<div class="cl-item-top" onclick="toggleItem(\'' + item.id + '\')">' +
+          '<div class="cl-circle"><i class="fa-solid fa-check"></i></div>' +
+          '<span class="cl-item-txt">' + item.text + '</span>' +
+          '<span class="cl-cat-tag">' + (item.category||'') + '</span>' +
+        '</div>' +
+        '<div class="cl-note-wrap">' +
+          '<textarea class="cl-note-input" rows="1" placeholder="Qeyd əlavə et..." id="note-' + item.id + '"' +
+          ' oninput="updateNote(\'' + item.id + '\',this.value)">' + (c.note||'') + '</textarea>' +
+        '</div></div>';
     });
   });
   container.innerHTML = html;
@@ -339,7 +483,7 @@ function renderChecklist() {
 function toggleItem(id) {
   if (!checks[id]) checks[id] = { checked:false, note:'' };
   checks[id].checked = !checks[id].checked;
-  const el = document.getElementById('ci-' + id);
+  var el = document.getElementById('ci-' + id);
   if (el) el.classList.toggle('chk', checks[id].checked);
   updateProg();
 }
@@ -350,43 +494,31 @@ function updateNote(id, val) {
 }
 
 function updateProg() {
-  const total = allItems.length;
-  const done  = allItems.filter(i => checks[i.id]?.checked).length;
-  const pct   = total ? Math.round(done/total*100) : 0;
-  document.getElementById('progCount').textContent = `${done} / ${total}`;
+  var total = allItems.length;
+  var done  = allItems.filter(function(i){ return checks[i.id] && checks[i.id].checked; }).length;
+  var pct   = total ? Math.round(done / total * 100) : 0;
+  document.getElementById('progCount').textContent = done + ' / ' + total;
   document.getElementById('progFill').style.width  = pct + '%';
 }
 
-// ── Göndər ───────────────────────────────────────────────────────
 function submitChecklist() {
-  if (!selBranch)       { toast('Filial seçin.', 'err');  return; }
-  if (!selEmpId)        { toast('İşçi seçin.', 'err');    return; }
+  if (!selBranch)       { toast('Filial seçin.', 'err');   return; }
+  if (!selEmpId)        { toast('İşçi seçin.', 'err');     return; }
   if (!allItems.length) { toast('Çeklist boşdur.', 'err'); return; }
-
   var btn = document.getElementById('submitBtn');
   btn.disabled = true;
   btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Göndərilir...';
-
   var items = allItems.map(function(item) {
-    return {
-      id:       item.id,
-      text:     item.text,
-      category: item.category,
-      checked:  (checks[item.id] && checks[item.id].checked) || false,
-      note:     (checks[item.id] && checks[item.id].note)    || '',
-    };
+    return { id:item.id, text:item.text, category:item.category,
+      checked: (checks[item.id] && checks[item.id].checked) || false,
+      note:    (checks[item.id] && checks[item.id].note)    || '' };
   });
-
   google.script.run
     .withSuccessHandler(function(res) {
       btn.disabled = false;
       btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Təlimi Tamamla';
-      if (res && res.success) {
-        toast('Təlim qeyd edildi ✓', 'ok');
-        resetForm();
-      } else {
-        toast((res && res.reason) || 'Xəta baş verdi.', 'err');
-      }
+      if (res && res.success) { toast('Təlim qeyd edildi ✓', 'ok'); resetForm(); }
+      else { toast((res && res.reason) || 'Xəta baş verdi.', 'err'); }
     })
     .withFailureHandler(function(e) {
       btn.disabled = false;
@@ -401,17 +533,19 @@ function resetForm() {
   selEmpId = null; selEmpName = null; checks = {};
   document.getElementById('clCard').classList.add('hidden');
   document.getElementById('empCard').classList.add('hidden');
-  document.querySelectorAll('.branch-btn').forEach(b => b.classList.remove('sel'));
+  document.querySelectorAll('#panel-new .branch-btn').forEach(function(b){ b.classList.remove('sel'); });
   selBranch = null;
   document.getElementById('generalNote').value = '';
   window.scrollTo({ top:0, behavior:'smooth' });
 }
 
-// ── Bu gün ───────────────────────────────────────────────────────
+// ════════════════════════════════════════════════════════════════
+//  BU GÜN
+// ════════════════════════════════════════════════════════════════
+
 function loadTodayLogs() {
   var el = document.getElementById('todayLogs');
   el.innerHTML = '<div class="empty"><i class="fa-solid fa-circle-notch fa-spin"></i><p>Yüklənir...</p></div>';
-
   google.script.run
     .withSuccessHandler(function(res) { renderTodayLogs(res); })
     .withFailureHandler(function() {
@@ -422,28 +556,23 @@ function loadTodayLogs() {
 }
 
 function renderTodayLogs(res) {
-  var el = document.getElementById('todayLogs');
+  var el   = document.getElementById('todayLogs');
   var logs = (res && res.logs) ? res.logs : [];
   if (!logs.length) {
     el.innerHTML = '<div class="empty"><i class="fa-solid fa-clipboard"></i><p>Bu gün hələ təlim qeyd edilməyib.</p></div>';
     return;
   }
-  el.innerHTML = logs.map(function(log, idx) {
-    return buildLogCard(log, 'tl-' + idx);
-  }).join('');
+  el.innerHTML = logs.map(function(log, idx){ return buildLogCard(log, 'tl-' + idx); }).join('');
 }
 
 function buildLogCard(log, uid) {
   var items = log.items || [];
   var done  = items.filter(function(i){ return i.checked; }).length;
   var total = items.length;
-  var pct   = total ? Math.round(done/total*100) : 0;
-  var clr   = pct>=80 ? 'var(--success)' : pct>=50 ? 'var(--warning)' : 'var(--danger)';
+  var pct   = total ? Math.round(done / total * 100) : 0;
+  var clr   = pct >= 80 ? 'var(--success)' : pct >= 50 ? 'var(--warning)' : 'var(--danger)';
   var time  = log.created_at
-    ? new Date(log.created_at).toLocaleTimeString('az-AZ',{hour:'2-digit',minute:'2-digit'})
-    : '';
-
-  // Detallı element siyahısı
+    ? new Date(log.created_at).toLocaleTimeString('az-AZ',{hour:'2-digit',minute:'2-digit'}) : '';
   var itemRows = items.map(function(item) {
     var ok = item.checked;
     return '<div style="display:flex;align-items:flex-start;gap:8px;padding:6px 0;border-bottom:1px solid rgba(15,23,42,0.04);">' +
@@ -459,9 +588,7 @@ function buildLogCard(log, uid) {
       '<span style="font-size:0.68rem;color:var(--text-soft);white-space:nowrap;padding-top:2px;">' + (item.category||'') + '</span>' +
     '</div>';
   }).join('');
-
   return '<div class="log-card" style="cursor:default;">' +
-    // Klik edilən başlıq
     '<div onclick="trToggle(\'' + uid + '\')" style="cursor:pointer;">' +
       '<div class="log-head">' +
         '<div class="log-emp">' + (log.emp_name||'—') + '</div>' +
@@ -478,7 +605,6 @@ function buildLogCard(log, uid) {
         '<i class="fa-solid fa-chevron-down" id="ico-' + uid + '" style="font-size:0.75rem;color:var(--text-soft);transition:transform 0.25s;flex-shrink:0;"></i>' +
       '</div>' +
     '</div>' +
-    // Açılan hissə
     '<div id="det-' + uid + '" style="overflow:hidden;max-height:0;transition:max-height 0.35s ease;">' +
       '<div style="padding-top:10px;border-top:1px solid rgba(15,23,42,0.05);margin-top:10px;">' +
         itemRows +
@@ -495,6 +621,334 @@ function trToggle(uid) {
   var open = det.style.maxHeight !== '0px' && det.style.maxHeight !== '';
   det.style.maxHeight = open ? '0px' : det.scrollHeight + 200 + 'px';
   if (ico) ico.style.transform = open ? '' : 'rotate(180deg)';
+}
+
+// ════════════════════════════════════════════════════════════════
+//  TƏLİM — Material / Mövzu Bəndləri
+// ════════════════════════════════════════════════════════════════
+
+function loadTalimItems() {
+  if (talimLoaded) return;
+  var el = document.getElementById('studyCats');
+  el.innerHTML = '<div class="empty"><i class="fa-solid fa-circle-notch fa-spin"></i><p>Yüklənir...</p></div>';
+  if (allItems.length) { renderStudyCats(allItems); talimLoaded = true; return; }
+  google.script.run
+    .withSuccessHandler(function(data) {
+      allItems    = data || [];
+      talimLoaded = true;
+      renderStudyCats(allItems);
+    })
+    .withFailureHandler(function() {
+      document.getElementById('studyCats').innerHTML =
+        '<div class="empty"><i class="fa-solid fa-triangle-exclamation"></i><p>Yüklənə bilmədi.</p></div>';
+    })
+    .getActiveTrainerItems();
+}
+
+function renderStudyCats(items) {
+  var el = document.getElementById('studyCats');
+  if (!items.length) {
+    el.innerHTML = '<div class="empty"><i class="fa-solid fa-book-open"></i><p>Hələ heç bir material əlavə edilməyib.<br>Admin paneldən əlavə edin.</p></div>';
+    return;
+  }
+  var cats = {}, order = [];
+  items.forEach(function(item) {
+    var c = item.category || 'Digər';
+    if (!cats[c]) { cats[c] = []; order.push(c); }
+    cats[c].push(item);
+  });
+  var html = '';
+  order.forEach(function(cat, ci) {
+    var uid = 'sc-' + ci;
+    html += '<div class="study-cat">' +
+      '<div class="study-cat-head" onclick="toggleStudyCat(\'' + uid + '\')">' +
+        '<div class="study-cat-icon"><i class="fa-solid fa-layer-group"></i></div>' +
+        '<span class="study-cat-title">' + cat + '</span>' +
+        '<span class="study-cat-count">' + cats[cat].length + ' mövzu</span>' +
+        '<i class="fa-solid fa-chevron-down study-cat-chev" id="' + uid + '-ico"></i>' +
+      '</div>' +
+      '<div class="study-cat-body" id="' + uid + '-body">';
+    cats[cat].forEach(function(item) {
+      html += '<div class="study-item">' +
+        '<div class="study-dot"></div>' +
+        '<div class="study-item-txt">' + item.text + '</div>' +
+      '</div>';
+    });
+    html += '</div></div>';
+  });
+  el.innerHTML = html;
+}
+
+function toggleStudyCat(uid) {
+  var body = document.getElementById(uid + '-body');
+  var ico  = document.getElementById(uid + '-ico');
+  if (!body) return;
+  var isOpen = body.style.maxHeight && body.style.maxHeight !== '0px';
+  body.style.maxHeight = isOpen ? '0px' : body.scrollHeight + 'px';
+  if (ico) ico.style.transform = isOpen ? '' : 'rotate(180deg)';
+}
+
+// ════════════════════════════════════════════════════════════════
+//  İMTAHAN
+// ════════════════════════════════════════════════════════════════
+
+// ── Filial seçimi ─────────────────────────────────────────────────
+function examSelectBranch(dept, btn) {
+  document.querySelectorAll('#imtahan-panel-new .branch-btn').forEach(function(b){ b.classList.remove('sel'); });
+  btn.classList.add('sel');
+  examBranch  = dept;
+  examEmpId   = null;
+  examEmpName = null;
+  document.getElementById('examEmpDeptLbl').textContent = '— ' + dept;
+  document.getElementById('examEmpCard').classList.remove('hidden');
+  document.getElementById('examQCard').classList.add('hidden');
+  document.getElementById('examEmpList').innerHTML =
+    '<div class="empty"><i class="fa-solid fa-circle-notch fa-spin"></i><p>Yüklənir...</p></div>';
+  if (allEmps.length) { renderExamEmpList(dept); return; }
+  google.script.run
+    .withSuccessHandler(function(data) { allEmps = data || []; renderExamEmpList(dept); })
+    .withFailureHandler(function(e) {
+      document.getElementById('examEmpList').innerHTML =
+        '<div class="empty"><i class="fa-solid fa-triangle-exclamation"></i><p>Xəta: ' + (e.message||'bilinmir') + '</p></div>';
+    })
+    .getEmployees();
+}
+
+function renderExamEmpList(dept) {
+  var list     = document.getElementById('examEmpList');
+  var filtered = allEmps.filter(function(e){ return e.dept === dept; });
+  if (!filtered.length) {
+    list.innerHTML = '<div class="empty"><i class="fa-solid fa-users-slash"></i><p>Bu filialda işçi tapılmadı.</p></div>';
+    return;
+  }
+  list.innerHTML = filtered.map(function(e) {
+    return '<button class="emp-btn" onclick="examSelectEmp(\'' + e.id + '\',\'' + e.name.replace(/'/g,"\\'") + '\',this)">' +
+      '<div class="emp-av">' + e.name.charAt(0) + '</div><span>' + e.name + '</span></button>';
+  }).join('');
+  document.getElementById('examEmpCard').scrollIntoView({ behavior:'smooth', block:'nearest' });
+}
+
+// ── İşçi seçimi ───────────────────────────────────────────────────
+function examSelectEmp(id, name, btn) {
+  document.querySelectorAll('#examEmpList .emp-btn').forEach(function(b){ b.classList.remove('sel'); });
+  btn.classList.add('sel');
+  examEmpId   = id;
+  examEmpName = name;
+  document.getElementById('examEmpLbl').textContent = '— ' + name;
+  var qCard = document.getElementById('examQCard');
+  qCard.classList.remove('hidden');
+  document.getElementById('examItems').innerHTML =
+    '<div class="empty"><i class="fa-solid fa-circle-notch fa-spin"></i><p>Yüklənir...</p></div>';
+  examChecks = {};
+  if (allItems.length) { renderExamItems(); qCard.scrollIntoView({ behavior:'smooth', block:'start' }); return; }
+  google.script.run
+    .withSuccessHandler(function(data) { allItems = data || []; renderExamItems(); qCard.scrollIntoView({ behavior:'smooth', block:'start' }); })
+    .withFailureHandler(function() { allItems = []; renderExamItems(); })
+    .getActiveTrainerItems();
+}
+
+// ── Sual render ───────────────────────────────────────────────────
+function renderExamItems() {
+  var container = document.getElementById('examItems');
+  if (!allItems.length) {
+    container.innerHTML = '<div class="empty"><i class="fa-solid fa-list-check"></i><p>Sual tapılmadı. Admin paneldən əlavə edin.</p></div>';
+    updateExamScore();
+    return;
+  }
+  var cats = {}, order = [];
+  allItems.forEach(function(item) {
+    var c = item.category || 'Digər';
+    if (!cats[c]) { cats[c] = []; order.push(c); }
+    cats[c].push(item);
+  });
+  var html = '';
+  order.forEach(function(cat) {
+    html += '<div class="cl-cat-sep">' + cat + '</div>';
+    cats[cat].forEach(function(item) {
+      var st = examChecks[item.id]; // true | false | undefined
+      var cls = st === true ? ' pass' : st === false ? ' fail' : '';
+      var icon = st === true ? 'fa-check' : 'fa-xmark';
+      var label = st === true ? 'Bilir' : st === false ? 'Bilmir' : '—';
+      html += '<div class="ex-item' + cls + '" id="ex-' + item.id + '" onclick="toggleExamItem(\'' + item.id + '\')">' +
+        '<div class="ex-item-top">' +
+          '<div class="ex-toggle">' +
+            '<i class="fa-solid ' + icon + ' ex-i"></i>' +
+          '</div>' +
+          '<span class="ex-item-txt">' + item.text + '</span>' +
+          '<span class="ex-state" id="exst-' + item.id + '">' + label + '</span>' +
+        '</div>' +
+      '</div>';
+    });
+  });
+  container.innerHTML = html;
+  updateExamScore();
+}
+
+// ── Sual toggle: undefined → true → false → undefined ────────────
+function toggleExamItem(id) {
+  var cur = examChecks[id];
+  examChecks[id] = (cur === undefined || cur === null) ? true : (cur === true ? false : undefined);
+
+  var el   = document.getElementById('ex-' + id);
+  var stEl = document.getElementById('exst-' + id);
+  var ico  = el ? el.querySelector('.ex-i') : null;
+  if (el) {
+    el.classList.remove('pass','fail');
+    if (examChecks[id] === true) {
+      el.classList.add('pass');
+      if (stEl) stEl.textContent = 'Bilir';
+      if (ico) { ico.className = 'fa-solid fa-check ex-i'; }
+    } else if (examChecks[id] === false) {
+      el.classList.add('fail');
+      if (stEl) stEl.textContent = 'Bilmir';
+      if (ico) { ico.className = 'fa-solid fa-xmark ex-i'; }
+    } else {
+      if (stEl) stEl.textContent = '—';
+      if (ico) { ico.className = 'fa-solid fa-check ex-i'; }
+    }
+  }
+  updateExamScore();
+}
+
+function updateExamScore() {
+  var total  = allItems.length;
+  var passed = allItems.filter(function(i){ return examChecks[i.id] === true; }).length;
+  var pct    = total > 0 ? Math.round(passed / total * 100) : 0;
+
+  document.getElementById('examScoreVal').textContent = passed + ' / ' + total;
+
+  var badge = document.getElementById('examGradeBadge');
+  badge.className = 'grade-badge';
+  if (total === 0 || (examChecks && Object.keys(examChecks).filter(function(k){ return examChecks[k] !== undefined; }).length === 0)) {
+    badge.textContent = '—';
+  } else if (pct >= 90) {
+    badge.classList.add('grade-a'); badge.textContent = pct + '% — Əla';
+  } else if (pct >= 75) {
+    badge.classList.add('grade-b'); badge.textContent = pct + '% — Yaxşı';
+  } else if (pct >= 60) {
+    badge.classList.add('grade-c'); badge.textContent = pct + '% — Orta';
+  } else {
+    badge.classList.add('grade-f'); badge.textContent = pct + '% — Zəif';
+  }
+}
+
+// ── İmtahan göndər ────────────────────────────────────────────────
+function submitExam() {
+  if (!examBranch)       { toast('Filial seçin.',  'err'); return; }
+  if (!examEmpId)        { toast('İşçi seçin.',    'err'); return; }
+  if (!allItems.length)  { toast('Sual yoxdur.',   'err'); return; }
+  var answeredCount = allItems.filter(function(i){ return examChecks[i.id] !== undefined; }).length;
+  if (answeredCount === 0) { toast('Ən azı 1 suala cavab verin.', 'err'); return; }
+
+  var btn = document.getElementById('examSubmitBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Göndərilir...';
+
+  var passed   = allItems.filter(function(i){ return examChecks[i.id] === true; }).length;
+  var maxScore = allItems.length;
+  var answers  = allItems.map(function(item) {
+    return {
+      id:       item.id,
+      text:     item.text,
+      category: item.category,
+      passed:   examChecks[item.id] === true,
+      answered: examChecks[item.id] !== undefined && examChecks[item.id] !== null,
+    };
+  });
+
+  google.script.run
+    .withSuccessHandler(function(res) {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa-solid fa-check-double"></i> İmtahanı Tamamla';
+      if (res && res.success) { toast('İmtahan qeyd edildi ✓', 'ok'); resetExamForm(); }
+      else { toast((res && res.reason) || 'Xəta baş verdi.', 'err'); }
+    })
+    .withFailureHandler(function(e) {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa-solid fa-check-double"></i> İmtahanı Tamamla';
+      toast('Xəta: ' + (e.message||'bilinmir'), 'err');
+    })
+    .submitExam(TRAINER_KEY, TRAINER_NAME, examBranch, examEmpId, examEmpName,
+      passed, maxScore, answers, document.getElementById('examNote').value.trim());
+}
+
+function resetExamForm() {
+  examEmpId = null; examEmpName = null; examChecks = {};
+  document.getElementById('examQCard').classList.add('hidden');
+  document.getElementById('examEmpCard').classList.add('hidden');
+  document.querySelectorAll('#imtahan-panel-new .branch-btn').forEach(function(b){ b.classList.remove('sel'); });
+  examBranch = null;
+  document.getElementById('examNote').value = '';
+  window.scrollTo({ top:0, behavior:'smooth' });
+}
+
+// ── İmtahan nəticələri ────────────────────────────────────────────
+function loadTodayExams() {
+  var el = document.getElementById('examResultsList');
+  el.innerHTML = '<div class="empty"><i class="fa-solid fa-circle-notch fa-spin"></i><p>Yüklənir...</p></div>';
+  google.script.run
+    .withSuccessHandler(function(res) { renderExamResults(res); })
+    .withFailureHandler(function() {
+      document.getElementById('examResultsList').innerHTML =
+        '<div class="empty"><i class="fa-solid fa-triangle-exclamation"></i><p>Yüklənə bilmədi.</p></div>';
+    })
+    .getTodayExams(TRAINER_KEY);
+}
+
+function renderExamResults(res) {
+  var el    = document.getElementById('examResultsList');
+  var exams = (res && res.exams) ? res.exams : [];
+  if (!exams.length) {
+    el.innerHTML = '<div class="empty"><i class="fa-solid fa-file-pen"></i><p>Bu gün hələ imtahan qeyd edilməyib.</p></div>';
+    return;
+  }
+  el.innerHTML = exams.map(function(exam, idx){ return buildExamCard(exam, 'ex-' + idx); }).join('');
+}
+
+function buildExamCard(exam, uid) {
+  var score    = Number(exam.score)     || 0;
+  var maxScore = Number(exam.max_score) || 0;
+  var pct      = maxScore > 0 ? Math.round(score / maxScore * 100) : 0;
+  var grCls    = pct >= 90 ? 'grade-a' : pct >= 75 ? 'grade-b' : pct >= 60 ? 'grade-c' : 'grade-f';
+  var grLbl    = pct >= 90 ? 'Əla'     : pct >= 75 ? 'Yaxşı'   : pct >= 60 ? 'Orta'   : 'Zəif';
+  var barClr   = pct >= 75 ? 'var(--success)' : pct >= 60 ? 'var(--warning)' : 'var(--danger)';
+  var time     = exam.created_at
+    ? new Date(exam.created_at).toLocaleTimeString('az-AZ',{hour:'2-digit',minute:'2-digit'}) : '';
+  var answers  = exam.answers || [];
+  var ansRows  = answers.map(function(a) {
+    var ok = a.passed;
+    return '<div style="display:flex;align-items:flex-start;gap:8px;padding:5px 0;border-bottom:1px solid rgba(15,23,42,0.04);">' +
+      '<div style="width:18px;height:18px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;margin-top:1px;' +
+        (ok ? 'background:rgba(16,185,129,0.12);' : 'background:rgba(239,68,68,0.07);') + '">' +
+        '<i class="fa-solid ' + (ok?'fa-check':'fa-xmark') + '" style="font-size:0.55rem;color:' + (ok?'#10b981':'#ef4444') + ';"></i>' +
+      '</div>' +
+      '<div style="flex:1;font-size:0.82rem;font-weight:600;color:' + (ok?'var(--text-main)':'var(--danger)') + ';">' + (a.text||'') + '</div>' +
+      '<span style="font-size:0.65rem;color:var(--text-soft);white-space:nowrap;padding-top:2px;">' + (a.category||'') + '</span>' +
+    '</div>';
+  }).join('');
+
+  return '<div class="log-card" style="cursor:default;">' +
+    '<div onclick="trToggle(\'' + uid + '\')" style="cursor:pointer;">' +
+      '<div class="log-head">' +
+        '<div class="log-emp">' + (exam.emp_name||'—') + '</div>' +
+        '<span class="log-dept" style="background:rgba(124,58,237,0.08);color:var(--purple);">' + (exam.dept||'') + '</span>' +
+        '<span class="log-time">' + time + '</span>' +
+      '</div>' +
+      '<div style="display:flex;align-items:center;gap:10px;">' +
+        '<div style="flex:1;height:5px;background:rgba(15,23,42,0.07);border-radius:100px;overflow:hidden;">' +
+          '<div style="height:100%;width:' + pct + '%;background:' + barClr + ';border-radius:100px;"></div>' +
+        '</div>' +
+        '<span class="grade-badge ' + grCls + '">' + score + '/' + maxScore + ' (' + pct + '%) ' + grLbl + '</span>' +
+        '<i class="fa-solid fa-chevron-down" id="ico-' + uid + '" style="font-size:0.75rem;color:var(--text-soft);transition:transform 0.25s;flex-shrink:0;"></i>' +
+      '</div>' +
+    '</div>' +
+    '<div id="det-' + uid + '" style="overflow:hidden;max-height:0;transition:max-height 0.35s ease;">' +
+      '<div style="padding-top:10px;border-top:1px solid rgba(15,23,42,0.05);margin-top:10px;">' +
+        (ansRows || '<div style="font-size:0.82rem;color:var(--text-soft);padding:4px 0;">Cavab məlumatı yoxdur.</div>') +
+        (exam.note ? '<div class="log-note" style="margin-top:8px;"><i class="fa-solid fa-note-sticky"></i> <b>Qeyd:</b> ' + exam.note + '</div>' : '') +
+      '</div>' +
+    '</div>' +
+  '</div>';
 }
 </script>
 </body>

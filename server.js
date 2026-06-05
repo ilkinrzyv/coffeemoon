@@ -1517,6 +1517,44 @@ API.getTrainerLogs = async (dateStr) => {
   return { date, logs: data || [] };
 };
 
+// ── İMTAHAN ──────────────────────────────────────────────────────
+
+API.submitExam = async (trainerKey, trainerName, dept, empId, empName, score, maxScore, answers, note) => {
+  if (!U.getSetting('TRAINER_KEY') || U.getSetting('TRAINER_KEY') !== trainerKey)
+    return { success: false, reason: 'İcazəsiz əməliyyat.' };
+  const ts     = new Date();
+  const examId = 'EX-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substring(2, 4).toUpperCase();
+  const { error } = await sb.from('trainer_exams').insert({
+    exam_id:      examId,
+    trainer_name: String(trainerName || 'Naməlum').trim(),
+    dept,
+    emp_id:       String(empId),
+    emp_name:     String(empName   || ''),
+    score:        Number(score)    || 0,
+    max_score:    Number(maxScore) || 100,
+    answers:      answers          || [],
+    note:         note             || '',
+    date_str:     U.getLogicalYMD(ts),
+    created_at:   ts.toISOString(),
+  });
+  sbErr('submitExam', error);
+  return { success: !error, reason: error?.message };
+};
+
+API.getTodayExams = async (trainerKey) => {
+  if (!U.getSetting('TRAINER_KEY') || U.getSetting('TRAINER_KEY') !== trainerKey)
+    return { exams: [] };
+  const date = U.getLogicalYMD(new Date());
+  const { data } = await sb.from('trainer_exams').select('*').eq('date_str', date).order('created_at', { ascending: false });
+  return { exams: data || [] };
+};
+
+API.getExamLogs = async (dateStr) => {
+  const date = dateStr || U.getLogicalYMD(new Date());
+  const { data } = await sb.from('trainer_exams').select('*').eq('date_str', date).order('created_at', { ascending: false });
+  return { date, exams: data || [] };
+};
+
 // ══════════════════════════════════════════════════════════════════
 //  SERVER BAŞLAT
 // ══════════════════════════════════════════════════════════════════
