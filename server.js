@@ -479,6 +479,7 @@ API.validateAndLog = async (enteredPin, clientIp, forceMode) => {
       }
     }
     const lateStr = late ? 'Gecikib' : 'Vaxtında';
+    let lateWarning = late ? '' : ` — ${lateStr}`;
     await sb.from('attendance').insert({
       emp_id: matched.id, emp_name: matched.name, dept: matched.dept,
       timestamp: ts.toISOString(), type: 'GƏLİŞ', overtime: '', shift_type: todayShift || '',
@@ -500,7 +501,7 @@ API.validateAndLog = async (enteredPin, clientIp, forceMode) => {
           }
         }
       } else {
-        // Gecikmə cəzası — streak qalxanı (Variant 2)
+        // Gecikmə cəzası — streak qalxanı
         const lateThreshold = shiftInfo
           ? (shiftInfo.lateH * 60 + shiftInfo.lateM)
           : (ts.getHours() < 13 ? 7 * 60 + 15 : (matched.dept === 'Gənclik' || matched.dept === 'Ağ Şəhər') ? 16 * 60 : 15 * 60);
@@ -511,9 +512,31 @@ API.validateAndLog = async (enteredPin, clientIp, forceMode) => {
         const { data: empXP } = await sb.from('employees').select('xp').eq('id', matched.id).single();
         const current = empXP?.xp || 0;
         await sb.from('employees').update({ xp: Math.max(0, current - penalty) }).eq('id', matched.id);
+
+        // Aylıq cərimə sistemi
+        const monthStart = new Date(ts.getFullYear(), ts.getMonth(), 1).toISOString();
+        const { data: monthLogs } = await sb.from('attendance')
+          .select('timestamp,shift_type').eq('emp_id', String(matched.id))
+          .eq('type', 'GƏLİŞ').gte('timestamp', monthStart);
+        let prevLateCount = 0;
+        for (const log of monthLogs || []) {
+          const d = new Date(log.timestamp);
+          if (U.getLogicalDateStr(d) === todayStr) continue; // bugünkü qeydi sayma
+          const logSi = log.shift_type ? U.getShiftInfo(matched.dept, log.shift_type) : null;
+          const tot = d.getHours() * 60 + d.getMinutes();
+          const lim = logSi ? (logSi.lateH * 60 + logSi.lateM)
+            : (d.getHours() < 13 ? 7 * 60 + 15 : (matched.dept === 'Gənclik' || matched.dept === 'Ağ Şəhər') ? 16 * 60 : 15 * 60);
+          if (tot > lim) prevLateCount++;
+        }
+        const thisLateNum = prevLateCount + 1;
+        lateWarning = prevLateCount === 0
+          ? `\n⚠️ Bu ay <b>1-ci gecikmə</b> — ${lateMins} dəq. Xəbərdarlıq.`
+          : prevLateCount === 1
+            ? `\n🔴 Bu ay <b>2-ci gecikmə</b> — ${lateMins} dəq. Ciddi xəbərdarlıq!`
+            : `\n❌ Bu ay <b>${thisLateNum}-ci gecikmə</b> — ${lateMins} dəq.\n💸 <b>30 AZN cərimə</b> qeyd edildi.`;
       }
     }
-    await U.sendTelegramMsg(`<b>${matched.name}</b> smendə.\n${U.fmtTime(ts)} — ${lateStr}`, matched.dept);
+    await U.sendTelegramMsg(`<b>${matched.name}</b> smendə.\n${U.fmtTime(ts)}${lateWarning}`, matched.dept);
     return { valid: true, empName: matched.name, dept: matched.dept, type: 'GƏLİŞ', overtime: '' };
 
   } else if (todayLogs.length === 1) {
