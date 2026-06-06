@@ -3429,8 +3429,8 @@
         avWrap.style.boxShadow = '0 3px 8px rgba(0,0,0,0.4), 0 0 0 2.5px rgba(255,255,255,0.12)';
       }
 
-      // Hologram (2000+ Bal)
-      if (s >= 2000) {
+      // Hologram (2000+ Bal VƏ 50+ streak)
+      if (s >= 2000 && (m.streak || 0) >= 50) {
         var holo = document.createElement('div');
         holo.className = 'holo-overlay';
         card.appendChild(holo);
@@ -3612,8 +3612,10 @@
   }
 
   // ── Profil modal ─────────────────────────────────────────────────
-  function applyPmodalFireEffect(streakVal) {
-    buildFireEffect(document.getElementById('pmodalAvatarWrap'), streakVal);
+  function applyPmodalFireEffect(xpVal, streak) {
+    // Tier 4 (2000+ Bal) üçün 50+ streak də lazımdır
+    var effectiveXP = (xpVal >= 2000 && (streak || 0) < 50) ? 1999 : xpVal;
+    buildFireEffect(document.getElementById('pmodalAvatarWrap'), effectiveXP);
   }
 
 
@@ -3665,8 +3667,8 @@
           avEl.innerHTML = '<i class="fa-solid ' + pr.icon + '"></i>';
         }
         applyAvatarEffects(avEl, p.frameStyle, accent, 92);
-        // Alov effekti (XP-yə görə)
-        applyPmodalFireEffect(p.xp || 0);
+        // Alov effekti (XP + streak şərti)
+        applyPmodalFireEffect(p.xp || 0, p.streak || 0);
         document.getElementById('pmodalName').innerText = p.empName;
         document.getElementById('pmodalDept').innerText = p.dept;
         document.getElementById('pmodalBio').innerText = p.bio || '';
