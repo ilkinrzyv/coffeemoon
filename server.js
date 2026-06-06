@@ -6,10 +6,37 @@ const fs       = require('fs');
 const sb       = require('./db');
 const U        = require('./utils');
 const webpush  = require('web-push');
+const jwt      = require('jsonwebtoken');
 
-const app       = express();
-const PORT      = process.env.PORT || 3000;
-const ADMIN_KEY = process.env.ADMIN_KEY || 'coffeemoon';
+const app        = express();
+const PORT       = process.env.PORT || 3000;
+const ADMIN_KEY  = process.env.ADMIN_KEY || 'coffeemoon';
+const JWT_SECRET = process.env.JWT_SECRET;
+
+if (!JWT_SECRET) {
+  console.warn('⚠️  JWT_SECRET .env faylında yoxdur — token imzalamaq olmaz!');
+}
+
+// ── JWT köməkçiləri ───────────────────────────────────────────────
+const JWT_EXPIRY = { employee: '8h', manager: '12h', admin: '4h' };
+
+function signToken(payload, role) {
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRY[role] || '8h' });
+}
+
+// Middleware: Authorization header-dən token oxuyur, req.jwtPayload qoyur.
+// Token olmasa keçir (403 qaytarmır) — köhnə secret-based API hələ işləyir.
+function jwtMiddleware(req, res, next) {
+  const auth = req.headers['authorization'];
+  if (auth?.startsWith('Bearer ') && JWT_SECRET) {
+    try {
+      req.jwtPayload = jwt.verify(auth.slice(7), JWT_SECRET);
+    } catch (e) {
+      return res.status(401).json({ error: 'Token etibarsızdır və ya müddəti bitib.' });
+    }
+  }
+  next();
+}
 
 // ── VAPID konfiqurasiyası ─────────────────────────────────────────
 if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
@@ -88,6 +115,63 @@ async function sendPushToAll(title, body, extra = {}) {
   } catch (e) {
     console.error('[Push-all]', e.message);
   }
+}
+
+// ── Gecəlik avtomatik smen bağlama ───────────────────────────────
+async function autoCloseShifts() {
+  const now      = new Date();
+  const todayStr = U.getLogicalDateStr(now);
+
+  const { data: logs } = await sb.from('attendance').select('*').order('timestamp');
+  if (!logs?.length) return;
+
+  const byEmpDay = {};
+  for (const row of logs) {
+    const d   = new Date(row.timestamp);
+    const ds  = U.getLogicalDateStr(d);
+    const key = row.emp_id + '|' + ds;
+    if (!byEmpDay[key]) byEmpDay[key] = {
+      empId: row.emp_id, empName: row.emp_name, dept: row.dept,
+      dayStr: ds, gelis: null, gelisRow: null, cixis: false,
+    };
+    if (row.type === 'GƏLİŞ') { byEmpDay[key].gelis = new Date(row.timestamp); byEmpDay[key].gelisRow = row; }
+    if (row.type === 'CIXIS')  byEmpDay[key].cixis = true;
+  }
+
+  let closed = 0;
+  for (const entry of Object.values(byEmpDay)) {
+    if (entry.dayStr === todayStr || !entry.gelis || entry.cixis) continue;
+    const si   = entry.gelisRow?.shift_type ? U.getShiftInfo(entry.dept, entry.gelisRow.shift_type) : null;
+    const reqH = si ? si.durH : ((entry.dept === 'Ağ Şəhər' || entry.dept === 'Gənclik') ? 9 : 8);
+    const expectedEnd = new Date(entry.gelis.getTime() + reqH * 3600000);
+    await sb.from('attendance').insert({
+      emp_id:     entry.empId,
+      emp_name:   entry.empName,
+      dept:       entry.dept,
+      timestamp:  expectedEnd.toISOString(),
+      type:       'CIXIS',
+      overtime:   'Avtomatik bağlandı',
+      shift_type: entry.gelisRow?.shift_type || '',
+    });
+    closed++;
+  }
+
+  if (closed > 0) {
+    console.log(`[AutoClose] ${closed} açıq smen bağlandı.`);
+    await U.sendTelegramMsg(`🤖 <b>Gecəlik avtomatik bağlama</b>\n\n${closed} açıq smen avtomatik olaraq bağlandı.`, null);
+  }
+}
+
+function scheduleNightlyClose() {
+  const now  = new Date();
+  const next = new Date();
+  next.setHours(4, 0, 0, 0);
+  if (next <= now) next.setDate(next.getDate() + 1);
+  setTimeout(async () => {
+    try { await autoCloseShifts(); } catch (e) { console.error('[AutoClose]', e.message); }
+    scheduleNightlyClose();
+  }, next.getTime() - now.getTime());
+  console.log(`[AutoClose] Növbəti bağlama: ${next.toLocaleString('az-AZ')}`);
 }
 
 app.use(express.json({ limit: '5mb' }));
@@ -209,10 +293,59 @@ app.get('/', (req, res) => res.redirect(`/admin?key=${ADMIN_KEY}`));
 // ══════════════════════════════════════════════════════════════════
 //  API MARŞRUTU
 // ══════════════════════════════════════════════════════════════════
+//  AUTH ENDPOINT-LƏRİ
+// ══════════════════════════════════════════════════════════════════
 
-app.post('/api/:fn', async (req, res) => {
-  const fn   = req.params.fn;
-  const args = Array.isArray(req.body?.args) ? req.body.args : [];
+// İşçi login: { secret } → { token, empId, name, dept }
+// Token 8 saat etibarlıdır (bir növbə)
+app.post('/auth/login', async (req, res) => {
+  if (!JWT_SECRET) return res.status(503).json({ error: 'JWT konfiqurasiya edilməyib.' });
+  const { secret } = req.body || {};
+  if (!secret) return res.status(400).json({ error: 'secret göndərilməyib.' });
+  const { data: emp } = await sb.from('employees').select('id,name,dept,secret').eq('secret', secret).single();
+  if (!emp) return res.status(401).json({ error: 'Yanlış secret.' });
+  const token = signToken({ role: 'employee', secret: emp.secret, empId: emp.id, name: emp.name, dept: emp.dept }, 'employee');
+  res.json({ token, empId: emp.id, name: emp.name, dept: emp.dept });
+});
+
+// Menecer login: { branchKey } → { token, dept }
+// Token 12 saat etibarlıdır
+app.post('/auth/manager', async (req, res) => {
+  if (!JWT_SECRET) return res.status(503).json({ error: 'JWT konfiqurasiya edilməyib.' });
+  const { branchKey } = req.body || {};
+  const check = U.validateBranchScheduleKey(branchKey || '');
+  if (!check.valid) return res.status(401).json({ error: 'Yanlış branchKey.' });
+  const token = signToken({ role: 'manager', branchKey, dept: check.dept }, 'manager');
+  res.json({ token, dept: check.dept });
+});
+
+// Admin login: { key } → { token }
+// Token 4 saat etibarlıdır
+app.post('/auth/admin', async (req, res) => {
+  if (!JWT_SECRET) return res.status(503).json({ error: 'JWT konfiqurasiya edilməyib.' });
+  const { key } = req.body || {};
+  if (key !== ADMIN_KEY) return res.status(401).json({ error: 'Yanlış admin açarı.' });
+  const token = signToken({ role: 'admin' }, 'admin');
+  res.json({ token });
+});
+
+// ══════════════════════════════════════════════════════════════════
+//  API MARŞRUTUit — JWT VƏ ya köhnə secret-based, hər ikisi işləyir
+// ══════════════════════════════════════════════════════════════════
+
+app.post('/api/:fn', jwtMiddleware, async (req, res) => {
+  const fn  = req.params.fn;
+  let args  = Array.isArray(req.body?.args) ? req.body.args : [];
+
+  // JWT varsa, ilk arg-ı (secret / branchKey) avtomatik inject et.
+  // Bu sayədə frontend args[0]-a secret yazmağa ehtiyac duymur.
+  const p = req.jwtPayload;
+  if (p) {
+    if (p.role === 'employee' && p.secret)     args = [p.secret,    ...args.slice(1)];
+    else if (p.role === 'manager' && p.branchKey) args = [p.branchKey, ...args.slice(1)];
+    // admin role-u üçün args[0] dəyişmir — admin fn-ləri secret istəmir
+  }
+
   try {
     const handler = API[fn];
     if (!handler) return res.status(404).json({ error: 'Funksiya tapılmadı: ' + fn });
@@ -615,25 +748,6 @@ API.validateAndLog = async (enteredPin, clientIp, forceMode) => {
   const shiftInfo = todayShift ? U.getShiftInfo(matched.dept, todayShift) : null;
 
   if (todayLogs.length === 0) {
-    // Əvvəlki smendə bağlanmamış giriş yoxla (forceMode keçilmədikdə)
-    if (!forceMode) {
-      const byDay = {};
-      for (const r of allLogs || []) {
-        const ds = U.getLogicalDateStr(new Date(r.timestamp));
-        if (ds === todayStr) continue;
-        if (!byDay[ds]) byDay[ds] = { gelis: false, cixis: false };
-        if (r.type === 'GƏLİŞ') byDay[ds].gelis = true;
-        if (r.type === 'CIXIS') byDay[ds].cixis = true;
-      }
-      const unclosedCount = Object.values(byDay).filter(d => d.gelis && !d.cixis).length;
-      if (unclosedCount >= 2) {
-        return { valid: false, warningType: 'UNCLOSED_PENALTY', empName: matched.name, penaltyNum: unclosedCount };
-      }
-      if (unclosedCount === 1) {
-        return { valid: false, warningType: 'UNCLOSED_WARNING', empName: matched.name };
-      }
-    }
-
     const nowMins = ts.getHours() * 60 + ts.getMinutes() +
       (ts.getHours() < 3 && shiftInfo && shiftInfo.startH >= 12 ? 24 * 60 : 0);
     let late = shiftInfo
@@ -2152,6 +2266,10 @@ API.submitEmployeeExam = async (empId, empName, dept, role, answers) => {
       }
       const trKey = await API.getTrainerKey();
       console.log(`🎓  Treynər: http://localhost:${PORT}/trainer?key=${trKey.key}`);
+
+      // Başlarkən əvvəlki gecənin açıq smenlərini bağla, sonra hər gecə 04:00-da işlət
+      try { await autoCloseShifts(); } catch (e) { console.error('[AutoClose startup]', e.message); }
+      scheduleNightlyClose();
     });
   } catch (e) {
     console.error('❌  Başlama xətası:', e.message);
