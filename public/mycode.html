@@ -1418,6 +1418,9 @@
 
 <div class="card-container">
 
+  <!-- Gecikinti bildirişi -->
+  <div id="lateNoticeBar" style="display:none;margin-bottom:8px;border-radius:12px;padding:7px 12px;font-size:0.73rem;font-weight:600;display:none;align-items:center;gap:7px;"></div>
+
     <!-- TAB BAR (auth sonrası görünür) -->
   <div class="main-tab-bar" id="mainTabBar">
     <button class="main-tab active" id="tabBtnGundelik" onclick="showTab('gundelik')">
@@ -1979,7 +1982,7 @@
           if (dash.xp != null) { _myXP = dash.xp; }
           checkLateStatus();
           if (dash.weekSchedule && dash.weekSchedule.length) renderWeekSchedule(dash.weekSchedule, dash.nextWeekSchedule || []);
-          if (dash.monthStats) renderMonthStats(dash.monthStats);
+          if (dash.monthStats) { renderMonthStats(dash.monthStats); renderLateNotice(dash.monthStats.late || 0); }
           if (dash.announcements && dash.announcements.length) renderAnnouncements(dash.announcements);
         }).getDashboardData(SECRET);
 
@@ -2092,6 +2095,18 @@
   }
 
   // ── AYLIK STATİSTİKA ─────────────────────────────────────────────
+  function renderLateNotice(late) {
+    var el = document.getElementById('lateNoticeBar');
+    if (!el || late === 0) return;
+    var cfg = late === 1
+      ? { icon:'fa-triangle-exclamation', text:'Bu ay 1 gecikmə — Xəbərdarlıq',        bg:'rgba(245,158,11,0.1)',  border:'rgba(245,158,11,0.25)',  color:'#f59e0b' }
+      : late === 2
+      ? { icon:'fa-circle-exclamation',   text:'Bu ay 2 gecikmə — Ciddi xəbərdarlıq',  bg:'rgba(239,68,68,0.08)', border:'rgba(239,68,68,0.22)',   color:'#ef4444' }
+      : { icon:'fa-xmark-circle',         text:'Bu ay '+late+' gecikmə — '+(late-2)*30+' AZN cərimə', bg:'rgba(239,68,68,0.12)', border:'rgba(239,68,68,0.3)', color:'#ef4444' };
+    el.style.cssText = 'display:flex;align-items:center;gap:7px;margin-bottom:8px;border-radius:12px;padding:7px 12px;font-size:0.73rem;font-weight:600;background:'+cfg.bg+';border:1px solid '+cfg.border+';color:'+cfg.color+';';
+    el.innerHTML = '<i class="fa-solid '+cfg.icon+'" style="font-size:0.75rem;flex-shrink:0;"></i><span>'+cfg.text+'</span>';
+  }
+
   function renderMonthStats(s) {
     var grid = document.getElementById('statsGrid');
     var now = new Date();
