@@ -237,7 +237,6 @@ input:focus,select:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(7
   <button class="tab" onclick="sw('waste')"><i class="fa-solid fa-box-archive"></i> Tullantılar</button>
   <button class="tab" onclick="sw('yenilik')"><i class="fa-solid fa-bell-concierge"></i> Yeniliklər</button>
   <button class="tab" onclick="sw('trainer')"><i class="fa-solid fa-graduation-cap"></i> Training</button>
-  <button class="tab" onclick="sw('xplog')"><i class="fa-solid fa-star"></i> Bal Loqu</button>
 </nav>
 
 <!-- İŞÇİLƏR -->
@@ -382,6 +381,10 @@ input:focus,select:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(7
       style="flex:1;justify-content:center;border-radius:12px;padding:0.6rem 0.75rem;font-size:0.82rem;background:rgba(15,23,42,0.05);color:var(--text-muted);border:1.5px solid rgba(15,23,42,0.08);">
       <i class="fa-solid fa-file-pen"></i> İmtahan
     </button>
+    <button class="btn sm" id="trSubXplog" onclick="switchTrainerSub('xplog')"
+      style="flex:1;justify-content:center;border-radius:12px;padding:0.6rem 0.75rem;font-size:0.82rem;background:rgba(15,23,42,0.05);color:var(--text-muted);border:1.5px solid rgba(15,23,42,0.08);">
+      <i class="fa-solid fa-star"></i> Bal Loqu
+    </button>
   </div>
 
   <!-- ─ Çeklist sub-panel ─ -->
@@ -445,18 +448,19 @@ input:focus,select:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(7
     </div>
   </div>
 
-</div><!-- /tab-trainer -->
+  <div id="trPanel-xplog" style="display:none;">
+    <div class="card">
+      <div class="tg-section-title" style="display:flex;align-items:center;justify-content:space-between;">
+        <span><i class="fa-solid fa-star" style="color:#f59e0b;"></i> Bal Loqu — Trainer Əməliyyatları</span>
+        <button class="btn sm primary" onclick="loadXPLog()"><i class="fa-solid fa-rotate-right"></i> Yenilə</button>
+      </div>
+      <div id="xplogList" style="margin-top:0.75rem;">
+        <p style="color:var(--muted);font-size:0.85rem;">Yükləmək üçün Yenilə basın.</p>
+      </div>
+    </div>
+  </div>
 
-<!-- BAL LOQU -->
-<div class="page" id="tab-xplog">
-  <div class="section-header">
-    <h2><i class="fa-solid fa-star" style="color:#f59e0b;"></i> Bal Loqu — Trainer Əməliyyatları</h2>
-    <button class="btn sm primary" onclick="loadXPLog()"><i class="fa-solid fa-rotate-right"></i> Yenilə</button>
-  </div>
-  <div id="xplogList" style="margin-top:1rem;">
-    <p style="color:var(--muted);font-size:0.85rem;">Yükləmək üçün Yenilə düyməsini basın.</p>
-  </div>
-</div>
+</div><!-- /tab-trainer -->
 
 <!-- MENECERLƏR -->
 <div id="tab-mgr" class="page">
@@ -891,7 +895,7 @@ function getDayShort(s){var d=new Date(s);var names=['B.e.','Ç.a.','Çər.','C.
 
 // ── TAB SW ───────────────────────────────────────────────────────
 function sw(name){
-  var tabs=['emp','cedvel','att','hesabat','izin','dev','tg','mgr','wifi','checklist','waste','yenilik','trainer','xplog'];
+  var tabs=['emp','cedvel','att','hesabat','izin','dev','tg','mgr','wifi','checklist','waste','yenilik','trainer'];
   tabs.forEach(function(n){
     var el=document.getElementById('tab-'+n);
     if(el) el.classList.toggle('active',n===name);
@@ -905,7 +909,6 @@ function sw(name){
   if(name==='cedvel'){loadSched();loadBranchLinks();}
   if(name==='hesabat'){loadWarnings();initRepSelects();}
   if(name==='izin') {loadIzinList();populateIzinEmps();}
-  if(name==='xplog') loadXPLog();
   if(name==='checklist'){initChecklist();}
   if(name==='waste'){loadProductsAdmin();}
   if(name==='yenilik'){loadYenilikler();}
@@ -2093,24 +2096,23 @@ function loadTrainerLogs() {
 var _trSub = 'checklist';
 function switchTrainerSub(sub) {
   _trSub = sub;
-  var isCheck = sub === 'checklist';
-  document.getElementById('trPanel-checklist').style.display = isCheck ? '' : 'none';
-  document.getElementById('trPanel-imtahan').style.display   = isCheck ? 'none' : '';
-  document.getElementById('trSubNew').className    = 'btn sm ' + (isCheck ? 'primary' : '');
-  document.getElementById('trSubImtahan').className= 'btn sm ' + (!isCheck ? 'primary' : '');
-  if (!isCheck) {
-    document.getElementById('trSubNew').style.cssText = 'flex:1;justify-content:center;border-radius:12px;padding:0.6rem 0.75rem;font-size:0.82rem;background:rgba(15,23,42,0.05);color:var(--text-muted);border:1.5px solid rgba(15,23,42,0.08);';
-    document.getElementById('trSubImtahan').style.cssText = 'flex:1;justify-content:center;border-radius:12px;padding:0.6rem 0.75rem;font-size:0.82rem;';
-    // default today
+  var SUBS   = ['checklist','imtahan','xplog'];
+  var ACTIVE = 'flex:1;justify-content:center;border-radius:12px;padding:0.6rem 0.75rem;font-size:0.82rem;';
+  var INACT  = 'flex:1;justify-content:center;border-radius:12px;padding:0.6rem 0.75rem;font-size:0.82rem;background:rgba(15,23,42,0.05);color:var(--text-muted);border:1.5px solid rgba(15,23,42,0.08);';
+  var BTN_IDS = { checklist:'trSubNew', imtahan:'trSubImtahan', xplog:'trSubXplog' };
+  SUBS.forEach(function(s) {
+    document.getElementById('trPanel-'+s).style.display = (s===sub) ? '' : 'none';
+    var btn = document.getElementById(BTN_IDS[s]);
+    if (btn) { btn.className = 'btn sm ' + (s===sub ? 'primary' : ''); btn.style.cssText = s===sub ? ACTIVE : INACT; }
+  });
+  if (sub === 'imtahan') {
     var today = new Date().toISOString().slice(0,10);
     if (!document.getElementById('ex-date-pick').value) {
       document.getElementById('ex-date-pick').value = today;
       loadAdminExamLogs();
     }
-  } else {
-    document.getElementById('trSubNew').style.cssText = 'flex:1;justify-content:center;border-radius:12px;padding:0.6rem 0.75rem;font-size:0.82rem;';
-    document.getElementById('trSubImtahan').style.cssText = 'flex:1;justify-content:center;border-radius:12px;padding:0.6rem 0.75rem;font-size:0.82rem;background:rgba(15,23,42,0.05);color:var(--text-muted);border:1.5px solid rgba(15,23,42,0.08);';
   }
+  if (sub === 'xplog') loadXPLog();
 }
 
 // ── İmtahan Nəticələri ────────────────────────────────────────────
