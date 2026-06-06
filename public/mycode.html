@@ -1753,6 +1753,19 @@
       </div>
     </div>
 
+    <!-- BAL & DƏRƏCƏ BƏLƏDÇİSİ -->
+    <div class="sg-card" id="sgCard" style="display:none;">
+      <div class="sg-header" onclick="toggleSgCard()">
+        <div class="sg-header-icon"><i class="fa-solid fa-star"></i></div>
+        <div class="sg-header-text">
+          <strong>Bal &amp; Dərəcə Bələdçisi</strong>
+          <span id="sgHeaderSub">Sistem qaydaları</span>
+        </div>
+        <i class="fa-solid fa-chevron-down sg-chevron" id="sgChevron"></i>
+      </div>
+      <div class="sg-body" id="sgBody"></div>
+    </div>
+
   </div>
 
   <!-- PANEL 5: QEYDLƏR -->
@@ -1784,39 +1797,7 @@
 
   </div><!-- /panel-qeydler -->
 
-  <!-- STREAK BƏLƏDÇİSİ -->
-  <div class="sg-card" id="sgCard" style="display:none;">
-    <div class="sg-header" onclick="toggleSgCard()">
-      <div class="sg-header-icon"><i class="fa-solid fa-trophy"></i></div>
-      <div class="sg-header-text">
-        <strong>Davamiyyət Bələdçisi</strong>
-        <span id="sgHeaderSub">Mükafatlar və qaydalar</span>
-      </div>
-      <i class="fa-solid fa-chevron-down sg-chevron" id="sgChevron"></i>
-    </div>
-    <div class="sg-body" id="sgBody">
-      <div class="sg-section-title">Mükafat Cədvəli</div>
-      <div id="sgMilestones"></div>
-      <hr class="sg-divider">
-      <div class="sg-section-title">Qaydalar</div>
-      <div class="sg-rule-row">
-        <div class="sg-rule-icon green"><i class="fa-solid fa-check" style="color:#34d399;font-size:0.75rem;"></i></div>
-        <div class="sg-rule-text">Hər gün <b>vaxtında gəliş</b> davamiyyəti +1 artırır</div>
-      </div>
-      <div class="sg-rule-row">
-        <div class="sg-rule-icon red"><i class="fa-solid fa-xmark" style="color:#fb7185;font-size:0.75rem;"></i></div>
-        <div class="sg-rule-text"><b>Gecikmə:</b> davamiyyətə −5 cəza tətbiq edilir</div>
-      </div>
-      <div class="sg-rule-row">
-        <div class="sg-rule-icon red"><i class="fa-solid fa-calendar-xmark" style="color:#fb7185;font-size:0.75rem;"></i></div>
-        <div class="sg-rule-text"><b>İcazəsiz iş buraxmaq:</b> davamiyyət tamamilə itir</div>
-      </div>
-      <div class="sg-rule-row">
-        <div class="sg-rule-icon yellow"><i class="fa-solid fa-clock" style="color:#fbbf24;font-size:0.75rem;"></i></div>
-        <div class="sg-rule-text"><b>Təsdiqlənmiş icazə:</b> davamiyyət nə artır, nə azalır — qorunur</div>
-      </div>
-    </div>
-  </div>
+
 
   </div>
 
@@ -1996,7 +1977,6 @@
             document.getElementById('streakCount').innerText = dash.streak;
           }
           if (dash.xp != null) { _myXP = dash.xp; }
-          buildStreakGuide(dash.streak || 0);
           checkLateStatus();
           if (dash.weekSchedule && dash.weekSchedule.length) renderWeekSchedule(dash.weekSchedule, dash.nextWeekSchedule || []);
           if (dash.monthStats) renderMonthStats(dash.monthStats);
@@ -2950,6 +2930,7 @@
         _editFrameStyle  = p.frameStyle || 'none';
         renderOwnProfileView(p);
         updateTicketAvatar(p);
+        buildStreakGuide(p.streak || 0, p.xp || _myXP || 0);
       })
       .getMyProfile(SECRET);
 
@@ -3504,53 +3485,107 @@
 
   // ── Konfeti ─────────────────────────────────────────────────────
   var MILESTONES = [7, 21, 30, 60, 100];
-  // ── Streak Bələdçisi ─────────────────────────────────────────────
-  var _SG_MILESTONES = [
-    { day:7, label:'Bronze Aura',         desc:'Komanda kartında bürünc çərçivə aktiv olur' },
-    { day:14, label:'Profil effektləri',    desc:'Nəbz, Nəfəs parıltısı; Qalın çərçivə; Tor, Həndəsi banner' },
-    { day:20, label:'Silver Aura',          desc:'Komanda kartında gümüşü çərçivə aktiv olur' },
-    { day:21, label:'Premium seçimlər',    desc:'İşıqlı, Gradient çərçivə; Dalğa effekti; Okean banner' },
-    { day:30, label:'Parıltı effekti',      desc:'Günbatımı, Gül banner açılır' },
-    { day:40, label:'Gold Aura',            desc:'Komanda kartında qızıl çərçivə aktiv olur' },
-    { day:45, label:'Premium çərçivələr',   desc:'Titrəmə effekti, Neon çərçivə, Karbon banner' },
-    { day:60, label:'Shimmer & Elite',      desc:'Hologram shimmer (premium kart), Fırlanma effekti, Rəngli çərçivə, Aurora banner' },
-  ];
-
-  function buildStreakGuide(s) {
+  // ── Bal & Dərəcə Bələdçisi ──────────────────────────────────────
+  function buildStreakGuide(streak, xp) {
     var card = document.getElementById('sgCard');
     if (!card) return;
     card.style.display = '';
+    xp = xp || _myXP || 0;
+    streak = streak || _myStreakCount || 0;
+    var lvl = calcXPLevel(xp);
+    var info = xpToNextLevel(xp);
     var sub = document.getElementById('sgHeaderSub');
-    var nextMs = _SG_MILESTONES.find(function(m){ return m.day > s; });
-    if (nextMs) sub.textContent = 'Növbəti: ' + nextMs.day + ' gün — ' + nextMs.label;
-    else sub.textContent = 'Bütün mükafatlar qazanıldı!';
+    if (sub) sub.textContent = 'Dərəcə ' + lvl + ' · ' + xp + ' Bal';
+    var body = document.getElementById('sgBody');
+    if (!body) return;
 
-    var container = document.getElementById('sgMilestones');
-    container.innerHTML = '';
-    _SG_MILESTONES.forEach(function(m) {
-      var done = s >= m.day;
-      var next = nextMs && m.day === nextMs.day;
-      var row = document.createElement('div');
-      row.className = 'sg-milestone-row' + (done ? ' done' : next ? ' next' : '');
+    function row(icon, iconCol, html) {
+      return '<div class="sg-rule-row"><div class="sg-rule-icon" style="background:'+iconCol+'22;"><i class="fa-solid '+icon+'" style="color:'+iconCol+';font-size:0.72rem;"></i></div><div class="sg-rule-text">'+html+'</div></div>';
+    }
+    function sec(title) {
+      return '<div class="sg-section-title" style="margin-top:14px;">'+title+'</div>';
+    }
+    function divider() { return '<hr class="sg-divider">'; }
 
-      var badge = document.createElement('div');
-      badge.className = 'sg-ms-badge' + (done ? ' done' : next ? ' next' : '');
-      badge.textContent = m.day + ' gün';
+    // Dərəcə progress
+    var LEVELS = [0,200,500,750,1000,1500,2000,3000,4500,7000];
+    var lvlRows = '';
+    for (var i = 0; i < LEVELS.length; i++) {
+      var isNow = (lvl === i+1);
+      var isDone = xp >= LEVELS[i];
+      var lbl = 'Dərəcə ' + (i+1);
+      var xpLbl = LEVELS[i] === 0 ? 'Başlanğıc' : LEVELS[i] + ' Bal';
+      lvlRows += '<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.04);">'
+        + '<div style="width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:0.72rem;font-weight:800;'
+        + (isNow ? 'background:rgba(91,94,244,0.2);color:#818cf8;border:1.5px solid rgba(91,94,244,0.4);'
+           : isDone ? 'background:rgba(16,185,129,0.12);color:#34d399;' : 'background:rgba(255,255,255,0.04);color:rgba(255,255,255,0.25);') + '">'+
+        (isDone && !isNow ? '✓' : (i+1)) + '</div>'
+        + '<div style="flex:1;"><div style="font-size:0.8rem;font-weight:'+(isNow?'800':'600')+';color:'+(isNow?'#818cf8':isDone?'rgba(255,255,255,0.7)':'rgba(255,255,255,0.3)')+';display:flex;align-items:center;gap:6px;">'
+        + lbl + (isNow ? '<span style="font-size:0.6rem;font-weight:700;background:rgba(91,94,244,0.2);color:#818cf8;padding:1px 6px;border-radius:4px;">İndiki</span>' : '') + '</div>'
+        + '<div style="font-size:0.68rem;color:rgba(255,255,255,0.25);">'+xpLbl+'</div></div>'
+        + (isNow && info.next > 0 ? '<div style="font-size:0.65rem;color:#818cf8;font-weight:700;white-space:nowrap;">'+info.next+' Bal</div>' : '')
+        + '</div>';
+    }
 
-      var ico = document.createElement('div');
-      ico.className = 'sg-ms-icon';
-      ico.textContent = done ? '✅' : m.icon;
+    // Multiplikator cədvəli
+    var multData = [['0–6 gün','×1.0',false],['7–13 gün','×1.25',streak>=7&&streak<14],['14–29 gün','×1.5',streak>=14&&streak<30],['30–59 gün','×1.75',streak>=30&&streak<60],['60+ gün','×2.0',streak>=60]];
+    var multRows = multData.map(function(m){
+      return '<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.04);">'
+        +'<span style="font-size:0.78rem;color:rgba(255,255,255,'+(m[2]?'0.85':'0.35')+');font-weight:'+(m[2]?'700':'500')+';">'+m[0]+'</span>'
+        +'<span style="font-size:0.78rem;font-weight:800;color:'+(m[2]?'#fbbf24':'rgba(255,255,255,0.25)')+';">'+m[1]+'</span>'
+        +'</div>';
+    }).join('');
 
-      var info = document.createElement('div');
-      info.className = 'sg-ms-info';
-      info.innerHTML = '<div class="sg-ms-label">' + m.label + '</div>'
-                     + '<div class="sg-ms-desc">' + m.desc + '</div>';
+    // Aura cədvəli
+    var auraData = [
+      ['🟫','Bronze Aura','200 Bal',xp>=200],
+      ['⬜','Silver Aura','750 Bal',xp>=750],
+      ['🟡','Gold Aura','1500 Bal',xp>=1500],
+      ['🌈','Hologram','2000 Bal + 50 streak',xp>=2000&&streak>=50]
+    ];
+    var auraRows = auraData.map(function(a){
+      return '<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.04);">'
+        +'<span style="font-size:1rem;">'+a[0]+'</span>'
+        +'<div style="flex:1;"><div style="font-size:0.78rem;font-weight:'+(a[3]?'700':'500')+';color:rgba(255,255,255,'+(a[3]?'0.85':'0.35')+');">'+a[1]+'</div>'
+        +'<div style="font-size:0.67rem;color:rgba(255,255,255,0.22);">'+a[2]+'</div></div>'
+        +(a[3]?'<span style="font-size:0.6rem;color:#34d399;font-weight:700;">Aktiv</span>':'')
+        +'</div>';
+    }).join('');
 
-      row.appendChild(badge);
-      row.appendChild(ico);
-      row.appendChild(info);
-      container.appendChild(row);
-    });
+    body.innerHTML =
+      sec('Bal Qazanmaq') +
+      row('right-to-bracket','#34d399','Vaxtında <b>gəliş</b> — +20 Bal <span style="color:rgba(255,255,255,0.35);font-size:0.72rem;">(streak × ilə)</span>') +
+      row('utensils','#34d399','<b>Nahardan</b> vaxtında qayıtmaq — +5 Bal') +
+      row('right-from-bracket','#34d399','<b>Çıxışı</b> qeydə almaq — +5 Bal') +
+      row('file-pen','#818cf8','<b>İmtahan</b> — 60%+: +50 · 80%+: +75 · 90%+: +100 Bal') +
+      row('comment-dots','#818cf8','<b>Açıq sual</b> düzgün qiymətləndiriləndə — +15 Bal') +
+      row('heart','#f472b6','Komanda üzvünə <b>reaksiya</b> vermək — +3 Bal') +
+      divider() +
+      sec('Streak Multiplikatoru') +
+      '<div style="background:rgba(255,255,255,0.03);border-radius:10px;padding:6px 10px;margin-top:6px;">'
+      + '<div style="font-size:0.68rem;color:rgba(255,255,255,0.3);margin-bottom:6px;">Hazırki streak: <b style="color:#fbbf24;">' + streak + ' gün</b></div>'
+      + multRows + '</div>' +
+      divider() +
+      sec('Gecikdikdə') +
+      row('clock','#fb7185','6–20 dəq gecikmə — <b>−15 Bal</b> (gəliş balı da verilmir)') +
+      row('clock','#fb7185','21–44 dəq gecikmə — <b>−30 Bal</b>') +
+      row('clock','#fb7185','45+ dəq gecikmə — <b>−50 Bal</b>') +
+      row('calendar-xmark','#94a3b8','<b>Gecikdikdə</b> streak −5 azalır, multiplikator düşə bilər') +
+      divider() +
+      sec('Dərəcələr') +
+      '<div style="background:rgba(255,255,255,0.03);border-radius:10px;padding:6px 10px;margin-top:6px;">'
+      + (info.next > 0 ? '<div style="font-size:0.68rem;color:rgba(255,255,255,0.3);margin-bottom:6px;">Növbəti dərəcəyə <b style="color:#818cf8;">' + info.next + ' Bal</b> qalıb</div>' : '<div style="font-size:0.68rem;color:#fbbf24;margin-bottom:6px;">Maksimum dərəcəyə çatmısınız!</div>')
+      + lvlRows + '</div>' +
+      divider() +
+      sec('Auralar') +
+      '<div style="background:rgba(255,255,255,0.03);border-radius:10px;padding:6px 10px;margin-top:6px;">'
+      + auraRows + '</div>' +
+      divider() +
+      sec('Profil Elementləri') +
+      row('palette','#a78bfa','200–2000 Bal arası <b>yeni çərçivə, banner və rənglər</b> avtomatik açılır');
+
+    body.classList.add('open');
+    document.getElementById('sgChevron').classList.add('open');
   }
 
   function toggleSgCard() {
