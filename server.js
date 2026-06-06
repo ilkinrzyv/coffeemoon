@@ -1277,7 +1277,7 @@ API.saveAnnouncement = async (data) => {
 
 API.getMyProfile = async (secret) => {
   if (!secret) return null;
-  const { data: emp } = await sb.from('employees').select('id,name,dept,is_test,streak').eq('secret', secret).single();
+  const { data: emp } = await sb.from('employees').select('id,name,dept,is_test,streak,xp').eq('secret', secret).single();
   if (!emp) return null;
   const isTest = emp.is_test === true;
   const { data: p } = await sb.from('profiles').select('*').eq('emp_id', emp.id).single();
@@ -1398,7 +1398,7 @@ API.getPublicProfile = async (secret, targetEmpId) => {
   if (!secret || !targetEmpId) return null;
   const { data: caller } = await sb.from('employees').select('id').eq('secret', secret).single();
   if (!caller) return null;
-  const { data: emp } = await sb.from('employees').select('id,name,dept,is_test,streak').eq('id', targetEmpId).single();
+  const { data: emp } = await sb.from('employees').select('id,name,dept,is_test,streak,xp').eq('id', targetEmpId).single();
   if (!emp) return null;
   const targetIsTest = emp.is_test === true;
   const { data: p } = await sb.from('profiles').select('*').eq('emp_id', emp.id).single();
