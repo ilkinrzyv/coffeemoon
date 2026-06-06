@@ -1430,6 +1430,19 @@
   <!-- Gecikinti bildirişi -->
   <div id="lateNoticeBar" style="display:none;margin-bottom:8px;border-radius:12px;padding:7px 12px;font-size:0.73rem;font-weight:600;display:none;align-items:center;gap:7px;"></div>
 
+  <!-- Yeniliklər (həmişə görünür) -->
+  <div class="announce-card" id="announceCard" style="display:none;">
+    <div class="announce-header">
+      <div class="announce-header-icon"><i class="fa-solid fa-bell-concierge"></i></div>
+      <div class="announce-header-text">
+        <div class="announce-header-title">Yeniliklər</div>
+        <div class="announce-header-sub">Rəhbərlikdən məlumatlar</div>
+      </div>
+      <div class="announce-count" id="announceCount">0</div>
+    </div>
+    <div class="announce-list" id="announceList"></div>
+  </div>
+
     <!-- TAB BAR (auth sonrası görünür) -->
   <div class="main-tab-bar" id="mainTabBar">
     <button class="main-tab active" id="tabBtnGundelik" onclick="showTab('gundelik')">
@@ -1502,20 +1515,8 @@
     </div>
   </div>
 
-  <!-- PANEL 1: GÜNDƏLİK (Nahar + Yeniliklər) -->
+  <!-- PANEL 1: GÜNDƏLİK (Nahar) -->
   <div class="tab-panel" id="panel-gundelik">
-
-    <div class="announce-card" id="announceCard">
-      <div class="announce-header">
-        <div class="announce-header-icon"><i class="fa-solid fa-bell-concierge"></i></div>
-        <div class="announce-header-text">
-          <div class="announce-header-title">Yeniliklər</div>
-          <div class="announce-header-sub">Rəhbərlikdən məlumatlar</div>
-        </div>
-        <div class="announce-count" id="announceCount">0</div>
-      </div>
-      <div class="announce-list" id="announceList"></div>
-    </div>
 
     <div class="lunch-card" id="lunchCard">
       <div class="lunch-card-header">
