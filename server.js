@@ -367,12 +367,30 @@ API.removeIzin = async (izinId) => {
 
 // ── HESABAT ───────────────────────────────────────────────────────
 
+// İcazə lookup map qurur: { empId → [{start_date, end_date}] }
+async function buildLeaveMap() {
+  const { data } = await sb.from('izin').select('emp_id,start_date,end_date').eq('status', 'approved');
+  const map = {};
+  for (const r of data || []) {
+    if (!map[r.emp_id]) map[r.emp_id] = [];
+    map[r.emp_id].push({ s: r.start_date, e: r.end_date });
+  }
+  return map;
+}
+function onLeave(leaveMap, empId, dateStr) {
+  return (leaveMap[String(empId)] || []).some(r => dateStr >= r.s && dateStr <= r.e);
+}
+
 API.getMonthlyReport = async (year, month) => {
   const { data: emps } = await sb.from('employees').select('*');
   const m = String(month).padStart(2, '0');
-  const { data: logs } = await sb.from('attendance').select('*')
-    .gte('timestamp', `${year}-${m}-01`)
-    .lt('timestamp', month === 12 ? `${year + 1}-01-01` : `${year}-${String(month + 1).padStart(2, '0')}-01`);
+  const startStr = `${year}-${m}-01`;
+  const endStr   = month === 12 ? `${year + 1}-01-01` : `${year}-${String(month + 1).padStart(2, '0')}-01`;
+
+  const [{ data: logs }, leaveMap] = await Promise.all([
+    sb.from('attendance').select('*').gte('timestamp', startStr).lt('timestamp', endStr),
+    buildLeaveMap(),
+  ]);
 
   return (emps || []).map(emp => {
     const myLogs    = (logs || []).filter(r => r.emp_id === emp.id);
@@ -380,8 +398,11 @@ API.getMonthlyReport = async (year, month) => {
     const cixisLogs = myLogs.filter(r => r.type === 'CIXIS');
     let lateCount = 0, onTime = 0, totalHours = 0;
     for (const r of gelisLogs) {
-      const d = new Date(r.timestamp);
-      const si = r.shift_type ? U.getShiftInfo(emp.dept, r.shift_type) : null;
+      const d       = new Date(r.timestamp);
+      const dateStr = U.toYMD(d);
+      // Təsdiqlənmiş icazəli gün → həmişə vaxtında sayılır
+      if (onLeave(leaveMap, emp.id, dateStr)) { onTime++; continue; }
+      const si   = r.shift_type ? U.getShiftInfo(emp.dept, r.shift_type) : null;
       const late = si
         ? (d.getHours() * 60 + d.getMinutes()) > (si.lateH * 60 + si.lateM)
         : U.isLate(emp.dept, d);
@@ -389,7 +410,7 @@ API.getMonthlyReport = async (year, month) => {
     }
     for (const r of cixisLogs) {
       const si  = r.shift_type ? U.getShiftInfo(emp.dept, r.shift_type) : null;
-      const dur = si ? si.durH : ((emp.dept === 'Ağ Şəhər' || emp.dept === 'Gənclik') ? 9 : 8);
+      const dur = si ? si.durH : 8;
       const ot  = r.overtime || '';
       const sign = ot.startsWith('+') ? 1 : ot.startsWith('-') ? -1 : 0;
       const mt   = ot.match(/(\d+)\s*saat\s*(\d+)/);
@@ -408,15 +429,21 @@ API.getWarnings = async () => {
   const dow    = now.getDay();
   const monday = new Date(now.getTime() - (dow === 0 ? 6 : dow - 1) * 86400000);
   monday.setHours(0, 0, 0, 0);
-  const { data: logs } = await sb.from('attendance').select('*')
-    .eq('type', 'GƏLİŞ').gte('timestamp', monday.toISOString());
+
+  const [{ data: logs }, leaveMap] = await Promise.all([
+    sb.from('attendance').select('*').eq('type', 'GƏLİŞ').gte('timestamp', monday.toISOString()),
+    buildLeaveMap(),
+  ]);
+
   const warnings = [];
   for (const emp of emps || []) {
     const myLogs = (logs || []).filter(r => r.emp_id === emp.id);
     let late = 0;
     for (const r of myLogs) {
-      const d  = new Date(r.timestamp);
-      const si = r.shift_type ? U.getShiftInfo(emp.dept, r.shift_type) : null;
+      const d       = new Date(r.timestamp);
+      const dateStr = U.toYMD(d);
+      if (onLeave(leaveMap, emp.id, dateStr)) continue; // icazəli gün → keç
+      const si  = r.shift_type ? U.getShiftInfo(emp.dept, r.shift_type) : null;
       const isL = si
         ? (d.getHours() * 60 + d.getMinutes()) > (si.lateH * 60 + si.lateM)
         : U.isLate(emp.dept, d);
