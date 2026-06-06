@@ -488,12 +488,26 @@ API.validateAndLog = async (enteredPin, clientIp, forceMode) => {
       await sb.from('employees').update({ streak: newStreak }).eq('id', matched.id);
       if (!late) {
         await awardXP(matched.id, 20, newStreak);
+        // Milestone bonusları (Variant 1)
+        const MS_BONUSES = { 7:50, 14:100, 30:250, 60:500, 100:1000 };
+        if (MS_BONUSES[newStreak]) {
+          const claimed = matched.milestones_claimed || [];
+          if (!claimed.includes(newStreak)) {
+            await awardXP(matched.id, MS_BONUSES[newStreak], 0);
+            await sb.from('employees')
+              .update({ milestones_claimed: [...claimed, newStreak] })
+              .eq('id', matched.id);
+          }
+        }
       } else {
+        // Gecikmə cəzası — streak qalxanı (Variant 2)
         const lateThreshold = shiftInfo
           ? (shiftInfo.lateH * 60 + shiftInfo.lateM)
           : (ts.getHours() < 13 ? 7 * 60 + 15 : (matched.dept === 'Gənclik' || matched.dept === 'Ağ Şəhər') ? 16 * 60 : 15 * 60);
         const lateMins = nowMins - lateThreshold;
-        const penalty  = lateMins >= 45 ? 50 : lateMins >= 21 ? 30 : 15;
+        let penalty = lateMins >= 45 ? 50 : lateMins >= 21 ? 30 : 15;
+        if (matched.streak >= 60) penalty = Math.round(penalty * 0.25);
+        else if (matched.streak >= 30) penalty = Math.round(penalty * 0.5);
         const { data: empXP } = await sb.from('employees').select('xp').eq('id', matched.id).single();
         const current = empXP?.xp || 0;
         await sb.from('employees').update({ xp: Math.max(0, current - penalty) }).eq('id', matched.id);
