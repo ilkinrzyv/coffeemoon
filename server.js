@@ -316,7 +316,7 @@ API.validateBranchScheduleKey = (key) => U.validateBranchScheduleKey(key);
 API.getCedvelForTrainer = async (trainerKey, weekStart) => {
   const key = U.getSetting('TRAINER_KEY');
   if (!key || key !== trainerKey) return null;
-  const DEPTS = ['Elmlər','Gənclik','Ağ Şəhər','Neftçilər','Koroğlu','28 May'];
+  const DEPTS = ['Elmlər','Sahil','Gənclik','Ağ Şəhər'];
   const all = await Promise.all(DEPTS.map(d => API.getCedvel(d, weekStart)));
   return all.flat();
 };
