@@ -58,6 +58,13 @@ async function sendPushToEmployee(empId, title, body, extra = {}) {
   }
 }
 
+// Manager-ə push göndər (dept adına görə)
+async function sendPushToManager(dept, title, body, extra = {}) {
+  if (!process.env.VAPID_PUBLIC_KEY) return;
+  const mgrId = 'MGR-' + dept.replace(/\s+/g, '');
+  await sendPushToEmployee(mgrId, title, body, extra);
+}
+
 // Bütün aktiv işçilərə push göndər (elan üçün)
 async function sendPushToAll(title, body, extra = {}) {
   if (!process.env.VAPID_PUBLIC_KEY) return;
@@ -777,6 +784,31 @@ API.unsubscribePush = async (secret, endpoint) => {
   return { ok: true };
 };
 
+// Manager push abunəliyi (branchKey ilə)
+API.subscribePushManager = async (branchKey, subscription) => {
+  if (!branchKey || !subscription?.endpoint) return { ok: false };
+  const check = U.validateBranchScheduleKey(branchKey);
+  if (!check.valid) return { ok: false, reason: 'İcazəsiz.' };
+  const mgrId = 'MGR-' + check.dept.replace(/\s+/g, '');
+  await sb.from('push_subscriptions').upsert({
+    emp_id:   mgrId,
+    endpoint: subscription.endpoint,
+    p256dh:   subscription.keys?.p256dh || '',
+    auth:     subscription.keys?.auth   || '',
+  }, { onConflict: 'endpoint' });
+  return { ok: true };
+};
+
+API.unsubscribePushManager = async (branchKey, endpoint) => {
+  if (!branchKey || !endpoint) return { ok: false };
+  const check = U.validateBranchScheduleKey(branchKey);
+  if (!check.valid) return { ok: false };
+  const mgrId = 'MGR-' + check.dept.replace(/\s+/g, '');
+  await sb.from('push_subscriptions').delete()
+    .eq('emp_id', mgrId).eq('endpoint', endpoint);
+  return { ok: true };
+};
+
 // ── DASHBOARD ─────────────────────────────────────────────────────
 
 API.getDashboardData = async (secret) => {
@@ -1285,6 +1317,14 @@ API.requestLatePerm = async (secret, dateStr, requestedTime) => {
   if (existing && (existing.status==='pending'||existing.status==='approved')) return { success:false, reason:'Bu tarix üçün artıq icazəniz mövcuddur.' };
   const permId = 'LP-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substring(2,5).toUpperCase();
   await sb.from('late_perms').insert({ perm_id: permId, emp_id:emp.id, emp_name:emp.name, dept:emp.dept, date_str:dateStr, requested_time:requestedTime, status:'pending' });
+
+  // Manager-ə push bildiriş
+  await sendPushToManager(
+    emp.dept,
+    '🕐 Gec Gəliş İcazəsi',
+    `${emp.name}: ${dateStr} — ${requestedTime}`,
+    { tag: 'lateperm-req-' + permId, url: '/manager?key=' + (await U.getBranchScheduleKeys())[emp.dept] }
+  );
   return { success:true, permId };
 };
 
@@ -1396,10 +1436,12 @@ API.requestAvans = async (secret, amount, note) => {
   });
   if (error) { sbErr('requestAvans', error); return { success: false, reason: 'Xəta baş verdi.' }; }
 
-  await U.sendTelegramMsg(
-    `💵 <b>Avans Tələbi</b>\n\n👤 <b>${emp.name}</b> (${emp.dept})\n💰 Məbləğ: <b>${amt} AZN</b>` +
-    (note ? `\n📝 Qeyd: ${note}` : ''),
-    emp.dept
+  // Telegram YOX — manager-ə push bildiriş
+  await sendPushToManager(
+    emp.dept,
+    '💵 Yeni Avans Tələbi',
+    `${emp.name}: ${amt} AZN` + (note ? ` — ${note}` : ''),
+    { tag: 'avans-req-' + id, url: '/manager?key=' + (await U.getBranchScheduleKeys())[emp.dept] }
   );
   return { success: true };
 };

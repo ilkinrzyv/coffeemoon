@@ -1502,9 +1502,60 @@ function saveWaste() {
 loadManagerDashboard();
 </script>
 <script>
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js');
+// ── SERVICE WORKER + MANAGER PUSH BİLDİRİŞLƏR ────────────────────
+(function() {
+  'use strict';
+
+  if (!('serviceWorker' in navigator)) return;
+
+  function urlBase64ToUint8Array(base64String) {
+    var padding = '='.repeat((4 - base64String.length % 4) % 4);
+    var base64  = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+    var rawData = window.atob(base64);
+    var arr     = new Uint8Array(rawData.length);
+    for (var i = 0; i < rawData.length; i++) arr[i] = rawData.charCodeAt(i);
+    return arr;
   }
+
+  function registerManagerSubscription(sub) {
+    if (!sub || !window.BRANCH_KEY) return;
+    var subJson = sub.toJSON ? sub.toJSON() : {};
+    var p256dh  = subJson.keys ? subJson.keys.p256dh : btoa(String.fromCharCode.apply(null, new Uint8Array(sub.getKey('p256dh'))));
+    var auth    = subJson.keys ? subJson.keys.auth   : btoa(String.fromCharCode.apply(null, new Uint8Array(sub.getKey('auth'))));
+    google.script.run.subscribePushManager(window.BRANCH_KEY, {
+      endpoint: sub.endpoint,
+      keys: { p256dh: p256dh, auth: auth },
+    });
+  }
+
+  function initManagerPush(sw) {
+    fetch('/vapid-public-key')
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        if (!d.publicKey) return;
+        var appKey = urlBase64ToUint8Array(d.publicKey);
+        sw.pushManager.getSubscription().then(function(existing) {
+          if (existing) { registerManagerSubscription(existing); return; }
+          sw.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: appKey,
+          }).then(function(sub) {
+            registerManagerSubscription(sub);
+          }).catch(function(err) {
+            if (Notification.permission !== 'denied') {
+              console.warn('[Push-mgr]', err.message);
+            }
+          });
+        });
+      })
+      .catch(function() {});
+  }
+
+  navigator.serviceWorker.register('/sw.js').then(function(reg) {
+    setTimeout(function() { initManagerPush(reg); }, 2000);
+  }).catch(function(e) { console.error('[SW]', e); });
+
+})();
 </script>
 <footer style="text-align:center;padding:18px 0 14px;font-family:Inter,sans-serif;"><div style="font-size:0.72rem;font-weight:600;color:rgba(15,23,42,0.3);letter-spacing:0.01em;">created by Coffeemoon</div><div style="font-size:0.65rem;color:rgba(15,23,42,0.2);margin-top:2px;">version 1.0.1</div></footer>
 </body>
