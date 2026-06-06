@@ -200,6 +200,20 @@ API.removeEmployee = async (id) => {
   return { success: !error };
 };
 
+// Bütün işçilərin streakını yenidən hesabla (admin funksiyası)
+API.recalcAllStreaks = async () => {
+  const { data: emps } = await sb.from('employees').select('id,dept,is_test');
+  if (!emps) return { success: false, updated: 0 };
+  let updated = 0;
+  for (const emp of emps) {
+    if (emp.is_test) continue;
+    const streak = await U.calcStreak(emp.id, emp.dept);
+    await sb.from('employees').update({ streak }).eq('id', emp.id);
+    updated++;
+  }
+  return { success: true, updated };
+};
+
 API.updateEmployeeMessage = async (id, msg) => {
   const { error } = await sb.from('employees').update({ message: msg || '' }).eq('id', id);
   return { success: !error };
