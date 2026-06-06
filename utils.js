@@ -128,9 +128,11 @@ async function calcStreak(empId, dept) {
 }
 
 // ── Şöbə/slug çevirmələri ────────────────────────────────────────
+// Yeni filial əlavə etmək üçün yalnız bu obyekti yeniləmək kifayətdir:
 const DEPT_SLUG = { 'Elmlər':'elmler','Sahil':'sahil','Gənclik':'genclik','Ağ Şəhər':'agseher' };
-const SLUG_DEPT = { elmler:'Elmlər', sahil:'Sahil', genclik:'Gənclik', agseher:'Ağ Şəhər' };
-const SLUGS     = ['elmler','sahil','genclik','agseher'];
+const SLUG_DEPT = Object.fromEntries(Object.entries(DEPT_SLUG).map(([d,s]) => [s,d]));
+const SLUGS     = Object.values(DEPT_SLUG);
+const DEPTS     = Object.keys(DEPT_SLUG);
 
 function deptToSlug(dept)  { return DEPT_SLUG[dept] || ''; }
 function slugToDept(slug)  { return SLUG_DEPT[slug] || ''; }
@@ -211,7 +213,7 @@ module.exports = {
   generateDynamicPin, TIME_STEP,
   getShiftInfo, isLate, SHIFT_TABLE,
   getEmployeeShift, hasApprovedLeave, getApprovedLatePerm,
-  deptToSlug, slugToDept, SLUGS,
+  deptToSlug, slugToDept, SLUGS, DEPTS,
   getBranchScheduleKeys, validateBranchScheduleKey,
   checkWifiIp,
   getTelegramSettings, sendTelegramMsg, deptChatId,

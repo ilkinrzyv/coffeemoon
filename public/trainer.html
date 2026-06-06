@@ -234,11 +234,8 @@ header{background:linear-gradient(135deg,rgba(255,255,255,0.94) 0%,rgba(240,253,
 <div id="panel-new">
   <div class="card">
     <div class="sec-label"><span class="sec-num">1</span> Filial seçin</div>
-    <div class="branch-grid">
-      <button class="branch-btn" onclick="selectBranch('Elmlər',this)"><i class="fa-solid fa-store"></i> Elmlər</button>
-      <button class="branch-btn" onclick="selectBranch('Sahil',this)"><i class="fa-solid fa-store"></i> Sahil</button>
-      <button class="branch-btn" onclick="selectBranch('Gənclik',this)"><i class="fa-solid fa-store"></i> Gənclik</button>
-      <button class="branch-btn" onclick="selectBranch('Ağ Şəhər',this)"><i class="fa-solid fa-store"></i> Ağ Şəhər</button>
+    <div class="branch-grid" id="branchGrid">
+      <div style="grid-column:1/-1;text-align:center;padding:0.5rem;color:var(--text-muted);font-size:0.82rem;"><i class="fa-solid fa-circle-notch fa-spin"></i></div>
     </div>
   </div>
   <div class="card hidden" id="empCard">
@@ -394,12 +391,8 @@ header{background:linear-gradient(135deg,rgba(255,255,255,0.94) 0%,rgba(240,253,
     <div class="card">
       <div class="sec-label"><i class="fa-solid fa-star"></i> İşçi Qiymətləndirməsi</div>
       <p style="font-size:0.78rem;color:var(--text-muted);margin-bottom:1rem;line-height:1.55;">Həftəlik performansa görə bal verin. Streak multiplikatoru tətbiq olunmur.</p>
-      <div style="display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap;">
-        <button onclick="filterRateList('')"    id="rateFilterAll"     style="padding:5px 12px;border-radius:9px;border:1.5px solid rgba(15,23,42,0.12);background:var(--purple);color:#fff;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;">Hamısı</button>
-        <button onclick="filterRateList('Elmlər')"    id="rateFilterElmler"  style="padding:5px 12px;border-radius:9px;border:1.5px solid rgba(15,23,42,0.12);background:#fff;color:var(--text-muted);font-size:0.75rem;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;">Elmlər</button>
-        <button onclick="filterRateList('Sahil')"     id="rateFilterSahil"   style="padding:5px 12px;border-radius:9px;border:1.5px solid rgba(15,23,42,0.12);background:#fff;color:var(--text-muted);font-size:0.75rem;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;">Sahil</button>
-        <button onclick="filterRateList('Gənclik')"   id="rateFilterGenclik" style="padding:5px 12px;border-radius:9px;border:1.5px solid rgba(15,23,42,0.12);background:#fff;color:var(--text-muted);font-size:0.75rem;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;">Gənclik</button>
-        <button onclick="filterRateList('Ağ Şəhər')"  id="rateFilterAgsehər" style="padding:5px 12px;border-radius:9px;border:1.5px solid rgba(15,23,42,0.12);background:#fff;color:var(--text-muted);font-size:0.75rem;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;">Ağ Şəhər</button>
+      <div style="display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap;" id="rateFilterBar">
+        <button onclick="filterRateList('')" id="rateFilterAll" style="padding:5px 12px;border-radius:9px;border:1.5px solid rgba(15,23,42,0.12);background:var(--purple);color:#fff;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;">Hamısı</button>
       </div>
       <div id="rateEmpList"><div class="empty"><i class="fa-solid fa-circle-notch fa-spin"></i><p>Yüklənir...</p></div></div>
     </div>
@@ -789,15 +782,28 @@ function loadRateList() {
 
 function filterRateList(dept) {
   _rateFilter = dept;
-  ['All','Elmler','Sahil','Genclik','Agseher'].forEach(function(k){
-    var btn = document.getElementById('rateFilter'+k);
-    if (btn) btn.style.background = '#fff', btn.style.color = 'var(--text-muted)';
+  // Bütün filterləri reset et
+  var bar = document.getElementById('rateFilterBar');
+  if (bar) bar.querySelectorAll('button').forEach(function(b){
+    b.style.background = '#fff'; b.style.color = 'var(--text-muted)';
   });
-  var map = {'':'All','Elmlər':'Elmler','Sahil':'Sahil','Gənclik':'Genclik','Ağ Şəhər':'Agseher'};
-  var activeId = 'rateFilter' + (map[dept] || 'All');
-  var activeBtn = document.getElementById(activeId);
+  // Aktiv olanı vurgula
+  var activeBtn = document.getElementById(dept ? 'rateFDept-'+dept : 'rateFilterAll');
   if (activeBtn) { activeBtn.style.background = 'var(--purple)'; activeBtn.style.color = '#fff'; }
   renderRateList();
+}
+
+function buildRateFilterBar(depts) {
+  var bar = document.getElementById('rateFilterBar');
+  // "Hamısı" artıq HTML-dədir, filial butonları dinamik əlavə et
+  depts.forEach(function(d) {
+    var btn = document.createElement('button');
+    btn.id = 'rateFDept-' + d;
+    btn.textContent = d;
+    btn.style.cssText = 'padding:5px 12px;border-radius:9px;border:1.5px solid rgba(15,23,42,0.12);background:#fff;color:var(--text-muted);font-size:0.75rem;font-weight:700;cursor:pointer;font-family:Inter,sans-serif;';
+    btn.onclick = function() { filterRateList(d); };
+    bar.appendChild(btn);
+  });
 }
 
 function renderRateList() {
@@ -852,7 +858,7 @@ var _cedvelData    = [];      // bütün işçilərin cədvəl datası
 var _cedvelDept    = 'Hamısı'; // aktiv filtr
 var _cedvelWeekOff = 0;       // 0=bu həftə, -1=keçən, 1=gələn
 
-var CEDVEL_DEPTS = ['Hamısı','Elmlər','Sahil','Gənclik','Ağ Şəhər'];
+var CEDVEL_DEPTS = ['Hamısı']; // dinamik doldurulur — bax: initDeptList()
 var DAY_AZ       = ['B.e.','Ç.a.','Çər.','C.a.','Cüm.','Şən.','Baz.'];
 var DAY_FULL     = ['Bazar ertəsi','Çərşənbə axşamı','Çərşənbə','Cümə axşamı','Cümə','Şənbə','Bazar'];
 
@@ -993,7 +999,29 @@ function renderCedvel() {
 }
 
 // ── İlkin qurulum ─────────────────────────────────────────────────
-(function(){ selectQRole('kassir'); selectQType('test'); })();
+function initDeptList() {
+  google.script.run
+    .withSuccessHandler(function(depts) {
+      if (!depts || !depts.length) return;
+      // Filial butonları — Yeni Təlim
+      var grid = document.getElementById('branchGrid');
+      grid.innerHTML = '';
+      depts.forEach(function(d) {
+        var btn = document.createElement('button');
+        btn.className = 'branch-btn';
+        btn.innerHTML = '<i class="fa-solid fa-store"></i> ' + d;
+        btn.onclick = (function(dept){ return function(){ selectBranch(dept, btn); }; })(d);
+        grid.appendChild(btn);
+      });
+      // Qiymətləndir filtrləri
+      buildRateFilterBar(depts);
+      // Cədvəl filtrləri
+      CEDVEL_DEPTS = ['Hamısı'].concat(depts);
+    })
+    .getDeptList();
+}
+
+(function(){ selectQRole('kassir'); selectQType('test'); initDeptList(); })();
 </script>
 <footer style="text-align:center;padding:18px 0 14px;font-family:Inter,sans-serif;"><div style="font-size:0.72rem;font-weight:600;color:rgba(15,23,42,0.3);letter-spacing:0.01em;">created by Coffeemoon</div><div style="font-size:0.65rem;color:rgba(15,23,42,0.2);margin-top:2px;">version 1.0.1</div></footer>
 </body>

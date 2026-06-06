@@ -310,14 +310,14 @@ API.saveCedvel = async (entries) => {
   return { success: true };
 };
 
+API.getDeptList = () => U.DEPTS;
 API.getBranchScheduleKeys = async () => U.getBranchScheduleKeys();
 API.validateBranchScheduleKey = (key) => U.validateBranchScheduleKey(key);
 
 API.getCedvelForTrainer = async (trainerKey, weekStart) => {
   const key = U.getSetting('TRAINER_KEY');
   if (!key || key !== trainerKey) return null;
-  const DEPTS = ['Elmlər','Sahil','Gənclik','Ağ Şəhər'];
-  const all = await Promise.all(DEPTS.map(d => API.getCedvel(d, weekStart)));
+  const all = await Promise.all(U.DEPTS.map(d => API.getCedvel(d, weekStart)));
   return all.flat();
 };
 
@@ -730,10 +730,9 @@ API.logManagerCheckin = async (branchKey, type) => {
 
 API.getManagersLiveStatus = async () => {
   const todayStr = U.getLogicalDateStr(new Date());
-  const DEPTS    = ['Elmlər','Sahil','Gənclik','Ağ Şəhər'];
   const { data: logs } = await sb.from('attendance').select('*').order('timestamp');
   const result = {};
-  for (const dept of DEPTS) {
+  for (const dept of U.DEPTS) {
     const slug    = U.deptToSlug(dept);
     const mgrId   = 'MGR-' + dept.replace(/\s+/g, '');
     const deptLogs = (logs || []).filter(r => r.emp_id === mgrId && U.getLogicalDateStr(new Date(r.timestamp)) === todayStr);
@@ -757,7 +756,7 @@ API.getManagersLiveStatus = async () => {
 
 // ── MENECER İNFO ─────────────────────────────────────────────────
 
-const MGR_SLUGS = ['elmler','sahil','genclik','agseher'];
+const MGR_SLUGS = U.SLUGS;
 
 API.getMgrInfo = () => ({
   globalMsg: U.getSetting('MGR_GLOBAL_MSG'),
@@ -904,13 +903,13 @@ API.submitChecklistItem = async (branchKey, itemId, checked, mgrNote) => {
 
 API.getChecklistReport = async (dateStr) => {
   const date  = dateStr || U.toYMD(new Date());
-  const DEPTS = ['Ağ Şəhər','Gənclik','Elmlər','Sahil'];
+  
   const [{ data: items }, { data: logs }] = await Promise.all([
     sb.from('checklist_items').select('*').eq('active', true).order('sort_order'),
     sb.from('checklist_logs').select('*').eq('date', date),
   ]);
   const report = {};
-  for (const dept of DEPTS) {
+  for (const dept of U.DEPTS) {
     report[dept] = {};
     for (const item of items || []) report[dept][item.item_id] = { checked: false, checked_at: '', mgr_note: '', admin_note: '' };
   }
@@ -965,10 +964,10 @@ API.ackMgrMessage = async (branchKey, msgType) => {
 
 API.getMgrAcksForAdmin = async (dateStr) => {
   const date  = dateStr || U.toYMD(new Date());
-  const DEPTS = ['Ağ Şəhər','Gənclik','Elmlər','Sahil'];
+  
   const { data } = await sb.from('mgr_acks').select('*').eq('date', date);
   const result = {};
-  for (const d of DEPTS) result[d] = { globalAcked: false, globalAckedAt: '', branchAcked: false, branchAckedAt: '' };
+  for (const d of U.DEPTS) result[d] = { globalAcked: false, globalAckedAt: '', branchAcked: false, branchAckedAt: '' };
   for (const r of data || []) {
     if (result[r.dept]) result[r.dept] = { globalAcked: !!r.global_acked, globalAckedAt: r.global_acked_at || '', branchAcked: !!r.branch_acked, branchAckedAt: r.branch_acked_at || '' };
   }
@@ -1038,17 +1037,17 @@ API.saveProductLogs = async (branchKey, monthStr, logs) => {
 };
 
 API.getWasteStatsForAdmin = async (dateStr) => {
-  const DEPTS  = ['Elmlər','Sahil','Gənclik','Ağ Şəhər'];
+  
   const { data: logs } = await sb.from('product_logs').select('*').like('date_str', dateStr + '%');
   const deptMap = {};
-  for (const d of DEPTS) deptMap[d] = { dept: d, totalIn:0, totalWasted:0, products:[], limit: getWasteLimit(d) };
+  for (const d of U.DEPTS) deptMap[d] = { dept: d, totalIn:0, totalWasted:0, products:[], limit: getWasteLimit(d) };
   for (const r of logs || []) {
     if (!deptMap[r.dept] || (!r.incoming && !r.wasted)) continue;
     deptMap[r.dept].totalIn     += Number(r.incoming)||0;
     deptMap[r.dept].totalWasted += Number(r.wasted)  ||0;
     deptMap[r.dept].products.push({ name: r.product_name, incoming: Number(r.incoming)||0, wasted: Number(r.wasted)||0 });
   }
-  return DEPTS.map(d => {
+  return U.DEPTS.map(d => {
     const s = deptMap[d], pct = s.totalIn > 0 ? Math.round(s.totalWasted/s.totalIn*1000)/10 : 0;
     return { dept:s.dept, totalIn:s.totalIn, totalWasted:s.totalWasted, pct, limit:s.limit, exceeded:s.totalIn>0&&pct>s.limit, hasData:s.totalIn>0||s.totalWasted>0, products:s.products };
   });
@@ -1081,17 +1080,17 @@ API.saveMgrWeekSchedule = async (branchKey, entries) => {
 };
 
 API.getMgrScheduleForAdmin = async (weekStart) => {
-  const DEPTS = ['Ağ Şəhər','Gənclik','Elmlər','Sahil'];
+  
   const start = new Date(weekStart);
   const dates = Array.from({length:7}, (_, d) => U.toYMD(new Date(start.getTime()+d*86400000)));
   const { data } = await sb.from('mgr_schedule').select('*').in('date_str', dates);
   const map = {};
-  for (const dept of DEPTS) map[dept] = {};
+  for (const dept of U.DEPTS) map[dept] = {};
   for (const r of data || []) { if (map[r.dept]) map[r.dept][r.date_str] = r.shift_type; }
   const DAY_NAMES = ['B.e.','Ç.a.','Çər.','C.a.','Cüm.','Şən.','Baz.'];
   return {
     dates: dates.map(ds => { const dd=new Date(ds); return {date:ds,dayName:DAY_NAMES[dd.getDay()===0?6:dd.getDay()-1]}; }),
-    managers: DEPTS.map(dept => ({ dept, mgrName: U.getSetting('MGR_NAME_'+U.deptToSlug(dept))||dept, schedule: dates.map(ds=>map[dept][ds]||'') })),
+    managers: U.DEPTS.map(dept => ({ dept, mgrName: U.getSetting('MGR_NAME_'+U.deptToSlug(dept))||dept, schedule: dates.map(ds=>map[dept][ds]||'') })),
   };
 };
 
