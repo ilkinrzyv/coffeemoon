@@ -96,6 +96,29 @@ header{background:linear-gradient(135deg,rgba(255,255,255,0.94) 0%,rgba(240,253,
 #toast.err{background:#ef4444;}
 .hidden{display:none!important;}
 
+/* ── Cədvəl tab ── */
+.cedvel-dept-bar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:1rem;}
+.cedvel-dept-btn{padding:0.45rem 0.85rem;border:1.5px solid rgba(15,23,42,0.08);border-radius:100px;background:#fff;cursor:pointer;font-size:0.78rem;font-weight:700;color:var(--text-muted);transition:all 0.18s;font-family:'Inter',sans-serif;}
+.cedvel-dept-btn.active{border-color:var(--primary);background:rgba(13,148,136,0.08);color:var(--primary);}
+.cedvel-week-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;}
+.cedvel-week-lbl{font-size:0.83rem;font-weight:800;color:var(--text-main);}
+.cedvel-nav-btn{width:34px;height:34px;border:1.5px solid rgba(15,23,42,0.09);border-radius:10px;background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text-muted);transition:all 0.18s;font-size:0.85rem;}
+.cedvel-nav-btn:hover{border-color:var(--primary);color:var(--primary);}
+.cedvel-table{width:100%;border-collapse:collapse;font-size:0.78rem;}
+.cedvel-table th{padding:6px 4px;text-align:center;font-size:0.68rem;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;border-bottom:1.5px solid rgba(15,23,42,0.07);}
+.cedvel-table th:first-child{text-align:left;padding-left:2px;}
+.cedvel-table td{padding:5px 4px;text-align:center;border-bottom:1px solid rgba(15,23,42,0.04);}
+.cedvel-table td:first-child{text-align:left;font-weight:600;font-size:0.8rem;color:var(--text-main);padding-left:2px;white-space:nowrap;}
+.cedvel-table tr:last-child td{border-bottom:none;}
+.cedvel-table tr.today-row td:first-child{color:var(--primary);}
+.shift-badge{display:inline-block;padding:2px 7px;border-radius:6px;font-size:0.67rem;font-weight:800;line-height:1.5;}
+.shift-s{background:rgba(16,185,129,0.12);color:#059669;}
+.shift-a{background:rgba(99,102,241,0.1);color:#4f46e5;}
+.shift-f{background:rgba(245,158,11,0.12);color:#d97706;}
+.shift-sf{background:rgba(20,184,166,0.1);color:#0d9488;}
+.shift-i{background:rgba(239,68,68,0.08);color:#dc2626;}
+.cedvel-today-dot{display:inline-block;width:6px;height:6px;background:var(--primary);border-radius:50%;margin-left:4px;vertical-align:middle;}
+
 /* ── Sub-tabs ── */
 .sub-tab-bar{display:flex;gap:6px;margin-bottom:1rem;}
 .sub-tab-btn{flex:1;padding:0.58rem 0.5rem;border:1.5px solid rgba(15,23,42,0.08);border-radius:12px;background:#fff;cursor:pointer;font-size:0.78rem;font-weight:700;color:var(--text-muted);display:flex;align-items:center;justify-content:center;gap:5px;transition:all 0.2s;font-family:'Inter',sans-serif;}
@@ -204,6 +227,7 @@ header{background:linear-gradient(135deg,rgba(255,255,255,0.94) 0%,rgba(240,253,
   <button class="tab-btn"        id="tab-today"   onclick="switchTab('today')"><i class="fa-solid fa-clock-rotate-left"></i> Bu gün</button>
   <button class="tab-btn"        id="tab-talim"   onclick="switchTab('talim')"><i class="fa-solid fa-book-open"></i> Təlim</button>
   <button class="tab-btn"        id="tab-imtahan" onclick="switchTab('imtahan')"><i class="fa-solid fa-file-pen"></i> İmtahan</button>
+  <button class="tab-btn"        id="tab-cedvel"  onclick="switchTab('cedvel')" style="grid-column:1/-1;"><i class="fa-solid fa-calendar-week"></i> İşçi Cədvəli</button>
 </div>
 
 <!-- ══ YENİ TƏLİM ══ -->
@@ -382,6 +406,20 @@ header{background:linear-gradient(135deg,rgba(255,255,255,0.94) 0%,rgba(240,253,
   </div>
 
 </div><!-- /panel-imtahan -->
+
+<!-- ══ CƏDVƏl ══ -->
+<div id="panel-cedvel" class="hidden">
+  <div class="card">
+    <div class="cedvel-week-nav">
+      <button class="cedvel-nav-btn" onclick="cedvelPrevWeek()"><i class="fa-solid fa-chevron-left"></i></button>
+      <span class="cedvel-week-lbl" id="cedvelWeekLbl">—</span>
+      <button class="cedvel-nav-btn" onclick="cedvelNextWeek()"><i class="fa-solid fa-chevron-right"></i></button>
+    </div>
+    <div class="cedvel-dept-bar" id="cedvelDeptBar"></div>
+    <div id="cedvelBody"><div class="empty"><i class="fa-solid fa-circle-notch fa-spin"></i><p>Yüklənir...</p></div></div>
+  </div>
+</div><!-- /panel-cedvel -->
+
 </div><!-- /wrap -->
 <div id="toast"></div>
 <script src="/gsr-shim.js"></script>
@@ -413,13 +451,14 @@ var newQType='test', newQRole='kassir', newQCorrect='';
 
 // ── Tab keçidi ────────────────────────────────────────────────────
 function switchTab(t) {
-  ['new','today','talim','imtahan'].forEach(function(x){
+  ['new','today','talim','imtahan','cedvel'].forEach(function(x){
     document.getElementById('tab-'+x).classList.toggle('active',x===t);
     document.getElementById('panel-'+x).classList.toggle('hidden',x!==t);
   });
   if (t==='today')   loadTodayLogs();
   if (t==='talim')   loadMaterials();
   if (t==='imtahan') { loadExamQuestions(); setExamLink(); }
+  if (t==='cedvel')  loadCedvel();
 }
 
 function switchImtahanTab(s) {
@@ -804,6 +843,153 @@ function manualXP(empId) {
     })
     .withFailureHandler(function(e){ inp.disabled=false; toast('Xəta: '+(e.message||'bilinmir'),'err'); })
     .giveManualXP(TRAINER_KEY, empId, val);
+}
+
+// ══════════════════════════════════════════════════════════════════
+// ── İŞÇİ CƏDVƏLİ ─────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════
+var _cedvelData    = [];      // bütün işçilərin cədvəl datası
+var _cedvelDept    = 'Hamısı'; // aktiv filtr
+var _cedvelWeekOff = 0;       // 0=bu həftə, -1=keçən, 1=gələn
+
+var CEDVEL_DEPTS = ['Hamısı','Elmlər','Gənclik','Ağ Şəhər','Neftçilər','Koroğlu','28 May'];
+var DAY_AZ       = ['B.e.','Ç.a.','Çər.','C.a.','Cüm.','Şən.','Baz.'];
+var DAY_FULL     = ['Bazar ertəsi','Çərşənbə axşamı','Çərşənbə','Cümə axşamı','Cümə','Şənbə','Bazar'];
+
+var SHIFT_MAP = {
+  sehersm:     { cls:'shift-s',  lbl:'S'},
+  axsamsm:     { cls:'shift-a',  lbl:'A'},
+  fullsm:      { cls:'shift-f',  lbl:'AF'},
+  seherfullsm: { cls:'shift-sf', lbl:'SF'},
+  istirahetsm: { cls:'shift-i',  lbl:'İst'},
+  '':          { cls:'',         lbl:'—'},
+};
+
+function cedvelGetMonday(offset) {
+  var now = new Date();
+  var day = now.getDay() || 7; // 1=Mon..7=Sun
+  var mon = new Date(now.getTime() - (day - 1) * 86400000);
+  mon.setHours(0,0,0,0);
+  mon.setDate(mon.getDate() + offset * 7);
+  return mon;
+}
+
+function cedvelWeekStart() {
+  var mon = cedvelGetMonday(_cedvelWeekOff);
+  return mon.getFullYear() + '-' +
+    String(mon.getMonth()+1).padStart(2,'0') + '-' +
+    String(mon.getDate()).padStart(2,'0');
+}
+
+function cedvelPrevWeek() { _cedvelWeekOff--; loadCedvel(); }
+function cedvelNextWeek() { _cedvelWeekOff++; loadCedvel(); }
+
+function loadCedvel() {
+  var ws = cedvelWeekStart();
+  // Həftə etiketini göstər
+  var mon = cedvelGetMonday(_cedvelWeekOff);
+  var sun = new Date(mon.getTime() + 6 * 86400000);
+  function fmt(d) { return d.getDate() + '.' + String(d.getMonth()+1).padStart(2,'0'); }
+  document.getElementById('cedvelWeekLbl').textContent =
+    fmt(mon) + ' – ' + fmt(sun) + ((_cedvelWeekOff===0) ? '  (Bu həftə)' : (_cedvelWeekOff===-1) ? '  (Keçən həftə)' : '  (Gələn həftə)');
+  // Dept bar
+  buildCedvelDeptBar();
+  // Spinnerı göstər
+  document.getElementById('cedvelBody').innerHTML =
+    '<div style="text-align:center;padding:2rem;color:var(--text-muted);font-size:0.84rem;"><i class="fa-solid fa-circle-notch fa-spin"></i> Yüklənir...</div>';
+  google.script.run
+    .withSuccessHandler(function(data) {
+      _cedvelData = data || [];
+      renderCedvel();
+    })
+    .withFailureHandler(function(e) {
+      document.getElementById('cedvelBody').innerHTML =
+        '<div style="text-align:center;padding:2rem;color:var(--danger);font-size:0.84rem;">Xəta: '+(e.message||e)+'</div>';
+    })
+    .getCedvelForTrainer(TRAINER_KEY, ws);
+}
+
+function buildCedvelDeptBar() {
+  var bar = document.getElementById('cedvelDeptBar');
+  bar.innerHTML = '';
+  CEDVEL_DEPTS.forEach(function(d) {
+    var btn = document.createElement('button');
+    btn.className = 'cedvel-dept-btn' + (d === _cedvelDept ? ' active' : '');
+    btn.textContent = d;
+    btn.onclick = function() { _cedvelDept = d; buildCedvelDeptBar(); renderCedvel(); };
+    bar.appendChild(btn);
+  });
+}
+
+function renderCedvel() {
+  var filtered = _cedvelDept === 'Hamısı'
+    ? _cedvelData
+    : _cedvelData.filter(function(e) { return e.dept === _cedvelDept; });
+
+  if (!filtered.length) {
+    document.getElementById('cedvelBody').innerHTML =
+      '<div style="text-align:center;padding:2rem;color:var(--text-muted);font-size:0.84rem;">Bu həftə üçün cədvəl yoxdur.</div>';
+    return;
+  }
+
+  // Bugünün date_str-i
+  var todayStr = (function(){
+    var n = new Date();
+    return n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0');
+  })();
+
+  // Sütun başlıqları (7 gün)
+  var firstEntry = filtered[0];
+  var dates = firstEntry.schedule.map(function(s){ return s.date; });
+
+  var html = '<div style="overflow-x:auto;"><table class="cedvel-table"><thead><tr>';
+  html += '<th>Ad</th>';
+  dates.forEach(function(ds, i) {
+    var isToday = ds === todayStr;
+    var d = new Date(ds + 'T00:00:00');
+    html += '<th' + (isToday ? ' style="color:var(--primary);"' : '') + '>'
+      + DAY_AZ[i] + (isToday ? '<span class="cedvel-today-dot"></span>' : '') + '</th>';
+  });
+  html += '</tr></thead><tbody>';
+
+  // Əgər Hamısı seçilibsə, departament qruplaması göstər
+  var prevDept = null;
+  filtered.forEach(function(emp) {
+    if (_cedvelDept === 'Hamısı' && emp.dept !== prevDept) {
+      prevDept = emp.dept;
+      html += '<tr><td colspan="'+(dates.length+1)+'" style="padding:8px 2px 4px;font-size:0.68rem;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;">'
+        + '<i class="fa-solid fa-store" style="margin-right:4px;opacity:0.6;"></i>' + emp.dept + '</td></tr>';
+    }
+    // Bu işçinin bu həftə işi varmı?
+    var hasShift = emp.schedule.some(function(s){ return s.shiftType && s.shiftType !== 'istirahetsm'; });
+    html += '<tr>';
+    html += '<td>' + emp.empName + '</td>';
+    emp.schedule.forEach(function(s) {
+      var sm = SHIFT_MAP[s.shiftType || ''] || SHIFT_MAP[''];
+      html += '<td>' + (sm.lbl !== '—'
+        ? '<span class="shift-badge '+sm.cls+'">'+sm.lbl+'</span>'
+        : '<span style="color:var(--text-soft);font-size:0.72rem;">—</span>') + '</td>';
+    });
+    html += '</tr>';
+  });
+
+  html += '</tbody></table></div>';
+
+  // Rəng açıqlaması
+  html += '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:1rem;padding-top:0.8rem;border-top:1px solid rgba(15,23,42,0.07);">';
+  var legend = [
+    {cls:'shift-s', lbl:'S — Səhər'},
+    {cls:'shift-a', lbl:'A — Axşam'},
+    {cls:'shift-f', lbl:'AF — Axşam Full'},
+    {cls:'shift-sf',lbl:'SF — Səhər Full'},
+    {cls:'shift-i', lbl:'İst — İstirahət'},
+  ];
+  legend.forEach(function(l) {
+    html += '<span class="shift-badge '+l.cls+'" style="font-size:0.68rem;">'+l.lbl+'</span>';
+  });
+  html += '</div>';
+
+  document.getElementById('cedvelBody').innerHTML = html;
 }
 
 // ── İlkin qurulum ─────────────────────────────────────────────────

@@ -313,6 +313,14 @@ API.saveCedvel = async (entries) => {
 API.getBranchScheduleKeys = async () => U.getBranchScheduleKeys();
 API.validateBranchScheduleKey = (key) => U.validateBranchScheduleKey(key);
 
+API.getCedvelForTrainer = async (trainerKey, weekStart) => {
+  const key = U.getSetting('TRAINER_KEY');
+  if (!key || key !== trainerKey) return null;
+  const DEPTS = ['Elmlər','Gənclik','Ağ Şəhər','Neftçilər','Koroğlu','28 May'];
+  const all = await Promise.all(DEPTS.map(d => API.getCedvel(d, weekStart)));
+  return all.flat();
+};
+
 API.getCedvelForManager = async (key, weekStart) => {
   const c = U.validateBranchScheduleKey(key);
   if (!c.valid) return null;
