@@ -268,8 +268,9 @@ header{background:linear-gradient(135deg,rgba(255,255,255,0.94) 0%,rgba(240,253,
 <div id="panel-imtahan" class="hidden">
 
   <div class="sub-tab-bar">
-    <button class="sub-tab-btn active" id="subtab-suallar" onclick="switchImtahanTab('suallar')"><i class="fa-solid fa-list-check"></i> Suallar</button>
-    <button class="sub-tab-btn"        id="subtab-results" onclick="switchImtahanTab('results')"><i class="fa-solid fa-trophy"></i> Nəticələr</button>
+    <button class="sub-tab-btn active" id="subtab-suallar"     onclick="switchImtahanTab('suallar')"><i class="fa-solid fa-list-check"></i> Suallar</button>
+    <button class="sub-tab-btn"        id="subtab-results"     onclick="switchImtahanTab('results')"><i class="fa-solid fa-trophy"></i> Nəticələr</button>
+    <button class="sub-tab-btn"        id="subtab-qiymetlendir" onclick="switchImtahanTab('qiymetlendir')"><i class="fa-solid fa-star"></i> Qiymətləndir</button>
   </div>
 
   <!-- ─ Suallar ─ -->
@@ -364,6 +365,22 @@ header{background:linear-gradient(135deg,rgba(255,255,255,0.94) 0%,rgba(240,253,
     </div>
   </div>
 
+  <!-- ─ Qiymətləndir ─ -->
+  <div id="imtahan-panel-qiymetlendir" class="hidden">
+    <div class="card">
+      <div class="sec-label"><i class="fa-solid fa-star"></i> İşçi Qiymətləndirməsi</div>
+      <p style="font-size:0.78rem;color:var(--text-muted);margin-bottom:1rem;line-height:1.55;">Həftəlik performansa görə bal verin. Streak multiplikatoru tətbiq olunmur.</p>
+      <div style="display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap;">
+        <button onclick="filterRateList('')"    id="rateFilterAll"     style="padding:5px 12px;border-radius:9px;border:1.5px solid rgba(15,23,42,0.12);background:var(--purple);color:#fff;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;">Hamısı</button>
+        <button onclick="filterRateList('Elmlər')"    id="rateFilterElmler"  style="padding:5px 12px;border-radius:9px;border:1.5px solid rgba(15,23,42,0.12);background:#fff;color:var(--text-muted);font-size:0.75rem;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;">Elmlər</button>
+        <button onclick="filterRateList('Sahil')"     id="rateFilterSahil"   style="padding:5px 12px;border-radius:9px;border:1.5px solid rgba(15,23,42,0.12);background:#fff;color:var(--text-muted);font-size:0.75rem;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;">Sahil</button>
+        <button onclick="filterRateList('Gənclik')"   id="rateFilterGenclik" style="padding:5px 12px;border-radius:9px;border:1.5px solid rgba(15,23,42,0.12);background:#fff;color:var(--text-muted);font-size:0.75rem;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;">Gənclik</button>
+        <button onclick="filterRateList('Ağ Şəhər')"  id="rateFilterAgsehər" style="padding:5px 12px;border-radius:9px;border:1.5px solid rgba(15,23,42,0.12);background:#fff;color:var(--text-muted);font-size:0.75rem;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;">Ağ Şəhər</button>
+      </div>
+      <div id="rateEmpList"><div class="empty"><i class="fa-solid fa-circle-notch fa-spin"></i><p>Yüklənir...</p></div></div>
+    </div>
+  </div>
+
 </div><!-- /panel-imtahan -->
 </div><!-- /wrap -->
 <div id="toast"></div>
@@ -407,11 +424,12 @@ function switchTab(t) {
 
 function switchImtahanTab(s) {
   imtahanSubTab=s;
-  ['suallar','results'].forEach(function(x){
+  ['suallar','results','qiymetlendir'].forEach(function(x){
     document.getElementById('subtab-'+x).classList.toggle('active',x===s);
     document.getElementById('imtahan-panel-'+x).classList.toggle('hidden',x!==s);
   });
   if (s==='results') loadTodayExams();
+  if (s==='qiymetlendir') loadRateList();
   if (s==='suallar') loadExamQuestions();
 }
 
@@ -712,6 +730,80 @@ function gradeOpen(examId,questionId,passed,btn){
     .withSuccessHandler(function(r){if(r&&r.success){toast('Qiymət verildi ✓','ok');loadTodayExams();}else{toast((r&&r.reason)||'Xəta.','err');btn.disabled=false;btn.parentNode.querySelectorAll('button').forEach(function(b){b.disabled=false;});}})
     .withFailureHandler(function(e){toast('Xəta: '+(e.message||'bilinmir'),'err');btn.disabled=false;btn.parentNode.querySelectorAll('button').forEach(function(b){b.disabled=false;});})
     .gradeOpenAnswer(TRAINER_KEY,examId,questionId,passed);
+}
+
+// ════════════════════════════════════════════════════════════════
+//  QİYMƏTLƏNDİRMƏ
+// ════════════════════════════════════════════════════════════════
+var _allEmpsForRate = [];
+var _rateFilter = '';
+
+function loadRateList() {
+  if (_allEmpsForRate.length) { renderRateList(); return; }
+  var el = document.getElementById('rateEmpList');
+  el.innerHTML = '<div class="empty"><i class="fa-solid fa-circle-notch fa-spin"></i><p>Yüklənir...</p></div>';
+  google.script.run
+    .withSuccessHandler(function(d) { _allEmpsForRate = (d||[]).filter(function(e){ return !e.is_test; }); renderRateList(); })
+    .withFailureHandler(function() { el.innerHTML = '<div class="empty"><i class="fa-solid fa-triangle-exclamation"></i><p>Yüklənə bilmədi.</p></div>'; })
+    .getEmployees();
+}
+
+function filterRateList(dept) {
+  _rateFilter = dept;
+  ['All','Elmler','Sahil','Genclik','Agseher'].forEach(function(k){
+    var btn = document.getElementById('rateFilter'+k);
+    if (btn) btn.style.background = '#fff', btn.style.color = 'var(--text-muted)';
+  });
+  var map = {'':'All','Elmlər':'Elmler','Sahil':'Sahil','Gənclik':'Genclik','Ağ Şəhər':'Agseher'};
+  var activeId = 'rateFilter' + (map[dept] || 'All');
+  var activeBtn = document.getElementById(activeId);
+  if (activeBtn) { activeBtn.style.background = 'var(--purple)'; activeBtn.style.color = '#fff'; }
+  renderRateList();
+}
+
+function renderRateList() {
+  var el = document.getElementById('rateEmpList');
+  var list = _rateFilter ? _allEmpsForRate.filter(function(e){ return e.dept === _rateFilter; }) : _allEmpsForRate;
+  if (!list.length) { el.innerHTML = '<div class="empty"><i class="fa-solid fa-users"></i><p>İşçi tapılmadı.</p></div>'; return; }
+  el.innerHTML = list.map(function(e) {
+    return '<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid rgba(15,23,42,0.05);">'
+      +'<div style="flex:1;min-width:0;"><div style="font-size:0.87rem;font-weight:700;color:var(--text-main);">'+e.name+'</div><div style="font-size:0.72rem;color:var(--text-muted);">'+e.dept+'</div></div>'
+      +'<div style="display:flex;gap:5px;align-items:center;">'
+        +'<button onclick="rateEmp(\''+e.id+'\',3,this)" title="Kafi +15 Bal" style="border:none;background:rgba(100,116,139,0.1);color:var(--text-muted);border-radius:8px;padding:5px 8px;cursor:pointer;font-size:0.72rem;font-weight:700;font-family:\'Inter\',sans-serif;">⭐⭐⭐<br><span style=\'font-size:0.6rem;\'>+15</span></button>'
+        +'<button onclick="rateEmp(\''+e.id+'\',4,this)" title="Yaxşı +30 Bal" style="border:none;background:rgba(99,102,241,0.08);color:var(--kassir);border-radius:8px;padding:5px 8px;cursor:pointer;font-size:0.72rem;font-weight:700;font-family:\'Inter\',sans-serif;">⭐⭐⭐⭐<br><span style=\'font-size:0.6rem;\'>+30</span></button>'
+        +'<button onclick="rateEmp(\''+e.id+'\',5,this)" title="Əla +50 Bal" style="border:none;background:rgba(16,185,129,0.1);color:var(--success);border-radius:8px;padding:5px 8px;cursor:pointer;font-size:0.72rem;font-weight:700;font-family:\'Inter\',sans-serif;">⭐⭐⭐⭐⭐<br><span style=\'font-size:0.6rem;\'>+50</span></button>'
+        +'<input id="manualInput-'+e.id+'" type="number" min="1" max="500" placeholder="Bal" style="width:52px;border:1.5px solid rgba(15,23,42,0.1);border-radius:8px;padding:5px 6px;font-size:0.78rem;font-family:\'Inter\',sans-serif;text-align:center;">'
+        +'<button onclick="manualXP(\''+e.id+'\')" style="border:none;background:var(--primary);color:#fff;border-radius:8px;padding:5px 9px;cursor:pointer;font-size:0.72rem;font-weight:700;font-family:\'Inter\',sans-serif;">Ver</button>'
+      +'</div>'
+    +'</div>';
+  }).join('');
+}
+
+function rateEmp(empId, stars, btn) {
+  btn.disabled = true;
+  google.script.run
+    .withSuccessHandler(function(r) {
+      btn.disabled = false;
+      if (r && r.success) toast('+'+ r.xp +' Bal verildi ✓','ok');
+      else toast((r&&r.reason)||'Xəta.','err');
+    })
+    .withFailureHandler(function(e){ btn.disabled=false; toast('Xəta: '+(e.message||'bilinmir'),'err'); })
+    .rateEmployee(TRAINER_KEY, empId, stars);
+}
+
+function manualXP(empId) {
+  var inp = document.getElementById('manualInput-'+empId);
+  var val = parseInt(inp.value);
+  if (!val || val < 1 || val > 500) { toast('1–500 arası daxil edin.','err'); return; }
+  inp.disabled = true;
+  google.script.run
+    .withSuccessHandler(function(r) {
+      inp.disabled = false; inp.value = '';
+      if (r && r.success) toast('+'+val+' Bal verildi ✓','ok');
+      else toast((r&&r.reason)||'Xəta.','err');
+    })
+    .withFailureHandler(function(e){ inp.disabled=false; toast('Xəta: '+(e.message||'bilinmir'),'err'); })
+    .giveManualXP(TRAINER_KEY, empId, val);
 }
 
 // ── İlkin qurulum ─────────────────────────────────────────────────

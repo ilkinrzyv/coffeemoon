@@ -1613,6 +1613,30 @@ API.submitExam = async (trainerKey, trainerName, dept, empId, empName, score, ma
   return { success: !error, reason: error?.message };
 };
 
+API.giveManualXP = async (trainerKey, empId, amount) => {
+  if (!U.getSetting('TRAINER_KEY') || U.getSetting('TRAINER_KEY') !== trainerKey)
+    return { success: false, reason: 'İcazəsiz.' };
+  const amt = parseInt(amount);
+  if (!empId || isNaN(amt) || amt < 1 || amt > 500)
+    return { success: false, reason: 'Məbləğ 1–500 arasında olmalıdır.' };
+  const { data: emp } = await sb.from('employees').select('streak,is_test').eq('id', String(empId)).single();
+  if (!emp || emp.is_test) return { success: false, reason: 'İşçi tapılmadı.' };
+  await awardXP(empId, amt, 0);
+  return { success: true, xp: amt };
+};
+
+API.rateEmployee = async (trainerKey, empId, stars) => {
+  if (!U.getSetting('TRAINER_KEY') || U.getSetting('TRAINER_KEY') !== trainerKey)
+    return { success: false, reason: 'İcazəsiz.' };
+  const XP_MAP = { 3: 15, 4: 30, 5: 50 };
+  const xp = XP_MAP[parseInt(stars)];
+  if (!empId || !xp) return { success: false, reason: 'Yanlış məlumat.' };
+  const { data: emp } = await sb.from('employees').select('streak,is_test').eq('id', String(empId)).single();
+  if (!emp || emp.is_test) return { success: false, reason: 'İşçi tapılmadı.' };
+  await awardXP(empId, xp, 0);
+  return { success: true, xp };
+};
+
 API.gradeOpenAnswer = async (trainerKey, examId, questionId, passed) => {
   if (!U.getSetting('TRAINER_KEY') || U.getSetting('TRAINER_KEY') !== trainerKey)
     return { success: false, reason: 'İcazəsiz.' };
