@@ -51,3 +51,40 @@ self.addEventListener('fetch', e => {
     })
   );
 });
+
+// ── PUSH BİLDİRİŞLƏR ──────────────────────────────────────────────
+
+self.addEventListener('push', function(e) {
+  let data = {};
+  try { data = e.data ? e.data.json() : {}; } catch(_) {}
+
+  const title   = data.title || '☕ Coffeemoon';
+  const options = {
+    body:    data.body    || '',
+    icon:    data.icon    || '/icon-192.png',
+    badge:   data.badge   || '/icon-192.png',
+    tag:     data.tag     || 'coffeemoon',
+    data:    data.url     ? { url: data.url } : {},
+    vibrate: [100, 50, 100],
+    requireInteraction: data.requireInteraction || false,
+  };
+
+  e.waitUntil(self.registration.showNotification(title, options));
+});
+
+// Bildirişə klikləndikdə tətbiqi aç
+self.addEventListener('notificationclick', function(e) {
+  e.notification.close();
+  const url = (e.notification.data && e.notification.data.url) || '/mycode';
+
+  e.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(list) {
+      // Açıq pəncərə varsa ona fokuslan
+      for (var c of list) {
+        if (c.url.includes('/mycode') && 'focus' in c) return c.focus();
+      }
+      // Yoxdursa yeni pəncərə aç
+      if (clients.openWindow) return clients.openWindow(url);
+    })
+  );
+});

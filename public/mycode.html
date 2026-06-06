@@ -3963,9 +3963,84 @@
   }
 </script>
 <script>
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js');
+// ── SERVICE WORKER + PUSH BİLDİRİŞLƏR ────────────────────────────
+(function() {
+  'use strict';
+
+  if (!('serviceWorker' in navigator)) return;
+
+  // URL-dan base64url → Uint8Array (VAPID açarı üçün)
+  function urlBase64ToUint8Array(base64String) {
+    var padding = '='.repeat((4 - base64String.length % 4) % 4);
+    var base64  = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+    var rawData = window.atob(base64);
+    var arr     = new Uint8Array(rawData.length);
+    for (var i = 0; i < rawData.length; i++) arr[i] = rawData.charCodeAt(i);
+    return arr;
   }
+
+  // ArrayBuffer → base64 (URL-safe olmayan, web-push üçün standart)
+  function ab2b64(buf) {
+    return btoa(String.fromCharCode.apply(null, new Uint8Array(buf)));
+  }
+
+  // Mövcud abunəliyi serverə qeyd et
+  function registerSubscription(sub) {
+    if (!sub || !window.SECRET) return;
+    var subJson = sub.toJSON ? sub.toJSON() : {};
+    var p256dh  = subJson.keys ? subJson.keys.p256dh : ab2b64(sub.getKey('p256dh'));
+    var auth    = subJson.keys ? subJson.keys.auth   : ab2b64(sub.getKey('auth'));
+    google.script.run.subscribePush(window.SECRET, {
+      endpoint: sub.endpoint,
+      keys: { p256dh: p256dh, auth: auth },
+    });
+  }
+
+  // Push abunəliyini başlat
+  function initPush(sw) {
+    // VAPID public key-i serverdən al
+    fetch('/vapid-public-key')
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        if (!d.publicKey) return;
+        var appKey = urlBase64ToUint8Array(d.publicKey);
+
+        // Mövcud abunəlik varmı?
+        sw.pushManager.getSubscription().then(function(existing) {
+          if (existing) {
+            // Artıq abunədir, serverdə qeydiyyatı yenilə
+            registerSubscription(existing);
+            return;
+          }
+          // Yeni abunəlik yarat (browser "İzin ver?" sorusu göstərəcək)
+          sw.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: appKey,
+          }).then(function(sub) {
+            registerSubscription(sub);
+          }).catch(function(err) {
+            // İstifadəçi rədd etdisə — səssizcə keç
+            if (Notification.permission !== 'denied') {
+              console.warn('[Push] abunəlik xətası:', err.message);
+            }
+          });
+        });
+      })
+      .catch(function() {});
+  }
+
+  // SW qeyd et, sonra push abunəliyini başlat
+  navigator.serviceWorker.register('/sw.js').then(function(reg) {
+    // Səhifə tam yüklənəndən bir az sonra sor
+    // (dərhal sormaq istifadəçini narahat edir)
+    setTimeout(function() {
+      initPush(reg);
+    }, 3000);
+  }).catch(function(e) {
+    console.error('[SW]', e);
+  });
+
+})();
 </script>
 <footer style="text-align:center;padding:18px 0 14px;font-family:Inter,sans-serif;"><div style="font-size:0.72rem;font-weight:600;color:rgba(255,255,255,0.25);letter-spacing:0.01em;">created by Coffeemoon</div><div style="font-size:0.65rem;color:rgba(255,255,255,0.15);margin-top:2px;">version 1.0.1</div></footer>
 </body>

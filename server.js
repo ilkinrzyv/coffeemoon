@@ -1,14 +1,87 @@
 'use strict';
 require('dotenv').config();
-const express = require('express');
-const path    = require('path');
-const fs      = require('fs');
-const sb      = require('./db');
-const U       = require('./utils');
+const express  = require('express');
+const path     = require('path');
+const fs       = require('fs');
+const sb       = require('./db');
+const U        = require('./utils');
+const webpush  = require('web-push');
 
 const app       = express();
 const PORT      = process.env.PORT || 3000;
 const ADMIN_KEY = process.env.ADMIN_KEY || 'coffeemoon';
+
+// ── VAPID konfiqurasiyası ─────────────────────────────────────────
+if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
+  webpush.setVapidDetails(
+    process.env.VAPID_EMAIL || 'mailto:admin@coffeemoon.az',
+    process.env.VAPID_PUBLIC_KEY,
+    process.env.VAPID_PRIVATE_KEY
+  );
+} else {
+  console.warn('⚠️  VAPID açarları tapılmadı — push bildirişlər deaktivdir.');
+}
+
+// ── Push köməkçi funksiya ─────────────────────────────────────────
+async function sendPushToEmployee(empId, title, body, extra = {}) {
+  if (!process.env.VAPID_PUBLIC_KEY) return;
+  try {
+    const { data: subs } = await sb
+      .from('push_subscriptions')
+      .select('*')
+      .eq('emp_id', String(empId));
+    if (!subs?.length) return;
+
+    const payload = JSON.stringify({
+      title,
+      body,
+      icon:  '/icon-192.png',
+      badge: '/icon-192.png',
+      tag:   extra.tag  || 'coffeemoon',
+      url:   extra.url  || '/mycode',
+      requireInteraction: extra.requireInteraction || false,
+    });
+
+    await Promise.allSettled(
+      subs.map(sub => webpush.sendNotification(
+        { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+        payload
+      ).catch(async err => {
+        // 410 Gone = abunəlik artıq etibarsızdır, sil
+        if (err.statusCode === 410) {
+          await sb.from('push_subscriptions').delete().eq('endpoint', sub.endpoint);
+        }
+      }))
+    );
+  } catch (e) {
+    console.error('[Push]', e.message);
+  }
+}
+
+// Bütün aktiv işçilərə push göndər (elan üçün)
+async function sendPushToAll(title, body, extra = {}) {
+  if (!process.env.VAPID_PUBLIC_KEY) return;
+  try {
+    const { data: subs } = await sb.from('push_subscriptions').select('*');
+    if (!subs?.length) return;
+    const payload = JSON.stringify({
+      title, body, icon: '/icon-192.png', badge: '/icon-192.png',
+      tag: extra.tag || 'coffeemoon-announce', url: extra.url || '/mycode',
+    });
+    await Promise.allSettled(
+      subs.map(sub => webpush.sendNotification(
+        { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+        payload
+      ).catch(async err => {
+        if (err.statusCode === 410) {
+          await sb.from('push_subscriptions').delete().eq('endpoint', sub.endpoint);
+        }
+      }))
+    );
+  } catch (e) {
+    console.error('[Push-all]', e.message);
+  }
+}
 
 app.use(express.json({ limit: '5mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
@@ -25,6 +98,11 @@ function replaceVars(html, vars) {
     (h, [k, v]) => h.replace(new RegExp(`<\\?= ${k} \\?>`, 'g'), v), html
   );
 }
+
+// VAPID açıq açarı — frontend abunəlik üçün istifadə edir
+app.get('/vapid-public-key', (_, res) =>
+  res.json({ publicKey: process.env.VAPID_PUBLIC_KEY || '' })
+);
 
 app.get('/scan',  (_, res) => res.send(readTemplate('passpage.html')));
 
@@ -370,7 +448,18 @@ API.addIzin = async (data) => {
 };
 
 API.updateIzinStatus = async (izinId, status) => {
+  const { data: izin } = await sb.from('izin').select('emp_id,emp_name,start_date,end_date').eq('izin_id', izinId).single();
   const { error } = await sb.from('izin').update({ status }).eq('izin_id', izinId);
+  if (!error && izin) {
+    const emoji   = status === 'approved' ? '✅' : status === 'rejected' ? '❌' : '🔄';
+    const statusAz = status === 'approved' ? 'təsdiqləndi' : status === 'rejected' ? 'rədd edildi' : 'yeniləndi';
+    await sendPushToEmployee(
+      izin.emp_id,
+      `${emoji} İzin Tələbi`,
+      `${izin.start_date} – ${izin.end_date} tarixlərə müraciətiniz ${statusAz}.`,
+      { tag: 'izin-' + izinId }
+    );
+  }
   return { success: !error };
 };
 
@@ -659,6 +748,32 @@ API.getOnlineEmployees = async () => {
 
 API.registerEmployeeSession = (secret) => {
   if (!secret) return { ok: false };
+  return { ok: true };
+};
+
+// ── PUSH ABUNƏLIK ────────────────────────────────────────────────
+
+API.subscribePush = async (secret, subscription) => {
+  if (!secret || !subscription?.endpoint) return { ok: false, reason: 'Məlumat çatışmır.' };
+  const { data: emp } = await sb.from('employees').select('id').eq('secret', secret).single();
+  if (!emp) return { ok: false, reason: 'İşçi tapılmadı.' };
+
+  await sb.from('push_subscriptions').upsert({
+    emp_id:   String(emp.id),
+    endpoint: subscription.endpoint,
+    p256dh:   subscription.keys?.p256dh || '',
+    auth:     subscription.keys?.auth   || '',
+  }, { onConflict: 'endpoint' });
+
+  return { ok: true };
+};
+
+API.unsubscribePush = async (secret, endpoint) => {
+  if (!secret || !endpoint) return { ok: false };
+  const { data: emp } = await sb.from('employees').select('id').eq('secret', secret).single();
+  if (!emp) return { ok: false };
+  await sb.from('push_subscriptions').delete()
+    .eq('emp_id', String(emp.id)).eq('endpoint', endpoint);
   return { ok: true };
 };
 
@@ -1219,10 +1334,20 @@ API.approveLatePerm = async (branchKey, permId, action) => {
   const check = U.validateBranchScheduleKey(branchKey);
   if (!check.valid) return { success: false, reason: 'İcazəsiz.' };
   if (action !== 'approved' && action !== 'rejected') return { success: false, reason: 'Yanlış əməliyyat.' };
-  // dept şərti olmadan yalnız perm_id-ə görə yenilə
+  const { data: perm } = await sb.from('late_perms').select('emp_id,date_str,requested_time').eq('perm_id', permId).single();
   const { error, count } = await sb.from('late_perms')
     .update({ status: action, approved_at: new Date().toISOString() })
     .eq('perm_id', permId);
+  if (!error && perm) {
+    const emoji   = action === 'approved' ? '✅' : '❌';
+    const statusAz = action === 'approved' ? 'təsdiqləndi' : 'rədd edildi';
+    await sendPushToEmployee(
+      perm.emp_id,
+      `${emoji} Gec Gəliş İcazəsi`,
+      `${perm.date_str} tarixi üçün ${perm.requested_time} icazəniz ${statusAz}.`,
+      { tag: 'lateperm-' + permId }
+    );
+  }
   return { success: !error, updated: count };
 };
 
@@ -1319,8 +1444,22 @@ API.getAvansList = async () => {
 API.updateAvansStatus = async (avansId, status) => {
   if (!['approved', 'rejected', 'paid'].includes(status))
     return { success: false, reason: 'Yanlış status.' };
-  // Yalnız avans_id-ə görə yenilə — dept şərti yoxdur
+  const { data: av } = await sb.from('avans').select('emp_id,emp_name,amount').eq('avans_id', avansId).single();
   const { error } = await sb.from('avans').update({ status }).eq('avans_id', avansId);
+  if (!error && av) {
+    const map = {
+      approved: { emoji: '✅', az: 'təsdiqləndi' },
+      rejected: { emoji: '❌', az: 'rədd edildi'  },
+      paid:     { emoji: '💵', az: 'ödənildi'     },
+    };
+    const { emoji, az } = map[status] || { emoji: '🔄', az: 'yeniləndi' };
+    await sendPushToEmployee(
+      av.emp_id,
+      `${emoji} Avans Tələbi`,
+      `${av.amount} AZN avans tələbiniz ${az}.`,
+      { tag: 'avans-' + avansId }
+    );
+  }
   return { success: !error };
 };
 
@@ -1341,6 +1480,14 @@ API.saveAnnouncement = async (data) => {
   }
   const newId = 'YN-' + Date.now().toString(36).toUpperCase();
   await sb.from('announcements').insert({ id:newId, title:data.title, body:data.body, type:data.type||'info', pinned:!!data.pinned });
+  // Yeni elan — bütün işçilərə push göndər
+  const typeEmoji = { info:'ℹ️', success:'✅', warning:'⚠️', new:'🆕' };
+  const emoji = typeEmoji[data.type] || '📢';
+  await sendPushToAll(
+    `${emoji} ${data.title || 'Yeni Elan'}`,
+    data.body ? data.body.slice(0, 100) : '',
+    { tag: 'announce-' + newId }
+  );
   return { ok:true, id:newId };
 };
 
