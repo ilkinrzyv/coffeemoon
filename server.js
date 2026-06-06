@@ -378,18 +378,24 @@ async function buildLeaveMap() {
   }
   return map;
 }
-// Gec gəliş icazəsi map: { "empId|date_str" → true }
+// Gec gəliş icazəsi map: { "empId|date_str" → permMins (icazə verilən dəqiqə) }
 async function buildLatePermMap() {
-  const { data } = await sb.from('late_perms').select('emp_id,date_str').eq('status', 'approved');
-  const set = new Set();
-  for (const r of data || []) set.add(String(r.emp_id) + '|' + r.date_str);
-  return set;
+  const { data } = await sb.from('late_perms').select('emp_id,date_str,requested_time').eq('status', 'approved');
+  const map = {};
+  for (const r of data || []) {
+    const [h, m] = (r.requested_time || '23:59').split(':').map(Number);
+    map[String(r.emp_id) + '|' + r.date_str] = h * 60 + m;
+  }
+  return map;
 }
 function onLeave(leaveMap, empId, dateStr) {
   return (leaveMap[String(empId)] || []).some(r => dateStr >= r.s && dateStr <= r.e);
 }
-function hasLatePerm(latePermSet, empId, dateStr) {
-  return latePermSet.has(String(empId) + '|' + dateStr);
+// İcazə varsa və gəlmə vaxtı icazə vaxtı + 5 dəq içindədirsə → vaxtında
+function withinLatePerm(latePermMap, empId, dateStr, arrivalMins) {
+  const key = String(empId) + '|' + dateStr;
+  if (!(key in latePermMap)) return false;
+  return arrivalMins <= latePermMap[key] + 5;
 }
 
 API.getMonthlyReport = async (year, month) => {
@@ -398,7 +404,7 @@ API.getMonthlyReport = async (year, month) => {
   const startStr = `${year}-${m}-01`;
   const endStr   = month === 12 ? `${year + 1}-01-01` : `${year}-${String(month + 1).padStart(2, '0')}-01`;
 
-  const [{ data: logs }, leaveMap, latePermSet] = await Promise.all([
+  const [{ data: logs }, leaveMap, latePermMap] = await Promise.all([
     sb.from('attendance').select('*').gte('timestamp', startStr).lt('timestamp', endStr),
     buildLeaveMap(),
     buildLatePermMap(),
@@ -410,15 +416,16 @@ API.getMonthlyReport = async (year, month) => {
     const cixisLogs = myLogs.filter(r => r.type === 'CIXIS');
     let lateCount = 0, onTime = 0, totalHours = 0;
     for (const r of gelisLogs) {
-      const d       = new Date(r.timestamp);
-      const dateStr = U.toYMD(d);
-      // Tam gün izin və ya gec gəliş icazəsi → vaxtında sayılır
-      if (onLeave(leaveMap, emp.id, dateStr) || hasLatePerm(latePermSet, emp.id, dateStr)) {
-        onTime++; continue;
-      }
+      const d           = new Date(r.timestamp);
+      const dateStr     = U.toYMD(d);
+      const arrivalMins = d.getHours() * 60 + d.getMinutes();
+      // Tam gün izin → vaxtında
+      if (onLeave(leaveMap, emp.id, dateStr)) { onTime++; continue; }
+      // Gec gəliş icazəsi → yalnız icazə vaxtı + 5 dəq içindədirsə vaxtında
+      if (withinLatePerm(latePermMap, emp.id, dateStr, arrivalMins)) { onTime++; continue; }
       const si   = r.shift_type ? U.getShiftInfo(emp.dept, r.shift_type) : null;
       const late = si
-        ? (d.getHours() * 60 + d.getMinutes()) > (si.lateH * 60 + si.lateM)
+        ? arrivalMins > (si.lateH * 60 + si.lateM)
         : U.isLate(emp.dept, d);
       if (late) lateCount++; else onTime++;
     }
@@ -444,7 +451,7 @@ API.getWarnings = async () => {
   const monday = new Date(now.getTime() - (dow === 0 ? 6 : dow - 1) * 86400000);
   monday.setHours(0, 0, 0, 0);
 
-  const [{ data: logs }, leaveMap, latePermSet] = await Promise.all([
+  const [{ data: logs }, leaveMap, latePermMap] = await Promise.all([
     sb.from('attendance').select('*').eq('type', 'GƏLİŞ').gte('timestamp', monday.toISOString()),
     buildLeaveMap(),
     buildLatePermMap(),
@@ -457,7 +464,8 @@ API.getWarnings = async () => {
     for (const r of myLogs) {
       const d       = new Date(r.timestamp);
       const dateStr = U.toYMD(d);
-      if (onLeave(leaveMap, emp.id, dateStr) || hasLatePerm(latePermSet, emp.id, dateStr)) continue;
+      const arrMins = d.getHours() * 60 + d.getMinutes();
+      if (onLeave(leaveMap, emp.id, dateStr) || withinLatePerm(latePermMap, emp.id, dateStr, arrMins)) continue;
       const si  = r.shift_type ? U.getShiftInfo(emp.dept, r.shift_type) : null;
       const isL = si
         ? (d.getHours() * 60 + d.getMinutes()) > (si.lateH * 60 + si.lateM)

@@ -111,10 +111,14 @@ async function calcStreak(empId, dept) {
     .order('timestamp', { ascending: false });
   if (!logs) return 0;
 
-  // Gec gəliş icazələrini bir dəfə çək
+  // Gec gəliş icazələrini bir dəfə çək (vaxtı ilə birlikdə)
   const { data: perms } = await sb.from('late_perms')
-    .select('date_str').eq('emp_id', String(empId)).eq('status', 'approved');
-  const permDates = new Set((perms || []).map(r => r.date_str));
+    .select('date_str,requested_time').eq('emp_id', String(empId)).eq('status', 'approved');
+  const permMap = {};
+  for (const p of perms || []) {
+    const [ph, pm] = (p.requested_time || '23:59').split(':').map(Number);
+    permMap[p.date_str] = ph * 60 + pm;
+  }
 
   // Tam gün izinlərini bir dəfə çək
   const { data: izinRows } = await sb.from('izin')
@@ -123,24 +127,28 @@ async function calcStreak(empId, dept) {
   function hasIzin(dateStr) {
     return (izinRows || []).some(r => dateStr >= r.start_date && dateStr <= r.end_date);
   }
+  function withinPerm(dateStr, arrivalMins) {
+    return dateStr in permMap && arrivalMins <= permMap[dateStr] + 5;
+  }
 
   let streak = 0;
   for (const row of logs) {
     const d = new Date(row.timestamp);
     if (isNaN(d.getTime())) continue;
-    const dateStr = getLogicalYMD(d);
+    const dateStr     = getLogicalYMD(d);
+    const arrivalMins = d.getHours() * 60 + d.getMinutes();
 
-    // İcazəli günlər (tam gün izin və ya gec gəliş icazəsi) streak-i qırmır
-    if (hasIzin(dateStr) || permDates.has(dateStr)) { streak++; continue; }
+    // Tam gün izin → streak davam edir
+    if (hasIzin(dateStr)) { streak++; continue; }
+    // Gec gəliş icazəsi — yalnız icazə vaxtı + 5 dəq içindədirsə streak davam edir
+    if (withinPerm(dateStr, arrivalMins)) { streak++; continue; }
 
-    const h = d.getHours(), m = d.getMinutes();
-    const tot = h * 60 + m;
     const st = await getEmployeeShift(empId, dateStr);
     const si = st ? getShiftInfo(dept, st) : null;
     const lim = si ? (si.lateH * 60 + si.lateM)
-      : (h < 13 ? 7 * 60 + 30 : (dept === 'Ağ Şəhər' || dept === 'Gənclik') ? 16 * 60 : 15 * 60);
-    if (tot <= lim) streak++;
-    else break; // Gecikmiş gün — streak burada dayanır, cərimə Bal sisteminə aiddir
+      : (arrivalMins < 13 * 60 ? 7 * 60 + 30 : (dept === 'Ağ Şəhər' || dept === 'Gənclik') ? 16 * 60 : 15 * 60);
+    if (arrivalMins <= lim) streak++;
+    else break; // Gecikmiş gün — streak dayanır
   }
   return streak;
 }
