@@ -3538,17 +3538,21 @@
 
     // Aura cədvəli
     var auraData = [
-      ['Bürünc kart çərçivəsi','200 Bal',xp>=200],
-      ['Gümüş kart çərçivəsi','750 Bal',xp>=750],
-      ['Qızıl kart çərçivəsi','1500 Bal',xp>=1500],
-      ['Hologram. Premium kart parıltısı','2000 Bal + 50 streak',xp>=2000&&streak>=50]
+      {col:'#cd7f32', label:'Bürünc Aura',  req:'200 Bal',              active: xp>=200},
+      {col:'#a8b8c8', label:'Gümüş Aura',   req:'750 Bal',              active: xp>=750},
+      {col:'#f5c542', label:'Qızıl Aura',   req:'1500 Bal',             active: xp>=1500},
+      {col:'#a78bfa', label:'Hologram',      req:'2000 Bal + 50 streak', active: xp>=2000&&streak>=50}
     ];
     var auraRows = auraData.map(function(a){
-      return '<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.04);">'
-        +'<span style="font-size:1rem;">'+a[0]+'</span>'
-        +'<div style="flex:1;"><div style="font-size:0.78rem;font-weight:'+(a[3]?'700':'500')+';color:rgba(255,255,255,'+(a[3]?'0.85':'0.35')+');">'+a[1]+'</div>'
-        +'<div style="font-size:0.67rem;color:rgba(255,255,255,0.22);">'+a[2]+'</div></div>'
-        +(a[3]?'<span style="font-size:0.6rem;color:#34d399;font-weight:700;">Aktiv</span>':'')
+      return '<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,0.04);">'
+        +'<div style="width:10px;height:10px;border-radius:50%;background:'+a.col+';flex-shrink:0;box-shadow:0 0 6px '+a.col+'88;opacity:'+(a.active?'1':'0.3')+';"></div>'
+        +'<div style="flex:1;">'
+          +'<div style="font-size:0.79rem;font-weight:'+(a.active?'700':'500')+';color:rgba(255,255,255,'+(a.active?'0.88':'0.32')+');">'+a.label+'</div>'
+          +'<div style="font-size:0.67rem;color:rgba(255,255,255,0.2);margin-top:1px;">'+a.req+'</div>'
+        +'</div>'
+        +(a.active
+          ?'<span style="font-size:0.62rem;font-weight:700;color:#34d399;background:rgba(52,211,153,0.1);padding:2px 7px;border-radius:5px;">Aktiv</span>'
+          :'<i class="fa-solid fa-lock" style="font-size:0.6rem;color:rgba(255,255,255,0.15);"></i>')
         +'</div>';
     }).join('');
 
