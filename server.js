@@ -147,6 +147,23 @@ function sbErr(label, error) {
   if (error) console.error(`[SB] ${label}:`, error.message);
 }
 
+// ── XP MÜHƏRRİKİ ─────────────────────────────────────────────────
+function getXPMultiplier(streak) {
+  if (streak >= 60) return 2.0;
+  if (streak >= 30) return 1.75;
+  if (streak >= 14) return 1.5;
+  if (streak >= 7)  return 1.25;
+  return 1.0;
+}
+
+async function awardXP(empId, baseAmount, streak) {
+  const gained = Math.round(baseAmount * getXPMultiplier(streak || 0));
+  const { data: emp } = await sb.from('employees').select('xp').eq('id', empId).single();
+  const current = emp?.xp || 0;
+  await sb.from('employees').update({ xp: current + gained }).eq('id', empId);
+  return gained;
+}
+
 // ══════════════════════════════════════════════════════════════════
 //  API FUNKSİYALARI
 // ══════════════════════════════════════════════════════════════════
@@ -469,6 +486,7 @@ API.validateAndLog = async (enteredPin, clientIp, forceMode) => {
     if (!matched.is_test) {
       const newStreak = await U.calcStreak(matched.id, matched.dept);
       await sb.from('employees').update({ streak: newStreak }).eq('id', matched.id);
+      await awardXP(matched.id, 20, newStreak);
     }
     await U.sendTelegramMsg(`<b>${matched.name}</b> smendə.\n${U.fmtTime(ts)} — ${lateStr}`, matched.dept);
     return { valid: true, empName: matched.name, dept: matched.dept, type: 'GƏLİŞ', overtime: '' };
@@ -495,6 +513,7 @@ API.validateAndLog = async (enteredPin, clientIp, forceMode) => {
       emp_id: matched.id, emp_name: matched.name, dept: matched.dept,
       timestamp: ts.toISOString(), type: 'CIXIS', overtime: overtimeStr, shift_type: todayShift || '',
     });
+    if (!matched.is_test) await awardXP(matched.id, 5, matched.streak || 0);
     await U.sendTelegramMsg(`<b>${matched.name}</b> smendən çıxdı.\n${U.fmtTime(ts)} — ${overtimeStr}`, matched.dept);
     return { valid: true, empName: matched.name, dept: matched.dept, type: 'CIXIS', overtime: overtimeStr };
   }
@@ -572,6 +591,7 @@ API.getDashboardData = async (secret) => {
   const myR    = report.find(r => r.empId === emp.id) || { totalDays:0, onTime:0, late:0, pct:0 };
   return {
     streak:          emp.is_test ? 999 : (emp.streak || 0),
+    xp:              emp.is_test ? 999999 : (emp.xp || 0),
     dept:            emp.dept,
     weekSchedule,
     nextWeekSchedule,
@@ -616,6 +636,7 @@ API.logLunch = async (enteredPin, clientIp, lunchType) => {
   if (naharQay.length > 0)   return { valid: false, reason: 'Nahardan qayıdışınız artıq qeydə alınıb!' };
   const diffMin = Math.round((ts.getTime() - new Date(naharGet[0].timestamp).getTime()) / 60000);
   await sb.from('nahar').insert({ nahar_id: 'NH-' + Date.now().toString(36).toUpperCase(), emp_id: matched.id, emp_name: matched.name, dept: matched.dept, timestamp: ts.toISOString(), type: 'NAHAR_QAY' });
+  if (!matched.is_test) await awardXP(matched.id, 5, matched.streak || 0);
   await U.sendTelegramMsg(`<b>${matched.name}</b> nahar bitdi.\n${U.fmtTime(ts)} — ${diffMin} dəq`, matched.dept);
   return { valid: true, empName: matched.name, dept: matched.dept, type: 'NAHAR_QAY', duration: diffMin };
 };
@@ -1218,6 +1239,7 @@ API.getMyProfile = async (secret) => {
     empId: emp.id, empName: emp.name, dept: emp.dept,
     testMode:    isTest,
     streak:      isTest ? 999 : (emp.streak || 0),
+    xp:          isTest ? 999999 : (emp.xp || 0),
     avatarType:  p?.avatar_type  || 'preset',
     avatarValue: p?.avatar_value || 'mug-hot',
     accentColor: p?.accent_color || '#5b5ef4',
@@ -1255,7 +1277,7 @@ API.getTeamProfiles = async (secret) => {
   if (!secret) return [];
   const { data: caller } = await sb.from('employees').select('id').eq('secret', secret).single();
   if (!caller) return [];
-  const { data: emps } = await sb.from('employees').select('id,name,dept,is_test,streak').order('name');
+  const { data: emps } = await sb.from('employees').select('id,name,dept,is_test,streak,xp').order('name');
   const { data: profiles } = await sb.from('profiles').select('*');
   const pm = {};
   for (const p of profiles || []) pm[p.emp_id] = p;
@@ -1264,6 +1286,7 @@ API.getTeamProfiles = async (secret) => {
     empName:     e.name,
     dept:        e.dept,
     streak:      e.is_test ? 999 : (e.streak || 0),
+    xp:          e.is_test ? 999999 : (e.xp || 0),
     avatarType:  pm[e.id]?.avatar_type  || 'preset',
     avatarValue: pm[e.id]?.avatar_value || 'mug-hot',
     accentColor: pm[e.id]?.accent_color || '#5b5ef4',
@@ -1321,6 +1344,8 @@ API.toggleReaction = async (secret, toEmpId, type) => {
     }
   } else {
     await sb.from('reactions').insert({ from_emp_id: caller.id, to_emp_id: toEmpId, type });
+    const { data: senderEmp } = await sb.from('employees').select('streak,is_test').eq('id', caller.id).single();
+    if (senderEmp && !senderEmp.is_test) await awardXP(caller.id, 3, senderEmp.streak || 0);
   }
   return { ok: true };
 };
@@ -1339,6 +1364,7 @@ API.getPublicProfile = async (secret, targetEmpId) => {
   const myR = report.find(r => r.empId === emp.id) || { totalDays: 0, onTime: 0, late: 0, pct: 0 };
   return {
     empId: emp.id, empName: emp.name, dept: emp.dept, streak,
+    xp:          targetIsTest ? 999999 : (emp.xp || 0),
     avatarType:  p?.avatar_type  || 'preset',
     avatarValue: p?.avatar_value || 'mug-hot',
     accentColor: p?.accent_color || '#5b5ef4',
@@ -1742,6 +1768,14 @@ API.submitEmployeeExam = async (empId, empName, dept, role, answers) => {
     created_at:   ts.toISOString(),
   });
   sbErr('submitEmployeeExam', error);
+  if (!error && testTotal > 0) {
+    const pct = Math.round(score / testTotal * 100);
+    const xpBase = pct >= 90 ? 100 : pct >= 80 ? 75 : pct >= 60 ? 50 : 0;
+    if (xpBase > 0) {
+      const { data: empRow } = await sb.from('employees').select('streak,is_test').eq('id', String(empId)).single();
+      if (empRow && !empRow.is_test) await awardXP(empId, xpBase, empRow.streak || 0);
+    }
+  }
   return { success: !error, score, maxScore: testTotal, answers: graded };
 };
 

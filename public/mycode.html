@@ -1653,6 +1653,7 @@
           <div class="profile-own-dept" id="profileOwnDept"></div>
           <div class="profile-bio-text" id="profileBioText"></div>
           <div id="profileStreakBadge" style="display:none;"></div>
+          <div id="profileXPBar" style="width:100%;max-width:240px;margin:10px auto 4px;"></div>
           <button class="profile-edit-btn" onclick="enterEditMode()">
             <i class="fa-solid fa-pen"></i> Profili Redaktə Et
           </button>
@@ -1994,6 +1995,7 @@
             document.getElementById('streakBox').style.display = 'inline-flex';
             document.getElementById('streakCount').innerText = dash.streak;
           }
+          if (dash.xp != null) { _myXP = dash.xp; }
           buildStreakGuide(dash.streak || 0);
           checkLateStatus();
           if (dash.weekSchedule && dash.weekSchedule.length) renderWeekSchedule(dash.weekSchedule, dash.nextWeekSchedule || []);
@@ -2548,6 +2550,21 @@
 
   var _myProfile = null;
   var _myStreakCount = 0;
+  var _myXP = 0;
+  function calcXPLevel(xp) {
+    var THRESHOLDS = [0,200,500,750,1000,1500,2000,3000,4500,7000];
+    for (var i = THRESHOLDS.length - 1; i >= 0; i--) {
+      if (xp >= THRESHOLDS[i]) return i + 1;
+    }
+    return 1;
+  }
+  function xpToNextLevel(xp) {
+    var THRESHOLDS = [0,200,500,750,1000,1500,2000,3000,4500,7000];
+    var lvl = calcXPLevel(xp);
+    if (lvl >= THRESHOLDS.length) return { next: 0, pct: 100 };
+    var cur = THRESHOLDS[lvl - 1], nxt = THRESHOLDS[lvl];
+    return { next: nxt - xp, pct: Math.round((xp - cur) / (nxt - cur) * 100) };
+  }
   var _editAvatarTab = 'preset';
   var _editAvatarType = 'preset';
   var _editAvatarValue = 'mug-hot';
@@ -2559,23 +2576,23 @@
     {id:'none',      label:'Yoxdur',   unlock:0  },
     {id:'gradient',  label:'Gradient', unlock:0  },
     {id:'waves',     label:'Dalğa',    unlock:0  },
-    {id:'dots',      label:'Nöqtə',    unlock:7  },
-    {id:'diagonal',  label:'Zolaq',    unlock:7  },
-    {id:'mesh',      label:'Tor',      unlock:14 },
-    {id:'geometric', label:'Həndəsi',  unlock:14 },
-    {id:'ocean',     label:'Okean',    unlock:21 },
-    {id:'sunset',    label:'Günbatan', unlock:30 },
-    {id:'rose',      label:'Gül',      unlock:30 },
-    {id:'carbon',    label:'Karbon',   unlock:45 },
-    {id:'aurora',    label:'Aurora',   unlock:60 },
-    {id:'candy',     label:'Konfet',   unlock:7  },
-    {id:'retro',     label:'Retrodalğa', unlock:30},
-    {id:'neon_grid', label:'Neon Şəb.', unlock:21},
-    {id:'fire',      label:'Alov',     unlock:30 },
-    {id:'smoke',     label:'Tüstü',    unlock:30 },
-    {id:'galaxy',    label:'Qalaktika',unlock:45 },
-    {id:'prism',     label:'Prizm',    unlock:60 },
-    {id:'holo_water',label:'Holo Su',  unlock:60 },
+    {id:'dots',      label:'Nöqtə',    unlock:200},
+    {id:'diagonal',  label:'Zolaq',    unlock:200},
+    {id:'mesh',      label:'Tor',      unlock:500},
+    {id:'geometric', label:'Həndəsi',  unlock:500},
+    {id:'ocean',     label:'Okean',    unlock:750},
+    {id:'sunset',    label:'Günbatan', unlock:1000},
+    {id:'rose',      label:'Gül',      unlock:1000},
+    {id:'carbon',    label:'Karbon',   unlock:1500},
+    {id:'aurora',    label:'Aurora',   unlock:2000},
+    {id:'candy',     label:'Konfet',   unlock:200},
+    {id:'retro',     label:'Retrodalğa', unlock:1000},
+    {id:'neon_grid', label:'Neon Şəb.', unlock:750},
+    {id:'fire',      label:'Alov',     unlock:1000},
+    {id:'smoke',     label:'Tüstü',    unlock:1000},
+    {id:'galaxy',    label:'Qalaktika',unlock:1500},
+    {id:'prism',     label:'Prizm',    unlock:2000},
+    {id:'holo_water',label:'Holo Su',  unlock:2000},
   ];
   var THEME_OPTS = [
     {id:'glass',    label:'Glass',    ic:'fa-layer-group'},
@@ -2695,26 +2712,26 @@
     {id:'none',        label:'Yoxdur',    unlock:0  },
     {id:'simple',      label:'Sadə',      unlock:0  },
     {id:'dashed',      label:'Kəsik',     unlock:0  },
-    {id:'dotted',      label:'Nöqtəli',   unlock:7  },
-    {id:'rainbow_anim',label:'Göy Qurşağı',unlock:7  },
-    {id:'spin_fr',     label:'Döndər',    unlock:14 },
-    {id:'neon_pulse',  label:'Neon Nəbz', unlock:14 },
-    {id:'ripple',      label:'Dalğa Hlq', unlock:14 },
-    {id:'lightning',   label:'Şimşək',    unlock:14 },
-    {id:'glitch',      label:'Glitch',    unlock:14 },
-    {id:'fire_ring',   label:'Alov Hlq',  unlock:21 },
-    {id:'ice_crystal', label:'Buz Krist', unlock:21 },
-    {id:'matrix',      label:'Matrix',    unlock:21 },
-    {id:'aura_frame',  label:'Aura',      unlock:21 },
-    {id:'current',     label:'Neon Cər',  unlock:21 },
-    {id:'electric',    label:'Elektrik',  unlock:30 },
-    {id:'solar',       label:'Günəş Tacı',unlock:30 },
-    {id:'quake',       label:'Zəlzələ',   unlock:30 },
-    {id:'magma',       label:'Maqma',     unlock:30 },
-    {id:'galaxy_fr',   label:'Kəhkəşan',  unlock:45 },
-    {id:'aurora_bor',  label:'Aurora',    unlock:45 },
-    {id:'hipnoz',      label:'Hipnoz',    unlock:60 },
-    {id:'blackhole',   label:'Qara Dəlik',unlock:60 },
+    {id:'dotted',      label:'Nöqtəli',   unlock:200},
+    {id:'rainbow_anim',label:'Göy Qurşağı',unlock:200},
+    {id:'spin_fr',     label:'Döndər',    unlock:500},
+    {id:'neon_pulse',  label:'Neon Nəbz', unlock:500},
+    {id:'ripple',      label:'Dalğa Hlq', unlock:500},
+    {id:'lightning',   label:'Şimşək',    unlock:500},
+    {id:'glitch',      label:'Glitch',    unlock:500},
+    {id:'fire_ring',   label:'Alov Hlq',  unlock:750},
+    {id:'ice_crystal', label:'Buz Krist', unlock:750},
+    {id:'matrix',      label:'Matrix',    unlock:750},
+    {id:'aura_frame',  label:'Aura',      unlock:750},
+    {id:'current',     label:'Neon Cər',  unlock:750},
+    {id:'electric',    label:'Elektrik',  unlock:1000},
+    {id:'solar',       label:'Günəş Tacı',unlock:1000},
+    {id:'quake',       label:'Zəlzələ',   unlock:1000},
+    {id:'magma',       label:'Maqma',     unlock:1000},
+    {id:'galaxy_fr',   label:'Kəhkəşan',  unlock:1500},
+    {id:'aurora_bor',  label:'Aurora',    unlock:1500},
+    {id:'hipnoz',      label:'Hipnoz',    unlock:2000},
+    {id:'blackhole',   label:'Qara Dəlik',unlock:2000},
   ];
 
   function buildFramePicker(cur, accent, onChange) {
@@ -2722,7 +2739,7 @@
     if (!c) return;
     c.innerHTML = '';
     _FRAME_OPTS.forEach(function(o) {
-      var locked = (o.unlock || 0) > _myStreakCount;
+      var locked = (o.unlock || 0) > _myXP;
       var item = document.createElement('div');
       item.className = 'frame-pick-item' + (cur === o.id ? ' on' : '') + (locked ? ' locked' : '');
       item.style.position = 'relative';
@@ -2739,7 +2756,7 @@
       if (locked) {
         var lockBadge = document.createElement('div');
         lockBadge.className = 'frame-pick-lock';
-        lockBadge.innerHTML = '<i class="fa-solid fa-fire" style="font-size:0.5rem;color:#f59e0b;"></i>' + o.unlock;
+        lockBadge.innerHTML = '<i class="fa-solid fa-star" style="font-size:0.5rem;color:#f59e0b;"></i>' + o.unlock + ' XP';
         item.appendChild(lockBadge);
       }
 
@@ -2790,15 +2807,15 @@
   }
 
   var _lockToastTimer = null;
-  function showLockToast(days) {
+  function showLockToast(xpRequired) {
     var existing = document.querySelector('.streak-lock-toast');
     if (existing) existing.remove();
     if (_lockToastTimer) clearTimeout(_lockToastTimer);
     var el = document.createElement('div');
     el.className = 'streak-lock-toast';
-    el.innerHTML = '<i class="fa-solid fa-fire"></i> ' + days + ' gün ardıcıl davamiyyət lazımdır';
+    el.innerHTML = '<i class="fa-solid fa-star"></i> ' + xpRequired + ' XP lazımdır (Sizdə: ' + _myXP + ' XP)';
     document.body.appendChild(el);
-    _lockToastTimer = setTimeout(function(){ el.remove(); }, 2200);
+    _lockToastTimer = setTimeout(function(){ el.remove(); }, 2500);
   }
 
   function buildBannerPicker(cur, accent, onChange) {
@@ -2806,7 +2823,7 @@
     if (!c) return;
     c.innerHTML = '';
     BANNER_OPTS.forEach(function(o) {
-      var locked = (o.unlock || 0) > _myStreakCount;
+      var locked = (o.unlock || 0) > _myXP;
       var item = document.createElement('div');
       item.className = 'banner-pick-item' + (cur === o.id ? ' on' : '') + (locked ? ' locked' : '');
       item.style.position = 'relative';
@@ -2827,7 +2844,7 @@
       if (locked) {
         var lockBadge = document.createElement('div');
         lockBadge.className = 'banner-pick-lock';
-        lockBadge.innerHTML = '<i class="fa-solid fa-fire" style="font-size:0.5rem;color:#f59e0b;"></i>' + o.unlock;
+        lockBadge.innerHTML = '<i class="fa-solid fa-star" style="font-size:0.5rem;color:#f59e0b;"></i>' + o.unlock + ' XP';
         item.appendChild(lockBadge);
       }
 
@@ -2919,8 +2936,11 @@
       .withSuccessHandler(function(p) {
         if (!p) return;
         _myProfile = p;
-        if (p.testMode) _myStreakCount = 999;
-        else if (p.streak > 0) _myStreakCount = Math.max(_myStreakCount, p.streak);
+        if (p.testMode) { _myStreakCount = 999; _myXP = 999999; }
+        else {
+          if (p.streak > 0) _myStreakCount = Math.max(_myStreakCount, p.streak);
+          if (p.xp != null) _myXP = Math.max(_myXP, p.xp);
+        }
         _editAvatarType  = p.avatarType;
         _editAvatarValue = p.avatarValue;
         _editAccentColor = p.accentColor;
@@ -3037,6 +3057,24 @@
     var streakVal = p.testMode ? 999 : (p.streak || 0);
     applyOwnProfileStreakEffects(streakVal, accent);
     checkMilestone(streakVal);
+    // XP bar
+    renderXPBar(p.testMode ? 999999 : (p.xp || _myXP || 0), accent);
+  }
+
+  function renderXPBar(xp, accent) {
+    var el = document.getElementById('profileXPBar');
+    if (!el) return;
+    var lvl = calcXPLevel(xp);
+    var info = xpToNextLevel(xp);
+    var col = accent || '#5b5ef4';
+    el.innerHTML =
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">' +
+        '<span style="font-size:0.7rem;font-weight:800;color:'+col+';">⭐ Səviyyə ' + lvl + '</span>' +
+        '<span style="font-size:0.67rem;color:rgba(255,255,255,0.4);font-weight:600;">' + xp + ' XP' + (info.next > 0 ? ' · Növbəti: ' + info.next + ' XP' : '') + '</span>' +
+      '</div>' +
+      '<div style="height:5px;background:rgba(255,255,255,0.08);border-radius:100px;overflow:hidden;">' +
+        '<div style="height:100%;width:' + (info.pct > 100 ? 100 : info.pct) + '%;background:'+col+';border-radius:100px;transition:width 0.5s cubic-bezier(0.16,1,0.3,1);"></div>' +
+      '</div>';
   }
 
   function enterEditMode() {
