@@ -1586,6 +1586,10 @@ API.gradeOpenAnswer = async (trainerKey, examId, questionId, passed) => {
 
   const { error } = await sb.from('trainer_exams').update({ answers, score }).eq('exam_id', examId);
   sbErr('gradeOpenAnswer', error);
+  if (!error && passed) {
+    const { data: empRow } = await sb.from('employees').select('streak,is_test').eq('id', String(exam.emp_id)).single();
+    if (empRow && !empRow.is_test) await awardXP(exam.emp_id, 15, empRow.streak || 0);
+  }
   return { success: !error, score, answers };
 };
 
