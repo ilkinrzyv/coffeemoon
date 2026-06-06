@@ -1619,9 +1619,15 @@ API.giveManualXP = async (trainerKey, empId, amount) => {
   const amt = parseInt(amount);
   if (!empId || isNaN(amt) || amt < 1 || amt > 500)
     return { success: false, reason: 'Məbləğ 1–500 arasında olmalıdır.' };
-  const { data: emp } = await sb.from('employees').select('streak,is_test').eq('id', String(empId)).single();
+  const { data: emp } = await sb.from('employees').select('name,dept,is_test').eq('id', String(empId)).single();
   if (!emp || emp.is_test) return { success: false, reason: 'İşçi tapılmadı.' };
   await awardXP(empId, amt, 0);
+  const trainerName = U.getSetting('TRAINER_NAME') || 'Trainer';
+  await sb.from('xp_audit_log').insert({
+    trainer_name: trainerName, emp_id: String(empId), emp_name: emp.name,
+    dept: emp.dept, amount: amt, type: 'manual', stars: null,
+    created_at: new Date().toISOString(),
+  });
   return { success: true, xp: amt };
 };
 
@@ -1631,10 +1637,22 @@ API.rateEmployee = async (trainerKey, empId, stars) => {
   const XP_MAP = { 3: 15, 4: 30, 5: 50 };
   const xp = XP_MAP[parseInt(stars)];
   if (!empId || !xp) return { success: false, reason: 'Yanlış məlumat.' };
-  const { data: emp } = await sb.from('employees').select('streak,is_test').eq('id', String(empId)).single();
+  const { data: emp } = await sb.from('employees').select('name,dept,is_test').eq('id', String(empId)).single();
   if (!emp || emp.is_test) return { success: false, reason: 'İşçi tapılmadı.' };
   await awardXP(empId, xp, 0);
+  const trainerName = U.getSetting('TRAINER_NAME') || 'Trainer';
+  await sb.from('xp_audit_log').insert({
+    trainer_name: trainerName, emp_id: String(empId), emp_name: emp.name,
+    dept: emp.dept, amount: xp, type: 'rating', stars: parseInt(stars),
+    created_at: new Date().toISOString(),
+  });
   return { success: true, xp };
+};
+
+API.getXPAuditLog = async () => {
+  const { data } = await sb.from('xp_audit_log')
+    .select('*').order('created_at', { ascending: false }).limit(200);
+  return { rows: data || [] };
 };
 
 API.gradeOpenAnswer = async (trainerKey, examId, questionId, passed) => {

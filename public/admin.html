@@ -237,6 +237,7 @@ input:focus,select:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(7
   <button class="tab" onclick="sw('waste')"><i class="fa-solid fa-box-archive"></i> Tullantılar</button>
   <button class="tab" onclick="sw('yenilik')"><i class="fa-solid fa-bell-concierge"></i> Yeniliklər</button>
   <button class="tab" onclick="sw('trainer')"><i class="fa-solid fa-graduation-cap"></i> Training</button>
+  <button class="tab" onclick="sw('xplog')"><i class="fa-solid fa-star"></i> Bal Loqu</button>
 </nav>
 
 <!-- İŞÇİLƏR -->
@@ -445,6 +446,17 @@ input:focus,select:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(7
   </div>
 
 </div><!-- /tab-trainer -->
+
+<!-- BAL LOQU -->
+<div class="page" id="tab-xplog">
+  <div class="section-header">
+    <h2><i class="fa-solid fa-star" style="color:#f59e0b;"></i> Bal Loqu — Trainer Əməliyyatları</h2>
+    <button class="btn sm primary" onclick="loadXPLog()"><i class="fa-solid fa-rotate-right"></i> Yenilə</button>
+  </div>
+  <div id="xplogList" style="margin-top:1rem;">
+    <p style="color:var(--muted);font-size:0.85rem;">Yükləmək üçün Yenilə düyməsini basın.</p>
+  </div>
+</div>
 
 <!-- MENECERLƏR -->
 <div id="tab-mgr" class="page">
@@ -879,7 +891,7 @@ function getDayShort(s){var d=new Date(s);var names=['B.e.','Ç.a.','Çər.','C.
 
 // ── TAB SW ───────────────────────────────────────────────────────
 function sw(name){
-  var tabs=['emp','cedvel','att','hesabat','izin','dev','tg','mgr','wifi','checklist','waste','yenilik','trainer'];
+  var tabs=['emp','cedvel','att','hesabat','izin','dev','tg','mgr','wifi','checklist','waste','yenilik','trainer','xplog'];
   tabs.forEach(function(n){
     var el=document.getElementById('tab-'+n);
     if(el) el.classList.toggle('active',n===name);
@@ -893,6 +905,7 @@ function sw(name){
   if(name==='cedvel'){loadSched();loadBranchLinks();}
   if(name==='hesabat'){loadWarnings();initRepSelects();}
   if(name==='izin') {loadIzinList();populateIzinEmps();}
+  if(name==='xplog') loadXPLog();
   if(name==='checklist'){initChecklist();}
   if(name==='waste'){loadProductsAdmin();}
   if(name==='yenilik'){loadYenilikler();}
@@ -2177,6 +2190,41 @@ function buildAdminExamCard(exam, uid) {
       '</div>'+
     '</div>'+
   '</div>';
+}
+
+// ── BAL LOQU ──────────────────────────────────────────────────────
+function loadXPLog() {
+  var el = document.getElementById('xplogList');
+  el.innerHTML = '<p style="color:var(--muted);font-size:0.85rem;">Yüklənir...</p>';
+  google.script.run.withSuccessHandler(function(res) {
+    var rows = (res && res.rows) || [];
+    if (!rows.length) { el.innerHTML = '<p style="color:var(--muted);font-size:0.85rem;">Hələ heç bir qeyd yoxdur.</p>'; return; }
+    var html = '<table style="width:100%;border-collapse:collapse;font-size:0.82rem;">'
+      + '<thead><tr style="background:rgba(15,23,42,0.04);">'
+      + '<th style="padding:8px 10px;text-align:left;font-weight:700;color:var(--muted);border-bottom:1px solid #e2e8f0;">Tarix</th>'
+      + '<th style="padding:8px 10px;text-align:left;font-weight:700;color:var(--muted);border-bottom:1px solid #e2e8f0;">Trainer</th>'
+      + '<th style="padding:8px 10px;text-align:left;font-weight:700;color:var(--muted);border-bottom:1px solid #e2e8f0;">İşçi</th>'
+      + '<th style="padding:8px 10px;text-align:left;font-weight:700;color:var(--muted);border-bottom:1px solid #e2e8f0;">Filial</th>'
+      + '<th style="padding:8px 10px;text-align:left;font-weight:700;color:var(--muted);border-bottom:1px solid #e2e8f0;">Tip</th>'
+      + '<th style="padding:8px 10px;text-align:right;font-weight:700;color:var(--muted);border-bottom:1px solid #e2e8f0;">Bal</th>'
+      + '</tr></thead><tbody>';
+    rows.forEach(function(r) {
+      var d = r.created_at ? new Date(r.created_at).toLocaleString('az-AZ',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '—';
+      var tipLabel = r.type === 'manual' ? 'Manual' : (r.stars ? '⭐'.repeat(r.stars) + ' Qiymət' : 'Qiymət');
+      var tipColor = r.type === 'manual' ? '#7c3aed' : '#d97706';
+      html += '<tr style="border-bottom:1px solid #f1f5f9;">'
+        + '<td style="padding:7px 10px;color:#64748b;">' + d + '</td>'
+        + '<td style="padding:7px 10px;font-weight:600;">' + (r.trainer_name||'—') + '</td>'
+        + '<td style="padding:7px 10px;font-weight:600;">' + (r.emp_name||'—') + '</td>'
+        + '<td style="padding:7px 10px;color:#64748b;">' + (r.dept||'—') + '</td>'
+        + '<td style="padding:7px 10px;"><span style="font-size:0.75rem;font-weight:700;color:'+tipColor+';background:'+tipColor+'18;padding:2px 8px;border-radius:6px;">'+tipLabel+'</span></td>'
+        + '<td style="padding:7px 10px;text-align:right;font-weight:800;color:#059669;">+' + r.amount + '</td>'
+        + '</tr>';
+    });
+    html += '</tbody></table>';
+    el.innerHTML = html;
+  }).withFailureHandler(function(){ el.innerHTML = '<p style="color:red;">Yüklənə bilmədi.</p>'; })
+  .getXPAuditLog();
 }
 </script>
 <footer style="text-align:center;padding:18px 0 14px;font-family:Inter,sans-serif;"><div style="font-size:0.72rem;font-weight:600;color:rgba(15,23,42,0.3);letter-spacing:0.01em;">created by Coffeemoon</div><div style="font-size:0.65rem;color:rgba(15,23,42,0.2);margin-top:2px;">version 1.0.1</div></footer>
