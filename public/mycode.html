@@ -1455,6 +1455,24 @@
   </div>
   
   <!-- ANA KAD (həmişə görünür) -->
+  <!-- Yeniliklər — ticket-dən əvvəl, yalnız Gündəlik tabında görünür -->
+  <div class="announce-card" id="announceCard" style="display:none;">
+    <div class="announce-header" onclick="toggleAnnounce()" style="cursor:pointer;">
+      <div class="announce-header-icon"><i class="fa-solid fa-bell-concierge"></i></div>
+      <div class="announce-header-text">
+        <div class="announce-header-title">Yeniliklər</div>
+        <div class="announce-header-sub" id="announceHeaderSub">Rəhbərlikdən məlumatlar</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div class="announce-count" id="announceCount">0</div>
+        <i class="fa-solid fa-chevron-down" id="announceChevron" style="font-size:0.75rem;color:var(--text-soft);transition:transform 0.25s;"></i>
+      </div>
+    </div>
+    <div id="announceBody" style="overflow:hidden;max-height:0;transition:max-height 0.35s ease;">
+      <div class="announce-list" id="announceList"></div>
+    </div>
+  </div>
+
   <div class="ticket" id="ticket">
     <div class="ticket-header">
       <div class="brand"><i class="fa-solid fa-mug-hot"></i> COFFEEMOON</div>
@@ -1504,23 +1522,6 @@
 
   <!-- PANEL 1: GÜNDƏLİK -->
   <div class="tab-panel" id="panel-gundelik">
-
-    <div class="announce-card" id="announceCard" style="display:none;">
-      <div class="announce-header" onclick="toggleAnnounce()" style="cursor:pointer;">
-        <div class="announce-header-icon"><i class="fa-solid fa-bell-concierge"></i></div>
-        <div class="announce-header-text">
-          <div class="announce-header-title">Yeniliklər</div>
-          <div class="announce-header-sub" id="announceHeaderSub">Rəhbərlikdən məlumatlar</div>
-        </div>
-        <div style="display:flex;align-items:center;gap:8px;">
-          <div class="announce-count" id="announceCount">0</div>
-          <i class="fa-solid fa-chevron-down" id="announceChevron" style="font-size:0.75rem;color:var(--text-soft);transition:transform 0.25s;"></i>
-        </div>
-      </div>
-      <div id="announceBody" style="overflow:hidden;max-height:0;transition:max-height 0.35s ease;">
-        <div class="announce-list" id="announceList"></div>
-      </div>
-    </div>
 
     <div class="lunch-card" id="lunchCard">
       <div class="lunch-card-header">
@@ -1964,6 +1965,8 @@
       document.getElementById(btnIds[t]).classList.toggle('active', t === tab);
     });
     document.getElementById('ticket').style.display = (tab === 'gundelik') ? '' : 'none';
+    var ac = document.getElementById('announceCard');
+    if (ac && ac.dataset.hasAnnounce === '1') ac.style.display = (tab === 'gundelik') ? 'block' : 'none';
     if (tab === 'profil' && !_profileLoaded) loadProfileTab();
     if (tab === 'qeydler') renderNotes();
     // Kamera: gundelik tabında aç, başqasında bağla
@@ -2160,7 +2163,9 @@
         '<div class="announce-body">' + yn.body + '</div>' +
         '<div class="announce-date"><i class="fa-regular fa-calendar"></i> ' + yn.date + '</div></div>';
     }).join('');
-    document.getElementById('announceCard').style.display = 'block';
+    var ac = document.getElementById('announceCard');
+    ac.dataset.hasAnnounce = '1';
+    ac.style.display = 'block';
   }
   function toggleAnnounce() {
     var body = document.getElementById('announceBody');
