@@ -486,7 +486,18 @@ API.validateAndLog = async (enteredPin, clientIp, forceMode) => {
     if (!matched.is_test) {
       const newStreak = await U.calcStreak(matched.id, matched.dept);
       await sb.from('employees').update({ streak: newStreak }).eq('id', matched.id);
-      await awardXP(matched.id, 20, newStreak);
+      if (!late) {
+        await awardXP(matched.id, 20, newStreak);
+      } else {
+        const lateThreshold = shiftInfo
+          ? (shiftInfo.lateH * 60 + shiftInfo.lateM)
+          : (ts.getHours() < 13 ? 7 * 60 + 15 : (matched.dept === 'Gənclik' || matched.dept === 'Ağ Şəhər') ? 16 * 60 : 15 * 60);
+        const lateMins = nowMins - lateThreshold;
+        const penalty  = lateMins >= 45 ? 50 : lateMins >= 21 ? 30 : 15;
+        const { data: empXP } = await sb.from('employees').select('xp').eq('id', matched.id).single();
+        const current = empXP?.xp || 0;
+        await sb.from('employees').update({ xp: Math.max(0, current - penalty) }).eq('id', matched.id);
+      }
     }
     await U.sendTelegramMsg(`<b>${matched.name}</b> smendə.\n${U.fmtTime(ts)} — ${lateStr}`, matched.dept);
     return { valid: true, empName: matched.name, dept: matched.dept, type: 'GƏLİŞ', overtime: '' };
