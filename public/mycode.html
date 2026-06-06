@@ -1430,24 +1430,6 @@
   <!-- Gecikinti bildirişi -->
   <div id="lateNoticeBar" style="display:none;margin-bottom:8px;border-radius:12px;padding:7px 12px;font-size:0.73rem;font-weight:600;display:none;align-items:center;gap:7px;"></div>
 
-  <!-- Yeniliklər (həmişə görünür) -->
-  <div class="announce-card" id="announceCard" style="display:none;">
-    <div class="announce-header" onclick="toggleAnnounce()" style="cursor:pointer;">
-      <div class="announce-header-icon"><i class="fa-solid fa-bell-concierge"></i></div>
-      <div class="announce-header-text">
-        <div class="announce-header-title">Yeniliklər</div>
-        <div class="announce-header-sub" id="announceHeaderSub">Rəhbərlikdən məlumatlar</div>
-      </div>
-      <div style="display:flex;align-items:center;gap:8px;">
-        <div class="announce-count" id="announceCount">0</div>
-        <i class="fa-solid fa-chevron-down" id="announceChevron" style="font-size:0.75rem;color:var(--text-soft);transition:transform 0.25s;"></i>
-      </div>
-    </div>
-    <div id="announceBody" style="overflow:hidden;max-height:0;transition:max-height 0.35s ease;">
-      <div class="announce-list" id="announceList"></div>
-    </div>
-  </div>
-
     <!-- TAB BAR (auth sonrası görünür) -->
   <div class="main-tab-bar" id="mainTabBar">
     <button class="main-tab active" id="tabBtnGundelik" onclick="showTab('gundelik')">
@@ -1520,8 +1502,25 @@
     </div>
   </div>
 
-  <!-- PANEL 1: GÜNDƏLİK (Nahar) -->
+  <!-- PANEL 1: GÜNDƏLİK -->
   <div class="tab-panel" id="panel-gundelik">
+
+    <div class="announce-card" id="announceCard" style="display:none;">
+      <div class="announce-header" onclick="toggleAnnounce()" style="cursor:pointer;">
+        <div class="announce-header-icon"><i class="fa-solid fa-bell-concierge"></i></div>
+        <div class="announce-header-text">
+          <div class="announce-header-title">Yeniliklər</div>
+          <div class="announce-header-sub" id="announceHeaderSub">Rəhbərlikdən məlumatlar</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div class="announce-count" id="announceCount">0</div>
+          <i class="fa-solid fa-chevron-down" id="announceChevron" style="font-size:0.75rem;color:var(--text-soft);transition:transform 0.25s;"></i>
+        </div>
+      </div>
+      <div id="announceBody" style="overflow:hidden;max-height:0;transition:max-height 0.35s ease;">
+        <div class="announce-list" id="announceList"></div>
+      </div>
+    </div>
 
     <div class="lunch-card" id="lunchCard">
       <div class="lunch-card-header">
