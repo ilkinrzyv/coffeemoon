@@ -1367,8 +1367,6 @@ API.toggleReaction = async (secret, toEmpId, type) => {
     }
   } else {
     await sb.from('reactions').insert({ from_emp_id: caller.id, to_emp_id: toEmpId, type });
-    const { data: senderEmp } = await sb.from('employees').select('streak,is_test').eq('id', caller.id).single();
-    if (senderEmp && !senderEmp.is_test) await awardXP(caller.id, 3, senderEmp.streak || 0);
   }
   return { ok: true };
 };
