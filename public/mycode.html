@@ -3538,10 +3538,10 @@
 
     // Aura cədvəli
     var auraData = [
-      ['🟫','Bronze Aura','200 Bal',xp>=200],
-      ['⬜','Silver Aura','750 Bal',xp>=750],
-      ['🟡','Gold Aura','1500 Bal',xp>=1500],
-      ['🌈','Hologram','2000 Bal + 50 streak',xp>=2000&&streak>=50]
+      ['Bürünc kart çərçivəsi','200 Bal',xp>=200],
+      ['Gümüş kart çərçivəsi','750 Bal',xp>=750],
+      ['Qızıl kart çərçivəsi','1500 Bal',xp>=1500],
+      ['Hologram. Premium kart parıltısı','2000 Bal + 50 streak',xp>=2000&&streak>=50]
     ];
     var auraRows = auraData.map(function(a){
       return '<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.04);">'
@@ -3554,22 +3554,22 @@
 
     body.innerHTML =
       sec('Bal Qazanmaq') +
-      row('right-to-bracket','#34d399','Vaxtında <b>gəliş</b> — +20 Bal <span style="color:rgba(255,255,255,0.35);font-size:0.72rem;">(streak × ilə)</span>') +
-      row('trophy','#fbbf24','<b>Streak milestoneu:</b> 7g +50 · 14g +100 · 30g +250 · 60g +500 · 100g +1000 Bal <span style="color:rgba(255,255,255,0.35);font-size:0.72rem;">(hər milestone yalnız bir dəfə)</span>') +
-      row('file-pen','#818cf8','<b>İmtahan</b> — 60%+: +50 · 80%+: +75 · 90%+: +100 Bal') +
-      row('comment-dots','#818cf8','<b>Açıq sual</b> düzgün qiymətləndiriləndə — +15 Bal') +
+      row('right-to-bracket','#34d399','Vaxtında <b>gəliş</b> — +20 Bal <span style="color:rgba(255,255,255,0.35);font-size:0.72rem;">(davamiyyət × ilə)</span>') +
+      row('trophy','#fbbf24','<b>Davamiyyət keçid hədiyyəsi:</b> 7g +50 · 14g +100 · 30g +250 · 60g +500 · 100g +1000 Bal <span style="color:rgba(255,255,255,0.35);font-size:0.72rem;">(hər keçid yalnız bir dəfə)</span>') +
+      row('file-pen','#818cf8','<b>İmtahan</b> — 60%+ nəticə: +50 · 80%+ nəticə: +75 · 90%+ nəticə: +100 Bal') +
+      row('comment-dots','#818cf8','<b>Açıq sual</b> üçün xüsusi — +15 Bal') +
       row('heart','#f472b6','Komanda üzvünə <b>reaksiya</b> vermək — +3 Bal') +
       divider() +
-      sec('Streak Multiplikatoru') +
+      sec('Davamiyyət Multiplikatoru') +
       '<div style="background:rgba(255,255,255,0.03);border-radius:10px;padding:6px 10px;margin-top:6px;">'
-      + '<div style="font-size:0.68rem;color:rgba(255,255,255,0.3);margin-bottom:6px;">Hazırki streak: <b style="color:#fbbf24;">' + streak + ' gün</b></div>'
+      + '<div style="font-size:0.68rem;color:rgba(255,255,255,0.3);margin-bottom:6px;">Hazırki davamiyyət: <b style="color:#fbbf24;">' + streak + ' gün</b></div>'
       + multRows + '</div>' +
       divider() +
       sec('Gecikdikdə') +
       row('clock','#fb7185','6–20 dəq gecikmə — <b>−15 Bal</b> (gəliş balı da verilmir)') +
       row('clock','#fb7185','21–44 dəq gecikmə — <b>−30 Bal</b>') +
       row('clock','#fb7185','45+ dəq gecikmə — <b>−50 Bal</b>') +
-      row('calendar-xmark','#94a3b8','<b>Gecikdikdə</b> streak −5 azalır, multiplikator düşə bilər') +
+      row('calendar-xmark','#94a3b8','<b>Gecikdikdə</b> streak −5 azalır, multiplikator düşə bilər. İcazə aldıqda davamiyyət artırmır və azalmır. İşə gəlmədikdə davamiyyət 0-lanır.') +
       row('shield-halved','#34d399','<b>Streak qalxanı:</b> 30+ gün → cəza −50% · 60+ gün → cəza −75%') +
       divider() +
       sec('Dərəcələr') +
@@ -3577,7 +3577,7 @@
       + (info.next > 0 ? '<div style="font-size:0.68rem;color:rgba(255,255,255,0.3);margin-bottom:6px;">Növbəti dərəcəyə <b style="color:#818cf8;">' + info.next + ' Bal</b> qalıb</div>' : '<div style="font-size:0.68rem;color:#fbbf24;margin-bottom:6px;">Maksimum dərəcəyə çatmısınız!</div>')
       + lvlRows + '</div>' +
       divider() +
-      sec('Auralar') +
+      sec('Kart çərçivələri') +
       '<div style="background:rgba(255,255,255,0.03);border-radius:10px;padding:6px 10px;margin-top:6px;">'
       + auraRows + '</div>' +
       divider() +
