@@ -110,11 +110,29 @@ async function calcStreak(empId, dept) {
     .select('timestamp,shift_type').eq('emp_id', String(empId)).eq('type', 'GƏLİŞ')
     .order('timestamp', { ascending: false });
   if (!logs) return 0;
+
+  // Gec gəliş icazələrini bir dəfə çək
+  const { data: perms } = await sb.from('late_perms')
+    .select('date_str').eq('emp_id', String(empId)).eq('status', 'approved');
+  const permDates = new Set((perms || []).map(r => r.date_str));
+
+  // Tam gün izinlərini bir dəfə çək
+  const { data: izinRows } = await sb.from('izin')
+    .select('start_date,end_date').eq('emp_id', String(empId)).eq('status', 'approved');
+
+  function hasIzin(dateStr) {
+    return (izinRows || []).some(r => dateStr >= r.start_date && dateStr <= r.end_date);
+  }
+
   let streak = 0;
   for (const row of logs) {
     const d = new Date(row.timestamp);
     if (isNaN(d.getTime())) continue;
     const dateStr = getLogicalYMD(d);
+
+    // İcazəli günlər (tam gün izin və ya gec gəliş icazəsi) streak-i qırmır
+    if (hasIzin(dateStr) || permDates.has(dateStr)) { streak++; continue; }
+
     const h = d.getHours(), m = d.getMinutes();
     const tot = h * 60 + m;
     const st = await getEmployeeShift(empId, dateStr);
@@ -122,7 +140,7 @@ async function calcStreak(empId, dept) {
     const lim = si ? (si.lateH * 60 + si.lateM)
       : (h < 13 ? 7 * 60 + 30 : (dept === 'Ağ Şəhər' || dept === 'Gənclik') ? 16 * 60 : 15 * 60);
     if (tot <= lim) streak++;
-    else { streak = Math.max(0, streak - 5); break; }
+    else break; // Gecikmiş gün — streak burada dayanır, cərimə Bal sisteminə aiddir
   }
   return streak;
 }
