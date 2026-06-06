@@ -3963,85 +3963,131 @@
   }
 </script>
 <script>
-// ── SERVICE WORKER + PUSH BİLDİRİŞLƏR ────────────────────────────
+// ── SERVICE WORKER + PUSH BİLDİRİŞLƏR (iOS + Android) ──────────
 (function() {
   'use strict';
 
   if (!('serviceWorker' in navigator)) return;
 
-  // URL-dan base64url → Uint8Array (VAPID açarı üçün)
-  function urlBase64ToUint8Array(base64String) {
-    var padding = '='.repeat((4 - base64String.length % 4) % 4);
-    var base64  = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
-    var rawData = window.atob(base64);
-    var arr     = new Uint8Array(rawData.length);
-    for (var i = 0; i < rawData.length; i++) arr[i] = rawData.charCodeAt(i);
+  // ── Platform aşkarlama ──────────────────────────────────────────
+  var isIOS        = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  var isStandalone = window.navigator.standalone === true;
+  var isOldIOS     = isIOS && parseInt((navigator.userAgent.match(/OS (\d+)_/) || [])[1] || 0) < 16;
+
+  // ── Köməkçilər ─────────────────────────────────────────────────
+  function urlBase64ToUint8Array(b64) {
+    var pad = '='.repeat((4 - b64.length % 4) % 4);
+    var raw = atob((b64 + pad).replace(/-/g, '+').replace(/_/g, '/'));
+    var arr = new Uint8Array(raw.length);
+    for (var i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
     return arr;
   }
 
-  // ArrayBuffer → base64 (URL-safe olmayan, web-push üçün standart)
-  function ab2b64(buf) {
-    return btoa(String.fromCharCode.apply(null, new Uint8Array(buf)));
-  }
-
-  // Mövcud abunəliyi serverə qeyd et
   function registerSubscription(sub) {
     if (!sub || !window.SECRET) return;
-    var subJson = sub.toJSON ? sub.toJSON() : {};
-    var p256dh  = subJson.keys ? subJson.keys.p256dh : ab2b64(sub.getKey('p256dh'));
-    var auth    = subJson.keys ? subJson.keys.auth   : ab2b64(sub.getKey('auth'));
+    var j = sub.toJSON ? sub.toJSON() : {};
     google.script.run.subscribePush(window.SECRET, {
       endpoint: sub.endpoint,
-      keys: { p256dh: p256dh, auth: auth },
+      keys: {
+        p256dh: j.keys ? j.keys.p256dh : btoa(String.fromCharCode.apply(null, new Uint8Array(sub.getKey('p256dh')))),
+        auth:   j.keys ? j.keys.auth   : btoa(String.fromCharCode.apply(null, new Uint8Array(sub.getKey('auth')))),
+      },
     });
   }
 
-  // Push abunəliyini başlat
-  function initPush(sw) {
-    // VAPID public key-i serverdən al
-    fetch('/vapid-public-key')
-      .then(function(r) { return r.json(); })
-      .then(function(d) {
-        if (!d.publicKey) return;
-        var appKey = urlBase64ToUint8Array(d.publicKey);
-
-        // Mövcud abunəlik varmı?
-        sw.pushManager.getSubscription().then(function(existing) {
-          if (existing) {
-            // Artıq abunədir, serverdə qeydiyyatı yenilə
-            registerSubscription(existing);
-            return;
-          }
-          // Yeni abunəlik yarat (browser "İzin ver?" sorusu göstərəcək)
-          sw.pushManager.subscribe({
-            userVisibleOnly: true,
-            applicationServerKey: appKey,
-          }).then(function(sub) {
-            registerSubscription(sub);
-          }).catch(function(err) {
-            // İstifadəçi rədd etdisə — səssizcə keç
-            if (Notification.permission !== 'denied') {
-              console.warn('[Push] abunəlik xətası:', err.message);
-            }
-          });
-        });
-      })
-      .catch(function() {});
+  // ── Push prompt UI ─────────────────────────────────────────────
+  function showPrompt(type) {
+    // type: 'ask' | 'add-to-home' | 'old-ios'
+    var bar = document.getElementById('pushPromptBar');
+    if (!bar) return;
+    if (type === 'add-to-home') {
+      bar.innerHTML =
+        '<span style="flex:1">📲 Bildiriş almaq üçün əvvəlcə <b>Ana Ekrana Əlavə Et</b> (Safari → Paylaş → Ana Ekrana)</span>' +
+        '<button onclick="document.getElementById(\'pushPromptBar\').style.display=\'none\'" style="background:none;border:none;color:inherit;font-size:1.1rem;cursor:pointer;padding:0 4px">×</button>';
+      bar.style.display = 'flex';
+    } else if (type === 'old-ios') {
+      bar.innerHTML =
+        '<span style="flex:1">⚠️ Bildirişlər iOS 16.4+ tələb edir.</span>' +
+        '<button onclick="document.getElementById(\'pushPromptBar\').style.display=\'none\'" style="background:none;border:none;color:inherit;font-size:1.1rem;cursor:pointer;padding:0 4px">×</button>';
+      bar.style.display = 'flex';
+    } else if (type === 'ask') {
+      bar.innerHTML =
+        '<span style="flex:1">🔔 Bildirişlər almaq istəyirsinizmi?</span>' +
+        '<button id="pushAllowBtn" style="background:#5b5ef4;color:#fff;border:none;border-radius:10px;padding:7px 14px;font-weight:700;cursor:pointer;font-size:0.83rem">İcazə ver</button>' +
+        '<button onclick="document.getElementById(\'pushPromptBar\').style.display=\'none\'" style="background:none;border:none;color:inherit;font-size:1.1rem;cursor:pointer;padding:0 4px;margin-left:6px">×</button>';
+      bar.style.display = 'flex';
+      document.getElementById('pushAllowBtn').addEventListener('click', function() {
+        bar.style.display = 'none';
+        doSubscribe();
+      });
+    }
   }
 
-  // SW qeyd et, sonra push abunəliyini başlat
+  var _swReg = null;
+  var _vapidKey = null;
+
+  function doSubscribe() {
+    if (!_swReg || !_vapidKey) return;
+    _swReg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(_vapidKey),
+    }).then(function(sub) {
+      registerSubscription(sub);
+    }).catch(function(err) {
+      if (Notification.permission !== 'denied') console.warn('[Push]', err.message);
+    });
+  }
+
+  function initPush(sw) {
+    _swReg = sw;
+    fetch('/vapid-public-key').then(function(r) { return r.json(); }).then(function(d) {
+      if (!d.publicKey) return;
+      _vapidKey = d.publicKey;
+
+      // Mövcud abunəlik varsa — yenilə
+      sw.pushManager.getSubscription().then(function(existing) {
+        if (existing) { registerSubscription(existing); return; }
+
+        // ── iOS xüsusi axın ───────────────────────────────────────
+        if (isIOS) {
+          if (isOldIOS) { showPrompt('old-ios'); return; }
+          if (!isStandalone) { showPrompt('add-to-home'); return; }
+          // Standalone iOS 16.4+ — icazə soruşmadan əvvəl düymə göstər
+          if (Notification.permission === 'granted') {
+            doSubscribe();
+          } else {
+            showPrompt('ask');
+          }
+          return;
+        }
+
+        // ── Android / Chrome / Desktop: avtomatik sor ─────────────
+        if (Notification.permission === 'granted') {
+          doSubscribe();
+        } else if (Notification.permission !== 'denied') {
+          showPrompt('ask');
+        }
+      });
+    }).catch(function() {});
+  }
+
   navigator.serviceWorker.register('/sw.js').then(function(reg) {
-    // Səhifə tam yüklənəndən bir az sonra sor
-    // (dərhal sormaq istifadəçini narahat edir)
-    setTimeout(function() {
-      initPush(reg);
-    }, 3000);
-  }).catch(function(e) {
-    console.error('[SW]', e);
-  });
+    setTimeout(function() { initPush(reg); }, 2500);
+  }).catch(function(e) { console.error('[SW]', e); });
 
 })();
 </script>
+<!-- Push bildiriş prompt barı -->
+<div id="pushPromptBar" style="
+  display:none; position:fixed; bottom:0; left:0; right:0; z-index:9999;
+  background:rgba(15,22,42,0.97); backdrop-filter:blur(20px);
+  border-top:1px solid rgba(255,255,255,0.1);
+  padding:14px 16px; gap:10px; align-items:center;
+  font-family:Inter,sans-serif; font-size:0.83rem; color:#cbd5e1;
+  font-weight:500; line-height:1.4;
+  box-shadow:0 -8px 30px rgba(0,0,0,0.4);
+"></div>
+
 <footer style="text-align:center;padding:18px 0 14px;font-family:Inter,sans-serif;"><div style="font-size:0.72rem;font-weight:600;color:rgba(255,255,255,0.25);letter-spacing:0.01em;">created by Coffeemoon</div><div style="font-size:0.65rem;color:rgba(255,255,255,0.15);margin-top:2px;">version 1.0.1</div></footer>
 </body>
 </html>

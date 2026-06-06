@@ -1502,53 +1502,97 @@ function saveWaste() {
 loadManagerDashboard();
 </script>
 <script>
-// ── SERVICE WORKER + MANAGER PUSH BİLDİRİŞLƏR ────────────────────
+// ── SERVICE WORKER + MANAGER PUSH BİLDİRİŞLƏR (iOS + Android) ───
 (function() {
   'use strict';
 
   if (!('serviceWorker' in navigator)) return;
 
-  function urlBase64ToUint8Array(base64String) {
-    var padding = '='.repeat((4 - base64String.length % 4) % 4);
-    var base64  = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
-    var rawData = window.atob(base64);
-    var arr     = new Uint8Array(rawData.length);
-    for (var i = 0; i < rawData.length; i++) arr[i] = rawData.charCodeAt(i);
+  var isIOS        = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  var isStandalone = window.navigator.standalone === true;
+  var isOldIOS     = isIOS && parseInt((navigator.userAgent.match(/OS (\d+)_/) || [])[1] || 0) < 16;
+
+  function urlBase64ToUint8Array(b64) {
+    var pad = '='.repeat((4 - b64.length % 4) % 4);
+    var raw = atob((b64 + pad).replace(/-/g, '+').replace(/_/g, '/'));
+    var arr = new Uint8Array(raw.length);
+    for (var i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
     return arr;
   }
 
-  function registerManagerSubscription(sub) {
+  function registerSub(sub) {
     if (!sub || !window.BRANCH_KEY) return;
-    var subJson = sub.toJSON ? sub.toJSON() : {};
-    var p256dh  = subJson.keys ? subJson.keys.p256dh : btoa(String.fromCharCode.apply(null, new Uint8Array(sub.getKey('p256dh'))));
-    var auth    = subJson.keys ? subJson.keys.auth   : btoa(String.fromCharCode.apply(null, new Uint8Array(sub.getKey('auth'))));
+    var j = sub.toJSON ? sub.toJSON() : {};
     google.script.run.subscribePushManager(window.BRANCH_KEY, {
       endpoint: sub.endpoint,
-      keys: { p256dh: p256dh, auth: auth },
+      keys: {
+        p256dh: j.keys ? j.keys.p256dh : btoa(String.fromCharCode.apply(null, new Uint8Array(sub.getKey('p256dh')))),
+        auth:   j.keys ? j.keys.auth   : btoa(String.fromCharCode.apply(null, new Uint8Array(sub.getKey('auth')))),
+      },
+    });
+  }
+
+  function showPrompt(type) {
+    var bar = document.getElementById('mgrPushBar');
+    if (!bar) return;
+    if (type === 'add-to-home') {
+      bar.innerHTML =
+        '<span style="flex:1">📲 Bildiriş almaq üçün <b>Ana Ekrana Əlavə Et</b> (Safari → Paylaş → Ana Ekrana)</span>' +
+        '<button onclick="document.getElementById(\'mgrPushBar\').style.display=\'none\'" style="background:none;border:none;color:inherit;font-size:1.2rem;cursor:pointer;padding:0 4px">×</button>';
+      bar.style.display = 'flex';
+    } else if (type === 'old-ios') {
+      bar.innerHTML =
+        '<span style="flex:1">⚠️ Bildirişlər iOS 16.4+ tələb edir.</span>' +
+        '<button onclick="document.getElementById(\'mgrPushBar\').style.display=\'none\'" style="background:none;border:none;color:inherit;font-size:1.2rem;cursor:pointer;padding:0 4px">×</button>';
+      bar.style.display = 'flex';
+    } else if (type === 'ask') {
+      bar.innerHTML =
+        '<span style="flex:1">🔔 İşçilərin bildirişlərini almaq istəyirsiniz?</span>' +
+        '<button id="mgrPushBtn" style="background:#5b5ef4;color:#fff;border:none;border-radius:10px;padding:7px 14px;font-weight:700;cursor:pointer;font-size:0.83rem;white-space:nowrap">İcazə ver</button>' +
+        '<button onclick="document.getElementById(\'mgrPushBar\').style.display=\'none\'" style="background:none;border:none;color:inherit;font-size:1.2rem;cursor:pointer;padding:0 4px;margin-left:6px">×</button>';
+      bar.style.display = 'flex';
+      document.getElementById('mgrPushBtn').addEventListener('click', function() {
+        bar.style.display = 'none';
+        doSubscribe();
+      });
+    }
+  }
+
+  var _swReg = null, _vapidKey = null;
+
+  function doSubscribe() {
+    if (!_swReg || !_vapidKey) return;
+    _swReg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(_vapidKey),
+    }).then(function(sub) {
+      registerSub(sub);
+    }).catch(function(err) {
+      if (Notification.permission !== 'denied') console.warn('[Push-mgr]', err.message);
     });
   }
 
   function initManagerPush(sw) {
-    fetch('/vapid-public-key')
-      .then(function(r) { return r.json(); })
-      .then(function(d) {
-        if (!d.publicKey) return;
-        var appKey = urlBase64ToUint8Array(d.publicKey);
-        sw.pushManager.getSubscription().then(function(existing) {
-          if (existing) { registerManagerSubscription(existing); return; }
-          sw.pushManager.subscribe({
-            userVisibleOnly: true,
-            applicationServerKey: appKey,
-          }).then(function(sub) {
-            registerManagerSubscription(sub);
-          }).catch(function(err) {
-            if (Notification.permission !== 'denied') {
-              console.warn('[Push-mgr]', err.message);
-            }
-          });
-        });
-      })
-      .catch(function() {});
+    _swReg = sw;
+    fetch('/vapid-public-key').then(function(r) { return r.json(); }).then(function(d) {
+      if (!d.publicKey) return;
+      _vapidKey = d.publicKey;
+
+      sw.pushManager.getSubscription().then(function(existing) {
+        if (existing) { registerSub(existing); return; }
+
+        if (isIOS) {
+          if (isOldIOS)     { showPrompt('old-ios'); return; }
+          if (!isStandalone){ showPrompt('add-to-home'); return; }
+          Notification.permission === 'granted' ? doSubscribe() : showPrompt('ask');
+          return;
+        }
+
+        // Android / Desktop
+        Notification.permission === 'granted' ? doSubscribe() :
+          Notification.permission !== 'denied' ? showPrompt('ask') : null;
+      });
+    }).catch(function() {});
   }
 
   navigator.serviceWorker.register('/sw.js').then(function(reg) {
@@ -1557,6 +1601,18 @@ loadManagerDashboard();
 
 })();
 </script>
+
+<!-- Manager push prompt barı -->
+<div id="mgrPushBar" style="
+  display:none; position:fixed; bottom:0; left:0; right:0; z-index:9999;
+  background:rgba(255,255,255,0.97); backdrop-filter:blur(20px);
+  border-top:1px solid rgba(0,0,0,0.08);
+  padding:14px 16px; gap:10px; align-items:center;
+  font-family:Inter,sans-serif; font-size:0.83rem; color:#334155;
+  font-weight:500; line-height:1.4;
+  box-shadow:0 -8px 30px rgba(0,0,0,0.1);
+"></div>
+
 <footer style="text-align:center;padding:18px 0 14px;font-family:Inter,sans-serif;"><div style="font-size:0.72rem;font-weight:600;color:rgba(15,23,42,0.3);letter-spacing:0.01em;">created by Coffeemoon</div><div style="font-size:0.65rem;color:rgba(15,23,42,0.2);margin-top:2px;">version 1.0.1</div></footer>
 </body>
 </html>
