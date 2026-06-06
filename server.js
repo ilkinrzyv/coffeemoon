@@ -368,6 +368,7 @@ API.removeIzin = async (izinId) => {
 // ── HESABAT ───────────────────────────────────────────────────────
 
 // İcazə lookup map qurur: { empId → [{start_date, end_date}] }
+// İzin map: { empId → [{s, e}] }  (tam gün izin)
 async function buildLeaveMap() {
   const { data } = await sb.from('izin').select('emp_id,start_date,end_date').eq('status', 'approved');
   const map = {};
@@ -377,8 +378,18 @@ async function buildLeaveMap() {
   }
   return map;
 }
+// Gec gəliş icazəsi map: { "empId|date_str" → true }
+async function buildLatePermMap() {
+  const { data } = await sb.from('late_perms').select('emp_id,date_str').eq('status', 'approved');
+  const set = new Set();
+  for (const r of data || []) set.add(String(r.emp_id) + '|' + r.date_str);
+  return set;
+}
 function onLeave(leaveMap, empId, dateStr) {
   return (leaveMap[String(empId)] || []).some(r => dateStr >= r.s && dateStr <= r.e);
+}
+function hasLatePerm(latePermSet, empId, dateStr) {
+  return latePermSet.has(String(empId) + '|' + dateStr);
 }
 
 API.getMonthlyReport = async (year, month) => {
@@ -387,9 +398,10 @@ API.getMonthlyReport = async (year, month) => {
   const startStr = `${year}-${m}-01`;
   const endStr   = month === 12 ? `${year + 1}-01-01` : `${year}-${String(month + 1).padStart(2, '0')}-01`;
 
-  const [{ data: logs }, leaveMap] = await Promise.all([
+  const [{ data: logs }, leaveMap, latePermSet] = await Promise.all([
     sb.from('attendance').select('*').gte('timestamp', startStr).lt('timestamp', endStr),
     buildLeaveMap(),
+    buildLatePermMap(),
   ]);
 
   return (emps || []).map(emp => {
@@ -400,8 +412,10 @@ API.getMonthlyReport = async (year, month) => {
     for (const r of gelisLogs) {
       const d       = new Date(r.timestamp);
       const dateStr = U.toYMD(d);
-      // Təsdiqlənmiş icazəli gün → həmişə vaxtında sayılır
-      if (onLeave(leaveMap, emp.id, dateStr)) { onTime++; continue; }
+      // Tam gün izin və ya gec gəliş icazəsi → vaxtında sayılır
+      if (onLeave(leaveMap, emp.id, dateStr) || hasLatePerm(latePermSet, emp.id, dateStr)) {
+        onTime++; continue;
+      }
       const si   = r.shift_type ? U.getShiftInfo(emp.dept, r.shift_type) : null;
       const late = si
         ? (d.getHours() * 60 + d.getMinutes()) > (si.lateH * 60 + si.lateM)
@@ -430,9 +444,10 @@ API.getWarnings = async () => {
   const monday = new Date(now.getTime() - (dow === 0 ? 6 : dow - 1) * 86400000);
   monday.setHours(0, 0, 0, 0);
 
-  const [{ data: logs }, leaveMap] = await Promise.all([
+  const [{ data: logs }, leaveMap, latePermSet] = await Promise.all([
     sb.from('attendance').select('*').eq('type', 'GƏLİŞ').gte('timestamp', monday.toISOString()),
     buildLeaveMap(),
+    buildLatePermMap(),
   ]);
 
   const warnings = [];
@@ -442,7 +457,7 @@ API.getWarnings = async () => {
     for (const r of myLogs) {
       const d       = new Date(r.timestamp);
       const dateStr = U.toYMD(d);
-      if (onLeave(leaveMap, emp.id, dateStr)) continue; // icazəli gün → keç
+      if (onLeave(leaveMap, emp.id, dateStr) || hasLatePerm(latePermSet, emp.id, dateStr)) continue;
       const si  = r.shift_type ? U.getShiftInfo(emp.dept, r.shift_type) : null;
       const isL = si
         ? (d.getHours() * 60 + d.getMinutes()) > (si.lateH * 60 + si.lateM)
