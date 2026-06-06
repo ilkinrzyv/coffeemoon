@@ -1432,15 +1432,20 @@
 
   <!-- Yeniliklər (həmişə görünür) -->
   <div class="announce-card" id="announceCard" style="display:none;">
-    <div class="announce-header">
+    <div class="announce-header" onclick="toggleAnnounce()" style="cursor:pointer;">
       <div class="announce-header-icon"><i class="fa-solid fa-bell-concierge"></i></div>
       <div class="announce-header-text">
         <div class="announce-header-title">Yeniliklər</div>
-        <div class="announce-header-sub">Rəhbərlikdən məlumatlar</div>
+        <div class="announce-header-sub" id="announceHeaderSub">Rəhbərlikdən məlumatlar</div>
       </div>
-      <div class="announce-count" id="announceCount">0</div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div class="announce-count" id="announceCount">0</div>
+        <i class="fa-solid fa-chevron-down" id="announceChevron" style="font-size:0.75rem;color:var(--text-soft);transition:transform 0.25s;"></i>
+      </div>
     </div>
-    <div class="announce-list" id="announceList"></div>
+    <div id="announceBody" style="overflow:hidden;max-height:0;transition:max-height 0.35s ease;">
+      <div class="announce-list" id="announceList"></div>
+    </div>
   </div>
 
     <!-- TAB BAR (auth sonrası görünür) -->
@@ -2145,6 +2150,7 @@
 
   function renderAnnouncements(list) {
     document.getElementById('announceCount').innerText = list.length;
+    document.getElementById('announceHeaderSub').innerText = list.length + ' yeni məlumat';
     document.getElementById('announceList').innerHTML = list.map(function(yn) {
       var m = AN_META[yn.type] || AN_META.info;
       return '<div class="announce-item type-' + yn.type + '">' +
@@ -2156,6 +2162,13 @@
         '<div class="announce-date"><i class="fa-regular fa-calendar"></i> ' + yn.date + '</div></div>';
     }).join('');
     document.getElementById('announceCard').style.display = 'block';
+  }
+  function toggleAnnounce() {
+    var body = document.getElementById('announceBody');
+    var chev = document.getElementById('announceChevron');
+    var isOpen = body.style.maxHeight && body.style.maxHeight !== '0px';
+    body.style.maxHeight = isOpen ? '0px' : body.scrollHeight + 'px';
+    chev.style.transform = isOpen ? '' : 'rotate(180deg)';
   }
 
   // ── GECİKMƏ YOXLAMASI ───────────────────────────────────────────
