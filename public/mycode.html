@@ -1130,9 +1130,18 @@
   .pin-alt-toggle { width:100%; margin-top:10px; padding:9px 14px; border:1.5px solid rgba(255,255,255,0.1); border-radius:13px; font-size:0.78rem; font-weight:700; cursor:pointer; background:transparent; color:var(--text-muted); font-family:'Inter',sans-serif; transition:all 0.2s; display:flex; align-items:center; justify-content:center; gap:6px; }
   .pin-alt-toggle:hover { border-color:var(--primary); color:var(--primary); }
   .scan-status { font-size:0.82rem; font-weight:700; text-align:center; min-height:18px; color:var(--text-muted); }
-  .scan-result-box { display:none; width:100%; padding:14px 16px; border-radius:16px; text-align:center; font-size:0.88rem; font-weight:700; animation:fadeIn 0.3s ease; }
-  .scan-result-box.ok { background:var(--success-light); color:#065f46; border:1px solid rgba(15,186,125,0.2); }
-  .scan-result-box.err { background:var(--danger-light); color:#991b1b; border:1px solid rgba(240,69,80,0.15); }
+  .scan-result-box { display:none; }
+  /* Tam ekran skan nəticə overlay */
+  .scan-result-overlay { display:none; position:fixed; inset:0; z-index:9999; align-items:center; justify-content:center; padding:1.5rem; animation:fadeIn 0.2s ease; }
+  .scan-result-overlay.show { display:flex; }
+  .scan-result-overlay.ok  { background:rgba(4,120,87,0.92); backdrop-filter:blur(10px); }
+  .scan-result-overlay.err { background:rgba(153,27,27,0.92); backdrop-filter:blur(10px); }
+  .scan-result-card { text-align:center; padding:2rem 1.5rem; max-width:320px; width:100%; }
+  .scan-result-bigicon { width:80px; height:80px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:2.2rem; margin:0 auto 1.2rem; }
+  .scan-result-overlay.ok  .scan-result-bigicon { background:rgba(255,255,255,0.15); color:#fff; }
+  .scan-result-overlay.err .scan-result-bigicon { background:rgba(255,255,255,0.15); color:#fff; }
+  .scan-result-title { font-size:1.4rem; font-weight:900; color:#fff; margin-bottom:8px; letter-spacing:-0.02em; }
+  .scan-result-sub { font-size:0.9rem; color:rgba(255,255,255,0.8); font-weight:600; line-height:1.5; }
   /* Skan təsdiq overlay */
   .scan-confirm-overlay { display:none; position:fixed; inset:0; z-index:9997; background:rgba(10,15,30,0.55); backdrop-filter:blur(4px); align-items:flex-end; justify-content:center; }
   .scan-confirm-overlay.open { display:flex; }
@@ -1826,6 +1835,15 @@
       </button>
     </div>
     <div class="emergency-result" id="emergencyResult"></div>
+  </div>
+</div>
+
+<!-- SKAN NƏTİCƏ OVERLAY -->
+<div class="scan-result-overlay" id="scanResultOverlay">
+  <div class="scan-result-card">
+    <div class="scan-result-bigicon" id="scanResultIcon"></div>
+    <div class="scan-result-title" id="scanResultTitle"></div>
+    <div class="scan-result-sub" id="scanResultSub"></div>
   </div>
 </div>
 
@@ -3880,19 +3898,16 @@
         _empScanProcessing = false;
         if (!res || !res.valid) {
           showScanStatus('', false);
-          showScanResult(false, res ? res.reason : 'Xəta baş verdi');
+          showScanResult(false, res || { reason: 'Xəta baş verdi' });
           return;
         }
-        var isGiris = res.type !== 'CIXIS';
         showScanStatus('', null);
-        showScanResult(true,
-          (isGiris ? '✓ Giriş qeydə alındı' : '✓ Çıxış qeydə alındı') +
-          ' — <b>' + res.empName + '</b>');
+        showScanResult(true, res);
       })
       .withFailureHandler(function() {
         _empScanProcessing = false;
         showScanStatus('', false);
-        showScanResult(false, 'Sistem xətası baş verdi');
+        showScanResult(false, { reason: 'Sistem xətası baş verdi' });
       })
       .validateAndLog(pin, ip, false);
   }
@@ -3903,16 +3918,27 @@
     el.style.color = ok === true ? 'var(--success)' : ok === false ? 'var(--danger)' : 'var(--text-muted)';
   }
 
-  function showScanResult(ok, msg) {
-    var box = document.getElementById('scanResultBox');
-    box.className = 'scan-result-box ' + (ok ? 'ok' : 'err');
-    box.innerHTML = msg;
-    box.style.display = 'block';
+  function showScanResult(ok, res) {
+    var overlay = document.getElementById('scanResultOverlay');
+    var iconEl  = document.getElementById('scanResultIcon');
+    var titleEl = document.getElementById('scanResultTitle');
+    var subEl   = document.getElementById('scanResultSub');
+    overlay.className = 'scan-result-overlay show ' + (ok ? 'ok' : 'err');
+    if (ok) {
+      var isGiris = res.type !== 'CIXIS';
+      iconEl.innerHTML  = '<i class="fa-solid ' + (isGiris ? 'fa-right-to-bracket' : 'fa-right-from-bracket') + '"></i>';
+      titleEl.innerText = isGiris ? 'Giriş Qeydə Alındı' : 'Çıxış Qeydə Alındı';
+      subEl.innerHTML   = '<b style="font-size:1.05rem;">' + res.empName + '</b><br>' + res.dept;
+    } else {
+      iconEl.innerHTML  = '<i class="fa-solid fa-xmark"></i>';
+      titleEl.innerText = 'Qeyd Edilmədi';
+      subEl.innerHTML   = typeof res === 'string' ? res : (res.reason || 'Xəta baş verdi');
+    }
     setTimeout(function() {
-      box.style.display = 'none';
+      overlay.className = 'scan-result-overlay';
       if (_camManuallyClosed) { document.getElementById('scanStatus').innerText = 'Kamera söndürülüb'; return; }
       document.getElementById('scanStatus').innerHTML = ''; startEmpScan();
-    }, 4000);
+    }, 3000);
   }
 </script>
 <script>
