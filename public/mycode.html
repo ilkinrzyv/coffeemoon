@@ -2962,12 +2962,15 @@
   function getStreakTier(v) {
     return v >= 100 ? 5 : v >= 60 ? 4 : v >= 30 ? 3 : v >= 15 ? 2 : v >= 7 ? 1 : 0;
   }
+  function getXPTier(xp) {
+    return xp >= 3000 ? 5 : xp >= 2000 ? 4 : xp >= 1500 ? 3 : xp >= 750 ? 2 : xp >= 200 ? 1 : 0;
+  }
 
   // ── Universal alov qurucusu ─────────────────────────────────────
-  function buildFireEffect(wrapEl, streakVal) {
+  function buildFireEffect(wrapEl, xpVal) {
     if (!wrapEl) return;
     wrapEl.querySelectorAll('.pfire-ring,.pfire-particle').forEach(function(e){ e.remove(); });
-    var tier = getStreakTier(streakVal);
+    var tier = getXPTier(xpVal);
     if (tier === 0) return;
     for (var i = 1; i <= tier; i++) {
       var ring = document.createElement('div');
@@ -2992,10 +2995,10 @@
   }
 
   // ── Öz profil header-inə streak effektləri ───────────────────────
-  function applyOwnProfileStreakEffects(streakVal, accent) {
-    var tier = getStreakTier(streakVal);
+  function applyOwnProfileStreakEffects(streakVal, xpVal, accent) {
+    var tier = getXPTier(xpVal);
     // 1) Avatar ətrafında alov
-    buildFireEffect(document.getElementById('profileAvatarWrap'), streakVal);
+    buildFireEffect(document.getElementById('profileAvatarWrap'), xpVal);
     // 2) Header istilik overlay
     var header = document.getElementById('profileOwnHeader');
     if (header) {
@@ -3055,10 +3058,11 @@
     applyAvatarEffects(bigEl, p.frameStyle, accent, 88);
     // Streak effektləri (alov + header + tier badge)
     var streakVal = p.testMode ? 999 : (p.streak || 0);
-    applyOwnProfileStreakEffects(streakVal, accent);
+    var xpVal = p.testMode ? 999999 : (p.xp || _myXP || 0);
+    applyOwnProfileStreakEffects(streakVal, xpVal, accent);
     checkMilestone(streakVal);
     // XP bar
-    renderXPBar(p.testMode ? 999999 : (p.xp || _myXP || 0), accent);
+    renderXPBar(xpVal, accent);
   }
 
   function renderXPBar(xp, accent) {
@@ -3347,7 +3351,7 @@
       return;
     }
     grid.innerHTML = '';
-    _teamMembers.slice().sort(function(a,b){ return (b.streak||0)-(a.streak||0); }).forEach(function(m, idx) {
+    _teamMembers.slice().sort(function(a,b){ return (b.xp||0)-(a.xp||0); }).forEach(function(m, idx) {
       var accent = m.accentColor || '#5b5ef4';
       var card = document.createElement('div');
       card.className = 'team-card';
@@ -3413,35 +3417,35 @@
       });
       card.appendChild(rRow);
 
-      // Aura sinfi
-      var s = m.streak || 0;
-      if      (s >= 40) card.classList.add('aura-gold');
-      else if (s >= 20) card.classList.add('aura-silver');
-      else if (s >= 7)  card.classList.add('aura-bronze');
+      // Aura sinfi (XP-yə görə)
+      var s = m.xp || 0;
+      if      (s >= 1500) card.classList.add('aura-gold');
+      else if (s >= 750)  card.classList.add('aura-silver');
+      else if (s >= 200)  card.classList.add('aura-bronze');
 
-      // Aura kartlarda: neytral fon + avatar shadow (mərkəz parıltını ləğv edir)
-      if (s >= 7) {
+      // Aura kartlarda: neytral fon + avatar shadow
+      if (s >= 200) {
         card.style.background = 'rgba(18,26,46,0.97)';
         avWrap.style.boxShadow = '0 3px 8px rgba(0,0,0,0.4), 0 0 0 2.5px rgba(255,255,255,0.12)';
       }
 
-      // Hologram (60+)
-      if (s >= 60) {
+      // Hologram (2000+ Bal)
+      if (s >= 2000) {
         var holo = document.createElement('div');
         holo.className = 'holo-overlay';
         card.appendChild(holo);
       }
 
       // Shimmer (hər tier üçün öz rəngi)
-      if (s >= 40) {
+      if (s >= 1500) {
         var shimmer = document.createElement('div');
         shimmer.className = 'gold-shimmer';
         card.appendChild(shimmer);
-      } else if (s >= 20) {
+      } else if (s >= 750) {
         var shimmer = document.createElement('div');
         shimmer.className = 'silver-shimmer';
         card.appendChild(shimmer);
-      } else if (s >= 7) {
+      } else if (s >= 200) {
         var shimmer = document.createElement('div');
         shimmer.className = 'bronze-shimmer';
         card.appendChild(shimmer);
@@ -3452,14 +3456,14 @@
       // Wrapper + forma auraları + tier class
       var wrap = document.createElement('div');
       wrap.className = 'tc-wrap';
-      if      (s >= 40) wrap.classList.add('aura-tier-gold');
-      else if (s >= 20) wrap.classList.add('aura-tier-silver');
-      else if (s >= 7)  wrap.classList.add('aura-tier-bronze');
+      if      (s >= 1500) wrap.classList.add('aura-tier-gold');
+      else if (s >= 750)  wrap.classList.add('aura-tier-silver');
+      else if (s >= 200)  wrap.classList.add('aura-tier-bronze');
 
       // Particle effektlər
-      if (s >= 40)       addSparkleAura(wrap);
-      else if (s >= 20)  addIceAura(wrap);
-      else if (s >= 7)   addEmberAura(wrap);
+      if (s >= 1500)      addSparkleAura(wrap);
+      else if (s >= 750)  addIceAura(wrap);
+      else if (s >= 200)  addEmberAura(wrap);
 
       // Yer nişanı (ilk 3)
       if (idx < 3) {
@@ -3641,8 +3645,8 @@
           applyBannerStyle(bannerEl2, p.bannerStyle, accent);
           bannerEl2.style.opacity = '0.78';
         }
-        // Hero fon (streak tirinə görə güclənir)
-        var heroTier = getStreakTier(p.streak || 0);
+        // Hero fon (XP tirinə görə güclənir)
+        var heroTier = getXPTier(p.xp || 0);
         var heroBg = 'linear-gradient(160deg,'+hexToRgba(accent,0.12)+' 0%,'+hexToRgba(accent,0.04)+' 55%,transparent 100%)';
         if (heroTier >= 2) heroBg += ',radial-gradient(ellipse at 50% 125%,rgba(251,146,60,'+(0.14+heroTier*0.08)+'),rgba(245,158,11,'+(0.07+heroTier*0.04)+') 46%,transparent 78%)';
         if (heroEl) {
@@ -3661,8 +3665,8 @@
           avEl.innerHTML = '<i class="fa-solid ' + pr.icon + '"></i>';
         }
         applyAvatarEffects(avEl, p.frameStyle, accent, 92);
-        // Alov effekti
-        applyPmodalFireEffect(p.streak || 0);
+        // Alov effekti (XP-yə görə)
+        applyPmodalFireEffect(p.xp || 0);
         document.getElementById('pmodalName').innerText = p.empName;
         document.getElementById('pmodalDept').innerText = p.dept;
         document.getElementById('pmodalBio').innerText = p.bio || '';
@@ -3676,14 +3680,24 @@
           streakEl.style.display = 'inline-flex';
         }
         var streakVal = p.streak || 0;
+        var xpPub = p.xp || 0;
+        var lvlPub = calcXPLevel(xpPub);
         var streakColor = streakVal >= 30 ? 'var(--success)' : streakVal >= 7 ? 'var(--warning)' : 'var(--text-muted)';
         document.getElementById('pmodalStats').innerHTML =
-          '<div class="pmodal-stat" style="min-width:110px;">'+
+          '<div class="pmodal-stat" style="min-width:90px;">'+
             '<div class="pmodal-stat-val" style="color:'+streakColor+';">'+
               (streakVal > 0 ? '<i class="fa-solid fa-fire" style="font-size:1.1rem;color:#f59e0b;margin-right:4px;"></i>' : '')+
               streakVal+
             '</div>'+
             '<div class="pmodal-stat-lbl">Ardıcıl Gün</div>'+
+          '</div>'+
+          '<div class="pmodal-stat" style="min-width:90px;">'+
+            '<div class="pmodal-stat-val" style="color:var(--primary);">⭐ '+lvlPub+'</div>'+
+            '<div class="pmodal-stat-lbl">Dərəcə</div>'+
+          '</div>'+
+          '<div class="pmodal-stat" style="min-width:90px;">'+
+            '<div class="pmodal-stat-val" style="color:var(--primary);">'+xpPub+'</div>'+
+            '<div class="pmodal-stat-lbl">Bal</div>'+
           '</div>';
       })
       .getPublicProfile(SECRET, empId);
