@@ -217,6 +217,9 @@ input:focus,select:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(7
 .wl-card{background:#fff;border:1px solid var(--border);border-radius:13px;padding:0.9rem 1.1rem;display:flex;align-items:center;justify-content:space-between;gap:8px;}
 .wl-dept{font-size:0.88rem;font-weight:700;}
 .wl-pct{font-size:1.2rem;font-weight:800;color:var(--primary);font-family:monospace;}
+/* köhnə üfüqi tab nav gizlədilir — sidebar əvəz edir */
+body > nav { display: none; }
+
 /* ── SIDEBAR ──────────────────────────────────────────────────── */
 .sb-overlay{position:fixed;inset:0;background:rgba(15,23,42,0.38);backdrop-filter:blur(3px);z-index:199;opacity:0;pointer-events:none;transition:opacity .25s;}
 .sb-overlay.open{opacity:1;pointer-events:auto;}
