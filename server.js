@@ -738,10 +738,10 @@ API.validateAndLog = async (enteredPin, clientIp, forceMode) => {
         }
         const thisLateNum = prevLateCount + 1;
         lateWarning = prevLateCount === 0
-          ? `\n⚠️ Bu ay <b>1-ci gecikmə</b> — ${lateMins} dəq. Xəbərdarlıq.`
+          ? `\n Bu ay <b>1-ci gecikmə</b> — ${lateMins} dəq. Xəbərdarlıq.`
           : prevLateCount === 1
-            ? `\n🔴 Bu ay <b>2-ci gecikmə</b> — ${lateMins} dəq. Ciddi xəbərdarlıq!`
-            : `\n❌ Bu ay <b>${thisLateNum}-ci gecikmə</b> — ${lateMins} dəq.\n💸 <b>30 AZN cərimə</b> qeyd edildi.`;
+            ? `\n Bu ay <b>2-ci gecikmə</b> — ${lateMins} dəq. Ciddi xəbərdarlıq!`
+            : `\n Bu ay <b>${thisLateNum}-ci gecikmə</b> — ${lateMins} dəq.\n <b>30 AZN cərimə</b> qeyd edildi.`;
       }
     }
     await U.sendTelegramMsg(`<b>${matched.name}</b> smendə.\n${U.fmtTime(ts)}${lateWarning}`, matched.dept);
