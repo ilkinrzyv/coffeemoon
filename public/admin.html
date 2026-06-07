@@ -97,7 +97,8 @@ input:focus,select:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(7
 .sched-table{width:100%;border-collapse:separate;border-spacing:0 4px;font-size:0.85rem;}
 .sched-table th{font-size:0.75rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;padding:0.5rem 0.6rem;text-align:center;}
 .sched-table td{padding:0.4rem 0.4rem;vertical-align:middle;}
-.sched-table td:first-child{padding-left:0;font-weight:600;font-size:0.9rem;min-width:140px;}
+.sched-table td:first-child{padding-left:0;font-weight:600;font-size:0.9rem;min-width:140px;position:sticky;left:0;z-index:2;background:#fff;box-shadow:2px 0 6px rgba(15,23,42,0.06);}
+.sched-table th:first-child{position:sticky;left:0;z-index:3;background:#f8fafc;box-shadow:2px 0 6px rgba(15,23,42,0.06);text-align:left;}
 .sched-table tr.today-row td:first-child{color:var(--primary);}
 .shift-cell{width:80px;text-align:center;}
 .shift-btn{width:68px;padding:6px 0;border-radius:8px;border:1px solid rgba(15,23,42,0.06);cursor:pointer;font-size:0.78rem;font-weight:700;transition:all 0.15s;background:#f8fafc;color:var(--text-muted);}

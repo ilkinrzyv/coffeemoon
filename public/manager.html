@@ -135,7 +135,8 @@ header {
 .sched-table { width:100%; border-collapse:separate; border-spacing:0 3px; font-size:0.86rem; }
 .sched-table th { font-size:0.7rem; font-weight:800; color:var(--text-muted); text-transform:uppercase; letter-spacing:1.2px; padding:0.5rem; text-align:center; }
 .sched-table td { padding:0.38rem 0.3rem; vertical-align:middle; }
-.sched-table td:first-child { padding-left:0; font-weight:700; font-size:0.86rem; min-width:130px; }
+.sched-table td:first-child { padding-left:0; font-weight:700; font-size:0.86rem; min-width:130px; position:sticky; left:0; z-index:2; background:#fff; box-shadow:2px 0 6px rgba(15,23,42,0.06); }
+.sched-table th:first-child { position:sticky; left:0; z-index:3; background:#f8fafc; box-shadow:2px 0 6px rgba(15,23,42,0.06); text-align:left; }
 .sched-table tbody tr { transition:background 0.15s; }
 .sched-table tbody tr:hover td { background:rgba(91,94,244,0.025); }
 .shift-cell { width:74px; text-align:center; }
