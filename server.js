@@ -95,7 +95,9 @@ async function autoCloseShifts() {
   const now      = new Date();
   const todayStr = U.getLogicalDateStr(now);
 
-  const { data: logs } = await sb.from('attendance').select('*').order('timestamp');
+  // Yalnız son 3 günün qeydləri lazımdır (əvvəlki gecənin açıq smenləri)
+  const cutoff = new Date(now.getTime() - 3 * 86400000).toISOString();
+  const { data: logs } = await sb.from('attendance').select('*').gte('timestamp', cutoff).order('timestamp');
   if (!logs?.length) return;
 
   const byEmpDay = {};
@@ -146,6 +148,11 @@ function scheduleNightlyClose() {
   }, next.getTime() - now.getTime());
   console.log(`[AutoClose] Növbəti bağlama: ${next.toLocaleString('az-AZ')}`);
 }
+
+// Cavabları gzip ilə sıxır (HTML/JSON yükünü azaldır, səhifə daha tez açılır).
+// Paket quraşdırılmayıbsa server yenə də normal işləyir — sadəcə sıxılma olmur.
+try { app.use(require('compression')()); }
+catch (_) { console.warn('⚠️  compression paketi yoxdur — sürət üçün `npm install compression` işlət.'); }
 
 app.use(express.json({ limit: '5mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
@@ -567,7 +574,14 @@ function withinLatePerm(latePermMap, empId, dateStr, arrivalMins) {
   return arrivalMins <= latePermMap[key] + 5;
 }
 
+const _reportCache = new Map();   // "year-month" → { ts, data }
+const REPORT_TTL   = 60 * 1000;   // 60 san — eyni hesabat təkrar hesablanmır (dashboard yükü)
+
 API.getMonthlyReport = async (year, month) => {
+  const cacheKey = year + '-' + month;
+  const cached   = _reportCache.get(cacheKey);
+  if (cached && Date.now() - cached.ts < REPORT_TTL) return cached.data;
+
   const { data: emps } = await sb.from('employees').select('*');
   const m = String(month).padStart(2, '0');
   const startStr = `${year}-${m}-01`;
@@ -579,7 +593,7 @@ API.getMonthlyReport = async (year, month) => {
     buildLatePermMap(),
   ]);
 
-  return (emps || []).map(emp => {
+  const result = (emps || []).map(emp => {
     const myLogs    = (logs || []).filter(r => r.emp_id === emp.id);
     const gelisLogs = myLogs.filter(r => r.type === 'GƏLİŞ');
     const cixisLogs = myLogs.filter(r => r.type === 'CIXIS');
@@ -611,6 +625,9 @@ API.getMonthlyReport = async (year, month) => {
       late: lateCount, pct: total > 0 ? Math.round(onTime / total * 100) : 0,
       totalHours: Math.round(totalHours * 10) / 10 };
   }).sort((a, b) => b.pct - a.pct);
+
+  _reportCache.set(cacheKey, { ts: Date.now(), data: result });
+  return result;
 };
 
 API.getWarnings = async () => {
@@ -769,15 +786,24 @@ API.validateAndLog = async (enteredPin, clientIp, forceMode) => {
       emp_id: matched.id, emp_name: matched.name, dept: matched.dept,
       timestamp: ts.toISOString(), type: 'CIXIS', overtime: overtimeStr, shift_type: todayShift || '',
     });
+    // Nahara getməyənə 20 XP bonusu
+    let noLunchXP = 0;
+    if (!matched.is_test) {
+      const { data: naharCheck } = await sb.from('nahar').select('type,timestamp').eq('emp_id', String(matched.id));
+      const hadNaharToday = (naharCheck || []).some(r => U.getLogicalDateStr(new Date(r.timestamp)) === todayStr && r.type === 'NAHAR_GET');
+      if (!hadNaharToday) noLunchXP = await awardXP(matched.id, 20, matched.streak || 0);
+    }
     await U.sendTelegramMsg(`<b>${matched.name}</b> smendən çıxdı.\n${U.fmtTime(ts)} — ${overtimeStr}`, matched.dept);
-    return { valid: true, empName: matched.name, dept: matched.dept, type: 'CIXIS', overtime: overtimeStr };
+    return { valid: true, empName: matched.name, dept: matched.dept, type: 'CIXIS', overtime: overtimeStr, xpEarned: noLunchXP };
   }
   return { valid: false, reason: 'Bu gün üçün artıq qeyd var' };
 };
 
 API.getOnlineEmployees = async () => {
   const todayStr = U.getLogicalDateStr(new Date());
-  const { data: logs } = await sb.from('attendance').select('*').order('timestamp');
+  // Yalnız son 2 günün qeydləri bugünkü məntiqi günü əhatə etməyə kifayətdir
+  const cutoff = new Date(Date.now() - 2 * 86400000).toISOString();
+  const { data: logs } = await sb.from('attendance').select('*').gte('timestamp', cutoff).order('timestamp');
   const empMap = {};
   for (const row of logs || []) {
     if (!row.emp_id || String(row.emp_id).startsWith('MGR-')) continue;
@@ -895,6 +921,16 @@ API.getDashboardData = async (secret) => {
 
   const report = await API.getMonthlyReport(now.getFullYear(), now.getMonth() + 1);
   const myR    = report.find(r => r.empId === emp.id) || { totalDays:0, onTime:0, late:0, pct:0 };
+
+  // Nahar (nahar) statusu — səhifə yeniləndikdə timer davam etsin
+  const todayStr = U.getLogicalDateStr(now);
+  const { data: naharRows } = await sb.from('nahar').select('*').eq('emp_id', String(emp.id));
+  const naharGet = (naharRows || []).filter(r => U.getLogicalDateStr(new Date(r.timestamp)) === todayStr && r.type === 'NAHAR_GET');
+  const naharQay = (naharRows || []).filter(r => U.getLogicalDateStr(new Date(r.timestamp)) === todayStr && r.type === 'NAHAR_QAY');
+  const lunchStatus = (naharGet.length > 0 && naharQay.length === 0)
+    ? { onLunch: true, startedAt: naharGet[0].timestamp }
+    : { onLunch: false };
+
   return {
     streak:          emp.is_test ? 999 : (emp.streak || 0),
     xp:              emp.is_test ? 999999 : (emp.xp || 0),
@@ -903,6 +939,7 @@ API.getDashboardData = async (secret) => {
     nextWeekSchedule,
     monthStats:      { days: myR.totalDays, onTime: myR.onTime, late: myR.late, pct: myR.pct },
     announcements:   await API.getAnnouncements(),
+    lunchStatus,
   };
 };
 
@@ -943,7 +980,12 @@ API.logLunch = async (enteredPin, clientIp, lunchType) => {
   const diffMin = Math.round((ts.getTime() - new Date(naharGet[0].timestamp).getTime()) / 60000);
   await sb.from('nahar').insert({ nahar_id: 'NH-' + Date.now().toString(36).toUpperCase(), emp_id: matched.id, emp_name: matched.name, dept: matched.dept, timestamp: ts.toISOString(), type: 'NAHAR_QAY' });
   await U.sendTelegramMsg(`<b>${matched.name}</b> nahar bitdi.\n${U.fmtTime(ts)} — ${diffMin} dəq`, matched.dept);
-  return { valid: true, empName: matched.name, dept: matched.dept, type: 'NAHAR_QAY', duration: diffMin };
+  // 30 dəqiqədən tez qayıdana 20 XP bonusu
+  let xpEarned = 0;
+  if (!matched.is_test && diffMin > 0 && diffMin < 30) {
+    xpEarned = await awardXP(matched.id, 20, matched.streak || 0);
+  }
+  return { valid: true, empName: matched.name, dept: matched.dept, type: 'NAHAR_QAY', duration: diffMin, xpEarned };
 };
 
 // ── MENECER DAVAMİYYƏTİ ──────────────────────────────────────────
@@ -981,7 +1023,9 @@ API.logManagerCheckin = async (branchKey, type) => {
 
 API.getManagersLiveStatus = async () => {
   const todayStr = U.getLogicalDateStr(new Date());
-  const { data: logs } = await sb.from('attendance').select('*').order('timestamp');
+  // Yalnız son 2 günün qeydləri bugünkü məntiqi günü əhatə etməyə kifayətdir
+  const cutoff = new Date(Date.now() - 2 * 86400000).toISOString();
+  const { data: logs } = await sb.from('attendance').select('*').gte('timestamp', cutoff).order('timestamp');
   const result = {};
   for (const dept of U.DEPTS) {
     const slug    = U.deptToSlug(dept);

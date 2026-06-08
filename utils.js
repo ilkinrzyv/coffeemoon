@@ -124,6 +124,12 @@ async function calcStreak(empId, dept) {
   const { data: izinRows } = await sb.from('izin')
     .select('start_date,end_date').eq('emp_id', String(empId)).eq('status', 'approved');
 
+  // Cədvəli (smenləri) bir dəfə çək — döngü içində sorğu atmamaq üçün (N+1 → 1)
+  const { data: cedvelRows } = await sb.from('cedvel')
+    .select('date_str,shift_type').eq('emp_id', String(empId));
+  const shiftMap = {};
+  for (const c of cedvelRows || []) shiftMap[c.date_str] = c.shift_type || null;
+
   function hasIzin(dateStr) {
     return (izinRows || []).some(r => dateStr >= r.start_date && dateStr <= r.end_date);
   }
@@ -143,7 +149,7 @@ async function calcStreak(empId, dept) {
     // Gec gəliş icazəsi — yalnız icazə vaxtı + 5 dəq içindədirsə streak davam edir
     if (withinPerm(dateStr, arrivalMins)) { streak++; continue; }
 
-    const st = await getEmployeeShift(empId, dateStr);
+    const st = shiftMap[dateStr] || null;
     const si = st ? getShiftInfo(dept, st) : null;
     const lim = si ? (si.lateH * 60 + si.lateM)
       : (arrivalMins < 13 * 60 ? 7 * 60 + 30 : (dept === 'Ağ Şəhər' || dept === 'Gənclik') ? 16 * 60 : 15 * 60);

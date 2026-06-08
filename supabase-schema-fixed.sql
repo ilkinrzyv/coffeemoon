@@ -28,6 +28,8 @@ CREATE TABLE employees (
   secret      TEXT UNIQUE,
   device_id   TEXT DEFAULT '',
   message     TEXT DEFAULT '',
+  streak      INTEGER DEFAULT 0,
+  is_test     BOOLEAN DEFAULT FALSE,
   created_at  TIMESTAMPTZ DEFAULT NOW()
 );
 

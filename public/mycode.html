@@ -2292,6 +2292,11 @@
           if (dash.weekSchedule && dash.weekSchedule.length) renderWeekSchedule(dash.weekSchedule, dash.nextWeekSchedule || []);
           if (dash.monthStats) { renderMonthStats(dash.monthStats); renderLateNotice(dash.monthStats.late || 0); }
           if (dash.announcements && dash.announcements.length) renderAnnouncements(dash.announcements);
+          // Nahar timerini bərpa et — işçi səhifəni yeniləsə davam etsin
+          if (dash.lunchStatus && dash.lunchStatus.onLunch && dash.lunchStatus.startedAt) {
+            var elapsed = Math.floor((Date.now() - new Date(dash.lunchStatus.startedAt).getTime()) / 1000);
+            startLunchTimer(elapsed);
+          }
         }).getDashboardData(SECRET);
 
         google.script.run.withSuccessHandler(function(p) {
@@ -2492,11 +2497,16 @@
   // ── NAHAR ────────────────────────────────────────────────────────
   var isLunchProcessing = false, LUNCH_MINS = 30, lunchTimerInterval = null;
 
-  function startLunchTimer() {
+  function startLunchTimer(elapsedAlready) {
     var timerEl = document.getElementById('lunchTimer'), countEl = document.getElementById('lunchTimerCount'), barEl = document.getElementById('lunchTimerBar');
-    var total = LUNCH_MINS * 60, remaining = total;
+    var total = LUNCH_MINS * 60, remaining = total - (elapsedAlready || 0);
     timerEl.classList.remove('over');
     timerEl.style.display = 'block';
+    // İlkin vəziyyəti dərhal göstər (interval gözləmə olmadan)
+    var m0 = Math.floor(Math.abs(remaining) / 60), s0 = Math.abs(remaining) % 60;
+    countEl.innerText = (remaining < 0 ? '+' : '') + String(m0).padStart(2,'0') + ':' + String(s0).padStart(2,'0');
+    barEl.style.width = Math.max(0, (remaining / total) * 100) + '%';
+    if (remaining <= 0) timerEl.classList.add('over');
     if (lunchTimerInterval) clearInterval(lunchTimerInterval);
     lunchTimerInterval = setInterval(function() {
       remaining--;
@@ -3163,6 +3173,7 @@
     document.body.appendChild(el);
     _lockToastTimer = setTimeout(function(){ el.remove(); }, 2500);
   }
+
 
   function buildBannerPicker(cur, accent, onChange) {
     var c = document.getElementById('bannerPicker');
@@ -3924,6 +3935,8 @@
     body.innerHTML =
       sec('Bal Qazanmaq') +
       row('right-to-bracket','#34d399','Vaxtında <b>gəliş</b> — +20 Bal <span style="color:rgba(255,255,255,0.35);font-size:0.72rem;">(davamiyyət × ilə)</span>') +
+      row('utensils','#f59e0b','Nahar fasiləsi götürmədən smeni bitirsən — <b>+20 Bal</b>') +
+      row('bowl-food','#fbbf24','Nahardan <b>vaxtında</b> qayıtdın — <b>+20 Bal</b>') +
       row('trophy','#fbbf24','<b>Davamiyyət keçid hədiyyəsi:</b> 7g +50 · 14g +100 · 30g +250 · 60g +500 · 100g +1000 Bal <span style="color:rgba(255,255,255,0.35);font-size:0.72rem;">(hər keçid yalnız bir dəfə)</span>') +
       row('file-pen','#818cf8','<b>İmtahan</b> — 60%+: +50 · 80%+: +75 · 90%+: +100 Bal') +
       row('comment-dots','#818cf8','<b>Açıq sual</b> düzgün qiymətləndiriləndə — +15 Bal') +
