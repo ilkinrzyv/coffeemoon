@@ -329,6 +329,7 @@ body > nav { display: none; }
     <select id="iDept"><option value="" disabled selected>Filial Seçin</option><option value="Elmlər">Elmlər</option><option value="Sahil">Sahil</option><option value="Gənclik">Gənclik</option><option value="Ağ Şəhər">Ağ Şəhər</option></select>
     <button class="btn primary" onclick="addEmp()"><i class="fa-solid fa-user-plus"></i> Əlavə et</button>
     <button class="btn" id="recalcBtn" onclick="recalcStreaks()" style="margin-left:auto;" title="Köhnə məlumatları yeniləmək üçün bir dəfə işlət"><i class="fa-solid fa-rotate"></i> Streak-ləri yenilə</button>
+    <button class="btn" id="recalcXpBtn" onclick="recalcXP()" title="XP-ləri mövcud məlumatlardan yenidən hesabla (əvvəlcə önizləmə göstərir)"><i class="fa-solid fa-coins"></i> XP-ləri yenilə</button>
   </div>
   <div class="card" id="empList">Yüklənir...</div>
 </div>
@@ -2000,6 +2001,44 @@ function recalcStreaks() {
       alert('Xəta baş verdi.');
     })
     .recalcAllStreaks();
+}
+
+function recalcXP() {
+  var btn = document.getElementById('recalcXpBtn');
+  var reset = function() { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-coins"></i> XP-ləri yenilə'; };
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Yoxlanılır...';
+  // 1) Önizləmə (dry-run — heç nə yazmır)
+  google.script.run
+    .withSuccessHandler(function(res) {
+      var changed  = res.results.filter(function(r) { return r.dXP !== 0 || r.oldStreak !== r.newStreak; });
+      var oldTotal = res.results.reduce(function(s, r) { return s + r.oldXP; }, 0);
+      var newTotal = res.results.reduce(function(s, r) { return s + r.newXP; }, 0);
+      reset();
+      if (!changed.length) { alert('XP-lər artıq günceldir — dəyişiklik yoxdur.'); return; }
+      var preview = changed.slice(0, 15).map(function(r) {
+        return '• ' + r.name + ': ' + r.oldXP + ' → ' + r.newXP + ' (' + (r.dXP >= 0 ? '+' : '') + r.dXP + ')';
+      }).join('\n');
+      var msg = changed.length + ' işçinin XP/streak dəyəri dəyişəcək.\n'
+              + 'Ümumi XP: ' + oldTotal + ' → ' + newTotal + '\n\n'
+              + preview + (changed.length > 15 ? '\n…' : '')
+              + '\n\nTətbiq edilsin?';
+      if (!confirm(msg)) return;
+      // 2) Tətbiq et
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Tətbiq olunur...';
+      google.script.run
+        .withSuccessHandler(function(res2) {
+          btn.disabled = false;
+          btn.innerHTML = '<i class="fa-solid fa-check"></i> Hazır (' + res2.updated + ' işçi)';
+          setTimeout(reset, 4000);
+          loadEmps();
+        })
+        .withFailureHandler(function() { reset(); alert('Xəta baş verdi.'); })
+        .recalcAllXP(false);
+    })
+    .withFailureHandler(function() { reset(); alert('Xəta baş verdi.'); })
+    .recalcAllXP(true);
 }
 
 // ════════════════════════════════════════════════════════════════
