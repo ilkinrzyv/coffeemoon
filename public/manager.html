@@ -1031,7 +1031,7 @@ function renderTable() {
       var isToday=ds===TODAY_YMD;
       return '<td class="shift-cell'+(isToday?' today-mark':'')+'"><button class="shift-btn '+(st||'')+'" onclick="openShiftPicker(\''+emp.empId+'\',\''+ds+'\',this,event)">'+SHIFT_LABELS[st||'']+'</button></td>';
     }).join('');
-    return '<tr><td><div style="display:flex;align-items:center;gap:7px;"><div style="width:28px;height:28px;border-radius:8px;background:rgba(99,102,241,0.08);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.72rem;color:var(--primary);">'+getInitials(emp.empName)+'</div>'+emp.empName+'</div></td>'+cells+'</tr>';
+    return '<tr><td>'+emp.empName+'</td>'+cells+'</tr>';
   }).join('');
 }
 
