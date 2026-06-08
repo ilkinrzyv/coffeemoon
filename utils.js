@@ -149,7 +149,8 @@ async function calcStreak(empId, dept) {
     // Gec gəliş icazəsi — yalnız icazə vaxtı + 5 dəq içindədirsə streak davam edir
     if (withinPerm(dateStr, arrivalMins)) { streak++; continue; }
 
-    const st = shiftMap[dateStr] || null;
+    // Əvvəlcə cədvəldəki smen, yoxdursa gəliş anında qeyd olunmuş smen (hesabatla uyğun olsun)
+    const st = shiftMap[dateStr] || row.shift_type || null;
     const si = st ? getShiftInfo(dept, st) : null;
     const lim = si ? (si.lateH * 60 + si.lateM)
       : (arrivalMins < 13 * 60 ? 7 * 60 + 30 : (dept === 'Ağ Şəhər' || dept === 'Gənclik') ? 16 * 60 : 15 * 60);
