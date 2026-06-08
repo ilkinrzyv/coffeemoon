@@ -876,15 +876,25 @@ API.validateAndLog = async (enteredPin, clientIp, forceMode) => {
       emp_id: matched.id, emp_name: matched.name, dept: matched.dept,
       timestamp: ts.toISOString(), type: 'CIXIS', overtime: overtimeStr, shift_type: todayShift || '',
     });
-    // Nahara getməyənə 20 XP bonusu
-    let noLunchXP = 0;
+    // Nahar bonusu çıxışda hesablanır (işçi nahar anında bal görməsin):
+    // nahara getməyib VƏ YA 30 dəqiqədən tez qayıdıbsa → +20 (gizli).
+    let lunchXP = 0;
     if (!matched.is_test) {
       const { data: naharCheck } = await sb.from('nahar').select('type,timestamp').eq('emp_id', String(matched.id));
-      const hadNaharToday = (naharCheck || []).some(r => U.getLogicalDateStr(new Date(r.timestamp)) === todayStr && r.type === 'NAHAR_GET');
-      if (!hadNaharToday) noLunchXP = await awardXP(matched.id, 20, matched.streak || 0);
+      const todayNahar = (naharCheck || []).filter(r => U.getLogicalDateStr(new Date(r.timestamp)) === todayStr);
+      const getN = todayNahar.find(r => r.type === 'NAHAR_GET');
+      const qayN = todayNahar.find(r => r.type === 'NAHAR_QAY');
+      let qualifies = false;
+      if (!getN) {
+        qualifies = true;                                   // nahara getməyib
+      } else if (qayN) {
+        const diffMin = Math.round((new Date(qayN.timestamp).getTime() - new Date(getN.timestamp).getTime()) / 60000);
+        if (diffMin > 0 && diffMin < 30) qualifies = true;  // 30 dəqiqədən tez qayıdıb
+      }
+      if (qualifies) lunchXP = await awardXP(matched.id, 20, matched.streak || 0);
     }
     await U.sendTelegramMsg(`<b>${matched.name}</b> smendən çıxdı.\n${U.fmtTime(ts)} — ${overtimeStr}`, matched.dept);
-    return { valid: true, empName: matched.name, dept: matched.dept, type: 'CIXIS', overtime: overtimeStr, xpEarned: noLunchXP };
+    return { valid: true, empName: matched.name, dept: matched.dept, type: 'CIXIS', overtime: overtimeStr, xpEarned: lunchXP };
   }
   return { valid: false, reason: 'Bu gün üçün artıq qeyd var' };
 };
@@ -1070,12 +1080,9 @@ API.logLunch = async (enteredPin, clientIp, lunchType) => {
   const diffMin = Math.round((ts.getTime() - new Date(naharGet[0].timestamp).getTime()) / 60000);
   await sb.from('nahar').insert({ nahar_id: 'NH-' + Date.now().toString(36).toUpperCase(), emp_id: matched.id, emp_name: matched.name, dept: matched.dept, timestamp: ts.toISOString(), type: 'NAHAR_QAY' });
   await U.sendTelegramMsg(`<b>${matched.name}</b> nahar bitdi.\n${U.fmtTime(ts)} — ${diffMin} dəq`, matched.dept);
-  // 30 dəqiqədən tez qayıdana 20 XP bonusu
-  let xpEarned = 0;
-  if (!matched.is_test && diffMin > 0 && diffMin < 30) {
-    xpEarned = await awardXP(matched.id, 20, matched.streak || 0);
-  }
-  return { valid: true, empName: matched.name, dept: matched.dept, type: 'NAHAR_QAY', duration: diffMin, xpEarned };
+  // Nahar XP-si burada VERİLMİR — işçi nahar anında bal artımı görməsin.
+  // Bonus (tez qayıdış / nahara getməmə) smen çıxışında hesablanır (aşağıda CIXIS bloku).
+  return { valid: true, empName: matched.name, dept: matched.dept, type: 'NAHAR_QAY', duration: diffMin };
 };
 
 // ── MENECER DAVAMİYYƏTİ ──────────────────────────────────────────
