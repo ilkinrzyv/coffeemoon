@@ -172,13 +172,17 @@
 
   @keyframes fadeIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
 
-  /* ── ANA TAB BAR ── */
+  /* ── BOTTOM NAV BAR ── */
   .main-tab-bar {
-    background:rgba(15,22,42,0.92); backdrop-filter:blur(30px); -webkit-backdrop-filter:blur(30px);
-    border:1px solid rgba(255,255,255,0.08); border-radius:22px;
-    padding:6px; display:none; gap:5px;
-    box-shadow:var(--card-shadow);
+    position:fixed; bottom:0; left:0; right:0; z-index:50;
+    background:rgba(10,15,28,0.97); backdrop-filter:blur(36px); -webkit-backdrop-filter:blur(36px);
+    border-top:1px solid rgba(255,255,255,0.09);
+    border-radius:20px 20px 0 0;
+    padding:6px 8px calc(6px + env(safe-area-inset-bottom));
+    display:none; gap:4px;
+    box-shadow:0 -4px 28px rgba(0,0,0,0.4), 0 -1px 0 rgba(255,255,255,0.04);
   }
+  body.nav-open { padding-bottom:calc(74px + env(safe-area-inset-bottom)); }
   .main-tab {
     flex:1; padding:0.7rem 0.4rem; border:none; border-radius:16px; cursor:pointer;
     font-size:0.78rem; font-weight:700; color:var(--text-soft); background:transparent;
@@ -2260,6 +2264,7 @@
         document.getElementById('ticketBody').style.display = 'block';
         document.getElementById('ticketFooter').style.display = 'flex';
         document.getElementById('mainTabBar').style.display = 'flex';
+        document.body.classList.add('nav-open');
         showTab('gundelik');
 
         if (res.message) {
