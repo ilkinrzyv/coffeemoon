@@ -240,8 +240,130 @@ async function sendTelegramMsg(text, dept) {
   }
 }
 
+// ── XP mühərriki ──────────────────────────────────────────────────
+// XP çoxaldıcısı — streak nə qədər uzundursa, vaxtında gəlişin XP-si o qədər artır.
+function getXPMultiplier(streak) {
+  if (streak >= 60) return 2.0;
+  if (streak >= 30) return 1.75;
+  if (streak >= 14) return 1.5;
+  if (streak >= 7)  return 1.25;
+  return 1.0;
+}
+
+const MS_BONUSES = { 7: 50, 14: 100, 30: 250, 60: 500, 100: 1000 };
+
+// İşçinin XP-sini sıfırdan, mövcud məlumatlardan yenidən hesablayır (recalcAllXP üçün).
+// validateAndLog / logLunch / imtahan qaydalarını eyni ardıcıllıqla təkrar oynayır.
+// Qaytarır: { xp, streak, milestones } — heç nə yazmır (təmiz funksiya).
+function computeEmployeeXP(dept, opts) {
+  const o        = opts || {};
+  const attend   = o.attendance || [];
+  const nahar    = o.nahar      || [];
+  const izinRows = o.izinRows   || [];
+  const permMap  = o.permMap    || {};
+  const cedvelMap= o.cedvelMap  || {};
+  const auditSum = o.auditSum   || 0;
+  const exams    = o.exams      || [];
+
+  const onIzin = (ds) => izinRows.some(r => ds >= r.start_date && ds <= r.end_date);
+
+  // 1) Gəlişləri xronoloji oynat → streak proqresiyası + gəliş XP-si
+  const arrivals = attend
+    .filter(r => r.type === 'GƏLİŞ')
+    .map(r => ({ d: new Date(r.timestamp), shift: r.shift_type || '' }))
+    .filter(r => !isNaN(r.d.getTime()))
+    .sort((a, b) => a.d - b.d);
+
+  let xp = 0, streak = 0;
+  const claimed   = new Set();
+  const dayStreak = {};   // logicalYMD → streak (gəlişdən sonra)
+
+  for (const a of arrivals) {
+    const ds   = getLogicalYMD(a.d);
+    const arr  = a.d.getHours() * 60 + a.d.getMinutes();
+    const st   = cedvelMap[ds] || a.shift || null;   // calcStreak ilə eyni mənbə
+    const si   = st ? getShiftInfo(dept, st) : null;
+    const lim  = si ? (si.lateH * 60 + si.lateM)
+      : (arr < 13 * 60 ? 7 * 60 + 30 : (dept === 'Ağ Şəhər' || dept === 'Gənclik') ? 16 * 60 : 15 * 60);
+    const withinPerm = (ds in permMap) && arr <= permMap[ds] + 5;
+    const onTime = onIzin(ds) || withinPerm || arr <= lim;
+    const streakBefore = streak;
+
+    if (onTime) {
+      streak++;
+      xp += Math.round(20 * getXPMultiplier(streak));
+      if (MS_BONUSES[streak] && !claimed.has(streak)) { xp += MS_BONUSES[streak]; claimed.add(streak); }
+    } else {
+      const lateMins = arr - lim;
+      let penalty = lateMins >= 45 ? 50 : lateMins >= 21 ? 30 : 15;
+      if (streakBefore >= 60) penalty = Math.round(penalty * 0.25);
+      else if (streakBefore >= 30) penalty = Math.round(penalty * 0.5);
+      xp = Math.max(0, xp - penalty);   // validateAndLog hər cərimədə 0-da saxlayır
+      streak = 0;
+    }
+    dayStreak[ds] = streak;
+  }
+
+  // 2) Nahar / çıxış XP-si (gün-gün)
+  const naharByDay = {};
+  for (const n of nahar) {
+    const d = new Date(n.timestamp);
+    if (isNaN(d.getTime())) continue;
+    const ds = getLogicalDateStr(d);
+    (naharByDay[ds] = naharByDay[ds] || []).push({ d, type: n.type });
+  }
+  const checkoutDays = {};
+  for (const r of attend) {
+    if (r.type !== 'CIXIS') continue;
+    if (r.overtime === 'Avtomatik bağlandı') continue;   // avtomatik bağlanan smen XP qazandırmır (orijinalla uyğun)
+    const d = new Date(r.timestamp);
+    if (isNaN(d.getTime())) continue;
+    checkoutDays[getLogicalDateStr(d)] = true;
+  }
+  for (const ds of Object.keys(checkoutDays)) {
+    const ymd  = getLogicalDateStr_toYMD(ds);            // dayStreak açarı logicalYMD-dir
+    const mult = getXPMultiplier(dayStreak[ymd] || 0);
+    const list = naharByDay[ds] || [];
+    const get  = list.find(x => x.type === 'NAHAR_GET');
+    const qay  = list.find(x => x.type === 'NAHAR_QAY');
+    if (!get) {
+      xp += Math.round(20 * mult);                        // nahara getməyib → çıxışda +20
+    } else if (qay) {
+      const diffMin = Math.round((qay.d.getTime() - get.d.getTime()) / 60000);
+      if (diffMin > 0 && diffMin < 30) xp += Math.round(20 * mult);  // tez qayıdış → +20
+    }
+  }
+
+  // 3) İmtahan XP-si (özü imtahanı: test balına görə; açıq cavab keçibsə +15)
+  for (const ex of exams) {
+    const ans = Array.isArray(ex.answers) ? ex.answers : [];
+    const examStreak = dayStreak[ex.date_str] || 0;
+    const mult = getXPMultiplier(examStreak);
+    if (ex.trainer_name === 'Özü') {
+      const testTotal = ans.filter(a => a.type === 'test').length;
+      const score     = ans.filter(a => a.type === 'test' && a.passed === true).length;
+      const pct       = testTotal > 0 ? Math.round(score / testTotal * 100) : 0;
+      const xpBase    = pct >= 90 ? 100 : pct >= 80 ? 75 : pct >= 60 ? 50 : 0;
+      if (xpBase > 0) xp += Math.round(xpBase * mult);
+    }
+    const openPassed = ans.filter(a => a.type === 'open' && a.passed === true).length;
+    if (openPassed) xp += openPassed * Math.round(15 * mult);
+  }
+
+  // 4) Trainer manual XP + reytinqlər (xp_audit_log — düz toplam, çoxaldıcısız)
+  xp += auditSum;
+
+  return { xp: Math.max(0, Math.round(xp)), streak, milestones: [...claimed].sort((a, b) => a - b) };
+}
+
+// logicalDateStr (Date.toDateString) → YMD çevirici (dayStreak açarı ilə uyğunlaşdırmaq üçün)
+function getLogicalDateStr_toYMD(dateStr) {
+  return toYMD(new Date(dateStr));
+}
+
 module.exports = {
   loadSettings, getSetting, setSetting,
+  getXPMultiplier, computeEmployeeXP, MS_BONUSES,
   toYMD, fmtTime, getLogicalYMD, getLogicalDateStr,
   generateDynamicPin, TIME_STEP,
   getShiftInfo, isLate, SHIFT_TABLE,

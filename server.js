@@ -1,4 +1,7 @@
 'use strict';
+// Saat qurşağını sabitlə — bütün streak/XP/gecikmə məntiqi serverin yerli saatına güvənir.
+// Railway env-də TZ varsa ona hörmət edir; yoxdursa Asia/Baku-ya düşür (lokal/itən env üçün qoruyucu).
+process.env.TZ = process.env.TZ || 'Asia/Baku';
 require('dotenv').config();
 const express  = require('express');
 const path     = require('path');
@@ -299,16 +302,10 @@ function sbErr(label, error) {
 }
 
 // ── XP MÜHƏRRİKİ ─────────────────────────────────────────────────
-function getXPMultiplier(streak) {
-  if (streak >= 60) return 2.0;
-  if (streak >= 30) return 1.75;
-  if (streak >= 14) return 1.5;
-  if (streak >= 7)  return 1.25;
-  return 1.0;
-}
+// getXPMultiplier utils.js-də (tək mənbə — recalcAllXP də eyni formulu işlədir).
 
 async function awardXP(empId, baseAmount, streak) {
-  const gained = Math.round(baseAmount * getXPMultiplier(streak || 0));
+  const gained = Math.round(baseAmount * U.getXPMultiplier(streak || 0));
   const { data: emp } = await sb.from('employees').select('xp').eq('id', empId).single();
   const current = emp?.xp || 0;
   await sb.from('employees').update({ xp: current + gained }).eq('id', empId);
@@ -363,6 +360,75 @@ API.recalcAllStreaks = async () => {
     updated++;
   }
   return { success: true, updated };
+};
+
+// Bütün işçilərin XP-sini (+streak +milestone) mövcud məlumatlardan SIFIRDAN yenidən hesabla.
+// Manual düzəlişlərdən (saat redaktəsi, gec gəliş icazəsi və s.) sonra XP-ni reallıqla uyğunlaşdırır.
+// dryRun=true → heç nə yazmır, yalnız köhnə/yeni müqayisəsini qaytarır.
+API.recalcAllXP = async (dryRun) => {
+  const { data: emps } = await sb.from('employees').select('id,name,dept,is_test,xp,streak');
+  const results = [];
+  let updated = 0;
+  for (const emp of emps || []) {
+    if (emp.is_test) continue;
+    const empId = String(emp.id);
+    const [attendance, nahar, izinRows, perms, cedvelRows, audit, exams] = await Promise.all([
+      sb.from('attendance').select('timestamp,type,shift_type,overtime').eq('emp_id', empId),
+      sb.from('nahar').select('timestamp,type').eq('emp_id', empId),
+      sb.from('izin').select('start_date,end_date').eq('emp_id', empId).eq('status', 'approved'),
+      sb.from('late_perms').select('date_str,requested_time').eq('emp_id', empId).eq('status', 'approved'),
+      sb.from('cedvel').select('date_str,shift_type').eq('emp_id', empId),
+      sb.from('xp_audit_log').select('amount').eq('emp_id', empId),
+      sb.from('trainer_exams').select('trainer_name,answers,date_str').eq('emp_id', empId),
+    ]);
+    const permMap = {};
+    for (const p of perms.data || []) { const [h, m] = (p.requested_time || '23:59').split(':').map(Number); permMap[p.date_str] = h * 60 + m; }
+    const cedvelMap = {};
+    for (const c of cedvelRows.data || []) cedvelMap[c.date_str] = c.shift_type || null;
+    const auditSum = (audit.data || []).reduce((s, r) => s + (Number(r.amount) || 0), 0);
+
+    const res = U.computeEmployeeXP(emp.dept, {
+      attendance: attendance.data || [],
+      nahar:      nahar.data     || [],
+      izinRows:   izinRows.data  || [],
+      permMap, cedvelMap, auditSum,
+      exams:      exams.data     || [],
+    });
+    results.push({
+      empId: emp.id, name: emp.name, dept: emp.dept,
+      oldXP: emp.xp || 0, newXP: res.xp, dXP: res.xp - (emp.xp || 0),
+      oldStreak: emp.streak || 0, newStreak: res.streak,
+    });
+    if (!dryRun) {
+      await sb.from('employees')
+        .update({ xp: res.xp, streak: res.streak, milestones_claimed: res.milestones })
+        .eq('id', emp.id);
+      updated++;
+    }
+  }
+  results.sort((a, b) => Math.abs(b.dXP) - Math.abs(a.dXP));
+  return { success: true, updated, dryRun: !!dryRun, results };
+};
+
+// ── CƏRİMƏLƏR (admin) ────────────────────────────────────────────
+API.getFines = async () => {
+  const { data } = await sb.from('fines').select('*').order('created_at', { ascending: false }).limit(300);
+  return (data || []).map(r => ({
+    fineId: r.fine_id, empId: r.emp_id, empName: r.emp_name, dept: r.dept,
+    dateStr: r.date_str, amount: r.amount, lateNum: r.late_num, lateMins: r.late_mins,
+    reason: r.reason || '', status: r.status || 'unpaid', createdAt: r.created_at || '',
+  }));
+};
+
+API.updateFineStatus = async (fineId, status) => {
+  if (!['unpaid', 'paid', 'waived'].includes(status)) return { success: false, reason: 'Yanlış status.' };
+  const { error } = await sb.from('fines').update({ status }).eq('fine_id', fineId);
+  return { success: !error };
+};
+
+API.deleteFine = async (fineId) => {
+  const { error } = await sb.from('fines').delete().eq('fine_id', fineId);
+  return { success: !error };
 };
 
 API.updateEmployeeMessage = async (id, msg) => {
@@ -738,27 +804,51 @@ API.validateAndLog = async (enteredPin, clientIp, forceMode) => {
         const current = empXP?.xp || 0;
         await sb.from('employees').update({ xp: Math.max(0, current - penalty) }).eq('id', matched.id);
 
-        // Aylıq cərimə sistemi
+        // Aylıq cərimə sistemi — izin və gec gəliş icazəsi olan günlər SAYILMIR
         const monthStart = new Date(ts.getFullYear(), ts.getMonth(), 1).toISOString();
-        const { data: monthLogs } = await sb.from('attendance')
-          .select('timestamp,shift_type').eq('emp_id', String(matched.id))
-          .eq('type', 'GƏLİŞ').gte('timestamp', monthStart);
+        const [{ data: monthLogs }, { data: monthIzin }, { data: monthPerms }] = await Promise.all([
+          sb.from('attendance').select('timestamp,shift_type').eq('emp_id', String(matched.id))
+            .eq('type', 'GƏLİŞ').gte('timestamp', monthStart),
+          sb.from('izin').select('start_date,end_date').eq('emp_id', String(matched.id)).eq('status', 'approved'),
+          sb.from('late_perms').select('date_str,requested_time').eq('emp_id', String(matched.id)).eq('status', 'approved'),
+        ]);
+        const finePermMap = {};
+        for (const p of monthPerms || []) {
+          const [ph, pm] = (p.requested_time || '23:59').split(':').map(Number);
+          finePermMap[p.date_str] = ph * 60 + pm;
+        }
         let prevLateCount = 0;
         for (const log of monthLogs || []) {
           const d = new Date(log.timestamp);
           if (U.getLogicalDateStr(d) === todayStr) continue; // bugünkü qeydi sayma
-          const logSi = log.shift_type ? U.getShiftInfo(matched.dept, log.shift_type) : null;
+          const ds  = U.toYMD(d);
           const tot = d.getHours() * 60 + d.getMinutes();
+          // Tam gün izin → cərimə sayılmır
+          if ((monthIzin || []).some(r => ds >= r.start_date && ds <= r.end_date)) continue;
+          // Gec gəliş icazəsi: icazə vaxtından (+5 dəq) tez gəlibsə → cərimə sayılmır
+          if (ds in finePermMap && tot <= finePermMap[ds] + 5) continue;
+          const logSi = log.shift_type ? U.getShiftInfo(matched.dept, log.shift_type) : null;
           const lim = logSi ? (logSi.lateH * 60 + logSi.lateM)
             : (d.getHours() < 13 ? 7 * 60 + 15 : (matched.dept === 'Gənclik' || matched.dept === 'Ağ Şəhər') ? 16 * 60 : 15 * 60);
           if (tot > lim) prevLateCount++;
         }
         const thisLateNum = prevLateCount + 1;
+        const isFined     = prevLateCount >= 2;   // 3-cü və sonrakı gecikmə → 30 AZN
         lateWarning = prevLateCount === 0
           ? `\n Bu ay <b>1-ci gecikmə</b> — ${lateMins} dəq. Xəbərdarlıq.`
           : prevLateCount === 1
             ? `\n Bu ay <b>2-ci gecikmə</b> — ${lateMins} dəq. Ciddi xəbərdarlıq!`
             : `\n Bu ay <b>${thisLateNum}-ci gecikmə</b> — ${lateMins} dəq.\n <b>30 AZN cərimə</b> qeyd edildi.`;
+        // Cərimə DB-də saxlanılır (audit izi)
+        if (isFined) {
+          const { error: fineErr } = await sb.from('fines').insert({
+            fine_id:   'FN-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substring(2, 4).toUpperCase(),
+            emp_id:    String(matched.id), emp_name: matched.name, dept: matched.dept,
+            date_str:  todayYMD, amount: 30, late_num: thisLateNum, late_mins: lateMins,
+            reason:    `Bu ay ${thisLateNum}-ci gecikmə (${lateMins} dəq)`, status: 'unpaid',
+          });
+          sbErr('insertFine', fineErr);
+        }
       }
     }
     await U.sendTelegramMsg(`<b>${matched.name}</b> smendə.\n${U.fmtTime(ts)}${lateWarning}`, matched.dept);
@@ -1691,18 +1781,7 @@ API.getTeamProfiles = async (secret) => {
 };
 
 // ── STREAK BACKFILL ───────────────────────────────────────────────
-
-API.recalcAllStreaks = async () => {
-  const { data: emps } = await sb.from('employees').select('id,dept,is_test');
-  let updated = 0;
-  for (const emp of emps || []) {
-    if (emp.is_test) continue;
-    const streak = await U.calcStreak(emp.id, emp.dept);
-    await sb.from('employees').update({ streak }).eq('id', emp.id);
-    updated++;
-  }
-  return { success: true, updated };
-};
+// (API.recalcAllStreaks yuxarıda — İŞÇİLƏR bölməsində — bir dəfə təyin olunub.)
 
 // ── REAKSİYALAR ──────────────────────────────────────────────────
 
