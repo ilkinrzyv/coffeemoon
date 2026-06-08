@@ -94,14 +94,15 @@ input:focus,select:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(7
 .week-nav button{background:#fff;border:1px solid var(--border);color:var(--text-main);padding:7px 12px;border-radius:9px;cursor:pointer;font-size:0.85rem;font-weight:600;transition:all 0.2s;}
 .week-nav button:hover{background:var(--surface-hover);}
 .week-label{font-weight:700;font-size:0.92rem;color:var(--text-main);min-width:160px;text-align:center;}
-.sched-table{width:100%;border-collapse:separate;border-spacing:0 4px;font-size:0.85rem;}
-.sched-table th{font-size:0.75rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;padding:0.5rem 0.6rem;text-align:center;}
-.sched-table td{padding:0.4rem 0.4rem;vertical-align:middle;}
-.sched-table td:first-child{padding-left:0;font-weight:600;font-size:0.9rem;min-width:140px;position:sticky;left:0;z-index:2;background:#fff;box-shadow:2px 0 6px rgba(15,23,42,0.06);}
-.sched-table th:first-child{position:sticky;left:0;z-index:3;background:#f8fafc;box-shadow:2px 0 6px rgba(15,23,42,0.06);text-align:left;}
+/* Cədvəl: tam en, mobil scroll-suz — trainer görünüşü kimi kompakt */
+.sched-table{width:100%;table-layout:fixed;border-collapse:separate;border-spacing:0 4px;font-size:0.8rem;}
+.sched-table th{font-size:0.64rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.3px;padding:0.4rem 0.1rem;text-align:center;}
+.sched-table td{padding:0.32rem 0.1rem;vertical-align:middle;}
+.sched-table td:first-child{width:22%;padding-left:2px;padding-right:5px;font-weight:600;font-size:0.76rem;line-height:1.2;color:var(--text-main);word-break:break-word;}
+.sched-table th:first-child{width:22%;text-align:left;padding-left:2px;}
 .sched-table tr.today-row td:first-child{color:var(--primary);}
-.shift-cell{width:80px;text-align:center;}
-.shift-btn{width:68px;padding:6px 0;border-radius:8px;border:1px solid rgba(15,23,42,0.06);cursor:pointer;font-size:0.78rem;font-weight:700;transition:all 0.15s;background:#f8fafc;color:var(--text-muted);}
+.shift-cell{text-align:center;}
+.shift-btn{width:34px;height:30px;padding:0;border-radius:7px;border:1px solid rgba(15,23,42,0.06);cursor:pointer;font-size:0.72rem;font-weight:800;transition:all 0.15s;background:#f8fafc;color:var(--text-muted);}
 .shift-btn:hover{transform:scale(1.05);}
 .shift-btn.sehersm{background:#dbeafe;color:#1e40af;border-color:#bfdbfe;}
 .shift-btn.axsamsm{background:#ede9fe;color:#5b21b6;border-color:#ddd6fe;}

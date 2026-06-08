@@ -132,17 +132,18 @@ header {
 .shift-legend { display:flex; gap:8px; flex-wrap:wrap; font-size:0.78rem; margin-bottom:1rem; }
 .leg-item { display:flex; align-items:center; gap:5px; font-weight:700; color:var(--text-muted); }
 
-.sched-table { width:100%; border-collapse:separate; border-spacing:0 3px; font-size:0.86rem; }
-.sched-table th { font-size:0.7rem; font-weight:800; color:var(--text-muted); text-transform:uppercase; letter-spacing:1.2px; padding:0.5rem; text-align:center; }
-.sched-table td { padding:0.38rem 0.3rem; vertical-align:middle; }
-.sched-table td:first-child { padding-left:0; font-weight:700; font-size:0.86rem; min-width:130px; position:sticky; left:0; z-index:2; background:#fff; box-shadow:2px 0 6px rgba(15,23,42,0.06); }
-.sched-table th:first-child { position:sticky; left:0; z-index:3; background:#f8fafc; box-shadow:2px 0 6px rgba(15,23,42,0.06); text-align:left; }
+/* Cədvəl: tam en, mobil scroll-suz — trainer görünüşü kimi kompakt */
+.sched-table { width:100%; table-layout:fixed; border-collapse:separate; border-spacing:0 3px; font-size:0.8rem; }
+.sched-table th { font-size:0.64rem; font-weight:800; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.3px; padding:0.4rem 0.1rem; text-align:center; }
+.sched-table td { padding:0.32rem 0.1rem; vertical-align:middle; }
+.sched-table td:first-child { width:22%; padding-left:2px; padding-right:5px; font-weight:700; font-size:0.76rem; line-height:1.2; color:var(--text-main); word-break:break-word; }
+.sched-table th:first-child { width:22%; text-align:left; padding-left:2px; }
 .sched-table tbody tr { transition:background 0.15s; }
 .sched-table tbody tr:hover td { background:rgba(91,94,244,0.025); }
-.shift-cell { width:74px; text-align:center; }
+.shift-cell { text-align:center; }
 .shift-btn {
-  width:62px; padding:7px 0; border-radius:10px;
-  border:1px solid rgba(15,23,42,0.07); cursor:pointer; font-size:0.77rem; font-weight:800;
+  width:34px; height:30px; padding:0; border-radius:8px;
+  border:1px solid rgba(15,23,42,0.07); cursor:pointer; font-size:0.72rem; font-weight:800;
   transition:all 0.15s cubic-bezier(0.16,1,0.3,1); background:#f1f5f9; color:var(--text-muted);
 }
 .shift-btn:hover { transform:scale(1.08); box-shadow:0 3px 10px rgba(15,23,42,0.1); }
