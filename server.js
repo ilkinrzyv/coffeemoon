@@ -471,6 +471,76 @@ API.deleteFine = async (fineId) => {
   return { success: !error };
 };
 
+// Cərimələri mövcud davamiyyətdən sıfırdan yenidən hesabla.
+// İcazəli günlər (izin / gec gəliş icazəsi) çıxarılır; ayda 3+ gecikmə → 30 AZN.
+// Hələ mövcud cərimələrin paid/waived statusu qorunur; aradan qalxanlar silinir.
+API.recalcAllFines = async () => {
+  const { data: emps } = await sb.from('employees').select('id,name,dept,is_test');
+  let added = 0, removed = 0, kept = 0;
+  for (const emp of emps || []) {
+    if (emp.is_test) continue;
+    const empId = String(emp.id);
+    const [att, izinRows, perms, fines] = await Promise.all([
+      sb.from('attendance').select('timestamp,shift_type').eq('emp_id', empId).eq('type', 'GƏLİŞ'),
+      sb.from('izin').select('start_date,end_date').eq('emp_id', empId).eq('status', 'approved'),
+      sb.from('late_perms').select('date_str,requested_time').eq('emp_id', empId).eq('status', 'approved'),
+      sb.from('fines').select('*').eq('emp_id', empId),
+    ]);
+    const permMap = {};
+    for (const p of perms.data || []) { const [h, m] = (p.requested_time || '23:59').split(':').map(Number); permMap[p.date_str] = h * 60 + m; }
+    const izin = izinRows.data || [];
+
+    // Gəlişləri xronoloji oynat, ay üzrə gecikmələri say (icazəlilər çıxılır)
+    const arrivals = (att.data || [])
+      .map(r => ({ d: new Date(r.timestamp), shift: r.shift_type || '' }))
+      .filter(r => !isNaN(r.d.getTime()))
+      .sort((a, b) => a.d - b.d);
+    const expected = {};      // date_str → { late_num, late_mins }
+    const monthCount = {};    // 'YYYY-MM' → unexcused late count
+    for (const a of arrivals) {
+      const ds  = U.toYMD(a.d);
+      const ym  = ds.slice(0, 7);
+      const arr = a.d.getHours() * 60 + a.d.getMinutes();
+      if (izin.some(r => ds >= r.start_date && ds <= r.end_date)) continue;        // tam gün izin
+      if (ds in permMap && arr <= permMap[ds] + 5) continue;                         // icazə vaxtından tez
+      const si  = a.shift ? U.getShiftInfo(emp.dept, a.shift) : null;
+      const lim = si ? (si.lateH * 60 + si.lateM)
+        : (a.d.getHours() < 13 ? 7 * 60 + 15 : (emp.dept === 'Gənclik' || emp.dept === 'Ağ Şəhər') ? 16 * 60 : 15 * 60);
+      if (arr <= lim) continue;                                                       // vaxtında
+      monthCount[ym] = (monthCount[ym] || 0) + 1;
+      if (monthCount[ym] >= 3) expected[ds] = { late_num: monthCount[ym], late_mins: arr - lim };
+    }
+
+    const existing = fines.data || [];
+    const existByDate = {};
+    for (const f of existing) existByDate[f.date_str] = f;
+    // Aradan qalxan cərimələri sil, qalanları yenilə (statusu saxla)
+    for (const f of existing) {
+      if (!(f.date_str in expected)) {
+        await sb.from('fines').delete().eq('fine_id', f.fine_id); removed++;
+      } else {
+        const ex = expected[f.date_str];
+        await sb.from('fines').update({ late_num: ex.late_num, late_mins: ex.late_mins,
+          reason: `Bu ay ${ex.late_num}-ci gecikmə (${ex.late_mins} dəq)` }).eq('fine_id', f.fine_id);
+        kept++;
+      }
+    }
+    // Çatışmayan cərimələri əlavə et
+    for (const ds of Object.keys(expected)) {
+      if (existByDate[ds]) continue;
+      const ex = expected[ds];
+      await sb.from('fines').insert({
+        fine_id: 'FN-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substring(2, 8).toUpperCase(),
+        emp_id: empId, emp_name: emp.name, dept: emp.dept, date_str: ds,
+        amount: 30, late_num: ex.late_num, late_mins: ex.late_mins,
+        reason: `Bu ay ${ex.late_num}-ci gecikmə (${ex.late_mins} dəq)`, status: 'unpaid',
+      });
+      added++;
+    }
+  }
+  return { success: true, added, removed, kept };
+};
+
 API.updateEmployeeMessage = async (id, msg) => {
   const { error } = await sb.from('employees').update({ message: msg || '' }).eq('id', id);
   return { success: !error };

@@ -332,6 +332,7 @@ body > nav { display: none; }
     <button class="btn primary" onclick="addEmp()"><i class="fa-solid fa-user-plus"></i> Əlavə et</button>
     <button class="btn" id="recalcBtn" onclick="recalcStreaks()" style="margin-left:auto;" title="Köhnə məlumatları yeniləmək üçün bir dəfə işlət"><i class="fa-solid fa-rotate"></i> Streak-ləri yenilə</button>
     <button class="btn" id="recalcXpBtn" onclick="recalcXP()" title="XP-ləri mövcud məlumatlardan yenidən hesabla (əvvəlcə önizləmə göstərir)"><i class="fa-solid fa-coins"></i> XP-ləri yenilə</button>
+    <button class="btn" id="recalcFinesBtn" onclick="recalcFines()" title="Cərimələri mövcud davamiyyətdən yenidən hesabla (icazəli günlər çıxarılır, paid/waived qorunur)"><i class="fa-solid fa-money-bill-wave"></i> Cərimələri yenilə</button>
   </div>
   <div class="card" id="empList">Yüklənir...</div>
 </div>
@@ -2064,6 +2065,23 @@ function recalcXP() {
     })
     .withFailureHandler(function() { reset(); alert('Xəta baş verdi.'); })
     .recalcAllXP(true);
+}
+
+function recalcFines() {
+  var btn = document.getElementById('recalcFinesBtn');
+  var reset = function() { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-money-bill-wave"></i> Cərimələri yenilə'; };
+  if (!confirm('Cərimələr mövcud davamiyyətdən yenidən hesablanacaq.\nİcazəli günlər (izin / gec gəliş icazəsi) çıxarılacaq, paid/waived statusu qorunacaq.\n\nDavam edilsin?')) return;
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Hesablanır...';
+  google.script.run
+    .withSuccessHandler(function(res) {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa-solid fa-check"></i> Hazır (+' + res.added + ' / −' + res.removed + ')';
+      setTimeout(reset, 5000);
+      alert('Cərimələr yeniləndi.\n\nYeni əlavə: ' + res.added + '\nSilinən (aradan qalxan): ' + res.removed + '\nQalan: ' + res.kept);
+    })
+    .withFailureHandler(function() { reset(); alert('Xəta baş verdi.'); })
+    .recalcAllFines();
 }
 
 // ════════════════════════════════════════════════════════════════
