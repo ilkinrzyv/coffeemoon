@@ -1683,6 +1683,24 @@
       -webkit-backdrop-filter:none !important;
     }
   }
+
+  /* Cərimə sənədi — açılıb-bağlanan */
+  .efdoc { background:linear-gradient(160deg,rgba(240,69,80,0.16),rgba(20,30,52,0.96)); border:1px solid rgba(240,69,80,0.4); border-radius:16px; margin-bottom:12px; overflow:hidden; box-shadow:0 6px 20px rgba(240,69,80,0.18); }
+  .efdoc-head { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:14px 15px; cursor:pointer; }
+  .efdoc-head-l { font-size:0.78rem; font-weight:800; letter-spacing:0.04em; color:#fca5a5; display:flex; align-items:center; gap:7px; }
+  .efdoc-head-r { display:flex; align-items:center; gap:11px; }
+  .efdoc-amt { font-size:1.05rem; font-weight:900; color:#fff; }
+  .efdoc-chev { font-size:0.8rem; color:rgba(255,255,255,0.55); transition:transform 0.25s; }
+  .efdoc.open .efdoc-chev { transform:rotate(180deg); }
+  .efdoc-body { max-height:0; overflow:hidden; transition:max-height 0.33s ease; }
+  .efdoc.open .efdoc-body { max-height:640px; }
+  .efdoc-row { display:flex; justify-content:space-between; gap:12px; padding:7px 15px; border-top:1px solid rgba(255,255,255,0.07); }
+  .efdoc-lbl { font-size:0.74rem; font-weight:700; color:rgba(255,255,255,0.5); flex-shrink:0; }
+  .efdoc-val { font-size:0.85rem; font-weight:700; color:#fff; text-align:right; }
+  .efdoc-reason { padding:10px 15px; border-top:1px solid rgba(255,255,255,0.07); font-size:0.88rem; color:#fff; line-height:1.45; }
+  .efdoc-reason .efdoc-lbl { display:block; margin-bottom:4px; }
+  .efdoc-sign { margin:12px 15px 5px; width:calc(100% - 30px); background:#f04550; color:#fff; border:none; border-radius:11px; padding:12px; font-weight:800; font-size:0.9rem; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; font-family:inherit; }
+  .efdoc-note { font-size:0.66rem; color:rgba(255,255,255,0.4); text-align:center; padding:0 15px 14px; line-height:1.4; }
 </style>
 </head>
 <body>
@@ -2480,20 +2498,24 @@
     if (!card) return;
     var pending = (list || []).filter(function(f){ return f.status !== 'acknowledged'; });
     if (!pending.length) { card.style.display='none'; card.dataset.hasFines='0'; card.innerHTML=''; return; }
-    var html = '';
-    pending.forEach(function(f) {
-      html +=
-        '<div style="background:linear-gradient(160deg,rgba(240,69,80,0.16),rgba(20,30,52,0.96));border:1px solid rgba(240,69,80,0.4);border-radius:16px;padding:16px;margin-bottom:12px;box-shadow:0 6px 20px rgba(240,69,80,0.18);">' +
-          '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">' +
-            '<div style="font-size:0.72rem;font-weight:800;letter-spacing:0.06em;color:#fca5a5;"><i class="fa-solid fa-triangle-exclamation"></i> CƏRİMƏ</div>' +
-            '<div style="font-size:1.25rem;font-weight:900;color:#fff;">' + Number(f.amount) + ' ₼</div>' +
-          '</div>' +
-          '<div style="font-size:0.92rem;color:#fff;font-weight:600;margin-bottom:6px;line-height:1.4;">' + f.reason + '</div>' +
-          '<div style="font-size:0.72rem;color:rgba(255,255,255,0.5);margin-bottom:12px;"><i class="fa-solid fa-user-tie"></i> ' + (f.createdBy||'Menecer') + ' &nbsp;·&nbsp; <i class="fa-regular fa-calendar"></i> ' + fmtFineDate(f.createdAt) + '</div>' +
-          '<button onclick="ackFine(\'' + f.fineId + '\')" style="width:100%;background:#f04550;color:#fff;border:none;border-radius:11px;padding:12px;font-weight:800;font-size:0.9rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;"><i class="fa-solid fa-signature"></i> Təsdiqlədim (imzala)</button>' +
-          '<div style="font-size:0.66rem;color:rgba(255,255,255,0.4);text-align:center;margin-top:7px;">Bu düyməni basmaqla cəriməni elektron formada təsdiq etmiş olursunuz.</div>' +
-        '</div>';
-    });
+    var html = pending.map(function(f) {
+      return '<div class="efdoc open">' +
+        '<div class="efdoc-head" onclick="this.parentNode.classList.toggle(\'open\')">' +
+          '<div class="efdoc-head-l"><i class="fa-solid fa-file-signature"></i> Cərimə Sənədi</div>' +
+          '<div class="efdoc-head-r"><span class="efdoc-amt">' + Number(f.amount) + ' ₼</span><i class="fa-solid fa-chevron-down efdoc-chev"></i></div>' +
+        '</div>' +
+        '<div class="efdoc-body">' +
+          '<div class="efdoc-row"><span class="efdoc-lbl">İşçi</span><span class="efdoc-val">' + EMP_NAME + '</span></div>' +
+          '<div class="efdoc-row"><span class="efdoc-lbl">Filial</span><span class="efdoc-val">' + (userDept||'-') + '</span></div>' +
+          '<div class="efdoc-row"><span class="efdoc-lbl">Tarix</span><span class="efdoc-val">' + fmtFineDate(f.createdAt) + '</span></div>' +
+          '<div class="efdoc-row"><span class="efdoc-lbl">Məbləğ</span><span class="efdoc-val" style="color:#fca5a5;">' + Number(f.amount) + ' AZN</span></div>' +
+          '<div class="efdoc-row"><span class="efdoc-lbl">Yazan</span><span class="efdoc-val">' + (f.createdBy||'Menecer') + '</span></div>' +
+          '<div class="efdoc-reason"><span class="efdoc-lbl">İzahat / səbəb</span>' + f.reason + '</div>' +
+          '<button class="efdoc-sign" onclick="ackFine(\'' + f.fineId + '\')"><i class="fa-solid fa-signature"></i> Təsdiqlədim (imzala)</button>' +
+          '<div class="efdoc-note">Bu düyməni basmaqla cəriməni elektron formada təsdiq (imza) etmiş olursunuz.</div>' +
+        '</div>' +
+      '</div>';
+    }).join('');
     card.innerHTML = html;
     card.dataset.hasFines = '1';
     card.style.display = (!_activeMainTab || _activeMainTab === 'gundelik') ? 'block' : 'none';

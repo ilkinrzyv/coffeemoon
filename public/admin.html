@@ -250,6 +250,20 @@ body > nav { display: none; }
 .sb-user-role{font-size:.64rem;color:#64748b;font-weight:600;}
 .sb-toggle-btn{background:transparent;border:1px solid rgba(15,23,42,0.09);padding:.42rem .75rem;border-radius:9px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-size:.82rem;font-weight:600;color:#0f172a;transition:all .15s;font-family:'Inter',sans-serif;}
 .sb-toggle-btn:hover{background:#fff;box-shadow:0 2px 8px rgba(15,23,42,0.06);}
+/* Cərimə sənədi — açılıb-bağlanan */
+.afdoc{border:1px solid var(--border);border-radius:12px;margin-bottom:8px;overflow:hidden;background:#fff;}
+.afdoc-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 13px;cursor:pointer;}
+.afdoc-head:hover{background:rgba(15,23,42,0.02);}
+.afdoc-sum{font-size:0.88rem;color:var(--text-main);}
+.afdoc-chev{font-size:0.74rem;color:var(--text-muted);transition:transform 0.25s;}
+.afdoc.open .afdoc-chev{transform:rotate(180deg);}
+.afdoc-body{max-height:0;overflow:hidden;transition:max-height 0.3s ease;}
+.afdoc.open .afdoc-body{max-height:520px;}
+.afdoc-row{display:flex;justify-content:space-between;gap:10px;padding:7px 13px;border-top:1px solid var(--border);font-size:0.83rem;}
+.afdoc-row span{color:var(--text-muted);font-weight:600;}
+.afdoc-row b{color:var(--text-main);font-weight:700;}
+.afdoc-reason{padding:9px 13px;border-top:1px solid var(--border);font-size:0.85rem;color:var(--text-main);line-height:1.45;}
+.afdoc-reason span{display:block;color:var(--text-muted);font-weight:600;font-size:0.75rem;margin-bottom:3px;}
 </style>
 </head>
 <body>
@@ -1463,10 +1477,24 @@ function loadFinesAdmin(){
         var rows=list.map(function(f){
           var acked=f.status==='acknowledged';
           var badge=acked?'<span class="badge approved">İmzalandı</span>':'<span class="badge pending">Gözləyir</span>';
-          var sig=acked?(' &nbsp;·&nbsp; <i class="fa-solid fa-signature"></i> '+fmtFineDateAdmin(f.ackedAt)):'';
-          return '<div class="izin-row"><div class="avatar">'+getInitials(f.empName)+'</div>'+
-            '<div class="izin-info"><b>'+f.empName+' — '+Number(f.amount)+' ₼</b><span>'+f.reason+'<br><i class="fa-solid fa-user-tie"></i> '+(f.createdBy||'Menecer')+' &nbsp;·&nbsp; <i class="fa-regular fa-calendar"></i> '+fmtFineDateAdmin(f.createdAt)+sig+'</span></div>'+
-            badge+'</div>';
+          var imza=acked
+            ?'<div class="afdoc-row"><span>İmza</span><b style="color:var(--success);">✍️ '+fmtFineDateAdmin(f.ackedAt)+'</b></div>'
+            :'<div class="afdoc-row"><span>Status</span><b style="color:var(--warning);">Təsdiq gözlənilir</b></div>';
+          return '<div class="afdoc">'+
+            '<div class="afdoc-head" onclick="this.parentNode.classList.toggle(\'open\')">'+
+              '<div class="afdoc-sum"><b>'+f.empName+'</b> · '+Number(f.amount)+' ₼</div>'+
+              '<div style="display:flex;align-items:center;gap:8px;">'+badge+'<i class="fa-solid fa-chevron-down afdoc-chev"></i></div>'+
+            '</div>'+
+            '<div class="afdoc-body">'+
+              '<div class="afdoc-row"><span>İşçi</span><b>'+f.empName+'</b></div>'+
+              '<div class="afdoc-row"><span>Filial</span><b>'+dept+'</b></div>'+
+              '<div class="afdoc-row"><span>Tarix</span><b>'+fmtFineDateAdmin(f.createdAt)+'</b></div>'+
+              '<div class="afdoc-row"><span>Məbləğ</span><b>'+Number(f.amount)+' AZN</b></div>'+
+              '<div class="afdoc-row"><span>Yazan</span><b>'+(f.createdBy||'Menecer')+'</b></div>'+
+              imza+
+              '<div class="afdoc-reason"><span>İzahat / səbəb</span><div>'+f.reason+'</div></div>'+
+            '</div>'+
+          '</div>';
         }).join('');
         return '<div class="card"><div style="font-size:0.95rem;font-weight:700;margin-bottom:0.8rem;"><i class="fa-solid fa-store" style="color:var(--primary);margin-right:6px;"></i>'+dept+' <span style="color:var(--text-muted);font-weight:600;">('+list.length+')</span></div>'+rows+'</div>';
       }).join('');
