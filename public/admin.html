@@ -383,6 +383,14 @@ body > nav { display: none; }
     <div class="tg-section-title" style="margin-bottom:1rem;"><i class="fa-solid fa-link"></i> Filial İdarəçi Linkləri</div>
     <div id="branchLinks">Yüklənir...</div>
   </div>
+  <div class="card">
+    <div class="tg-section-title" style="margin-bottom:1rem;"><i class="fa-solid fa-chart-line"></i> İcraçı Paneli Linki</div>
+    <div class="link-row">
+      <div class="link-dept"><span style="width:10px;height:10px;border-radius:3px;background:#99f6e4;display:inline-block;"></span>İcraçı</div>
+      <div id="execLink" style="font-family:monospace;font-size:0.75rem;color:var(--text-muted);flex:2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Yüklənir...</div>
+      <button class="btn sm" onclick="copyExecLink()"><i class="fa-solid fa-copy"></i> Kopyala</button>
+    </div>
+  </div>
 </div>
 
 <!-- CANLI -->
@@ -994,7 +1002,7 @@ function sw(name){
   if(name==='tg')   loadTgSettings();
   if(name==='wifi') loadWifi();
   if(name==='mgr')  {loadMgr();loadMgrAcks();}
-  if(name==='cedvel'){loadSched();loadBranchLinks();}
+  if(name==='cedvel'){loadSched();loadBranchLinks();loadExecLink();}
   if(name==='hesabat'){loadWarnings();initRepSelects();}
   if(name==='izin') {loadIzinList();populateIzinEmps();}
   if(name==='checklist'){initChecklist();}
@@ -1150,6 +1158,20 @@ function loadBranchLinks(){
         '<button class="btn sm" onclick="navigator.clipboard.writeText(\''+url+'\');alert(\'Link kopyalandı!\')"><i class="fa-solid fa-copy"></i> Kopyala</button></div>';
     }).join('');
   }).getBranchScheduleKeys();
+}
+
+// ── İCRAÇI LİNKİ ─────────────────────────────────────────────────
+var execLinkVal='';
+function loadExecLink(){
+  google.script.run.withSuccessHandler(function(res){
+    if(!res||!res.key)return;
+    execLinkVal = SCRIPT_URL + '/icraci?key=' + res.key;
+    document.getElementById('execLink').textContent = execLinkVal;
+  }).getExecKey();
+}
+function copyExecLink(){
+  if(!execLinkVal)return;
+  navigator.clipboard.writeText(execLinkVal).then(function(){ alert('Link kopyalandı!'); });
 }
 
 var mgrLiveData = {};
