@@ -1986,10 +1986,6 @@ API.acknowledgeFine = async (secret, fineId) => {
   if (error) { sbErr('acknowledgeFine', error); return { success: false, reason: 'Xəta baş verdi.' }; }
   await sendPushToManager(emp.dept, '✍️ Cərimə Təsdiqləndi',
     `${emp.name}: ${fine.amount} AZN cəriməsini təsdiqlədi (imzaladı).`, { tag: 'mgrfine-ack-' + fineId });
-  await U.sendTelegramMsg(
-    `✍️ <b>${emp.name}</b> ${fine.amount} AZN cəriməsini təsdiqlədi (elektron imza).\nSəbəb: ${fine.reason || '-'}`,
-    emp.dept
-  );
   return { success: true };
 };
 

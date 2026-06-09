@@ -2478,9 +2478,8 @@
   function renderMyFines(list) {
     var card = document.getElementById('finesCard');
     if (!card) return;
-    if (!list || !list.length) { card.style.display='none'; card.dataset.hasFines='0'; card.innerHTML=''; return; }
-    var pending = list.filter(function(f){ return f.status!=='acknowledged'; });
-    var acked   = list.filter(function(f){ return f.status==='acknowledged'; });
+    var pending = (list || []).filter(function(f){ return f.status !== 'acknowledged'; });
+    if (!pending.length) { card.style.display='none'; card.dataset.hasFines='0'; card.innerHTML=''; return; }
     var html = '';
     pending.forEach(function(f) {
       html +=
@@ -2495,20 +2494,6 @@
           '<div style="font-size:0.66rem;color:rgba(255,255,255,0.4);text-align:center;margin-top:7px;">Bu düyməni basmaqla cəriməni elektron formada təsdiq etmiş olursunuz.</div>' +
         '</div>';
     });
-    if (acked.length) {
-      html += '<div style="font-size:0.7rem;font-weight:700;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:0.05em;margin:4px 2px 8px;">Təsdiqlədiyim cərimələr</div>';
-      acked.forEach(function(f) {
-        html +=
-          '<div style="background:rgba(20,30,52,0.9);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:13px 15px;margin-bottom:9px;">' +
-            '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;">' +
-              '<div style="font-size:0.96rem;font-weight:800;color:#fff;">' + Number(f.amount) + ' ₼</div>' +
-              '<div style="font-size:0.72rem;font-weight:700;color:#34d399;"><i class="fa-solid fa-circle-check"></i> İmzalandı</div>' +
-            '</div>' +
-            '<div style="font-size:0.84rem;color:rgba(255,255,255,0.75);margin-bottom:5px;">' + f.reason + '</div>' +
-            '<div style="font-size:0.7rem;color:rgba(255,255,255,0.4);"><i class="fa-solid fa-signature"></i> ' + fmtFineDate(f.ackedAt) + '</div>' +
-          '</div>';
-      });
-    }
     card.innerHTML = html;
     card.dataset.hasFines = '1';
     card.style.display = (!_activeMainTab || _activeMainTab === 'gundelik') ? 'block' : 'none';
