@@ -253,6 +253,7 @@ header {
 .mgr-day-badge.s { background:#dbeafe; color:#1d4ed8; }
 .mgr-day-badge.a { background:#ede9fe; color:#5b21b6; }
 .mgr-day-badge.o { background:#fef9c3; color:#854d0e; }
+.mgr-day-badge.i { background:#fee2e2; color:#991b1b; }
 
 /* ── CHECKLİST ── */
 .cl-progress-card { padding:1.2rem 1.4rem; margin-bottom:1.1rem; }
@@ -859,8 +860,8 @@ function loadSched() {
 
 // ── Menecer öz qrafiki ───────────────────────────────────────────
 var mgrSchedData = {};
-var MGR_CYCLE  = ['s','a','o',''];
-var MGR_LABELS_M = {s:'S', a:'A', o:'O', '':'·'};
+var MGR_CYCLE  = ['s','a','o','i',''];
+var MGR_LABELS_M = {s:'S', a:'A', o:'O', i:'İ', '':'·'};
 
 function loadMgrSched() {
   google.script.run
