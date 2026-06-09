@@ -1823,6 +1823,40 @@ API.getAvansList = async () => {
   }));
 };
 
+// Admin: menecerlərin təsdiqlədiyi gec gəliş icazələri + avanslar, filial üzrə
+API.getApprovedByBranch = async () => {
+  const [{ data: emps }, { data: perms }, { data: avans }] = await Promise.all([
+    sb.from('employees').select('id,dept'),
+    sb.from('late_perms').select('*').eq('status', 'approved')
+      .order('date_str', { ascending: false }).limit(500),
+    sb.from('avans').select('*').in('status', ['approved', 'paid'])
+      .order('created_at', { ascending: false }).limit(500),
+  ]);
+  const empDept = {};
+  for (const e of emps || []) empDept[String(e.id)] = e.dept;
+  const result = {};
+  for (const d of U.DEPTS) result[d] = { latePerms: [], avans: [] };
+  const bucket = (rowDept, empId) => {
+    let dept = rowDept;
+    if (!result[dept]) dept = empDept[String(empId)] || rowDept || 'Digər';
+    if (!result[dept]) result[dept] = { latePerms: [], avans: [] };
+    return result[dept];
+  };
+  for (const p of perms || []) {
+    bucket(p.dept, p.emp_id).latePerms.push({
+      permId: p.perm_id, empName: p.emp_name, dateStr: p.date_str,
+      requestedTime: p.requested_time, approvedAt: p.approved_at || '',
+    });
+  }
+  for (const a of avans || []) {
+    bucket(a.dept, a.emp_id).avans.push({
+      avansId: a.avans_id, empName: a.emp_name, amount: a.amount,
+      note: a.note || '', status: a.status, dateStr: a.date_str, createdAt: a.created_at || '',
+    });
+  }
+  return result;
+};
+
 // Admin üçün: avans statusunu dəyişdir
 API.updateAvansStatus = async (avansId, status) => {
   if (!['approved', 'rejected', 'paid'].includes(status))

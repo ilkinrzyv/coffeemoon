@@ -279,6 +279,7 @@ body > nav { display: none; }
 
     <div class="sb-sect">İcazə & Növbə</div>
     <button class="sb-item" data-pg="izin" onclick="sw('izin')"><span class="sb-ic"><i class="fa-solid fa-umbrella-beach"></i></span> İcazə</button>
+    <button class="sb-item" data-pg="approvals" onclick="sw('approvals')"><span class="sb-ic"><i class="fa-solid fa-circle-check"></i></span> Təsdiqlər</button>
     <button class="sb-item" data-pg="checklist" onclick="sw('checklist')"><span class="sb-ic"><i class="fa-solid fa-clipboard-check"></i></span> Çeklist</button>
     <button class="sb-item" data-pg="waste" onclick="sw('waste')"><span class="sb-ic"><i class="fa-solid fa-box-archive"></i></span> Tullantılar</button>
     <button class="sb-item" data-pg="trainer" onclick="sw('trainer')"><span class="sb-ic"><i class="fa-solid fa-graduation-cap"></i></span> Training</button>
@@ -322,6 +323,7 @@ body > nav { display: none; }
   <button class="tab" onclick="sw('waste')"><i class="fa-solid fa-box-archive"></i> Tullantılar</button>
   <button class="tab" onclick="sw('yenilik')"><i class="fa-solid fa-bell-concierge"></i> Yeniliklər</button>
   <button class="tab" onclick="sw('trainer')"><i class="fa-solid fa-graduation-cap"></i> Training</button>
+  <button class="tab" onclick="sw('approvals')"><i class="fa-solid fa-circle-check"></i> Təsdiqlər</button>
 </nav>
 
 <!-- İŞÇİLƏR -->
@@ -335,6 +337,20 @@ body > nav { display: none; }
     <button class="btn" id="recalcFinesBtn" onclick="recalcFines()" title="Cərimələri mövcud davamiyyətdən yenidən hesabla (icazəli günlər çıxarılır, paid/waived qorunur)"><i class="fa-solid fa-money-bill-wave"></i> Cərimələri yenilə</button>
   </div>
   <div class="card" id="empList">Yüklənir...</div>
+</div>
+
+<!-- TƏSDİQLƏR (Menecer təsdiqləri — İcazə & Avans, filial üzrə) -->
+<div id="tab-approvals" class="page">
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+      <div>
+        <div style="font-size:0.95rem;font-weight:700;"><i class="fa-solid fa-circle-check" style="color:var(--success);margin-right:6px;"></i>Menecer Təsdiqləri</div>
+        <div style="font-size:0.82rem;color:var(--text-muted);">Menecerlərin təsdiqlədiyi gec gəliş icazələri və avanslar — filial üzrə</div>
+      </div>
+      <button class="btn" onclick="loadApprovals()"><i class="fa-solid fa-rotate"></i> Yenilə</button>
+    </div>
+  </div>
+  <div id="approvalsBody">Yüklənir...</div>
 </div>
 
 <!-- CƏDVƏL -->
@@ -990,7 +1006,7 @@ function getDayShort(s){var d=new Date(s);var names=['B.e.','Ç.a.','Çər.','C.
 
 // ── TAB SW ───────────────────────────────────────────────────────
 function sw(name){
-  var tabs=['emp','cedvel','att','hesabat','izin','dev','tg','mgr','wifi','checklist','waste','yenilik','trainer'];
+  var tabs=['emp','cedvel','att','hesabat','izin','dev','tg','mgr','wifi','checklist','waste','yenilik','trainer','approvals'];
   tabs.forEach(function(n){
     var el=document.getElementById('tab-'+n);
     if(el) el.classList.toggle('active',n===name);
@@ -1011,6 +1027,7 @@ function sw(name){
   if(name==='waste'){loadProductsAdmin();}
   if(name==='yenilik'){loadYenilikler();}
   if(name==='trainer'&&!window._trainerInited){window._trainerInited=true;initTrainerTab();}
+  if(name==='approvals'){loadApprovals();}
 }
 function sbToggle(){document.getElementById('adminSb').classList.toggle('open');document.getElementById('sbOverlay').classList.toggle('open');}
 function sbClose(){document.getElementById('adminSb').classList.remove('open');document.getElementById('sbOverlay').classList.remove('open');}
@@ -1381,6 +1398,47 @@ function loadIzinList(){
 function openIzinModal(id,status){document.getElementById('izinModalId').value=id;document.getElementById('izinModalStatus').value=status;document.getElementById('izinModal').classList.add('open');}
 function doUpdateIzin(){var id=document.getElementById('izinModalId').value,st=document.getElementById('izinModalStatus').value;document.getElementById('izinModal').classList.remove('open');google.script.run.withSuccessHandler(loadIzinList).updateIzinStatus(id,st);}
 function delIzin(id){if(confirm('Bu icazə qeydi silinsin?'))google.script.run.withSuccessHandler(loadIzinList).removeIzin(id);}
+
+// ── MENECER TƏSDİQLƏRİ (İcazə & Avans, filial üzrə) ──────────────
+function loadApprovals(){
+  var body=document.getElementById('approvalsBody');
+  body.innerHTML='<div style="text-align:center;padding:2rem;color:var(--text-muted)"><i class="fa-solid fa-circle-notch fa-spin"></i></div>';
+  google.script.run
+    .withSuccessHandler(function(data){
+      data=data||{};
+      var depts=Object.keys(data);
+      var hasAny=depts.some(function(d){return (data[d].latePerms||[]).length||(data[d].avans||[]).length;});
+      if(!depts.length||!hasAny){body.innerHTML='<div class="card" style="text-align:center;color:var(--text-muted);padding:2.5rem;"><i class="fa-solid fa-inbox" style="opacity:0.25;display:block;font-size:1.8rem;margin-bottom:0.6rem;"></i>Təsdiqlənmiş icazə və ya avans yoxdur.</div>';return;}
+      var sc={approved:'<span class="badge approved">Təsdiqləndi</span>',paid:'<span class="badge approved">Ödənildi</span>'};
+      var sep='<div style="height:1px;background:rgba(255,255,255,0.06);margin:0.9rem 0;"></div>';
+      var subTitle=function(ic,txt,n){return '<div style="font-size:0.78rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;margin:0.4rem 0 0.6rem;"><i class="fa-solid '+ic+'"></i> '+txt+' ('+n+')</div>';};
+      var empty=function(t){return '<div style="color:var(--text-muted);font-size:0.84rem;padding:0.2rem 0;">'+t+'</div>';};
+      body.innerHTML=depts.map(function(dept){
+        var d=data[dept]||{latePerms:[],avans:[]};
+        var perms=d.latePerms||[], avans=d.avans||[];
+        var permsHtml=perms.length?perms.map(function(p){
+          return '<div class="izin-row"><div class="avatar">'+getInitials(p.empName)+'</div>'+
+            '<div class="izin-info"><b>'+p.empName+'</b><span><i class="fa-regular fa-calendar"></i> '+fmtDMY(p.dateStr)+' &nbsp;|&nbsp; <i class="fa-regular fa-clock"></i> '+(p.requestedTime||'')+'</span></div>'+
+            sc.approved+'</div>';
+        }).join(''):empty('İcazə yoxdur.');
+        var avansHtml=avans.length?avans.map(function(a){
+          return '<div class="izin-row"><div class="avatar">'+getInitials(a.empName)+'</div>'+
+            '<div class="izin-info"><b>'+a.empName+'</b><span><i class="fa-solid fa-coins"></i> '+Number(a.amount)+' AZN'+(a.note?' &nbsp;|&nbsp; '+a.note:'')+' &nbsp;|&nbsp; <i class="fa-regular fa-calendar"></i> '+fmtDMY(a.dateStr)+'</span></div>'+
+            (sc[a.status]||'')+'</div>';
+        }).join(''):empty('Avans yoxdur.');
+        return '<div class="card">'+
+          '<div style="font-size:0.95rem;font-weight:700;margin-bottom:0.8rem;"><i class="fa-solid fa-store" style="color:var(--primary);margin-right:6px;"></i>'+dept+'</div>'+
+          subTitle('fa-clock','Gec Gəliş İcazələri',perms.length)+permsHtml+
+          sep+
+          subTitle('fa-money-bill-wave','Avanslar',avans.length)+avansHtml+
+          '</div>';
+      }).join('');
+    })
+    .withFailureHandler(function(e){
+      body.innerHTML='<div class="card" style="color:var(--danger);font-weight:600;"><i class="fa-solid fa-triangle-exclamation"></i> Xəta: '+(e&&e.message?e.message:'Server xətası')+'</div>';
+    })
+    .getApprovedByBranch();
+}
 
 // ── SCAN CİHAZLAR ────────────────────────────────────────────────
 function loadDevices(){
