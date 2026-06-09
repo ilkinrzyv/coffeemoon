@@ -369,6 +369,7 @@ API.getEmployees = async () => {
     secret:  emp.secret,
     message: emp.message || '',
     streak:  emp.is_test ? 999 : (emp.streak || 0),
+    xp:      emp.is_test ? 999999 : (emp.xp || 0),
   }));
   return result.sort((a, b) => b.streak - a.streak);
 };

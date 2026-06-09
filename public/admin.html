@@ -47,6 +47,7 @@ input:focus,select:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(7
 .action-btn{font-size:0.84rem;padding:8px 11px;background:#fff;border:1px solid rgba(15,23,42,0.06);color:var(--text-muted);cursor:pointer;border-radius:9px;font-weight:500;display:flex;gap:5px;align-items:center;transition:all 0.2s;}
 .action-btn:hover{background:var(--surface-hover);color:var(--text-main);}
 .emp-streak-lbl{font-size:0.75rem;font-weight:700;color:#b45309;background:rgba(245,158,11,0.08);padding:2px 7px;border-radius:7px;margin-left:6px;display:inline-flex;align-items:center;gap:3px;}
+.emp-xp-lbl{font-size:0.75rem;font-weight:700;color:#4f46e5;background:rgba(99,102,241,0.08);padding:2px 7px;border-radius:7px;margin-left:6px;display:inline-flex;align-items:center;gap:3px;}
 /* Badges */
 .badge{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:100px;font-size:0.76rem;font-weight:700;}
 .badge.pending{background:rgba(245,158,11,0.08);color:#b45309;border:1px solid rgba(245,158,11,0.12);}
@@ -1022,8 +1023,9 @@ function renderEmps(){
   if(!emps.length){list.innerHTML='<div style="text-align:center;padding:3rem;color:var(--text-muted)">Siyahı boşdur.</div>';return;}
   list.innerHTML=emps.map(function(e){
     var sb=e.streak>0?'<span class="emp-streak-lbl"><i class="fa-solid fa-fire"></i>'+e.streak+' gün</span>':'';
+    var xpb=(e.xp>0)?'<span class="emp-xp-lbl"><i class="fa-solid fa-coins"></i>'+e.xp+' XP</span>':'';
     return '<div class="emp-row"><div class="avatar">'+getInitials(e.name)+'</div>'+
-      '<div class="emp-name"><b>'+e.name+'</b>'+sb+'<span><i class="fa-solid fa-briefcase"></i>'+e.dept+'</span></div>'+
+      '<div class="emp-name"><b>'+e.name+'</b>'+sb+xpb+'<span><i class="fa-solid fa-briefcase"></i>'+e.dept+'</span></div>'+
       '<div class="live-pin">'+generateDynamicPin(e.secret,cW)+'</div>'+
       '<div class="btn-group">'+
         '<button class="action-btn" onclick="copyLink(\''+SCRIPT_URL+'/mycode?name='+encodeURIComponent(e.name)+'&secret='+e.secret+'\')"><i class="fa-solid fa-link"></i> Kart</button>'+
