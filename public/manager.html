@@ -500,10 +500,22 @@ header {
 .fine-toggle .fa-chevron-down { transition:transform 0.25s; font-size:0.78rem; }
 .fine-toggle.open .fa-chevron-down { transform:rotate(180deg); }
 .fine-form-wrap { overflow:hidden; max-height:0; transition:max-height 0.32s ease; }
-.fine-form-wrap.open { max-height:480px; }
+.fine-form-wrap.open { max-height:800px; }
 .fine-form-inner { display:flex; flex-direction:column; gap:9px; padding-bottom:14px; }
-.fine-hint { font-size:0.76rem; color:var(--text-muted); line-height:1.5; background:rgba(15,23,42,0.03); border-radius:10px; padding:9px 11px; }
-.fine-hint i { color:var(--primary); margin-right:3px; }
+/* Cərimə izahat sənədi düzümü */
+.fine-doc { border:1px solid rgba(15,23,42,0.1); border-radius:14px; padding:14px; background:rgba(255,255,255,0.6); }
+.fine-doc-title { font-size:0.8rem; font-weight:800; color:var(--text-main); text-transform:uppercase; letter-spacing:0.06em; display:flex; align-items:center; gap:7px; padding-bottom:10px; margin-bottom:6px; border-bottom:1.5px solid rgba(15,23,42,0.08); }
+.fine-doc-title i { color:var(--danger); }
+.fine-doc-row { display:flex; align-items:center; gap:10px; padding:9px 0; border-bottom:1px dashed rgba(15,23,42,0.08); }
+.fine-doc-row.col { flex-direction:column; align-items:stretch; gap:6px; }
+.fine-doc-label { flex:0 0 82px; font-size:0.76rem; font-weight:700; color:var(--text-muted); }
+.fine-doc-val { font-size:0.86rem; font-weight:700; color:var(--text-main); }
+.fine-doc-input { flex:1; padding:8px 10px; border:1px solid rgba(15,23,42,0.14); border-radius:9px; font-size:0.88rem; background:#fff; color:var(--text-main); font-family:inherit; box-sizing:border-box; }
+textarea.fine-doc-input { resize:vertical; }
+.fine-doc-note { font-size:0.75rem; color:var(--text-muted); line-height:1.5; background:rgba(245,158,11,0.09); border-radius:9px; padding:8px 11px; margin:12px 0; }
+.fine-doc-note i { color:var(--warning); margin-right:3px; }
+.fine-doc-submit { width:100%; background:var(--danger); color:#fff; border:none; border-radius:11px; padding:11px; font-weight:700; font-size:0.88rem; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:7px; font-family:'Inter',sans-serif; transition:filter 0.18s; }
+.fine-doc-submit:hover { filter:brightness(1.05); }
 
 /* ════════ MOBİL UYĞUNLAŞMA (yalnız əlavə — desktop dəyişmir) ════════ */
 @media (max-width: 640px) {
@@ -693,17 +705,40 @@ header {
       <button class="icon-btn" onclick="loadMgrFines()" title="Yenilə"><i class="fa-solid fa-rotate"></i></button>
     </div>
     <button type="button" class="fine-toggle" id="fineToggleBtn" onclick="toggleFineForm()">
-      <span><i class="fa-solid fa-circle-plus"></i> Yeni cərimə yaz</span>
+      <span><i class="fa-solid fa-file-signature"></i> Yeni cərimə sənədi</span>
       <i class="fa-solid fa-chevron-down"></i>
     </button>
     <div class="fine-form-wrap" id="fineFormWrap">
       <div class="fine-form-inner">
-        <div class="fine-hint"><i class="fa-solid fa-circle-info"></i> İşçini seçin, məbləği (AZN) və səbəbi yazın. İşçiyə bildiriş gedəcək və o, öz kartında <b>təsdiqləməlidir</b> (elektron imza). Yazdığınız səbəbi işçi görəcək.</div>
-        <select id="fineEmp" style="width:100%;padding:10px 12px;border:1px solid rgba(15,23,42,0.12);border-radius:11px;font-size:0.88rem;background:#fff;color:var(--text-main);font-family:inherit;box-sizing:border-box;"><option value="">İşçi seçin...</option></select>
-        <input id="fineAmount" type="number" min="1" max="1000" placeholder="Məbləğ (AZN)" style="width:100%;padding:10px 12px;border:1px solid rgba(15,23,42,0.12);border-radius:11px;font-size:0.88rem;background:#fff;color:var(--text-main);font-family:inherit;box-sizing:border-box;">
-        <textarea id="fineReason" rows="2" placeholder="Cərimənin səbəbi (işçi bunu görəcək)" style="width:100%;padding:10px 12px;border:1px solid rgba(15,23,42,0.12);border-radius:11px;font-size:0.88rem;background:#fff;color:var(--text-main);font-family:inherit;box-sizing:border-box;resize:vertical;"></textarea>
-        <button onclick="submitMgrFine()" style="background:var(--danger);color:#fff;border:none;border-radius:11px;padding:11px;font-weight:700;font-size:0.88rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;"><i class="fa-solid fa-gavel"></i> Cərimə yaz</button>
-        <div id="fineFormResult" style="font-size:0.8rem;font-weight:600;min-height:1em;"></div>
+        <div class="fine-doc">
+          <div class="fine-doc-title"><i class="fa-solid fa-file-signature"></i> Cərimə İzahat Sənədi</div>
+          <div class="fine-doc-row">
+            <span class="fine-doc-label">İşçi</span>
+            <select id="fineEmp" class="fine-doc-input"><option value="">İşçi seçin...</option></select>
+          </div>
+          <div class="fine-doc-row">
+            <span class="fine-doc-label">Tarix</span>
+            <span class="fine-doc-val" id="fineDocDate">—</span>
+          </div>
+          <div class="fine-doc-row">
+            <span class="fine-doc-label">Filial</span>
+            <span class="fine-doc-val"><?= dept ?></span>
+          </div>
+          <div class="fine-doc-row">
+            <span class="fine-doc-label">Məbləğ</span>
+            <span style="display:flex;align-items:center;gap:6px;flex:1;">
+              <input id="fineAmount" type="number" min="1" max="1000" placeholder="0" class="fine-doc-input" style="max-width:120px;">
+              <b style="color:var(--text-main);font-size:0.86rem;">AZN</b>
+            </span>
+          </div>
+          <div class="fine-doc-row col">
+            <span class="fine-doc-label">İzahat / səbəb</span>
+            <textarea id="fineReason" rows="3" class="fine-doc-input" placeholder="Cərimənin səbəbini ətraflı yazın (işçi bunu görəcək)"></textarea>
+          </div>
+          <div class="fine-doc-note"><i class="fa-solid fa-circle-info"></i> İşçi bu sənədi öz kartında <b>təsdiqləyəcək</b> — bu, elektron imza sayılır.</div>
+          <button onclick="submitMgrFine()" class="fine-doc-submit"><i class="fa-solid fa-paper-plane"></i> Sənədi göndər</button>
+          <div id="fineFormResult" style="font-size:0.8rem;font-weight:600;min-height:1em;text-align:center;margin-top:8px;"></div>
+        </div>
       </div>
     </div>
     <div id="mgrFineList"><div class="req-empty"><i class="fa-solid fa-circle-notch fa-spin"></i></div></div>
@@ -1134,6 +1169,8 @@ function fmtFineTs(s){ if(!s) return ''; var d=new Date(s); if(isNaN(d.getTime()
   return ('0'+d.getDate()).slice(-2)+'.'+('0'+(d.getMonth()+1)).slice(-2)+'.'+d.getFullYear()+' '+('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2); }
 
 function populateFineEmps() {
+  var dEl = document.getElementById('fineDocDate');
+  if (dEl) dEl.textContent = fmtDMY(toYMD(new Date()));
   var sel = document.getElementById('fineEmp');
   if (!sel) return;
   var cur = sel.value;
