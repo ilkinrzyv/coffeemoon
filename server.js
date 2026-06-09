@@ -2151,6 +2151,15 @@ API.getTodayExams = async (trainerKey) => {
   return { exams: data || [] };
 };
 
+// Seçilmiş tarixin imtahan nəticələri (trainer paneli — tarixə görə baxış)
+API.getExamResultsByDate = async (trainerKey, dateStr) => {
+  if (!U.getSetting('TRAINER_KEY') || U.getSetting('TRAINER_KEY') !== trainerKey)
+    return { exams: [] };
+  const date = dateStr || U.getLogicalYMD(new Date());
+  const { data } = await sb.from('trainer_exams').select('*').eq('date_str', date).order('created_at', { ascending: false });
+  return { date, exams: data || [] };
+};
+
 API.getExamLogs = async (dateStr) => {
   const date = dateStr || U.getLogicalYMD(new Date());
   const { data } = await sb.from('trainer_exams').select('*').eq('date_str', date).order('created_at', { ascending: false });

@@ -381,7 +381,11 @@ header{background:linear-gradient(135deg,rgba(255,255,255,0.94) 0%,rgba(240,253,
   <!-- ─ Nəticələr ─ -->
   <div id="imtahan-panel-results" class="hidden">
     <div class="card">
-      <div class="sec-label"><i class="fa-solid fa-trophy"></i> Bu günkü imtahan nəticələri</div>
+      <div class="sec-label"><i class="fa-solid fa-trophy"></i> İmtahan nəticələri</div>
+      <div style="margin-bottom:0.9rem;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <input type="date" id="exDatePick" class="f-inp" onchange="exDateCh()" style="max-width:185px;">
+        <span style="font-size:0.74rem;color:var(--text-soft);font-weight:600;">Tarix seçin — kartlara klikləyib detalları açın</span>
+      </div>
       <div id="examResultsList"><div class="empty"><i class="fa-solid fa-circle-notch fa-spin"></i><p>Yüklənir...</p></div></div>
     </div>
   </div>
@@ -718,11 +722,15 @@ function deleteExamQ(id){if(!confirm('Bu sualı silmək istədiyinizə əminsini
 // ════════════════════════════════════════════════════════════════
 function loadTodayExams(){
   var el=document.getElementById('examResultsList'); el.innerHTML='<div class="empty"><i class="fa-solid fa-circle-notch fa-spin"></i><p>Yüklənir...</p></div>';
-  google.script.run.withSuccessHandler(renderExamResults).withFailureHandler(function(){document.getElementById('examResultsList').innerHTML='<div class="empty"><i class="fa-solid fa-triangle-exclamation"></i><p>Yüklənə bilmədi.</p></div>';}).getTodayExams(TRAINER_KEY);
+  var dp=document.getElementById('exDatePick');
+  if(dp&&!dp.value){ var n=new Date(); dp.value=n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0'); }
+  var date=(dp&&dp.value)||'';
+  google.script.run.withSuccessHandler(renderExamResults).withFailureHandler(function(){document.getElementById('examResultsList').innerHTML='<div class="empty"><i class="fa-solid fa-triangle-exclamation"></i><p>Yüklənə bilmədi.</p></div>';}).getExamResultsByDate(TRAINER_KEY,date);
 }
+function exDateCh(){ loadTodayExams(); }
 function renderExamResults(res){
   var el=document.getElementById('examResultsList'),exams=(res&&res.exams)||[];
-  if(!exams.length){el.innerHTML='<div class="empty"><i class="fa-solid fa-file-pen"></i><p>Bu gün hələ imtahan yoxdur.</p></div>';return;}
+  if(!exams.length){el.innerHTML='<div class="empty"><i class="fa-solid fa-file-pen"></i><p>Bu tarixdə imtahan yoxdur.</p></div>';return;}
   el.innerHTML=exams.map(function(exam,i){return buildExamCard(exam,'exr-'+i);}).join('');
 }
 function buildExamCard(exam,uid){
