@@ -14,6 +14,10 @@ const app       = express();
 const PORT      = process.env.PORT || 3000;
 const ADMIN_KEY = process.env.ADMIN_KEY || 'coffeemoon';
 
+// Nahar siyasəti (dəqiqə): bonus yalnız real, vaxtında nahara verilir
+const LUNCH_MIN = 15;   // bundan az → ani/saxta tap → bonus yox
+const LUNCH_MAX = 30;   // bundan çox → gec qayıdış → bonus yox + menecerə bildiriş
+
 // ── VAPID konfiqurasiyası ─────────────────────────────────────────
 if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
   webpush.setVapidDetails(
@@ -996,10 +1000,11 @@ API.validateAndLog = async (enteredPin, clientIp, forceMode) => {
       const qayN = todayNahar.find(r => r.type === 'NAHAR_QAY');
       let qualifies = false;
       if (!getN) {
-        qualifies = true;                                   // nahara getməyib
+        qualifies = true;                                   // nahara getməyib (saxlanılır)
       } else if (qayN) {
         const diffMin = Math.round((new Date(qayN.timestamp).getTime() - new Date(getN.timestamp).getTime()) / 60000);
-        if (diffMin > 0 && diffMin < 30) qualifies = true;  // 30 dəqiqədən tez qayıdıb
+        // Yalnız real, vaxtında nahar: 15–30 dəq. Ani tap (<15) və gec qayıdış (>30) bonus almır.
+        if (diffMin >= LUNCH_MIN && diffMin <= LUNCH_MAX) qualifies = true;
       }
       if (qualifies) lunchXP = await awardXP(matched.id, 20, matched.streak || 0);
     }
@@ -1207,10 +1212,54 @@ API.logLunch = async (enteredPin, clientIp, lunchType) => {
   if (naharQay.length > 0)   return { valid: false, reason: 'Nahardan qayıdışınız artıq qeydə alınıb!' };
   const diffMin = Math.round((ts.getTime() - new Date(naharGet[0].timestamp).getTime()) / 60000);
   await sb.from('nahar').insert({ nahar_id: 'NH-' + Date.now().toString(36).toUpperCase(), emp_id: matched.id, emp_name: matched.name, dept: matched.dept, timestamp: ts.toISOString(), type: 'NAHAR_QAY' });
-  await U.sendTelegramMsg(`<b>${matched.name}</b> nahar bitdi.\n${U.fmtTime(ts)} — ${diffMin} dəq`, matched.dept);
+  const lateLunch = diffMin > LUNCH_MAX;
+  await U.sendTelegramMsg(`<b>${matched.name}</b> nahar bitdi.\n${U.fmtTime(ts)} — ${diffMin} dəq` + (lateLunch ? ` ⚠️ (limit ${LUNCH_MAX} dəq aşıldı)` : ''), matched.dept);
+  if (lateLunch) {
+    await sendPushToManager(matched.dept, '⚠️ Nahar gecikməsi',
+      `${matched.name}: nahardan ${diffMin} dəq sonra qayıtdı (limit ${LUNCH_MAX} dəq).`,
+      { tag: 'lunch-late-' + matched.id });
+  }
   // Nahar XP-si burada VERİLMİR — işçi nahar anında bal artımı görməsin.
   // Bonus (tez qayıdış / nahara getməmə) smen çıxışında hesablanır (aşağıda CIXIS bloku).
   return { valid: true, empName: matched.name, dept: matched.dept, type: 'NAHAR_QAY', duration: diffMin };
+};
+
+// Menecer: bugünkü nahar jurnalı (müddət + status; gec qayıdanlar/hələ naharda olanlar işarələnir)
+API.getLunchLogForManager = async (branchKey) => {
+  const check = U.validateBranchScheduleKey(branchKey);
+  if (!check.valid) return [];
+  const todayStr = U.getLogicalDateStr(new Date());
+  const cutoff   = new Date(Date.now() - 2 * 86400000).toISOString();
+  const { data: rows } = await sb.from('nahar').select('*')
+    .eq('dept', check.dept).gte('timestamp', cutoff);
+  const byEmp = {};
+  for (const r of rows || []) {
+    if (U.getLogicalDateStr(new Date(r.timestamp)) !== todayStr) continue;
+    const k = String(r.emp_id);
+    if (!byEmp[k]) byEmp[k] = { empName: r.emp_name, get: null, qay: null };
+    if (r.type === 'NAHAR_GET') byEmp[k].get = new Date(r.timestamp);
+    if (r.type === 'NAHAR_QAY') byEmp[k].qay = new Date(r.timestamp);
+  }
+  const now = Date.now();
+  const result = [];
+  for (const k of Object.keys(byEmp)) {
+    const e = byEmp[k];
+    if (!e.get) continue;
+    const endMs  = e.qay ? e.qay.getTime() : now;
+    const durMin = Math.round((endMs - e.get.getTime()) / 60000);
+    result.push({
+      empName: e.empName,
+      start:   U.fmtTime(e.get),
+      end:     e.qay ? U.fmtTime(e.qay) : '',
+      durMin,
+      ongoing: !e.qay,
+      late:    durMin > LUNCH_MAX,
+      limit:   LUNCH_MAX,
+    });
+  }
+  return result.sort((a, b) =>
+    (b.ongoing ? 1 : 0) - (a.ongoing ? 1 : 0) || b.durMin - a.durMin
+  );
 };
 
 // ── MENECER DAVAMİYYƏTİ ──────────────────────────────────────────

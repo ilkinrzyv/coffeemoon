@@ -623,6 +623,18 @@ textarea.fine-doc-input { resize:vertical; }
     <div class="mgr-status" id="mgrStatus"></div>
   </div>
 
+  <!-- Nahar Jurnalı (bugünkü nahar müddətləri) -->
+  <div class="card">
+    <div class="section-hdr">
+      <div class="section-hdr-left">
+        <i class="fa-solid fa-utensils" style="color:var(--warning);"></i> Nahar Jurnalı
+        <span id="lunchBadge" class="badge-count"></span>
+      </div>
+      <button class="icon-btn" onclick="loadLunchLog()" title="Yenilə"><i class="fa-solid fa-rotate"></i></button>
+    </div>
+    <div id="lunchLogList"><div class="req-empty"><i class="fa-solid fa-circle-notch fa-spin"></i></div></div>
+  </div>
+
   <!-- Cədvəl -->
   <div class="card">
     <div class="sched-header">
@@ -950,6 +962,7 @@ function loadManagerDashboard() {
       renderTable();
       populateFineEmps();
       loadMgrFines();
+      loadLunchLog();
 
       // 2. Menecer adı + mesajlar
       if (data.mgrInfo) {
@@ -999,6 +1012,7 @@ function loadSched() {
   loadLatePerms();
   loadAvans();
   loadMgrFines();
+  loadLunchLog();
 }
 
 // ── Menecer öz qrafiki ───────────────────────────────────────────
@@ -1156,6 +1170,34 @@ function actAvans(avansId, action) {
     .withSuccessHandler(function(res) { if (res && res.success) loadAvans(); })
     .withFailureHandler(function() {})
     .updateAvansStatus(avansId, action);
+}
+
+// ── Nahar Jurnalı ────────────────────────────────────────────────
+function loadLunchLog() {
+  google.script.run.withSuccessHandler(renderLunchLog).getLunchLogForManager(BRANCH_KEY);
+}
+function renderLunchLog(list) {
+  var el = document.getElementById('lunchLogList');
+  var badge = document.getElementById('lunchBadge');
+  if (!el) return;
+  if (!list || !list.length) {
+    el.innerHTML = '<div class="req-empty"><i class="fa-solid fa-utensils" style="opacity:0.25;display:block;font-size:1.5rem;margin-bottom:0.5rem;"></i>Bu gün nahar qeydi yoxdur.</div>';
+    if (badge) badge.style.display = 'none';
+    return;
+  }
+  var flagged = list.filter(function(l){ return l.ongoing || l.late; }).length;
+  if (badge) { badge.style.display = flagged ? 'inline' : 'none'; if (flagged) badge.innerText = flagged; }
+  el.innerHTML = list.map(function(l) {
+    var cls, txt;
+    if (l.ongoing) { cls = l.late ? 'rejected' : 'pending'; txt = (l.late ? '⚠️ Naharda ' : 'Naharda ') + l.durMin + ' dəq'; }
+    else if (l.late) { cls = 'rejected'; txt = '⚠️ Gec ' + l.durMin + ' dəq'; }
+    else { cls = 'approved'; txt = l.durMin + ' dəq'; }
+    var sub = l.ongoing ? ('🍽️ ' + l.start + ' — davam edir') : ('🍽️ ' + l.start + ' → ' + l.end);
+    return '<div class="req-row"><div class="req-row-left">' +
+      '<div class="req-row-name">' + l.empName + '</div>' +
+      '<div class="req-row-sub">' + sub + '</div>' +
+      '</div><span class="req-badge ' + cls + '">' + txt + '</span></div>';
+  }).join('');
 }
 
 // ── Cərimə (menecer yazır, işçi e-imza ilə təsdiqləyir) ──────────
