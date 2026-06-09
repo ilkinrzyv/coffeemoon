@@ -440,35 +440,42 @@ function ckDept(d){ _ckDept=d; loadChecklist(); }
 function ckDateCh(){ _ckDate=document.getElementById('ckDate').value||todayYMD(); loadChecklist(); }
 
 // ══ 6) TULLANTI ═══════════════════════════════════════════════════
+var _wDept=null, _wRows=null;
 function loadTullanti(){
   var p=document.getElementById('panel-tullanti');
   var now=new Date(), defMonth=now.getFullYear()+'-'+pad(now.getMonth()+1);
-  p.innerHTML='<div class="ctl-row"><input type="month" id="wMonth" value="'+defMonth+'" onchange="wMonthCh()" style="border:1.5px solid var(--border);border-radius:11px;padding:0.55rem 0.8rem;font-weight:600;font-family:inherit;"></div><div id="wBody">'+spin()+'</div>';
+  if(!_wDept) _wDept=DEPTS[0];
+  var pills=DEPTS.map(function(d){ return '<button class="pill'+(d===_wDept?' active':'')+'" data-d="'+esc(d)+'" onclick="wDept(\''+d+'\')">'+esc(d)+'</button>'; }).join('');
+  p.innerHTML='<div class="ctl-row"><input type="month" id="wMonth" value="'+defMonth+'" onchange="wMonthCh()" style="border:1.5px solid var(--border);border-radius:11px;padding:0.55rem 0.8rem;font-weight:600;font-family:inherit;"></div>'
+    +'<div class="pill-bar" id="wPills">'+pills+'</div><div id="wBody">'+spin()+'</div>';
   wLoad(defMonth);
 }
 function wMonthCh(){ wLoad(document.getElementById('wMonth').value); }
+function wDept(d){
+  _wDept=d;
+  Array.prototype.forEach.call(document.querySelectorAll('#wPills .pill'),function(b){ b.classList.toggle('active',b.getAttribute('data-d')===d); });
+  wRender();
+}
 function wLoad(monthStr){
   document.getElementById('wBody').innerHTML=spin();
-  call('getWasteStatsForAdmin',[monthStr],function(rows){
-    rows=rows||[]; var h='';
-    var any=rows.some(function(r){return r.hasData;});
-    if(!any){ document.getElementById('wBody').innerHTML=emptyMsg('Bu ay üçün tullantı məlumatı yoxdur.'); return; }
-    rows.forEach(function(r){
-      if(!r.hasData) return;
-      var col=r.exceeded?'#dc2626':'#059669';
-      h+='<div class="card"><div class="waste-head"><span class="waste-dept">'+esc(r.dept)+'</span><span class="waste-pct" style="color:'+col+';">'+r.pct+'%</span></div>'
-        +'<div class="bar-bg"><div class="bar-fill" style="width:'+Math.min(100,(r.limit?r.pct/r.limit*100:0))+'%;background:'+col+';"></div></div>'
-        +'<div style="display:flex;justify-content:space-between;align-items:center;"><span class="waste-sub">Gələn: '+r.totalIn+' · Tullantı: '+r.totalWasted+' · Limit: '+r.limit+'%</span>'+(r.exceeded?'<span class="exc-badge">Limit aşıb</span>':'<span class="ok-badge">Normal</span>')+'</div>';
-      if(r.products&&r.products.length){
-        var agg={}; r.products.forEach(function(p){ if(!agg[p.name])agg[p.name]={i:0,w:0}; agg[p.name].i+=p.incoming; agg[p.name].w+=p.wasted; });
-        h+='<div style="margin-top:0.7rem;padding-top:0.6rem;border-top:1px solid var(--border);">';
-        Object.keys(agg).forEach(function(nm){ h+='<div class="prod-line"><span>'+esc(nm)+'</span><span>'+agg[nm].w+' / '+agg[nm].i+'</span></div>'; });
-        h+='</div>';
-      }
-      h+='</div>';
-    });
-    document.getElementById('wBody').innerHTML=h;
-  });
+  call('getWasteStatsForAdmin',[monthStr],function(rows){ _wRows=rows||[]; wRender(); });
+}
+function wRender(){
+  var body=document.getElementById('wBody'); if(!body) return;
+  var r=(_wRows||[]).filter(function(x){ return x.dept===_wDept; })[0];
+  if(!r||!r.hasData){ body.innerHTML=emptyMsg(esc(_wDept)+' üçün bu ay tullantı məlumatı yoxdur.'); return; }
+  var col=r.exceeded?'#dc2626':'#059669';
+  var h='<div class="card"><div class="waste-head"><span class="waste-dept">'+esc(r.dept)+'</span><span class="waste-pct" style="color:'+col+';">'+r.pct+'%</span></div>'
+    +'<div class="bar-bg"><div class="bar-fill" style="width:'+Math.min(100,(r.limit?r.pct/r.limit*100:0))+'%;background:'+col+';"></div></div>'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;"><span class="waste-sub">Gələn: '+r.totalIn+' · Tullantı: '+r.totalWasted+' · Limit: '+r.limit+'%</span>'+(r.exceeded?'<span class="exc-badge">Limit aşıb</span>':'<span class="ok-badge">Normal</span>')+'</div>';
+  if(r.products&&r.products.length){
+    var agg={}; r.products.forEach(function(pr){ if(!agg[pr.name])agg[pr.name]={i:0,w:0}; agg[pr.name].i+=pr.incoming; agg[pr.name].w+=pr.wasted; });
+    h+='<div style="margin-top:0.7rem;padding-top:0.6rem;border-top:1px solid var(--border);">';
+    Object.keys(agg).forEach(function(nm){ h+='<div class="prod-line"><span>'+esc(nm)+'</span><span>'+agg[nm].w+' / '+agg[nm].i+'</span></div>'; });
+    h+='</div>';
+  }
+  h+='</div>';
+  body.innerHTML=h;
 }
 
 // ══ 7) TRAINING ═══════════════════════════════════════════════════
