@@ -489,6 +489,22 @@ header {
 }
 .icon-btn:hover { background:rgba(91,94,244,0.08); color:var(--primary); border-color:rgba(91,94,244,0.2); }
 
+/* ── Açılıb-bağlanan cərimə forması ── */
+.fine-toggle {
+  width:100%; display:flex; align-items:center; justify-content:space-between; gap:8px;
+  background:rgba(240,69,80,0.06); border:1px solid rgba(240,69,80,0.16); color:var(--danger);
+  font-weight:700; font-size:0.86rem; font-family:'Inter',sans-serif;
+  padding:11px 14px; border-radius:12px; cursor:pointer; transition:background 0.18s; margin-bottom:12px;
+}
+.fine-toggle:hover { background:rgba(240,69,80,0.1); }
+.fine-toggle .fa-chevron-down { transition:transform 0.25s; font-size:0.78rem; }
+.fine-toggle.open .fa-chevron-down { transform:rotate(180deg); }
+.fine-form-wrap { overflow:hidden; max-height:0; transition:max-height 0.32s ease; }
+.fine-form-wrap.open { max-height:480px; }
+.fine-form-inner { display:flex; flex-direction:column; gap:9px; padding-bottom:14px; }
+.fine-hint { font-size:0.76rem; color:var(--text-muted); line-height:1.5; background:rgba(15,23,42,0.03); border-radius:10px; padding:9px 11px; }
+.fine-hint i { color:var(--primary); margin-right:3px; }
+
 /* ════════ MOBİL UYĞUNLAŞMA (yalnız əlavə — desktop dəyişmir) ════════ */
 @media (max-width: 640px) {
   body { padding: 0.7rem 0.6rem 2rem; }
@@ -676,12 +692,19 @@ header {
       </div>
       <button class="icon-btn" onclick="loadMgrFines()" title="Yenilə"><i class="fa-solid fa-rotate"></i></button>
     </div>
-    <div style="display:flex;flex-direction:column;gap:9px;margin-bottom:14px;">
-      <select id="fineEmp" style="width:100%;padding:10px 12px;border:1px solid rgba(15,23,42,0.12);border-radius:11px;font-size:0.88rem;background:#fff;color:var(--text-main);font-family:inherit;box-sizing:border-box;"><option value="">İşçi seçin...</option></select>
-      <input id="fineAmount" type="number" min="1" max="1000" placeholder="Məbləğ (AZN)" style="width:100%;padding:10px 12px;border:1px solid rgba(15,23,42,0.12);border-radius:11px;font-size:0.88rem;background:#fff;color:var(--text-main);font-family:inherit;box-sizing:border-box;">
-      <textarea id="fineReason" rows="2" placeholder="Cərimənin səbəbi (işçi bunu görəcək)" style="width:100%;padding:10px 12px;border:1px solid rgba(15,23,42,0.12);border-radius:11px;font-size:0.88rem;background:#fff;color:var(--text-main);font-family:inherit;box-sizing:border-box;resize:vertical;"></textarea>
-      <button onclick="submitMgrFine()" style="background:var(--danger);color:#fff;border:none;border-radius:11px;padding:11px;font-weight:700;font-size:0.88rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;"><i class="fa-solid fa-gavel"></i> Cərimə yaz</button>
-      <div id="fineFormResult" style="font-size:0.8rem;font-weight:600;min-height:1em;"></div>
+    <button type="button" class="fine-toggle" id="fineToggleBtn" onclick="toggleFineForm()">
+      <span><i class="fa-solid fa-circle-plus"></i> Yeni cərimə yaz</span>
+      <i class="fa-solid fa-chevron-down"></i>
+    </button>
+    <div class="fine-form-wrap" id="fineFormWrap">
+      <div class="fine-form-inner">
+        <div class="fine-hint"><i class="fa-solid fa-circle-info"></i> İşçini seçin, məbləği (AZN) və səbəbi yazın. İşçiyə bildiriş gedəcək və o, öz kartında <b>təsdiqləməlidir</b> (elektron imza). Yazdığınız səbəbi işçi görəcək.</div>
+        <select id="fineEmp" style="width:100%;padding:10px 12px;border:1px solid rgba(15,23,42,0.12);border-radius:11px;font-size:0.88rem;background:#fff;color:var(--text-main);font-family:inherit;box-sizing:border-box;"><option value="">İşçi seçin...</option></select>
+        <input id="fineAmount" type="number" min="1" max="1000" placeholder="Məbləğ (AZN)" style="width:100%;padding:10px 12px;border:1px solid rgba(15,23,42,0.12);border-radius:11px;font-size:0.88rem;background:#fff;color:var(--text-main);font-family:inherit;box-sizing:border-box;">
+        <textarea id="fineReason" rows="2" placeholder="Cərimənin səbəbi (işçi bunu görəcək)" style="width:100%;padding:10px 12px;border:1px solid rgba(15,23,42,0.12);border-radius:11px;font-size:0.88rem;background:#fff;color:var(--text-main);font-family:inherit;box-sizing:border-box;resize:vertical;"></textarea>
+        <button onclick="submitMgrFine()" style="background:var(--danger);color:#fff;border:none;border-radius:11px;padding:11px;font-weight:700;font-size:0.88rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;"><i class="fa-solid fa-gavel"></i> Cərimə yaz</button>
+        <div id="fineFormResult" style="font-size:0.8rem;font-weight:600;min-height:1em;"></div>
+      </div>
     </div>
     <div id="mgrFineList"><div class="req-empty"><i class="fa-solid fa-circle-notch fa-spin"></i></div></div>
   </div>
@@ -1101,6 +1124,12 @@ function actAvans(avansId, action) {
 }
 
 // ── Cərimə (menecer yazır, işçi e-imza ilə təsdiqləyir) ──────────
+function toggleFineForm() {
+  var wrap = document.getElementById('fineFormWrap');
+  var btn  = document.getElementById('fineToggleBtn');
+  var open = wrap.classList.toggle('open');
+  btn.classList.toggle('open', open);
+}
 function fmtFineTs(s){ if(!s) return ''; var d=new Date(s); if(isNaN(d.getTime())) return s;
   return ('0'+d.getDate()).slice(-2)+'.'+('0'+(d.getMonth()+1)).slice(-2)+'.'+d.getFullYear()+' '+('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2); }
 
