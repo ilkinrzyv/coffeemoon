@@ -1880,6 +1880,90 @@ API.updateAvansStatus = async (avansId, status) => {
   return { success: !error };
 };
 
+// ── MENECER CƏRİMƏSİ (manual — işçi elektron imza ilə təsdiqləyir) ───
+
+API.addMgrFine = async (branchKey, empId, amount, reason) => {
+  const check = U.validateBranchScheduleKey(branchKey);
+  if (!check.valid) return { success: false, reason: 'İcazəsiz.' };
+  const amt = parseFloat(amount);
+  if (!empId || isNaN(amt) || amt <= 0 || amt > 1000)
+    return { success: false, reason: 'Məbləğ 1–1000 AZN aralığında olmalıdır.' };
+  if (!reason || !reason.trim()) return { success: false, reason: 'Səbəb yazılmalıdır.' };
+  const { data: emp } = await sb.from('employees').select('id,name,dept').eq('id', String(empId)).single();
+  if (!emp) return { success: false, reason: 'İşçi tapılmadı.' };
+  if (emp.dept !== check.dept) return { success: false, reason: 'Bu işçi sizin filialınıza aid deyil.' };
+  const id = 'MF-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substring(2, 5).toUpperCase();
+  const mgrName = U.getSetting('MGR_NAME_' + U.deptToSlug(check.dept)) || ('Menecer (' + check.dept + ')');
+  const { error } = await sb.from('mgr_fines').insert({
+    fine_id: id, emp_id: String(emp.id), emp_name: emp.name, dept: check.dept,
+    amount: amt, reason: reason.trim().slice(0, 300), status: 'pending', created_by: mgrName,
+  });
+  if (error) { sbErr('addMgrFine', error); return { success: false, reason: 'Xəta baş verdi.' }; }
+  await sendPushToEmployee(
+    emp.id, '⚠️ Cərimə Bildirişi',
+    `${amt} AZN — ${reason.trim().slice(0, 80)}. Təsdiqləmək üçün kartınıza daxil olun.`,
+    { tag: 'mgrfine-' + id, requireInteraction: true }
+  );
+  return { success: true, fineId: id };
+};
+
+API.getMgrFinesForManager = async (branchKey) => {
+  const check = U.validateBranchScheduleKey(branchKey);
+  if (!check.valid) return [];
+  const { data: empRows } = await sb.from('employees').select('id').eq('dept', check.dept);
+  const empIds = (empRows || []).map(e => String(e.id));
+  const [{ data: byDept }, { data: byEmp }] = await Promise.all([
+    sb.from('mgr_fines').select('*').eq('dept', check.dept).order('created_at', { ascending: false }).limit(100),
+    empIds.length
+      ? sb.from('mgr_fines').select('*').in('emp_id', empIds).order('created_at', { ascending: false }).limit(100)
+      : Promise.resolve({ data: [] }),
+  ]);
+  const seen = new Set();
+  const merged = [...(byDept || []), ...(byEmp || [])].filter(r => {
+    if (seen.has(r.fine_id)) return false; seen.add(r.fine_id); return true;
+  });
+  return merged.map(r => ({
+    fineId: r.fine_id, empName: r.emp_name, empId: r.emp_id, amount: r.amount,
+    reason: r.reason || '', status: r.status, createdAt: r.created_at || '', ackedAt: r.acked_at || '',
+  })).sort((a, b) => {
+    if (a.status === 'pending' && b.status !== 'pending') return -1;
+    if (a.status !== 'pending' && b.status === 'pending') return 1;
+    return (b.createdAt || '').localeCompare(a.createdAt || '');
+  });
+};
+
+API.getMyFines = async (secret) => {
+  if (!secret) return [];
+  const { data: emp } = await sb.from('employees').select('id').eq('secret', secret).single();
+  if (!emp) return [];
+  const { data } = await sb.from('mgr_fines').select('*')
+    .eq('emp_id', String(emp.id)).order('created_at', { ascending: false }).limit(20);
+  return (data || []).map(r => ({
+    fineId: r.fine_id, amount: r.amount, reason: r.reason || '', status: r.status,
+    createdAt: r.created_at || '', ackedAt: r.acked_at || '', createdBy: r.created_by || '',
+  }));
+};
+
+API.acknowledgeFine = async (secret, fineId) => {
+  if (!secret || !fineId) return { success: false, reason: 'Məlumat çatışmır.' };
+  const { data: emp } = await sb.from('employees').select('id,name,dept').eq('secret', secret).single();
+  if (!emp) return { success: false, reason: 'İşçi tapılmadı.' };
+  const { data: fine } = await sb.from('mgr_fines').select('*').eq('fine_id', fineId).single();
+  if (!fine) return { success: false, reason: 'Cərimə tapılmadı.' };
+  if (String(fine.emp_id) !== String(emp.id)) return { success: false, reason: 'İcazəsiz.' };
+  if (fine.status === 'acknowledged') return { success: true, already: true };
+  const { error } = await sb.from('mgr_fines')
+    .update({ status: 'acknowledged', acked_at: new Date().toISOString() }).eq('fine_id', fineId);
+  if (error) { sbErr('acknowledgeFine', error); return { success: false, reason: 'Xəta baş verdi.' }; }
+  await sendPushToManager(emp.dept, '✍️ Cərimə Təsdiqləndi',
+    `${emp.name}: ${fine.amount} AZN cəriməsini təsdiqlədi (imzaladı).`, { tag: 'mgrfine-ack-' + fineId });
+  await U.sendTelegramMsg(
+    `✍️ <b>${emp.name}</b> ${fine.amount} AZN cəriməsini təsdiqlədi (elektron imza).\nSəbəb: ${fine.reason || '-'}`,
+    emp.dept
+  );
+  return { success: true };
+};
+
 // ── YENİLİKLƏR ───────────────────────────────────────────────────
 
 API.getAnnouncements = async () => {

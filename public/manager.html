@@ -604,6 +604,25 @@ header {
     <div id="avansList"><div class="req-empty"><i class="fa-solid fa-circle-notch fa-spin"></i></div></div>
   </div>
 
+  <!-- Cərimə (menecer yazır, işçi e-imza ilə təsdiqləyir) -->
+  <div class="card">
+    <div class="section-hdr">
+      <div class="section-hdr-left">
+        <i class="fa-solid fa-gavel" style="color:var(--danger);"></i> Cərimə
+        <span id="mgrFineBadge" class="badge-count"></span>
+      </div>
+      <button class="icon-btn" onclick="loadMgrFines()" title="Yenilə"><i class="fa-solid fa-rotate"></i></button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:9px;margin-bottom:14px;">
+      <select id="fineEmp" style="width:100%;padding:10px 12px;border:1px solid rgba(15,23,42,0.12);border-radius:11px;font-size:0.88rem;background:#fff;color:var(--text-main);font-family:inherit;box-sizing:border-box;"><option value="">İşçi seçin...</option></select>
+      <input id="fineAmount" type="number" min="1" max="1000" placeholder="Məbləğ (AZN)" style="width:100%;padding:10px 12px;border:1px solid rgba(15,23,42,0.12);border-radius:11px;font-size:0.88rem;background:#fff;color:var(--text-main);font-family:inherit;box-sizing:border-box;">
+      <textarea id="fineReason" rows="2" placeholder="Cərimənin səbəbi (işçi bunu görəcək)" style="width:100%;padding:10px 12px;border:1px solid rgba(15,23,42,0.12);border-radius:11px;font-size:0.88rem;background:#fff;color:var(--text-main);font-family:inherit;box-sizing:border-box;resize:vertical;"></textarea>
+      <button onclick="submitMgrFine()" style="background:var(--danger);color:#fff;border:none;border-radius:11px;padding:11px;font-weight:700;font-size:0.88rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;"><i class="fa-solid fa-gavel"></i> Cərimə yaz</button>
+      <div id="fineFormResult" style="font-size:0.8rem;font-weight:600;min-height:1em;"></div>
+    </div>
+    <div id="mgrFineList"><div class="req-empty"><i class="fa-solid fa-circle-notch fa-spin"></i></div></div>
+  </div>
+
 </div><!-- /panelSched -->
 
 <!-- ═══ TAB 2: ÇEKELİST ═══ -->
@@ -808,6 +827,8 @@ function loadManagerDashboard() {
       // 1. Cədvəl
       schedData = data.cedvel || [];
       renderTable();
+      populateFineEmps();
+      loadMgrFines();
 
       // 2. Menecer adı + mesajlar
       if (data.mgrInfo) {
@@ -852,10 +873,11 @@ function loadSched() {
   document.getElementById('weekLabel').innerText = fmtDMY(weekStart)+' — '+fmtDMY(toYMD(end));
   document.getElementById('schedTable').querySelector('tbody').innerHTML =
     '<tr><td colspan="8" style="text-align:center;padding:2rem;color:var(--text-muted);"><i class="fa-solid fa-circle-notch fa-spin"></i></td></tr>';
-  google.script.run.withSuccessHandler(function(d){ schedData=d||[]; renderTable(); }).getCedvelForManager(BRANCH_KEY, weekStart);
+  google.script.run.withSuccessHandler(function(d){ schedData=d||[]; renderTable(); populateFineEmps(); }).getCedvelForManager(BRANCH_KEY, weekStart);
   loadMgrSched();
   loadLatePerms();
   loadAvans();
+  loadMgrFines();
 }
 
 // ── Menecer öz qrafiki ───────────────────────────────────────────
@@ -1013,6 +1035,81 @@ function actAvans(avansId, action) {
     .withSuccessHandler(function(res) { if (res && res.success) loadAvans(); })
     .withFailureHandler(function() {})
     .updateAvansStatus(avansId, action);
+}
+
+// ── Cərimə (menecer yazır, işçi e-imza ilə təsdiqləyir) ──────────
+function fmtFineTs(s){ if(!s) return ''; var d=new Date(s); if(isNaN(d.getTime())) return s;
+  return ('0'+d.getDate()).slice(-2)+'.'+('0'+(d.getMonth()+1)).slice(-2)+'.'+d.getFullYear()+' '+('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2); }
+
+function populateFineEmps() {
+  var sel = document.getElementById('fineEmp');
+  if (!sel) return;
+  var cur = sel.value;
+  var opts = '<option value="">İşçi seçin...</option>';
+  (schedData || []).forEach(function(e) {
+    if (!e.empId) return;
+    opts += '<option value="' + e.empId + '">' + e.empName + '</option>';
+  });
+  sel.innerHTML = opts;
+  if (cur) sel.value = cur;
+}
+
+function submitMgrFine() {
+  var empId  = document.getElementById('fineEmp').value;
+  var amount = document.getElementById('fineAmount').value;
+  var reason = document.getElementById('fineReason').value;
+  var res    = document.getElementById('fineFormResult');
+  if (!empId)              { res.style.color='var(--danger)'; res.innerHTML='<i class="fa-solid fa-xmark"></i> İşçi seçin.'; return; }
+  if (!amount || amount<=0){ res.style.color='var(--danger)'; res.innerHTML='<i class="fa-solid fa-xmark"></i> Məbləğ daxil edin.'; return; }
+  if (!reason.trim())      { res.style.color='var(--danger)'; res.innerHTML='<i class="fa-solid fa-xmark"></i> Səbəb yazın.'; return; }
+  if (!confirm('Bu işçiyə ' + amount + ' AZN cərimə yazılsın?\nİşçiyə bildiriş gedəcək və o, təsdiqləməlidir.')) return;
+  res.style.color='var(--text-muted)'; res.innerHTML='<i class="fa-solid fa-circle-notch fa-spin"></i> Göndərilir...';
+  google.script.run
+    .withSuccessHandler(function(r) {
+      if (r && r.success) {
+        res.style.color='var(--success)'; res.innerHTML='<i class="fa-solid fa-check"></i> Cərimə yazıldı, işçiyə bildiriş göndərildi.';
+        document.getElementById('fineAmount').value='';
+        document.getElementById('fineReason').value='';
+        document.getElementById('fineEmp').value='';
+        loadMgrFines();
+        setTimeout(function(){ res.innerHTML=''; }, 4000);
+      } else {
+        res.style.color='var(--danger)'; res.innerHTML='<i class="fa-solid fa-xmark"></i> ' + ((r&&r.reason)||'Xəta baş verdi');
+      }
+    })
+    .withFailureHandler(function(){ res.style.color='var(--danger)'; res.innerHTML='<i class="fa-solid fa-xmark"></i> Server xətası'; })
+    .addMgrFine(BRANCH_KEY, empId, amount, reason);
+}
+
+function loadMgrFines() {
+  google.script.run.withSuccessHandler(renderMgrFines).getMgrFinesForManager(BRANCH_KEY);
+}
+
+function renderMgrFines(list) {
+  var el = document.getElementById('mgrFineList');
+  var badge = document.getElementById('mgrFineBadge');
+  if (!el) return;
+  if (!list || !list.length) {
+    el.innerHTML = '<div class="req-empty"><i class="fa-solid fa-gavel" style="opacity:0.25;display:block;font-size:1.5rem;margin-bottom:0.5rem;"></i>Cərimə yoxdur.</div>';
+    if (badge) badge.style.display='none';
+    return;
+  }
+  var pend = list.filter(function(f){ return f.status==='pending'; }).length;
+  if (badge) { badge.style.display = pend ? 'inline' : 'none'; if (pend) badge.innerText = pend; }
+  el.innerHTML = list.map(function(f) {
+    var acked = f.status === 'acknowledged';
+    var dd = f.createdAt ? f.createdAt.slice(0,10).split('-').reverse().join('.') : '';
+    var sub = acked
+      ? '<div class="req-row-sub" style="color:var(--success);">✍️ İmzalandı: ' + fmtFineTs(f.ackedAt) + '</div>'
+      : '<div class="req-row-sub">⏳ İşçinin təsdiqi gözlənilir</div>';
+    return '<div class="req-row"><div class="req-row-left">' +
+      '<div class="req-row-name">' + f.empName + ' &nbsp;<span style="font-size:0.95rem;font-weight:800;color:var(--danger);">' + f.amount + ' ₼</span></div>' +
+      '<div class="req-row-note">' + f.reason + '</div>' +
+      '<div class="req-row-sub">📅 ' + dd + '</div>' +
+      sub + '</div>' +
+      '<span class="req-badge ' + (acked?'approved':'pending') + '">' + (acked?'İmzalandı':'Gözləyir') + '</span>' +
+    '</div>';
+  }).join('');
 }
 
 function renderTable() {

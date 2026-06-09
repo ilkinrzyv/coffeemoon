@@ -1736,6 +1736,9 @@
     </div>
   </div>
 
+  <!-- Cərimələr — yalnız Gündəlik tabında, cərimə varsa görünür -->
+  <div id="finesCard" style="display:none;"></div>
+
   <div class="ticket" id="ticket">
     <div class="ticket-header">
       <div class="brand"><i class="fa-solid fa-mug-hot"></i> COFFEEMOON</div>
@@ -2248,6 +2251,8 @@
     document.getElementById('ticket').style.display = (tab === 'gundelik') ? '' : 'none';
     var ac = document.getElementById('announceCard');
     if (ac && ac.dataset.hasAnnounce === '1') ac.style.display = (tab === 'gundelik') ? 'block' : 'none';
+    var fc = document.getElementById('finesCard');
+    if (fc && fc.dataset.hasFines === '1') fc.style.display = (tab === 'gundelik') ? 'block' : 'none';
     if (tab === 'profil' && !_profileLoaded) loadProfileTab();
     if (tab === 'qeydler') renderNotes();
     // Kamera: gundelik tabında aç, başqasında bağla
@@ -2298,6 +2303,8 @@
             startLunchTimer(elapsed);
           }
         }).getDashboardData(SECRET);
+
+        google.script.run.withSuccessHandler(renderMyFines).getMyFines(SECRET);
 
         google.script.run.withSuccessHandler(function(p) {
           if (!p) return;
@@ -2460,6 +2467,61 @@
     var isOpen = body.style.maxHeight && body.style.maxHeight !== '0px';
     body.style.maxHeight = isOpen ? '0px' : body.scrollHeight + 'px';
     chev.style.transform = isOpen ? '' : 'rotate(180deg)';
+  }
+
+  // ── CƏRİMƏLƏR (menecer yazır, işçi elektron imza ilə təsdiqləyir) ──
+  function loadMyFines() {
+    google.script.run.withSuccessHandler(renderMyFines).getMyFines(SECRET);
+  }
+  function fmtFineDate(s){ if(!s) return ''; var d=new Date(s); if(isNaN(d.getTime())) return s;
+    return ('0'+d.getDate()).slice(-2)+'.'+('0'+(d.getMonth()+1)).slice(-2)+'.'+d.getFullYear()+' '+('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2); }
+  function renderMyFines(list) {
+    var card = document.getElementById('finesCard');
+    if (!card) return;
+    if (!list || !list.length) { card.style.display='none'; card.dataset.hasFines='0'; card.innerHTML=''; return; }
+    var pending = list.filter(function(f){ return f.status!=='acknowledged'; });
+    var acked   = list.filter(function(f){ return f.status==='acknowledged'; });
+    var html = '';
+    pending.forEach(function(f) {
+      html +=
+        '<div style="background:linear-gradient(160deg,rgba(240,69,80,0.16),rgba(20,30,52,0.96));border:1px solid rgba(240,69,80,0.4);border-radius:16px;padding:16px;margin-bottom:12px;box-shadow:0 6px 20px rgba(240,69,80,0.18);">' +
+          '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">' +
+            '<div style="font-size:0.72rem;font-weight:800;letter-spacing:0.06em;color:#fca5a5;"><i class="fa-solid fa-triangle-exclamation"></i> CƏRİMƏ</div>' +
+            '<div style="font-size:1.25rem;font-weight:900;color:#fff;">' + Number(f.amount) + ' ₼</div>' +
+          '</div>' +
+          '<div style="font-size:0.92rem;color:#fff;font-weight:600;margin-bottom:6px;line-height:1.4;">' + f.reason + '</div>' +
+          '<div style="font-size:0.72rem;color:rgba(255,255,255,0.5);margin-bottom:12px;"><i class="fa-solid fa-user-tie"></i> ' + (f.createdBy||'Menecer') + ' &nbsp;·&nbsp; <i class="fa-regular fa-calendar"></i> ' + fmtFineDate(f.createdAt) + '</div>' +
+          '<button onclick="ackFine(\'' + f.fineId + '\')" style="width:100%;background:#f04550;color:#fff;border:none;border-radius:11px;padding:12px;font-weight:800;font-size:0.9rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;"><i class="fa-solid fa-signature"></i> Təsdiqlədim (imzala)</button>' +
+          '<div style="font-size:0.66rem;color:rgba(255,255,255,0.4);text-align:center;margin-top:7px;">Bu düyməni basmaqla cəriməni elektron formada təsdiq etmiş olursunuz.</div>' +
+        '</div>';
+    });
+    if (acked.length) {
+      html += '<div style="font-size:0.7rem;font-weight:700;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:0.05em;margin:4px 2px 8px;">Təsdiqlədiyim cərimələr</div>';
+      acked.forEach(function(f) {
+        html +=
+          '<div style="background:rgba(20,30,52,0.9);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:13px 15px;margin-bottom:9px;">' +
+            '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;">' +
+              '<div style="font-size:0.96rem;font-weight:800;color:#fff;">' + Number(f.amount) + ' ₼</div>' +
+              '<div style="font-size:0.72rem;font-weight:700;color:#34d399;"><i class="fa-solid fa-circle-check"></i> İmzalandı</div>' +
+            '</div>' +
+            '<div style="font-size:0.84rem;color:rgba(255,255,255,0.75);margin-bottom:5px;">' + f.reason + '</div>' +
+            '<div style="font-size:0.7rem;color:rgba(255,255,255,0.4);"><i class="fa-solid fa-signature"></i> ' + fmtFineDate(f.ackedAt) + '</div>' +
+          '</div>';
+      });
+    }
+    card.innerHTML = html;
+    card.dataset.hasFines = '1';
+    card.style.display = (!_activeMainTab || _activeMainTab === 'gundelik') ? 'block' : 'none';
+  }
+  function ackFine(fineId) {
+    if (!confirm('Bu cəriməni aldığınızı və qəbul etdiyinizi təsdiqləyirsiniz.\nBu, elektron imza sayılır.')) return;
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (res && res.success) loadMyFines();
+        else alert((res && res.reason) || 'Xəta baş verdi.');
+      })
+      .withFailureHandler(function(){ alert('Server xətası.'); })
+      .acknowledgeFine(SECRET, fineId);
   }
 
   // ── GECİKMƏ YOXLAMASI ───────────────────────────────────────────
