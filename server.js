@@ -1213,7 +1213,7 @@ API.logLunch = async (enteredPin, clientIp, lunchType) => {
   const diffMin = Math.round((ts.getTime() - new Date(naharGet[0].timestamp).getTime()) / 60000);
   await sb.from('nahar').insert({ nahar_id: 'NH-' + Date.now().toString(36).toUpperCase(), emp_id: matched.id, emp_name: matched.name, dept: matched.dept, timestamp: ts.toISOString(), type: 'NAHAR_QAY' });
   const lateLunch = diffMin > LUNCH_MAX;
-  await U.sendTelegramMsg(`<b>${matched.name}</b> nahar bitdi.\n${U.fmtTime(ts)} — ${diffMin} dəq` + (lateLunch ? ` ⚠️ (limit ${LUNCH_MAX} dəq aşıldı)` : ''), matched.dept);
+  await U.sendTelegramMsg(`<b>${matched.name}</b> nahar bitdi.\n${U.fmtTime(ts)} — ${diffMin} dəq`, matched.dept);
   if (lateLunch) {
     await sendPushToManager(matched.dept, '⚠️ Nahar gecikməsi',
       `${matched.name}: nahardan ${diffMin} dəq sonra qayıtdı (limit ${LUNCH_MAX} dəq).`,
