@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>Coffeemoon · İcraçı</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+:root{
+  --primary:#0d9488;--purple:#7c3aed;--success:#10b981;--danger:#ef4444;--amber:#f59e0b;
+  --text-main:#0f172a;--text-muted:#64748b;--text-soft:#94a3b8;--border:rgba(15,23,42,0.08);
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Inter',system-ui,sans-serif;background:#f1f5f9;color:var(--text-main);font-size:15px;-webkit-tap-highlight-color:transparent;}
+.wrap{max-width:760px;margin:0 auto;padding:0 12px 60px;}
+.topbar{position:sticky;top:0;z-index:50;background:rgba(241,245,249,0.92);backdrop-filter:blur(12px);padding:0.9rem 12px 0.6rem;margin:0 -12px;}
+.topbar-row{display:flex;align-items:center;gap:10px;margin-bottom:0.7rem;}
+.brand{font-size:1.05rem;font-weight:900;display:flex;align-items:center;gap:8px;}
+.brand i{color:var(--primary);}
+.brand .who{font-size:0.72rem;font-weight:700;color:var(--text-muted);background:#fff;padding:3px 9px;border-radius:100px;border:1px solid var(--border);margin-left:auto;}
+.tabbar{display:flex;flex-wrap:wrap;gap:5px;}
+.tab-btn{flex:1 1 auto;min-width:84px;padding:0.5rem 0.4rem;border:1.5px solid var(--border);border-radius:11px;background:#fff;cursor:pointer;font-size:0.74rem;font-weight:700;color:var(--text-muted);display:flex;align-items:center;justify-content:center;gap:5px;transition:all 0.16s;font-family:inherit;}
+.tab-btn.active{border-color:var(--primary);background:rgba(13,148,136,0.08);color:var(--primary);}
+.tab-btn i{font-size:0.82rem;}
+.panel{padding-top:1rem;}
+.hidden{display:none!important;}
+.card{background:#fff;border:1px solid var(--border);border-radius:16px;padding:1rem 1.1rem;margin-bottom:12px;box-shadow:0 1px 3px rgba(15,23,42,0.03);}
+.sec-label{font-size:0.72rem;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;display:flex;align-items:center;gap:7px;margin-bottom:0.7rem;}
+.sec-label i{color:var(--primary);}
+.empty{text-align:center;padding:2rem 1rem;color:var(--text-soft);font-size:0.85rem;}
+.empty i{font-size:1.4rem;display:block;margin-bottom:8px;opacity:0.5;}
+.ctl-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px;}
+select,input[type=date]{border:1.5px solid var(--border);border-radius:11px;padding:0.55rem 0.8rem;font-size:0.85rem;font-weight:600;color:var(--text-main);background:#fff;outline:none;font-family:inherit;}
+.navbtn{width:36px;height:36px;border:1.5px solid var(--border);border-radius:11px;background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:0.9rem;}
+.navbtn:hover{border-color:var(--primary);color:var(--primary);}
+.wklbl{font-weight:800;font-size:0.84rem;flex:1;text-align:center;}
+.pill-bar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;}
+.pill{padding:0.42rem 0.85rem;border:1.5px solid var(--border);border-radius:100px;background:#fff;cursor:pointer;font-size:0.77rem;font-weight:700;color:var(--text-muted);font-family:inherit;}
+.pill.active{border-color:var(--primary);background:rgba(13,148,136,0.08);color:var(--primary);}
+
+/* Live */
+.live-emp{display:flex;align-items:center;gap:10px;padding:0.55rem 0;border-bottom:1px solid rgba(15,23,42,0.05);}
+.live-emp:last-child{border-bottom:none;}
+.live-dot{width:9px;height:9px;border-radius:50%;background:var(--success);flex-shrink:0;box-shadow:0 0 0 3px rgba(16,185,129,0.15);}
+.live-name{font-weight:700;font-size:0.9rem;flex:1;}
+.live-dept{font-size:0.72rem;color:var(--text-muted);background:#f1f5f9;padding:2px 8px;border-radius:6px;font-weight:600;}
+.live-time{font-size:0.82rem;font-weight:700;color:var(--primary);font-variant-numeric:tabular-nums;}
+.mgr-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.mgr-card{border:1px solid var(--border);border-radius:13px;padding:0.7rem 0.85rem;}
+.mgr-card .d{font-weight:800;font-size:0.84rem;margin-bottom:3px;}
+.mgr-card .s{font-size:0.74rem;font-weight:700;}
+.s-on{color:var(--success);}.s-off{color:var(--text-soft);}
+
+/* Tables */
+.dt{width:100%;border-collapse:collapse;font-size:0.8rem;}
+.dt th{font-size:0.64rem;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.4px;padding:0.5rem 0.3rem;text-align:center;border-bottom:1.5px solid var(--border);}
+.dt th:first-child{text-align:left;}
+.dt td{padding:0.5rem 0.3rem;text-align:center;border-bottom:1px solid rgba(15,23,42,0.04);font-weight:600;}
+.dt td:first-child{text-align:left;}
+.dt tr:last-child td{border-bottom:none;}
+.dt .nm{font-weight:700;font-size:0.84rem;}
+.dt .dp{font-size:0.68rem;color:var(--text-muted);font-weight:600;}
+.pctbox{display:inline-block;min-width:42px;padding:2px 7px;border-radius:7px;font-weight:800;font-size:0.78rem;}
+.pct-hi{background:rgba(16,185,129,0.12);color:#059669;}
+.pct-mid{background:rgba(245,158,11,0.14);color:#d97706;}
+.pct-lo{background:rgba(239,68,68,0.1);color:#dc2626;}
+.warn-row{display:flex;align-items:center;gap:9px;padding:0.5rem 0;border-bottom:1px solid rgba(15,23,42,0.05);}
+.warn-row:last-child{border-bottom:none;}
+.warn-badge{background:rgba(239,68,68,0.1);color:#dc2626;font-weight:800;font-size:0.76rem;padding:3px 9px;border-radius:7px;}
+
+/* Cədvəl (compact, read-only) */
+.cedvel-table{width:100%;table-layout:fixed;border-collapse:collapse;font-size:0.78rem;}
+.cedvel-table th{padding:6px 2px;text-align:center;font-size:0.6rem;font-weight:800;color:var(--text-muted);text-transform:uppercase;border-bottom:1.5px solid var(--border);}
+.cedvel-table th:first-child{text-align:left;width:24%;}
+.cedvel-table td{padding:5px 2px;text-align:center;border-bottom:1px solid rgba(15,23,42,0.04);}
+.cedvel-table td:first-child{text-align:left;font-weight:700;font-size:0.76rem;line-height:1.15;word-break:break-word;}
+.cedvel-table tr:last-child td{border-bottom:none;}
+.sb{display:inline-block;padding:2px 0;width:30px;border-radius:6px;font-size:0.66rem;font-weight:800;}
+.sb-s{background:rgba(16,185,129,0.12);color:#059669;}
+.sb-a{background:rgba(99,102,241,0.1);color:#4f46e5;}
+.sb-f{background:rgba(245,158,11,0.13);color:#d97706;}
+.sb-sf{background:rgba(20,184,166,0.1);color:#0d9488;}
+.sb-i{background:rgba(239,68,68,0.08);color:#dc2626;}
+.sb-x{color:var(--text-soft);}
+.legend{display:flex;flex-wrap:wrap;gap:7px;margin-top:0.9rem;padding-top:0.8rem;border-top:1px solid var(--border);}
+
+/* Waste */
+.waste-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:0.6rem;}
+.waste-dept{font-weight:800;font-size:0.92rem;}
+.waste-pct{font-weight:900;font-size:1.05rem;font-variant-numeric:tabular-nums;}
+.bar-bg{height:7px;background:rgba(15,23,42,0.06);border-radius:100px;overflow:hidden;margin:6px 0;}
+.bar-fill{height:100%;border-radius:100px;transition:width 0.4s;}
+.waste-sub{font-size:0.74rem;color:var(--text-muted);font-weight:600;}
+.exc-badge{font-size:0.66rem;font-weight:800;padding:2px 8px;border-radius:6px;background:rgba(239,68,68,0.1);color:#dc2626;}
+.ok-badge{font-size:0.66rem;font-weight:800;padding:2px 8px;border-radius:6px;background:rgba(16,185,129,0.1);color:#059669;}
+.prod-line{display:flex;justify-content:space-between;font-size:0.76rem;padding:3px 0;color:var(--text-muted);font-weight:600;}
+
+/* Checklist / training items */
+.ck-item{display:flex;align-items:flex-start;gap:9px;padding:0.5rem 0;border-bottom:1px solid rgba(15,23,42,0.05);}
+.ck-item:last-child{border-bottom:none;}
+.ck-ic{flex-shrink:0;width:20px;height:20px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:0.72rem;margin-top:1px;}
+.ck-on{background:rgba(16,185,129,0.12);color:#059669;}
+.ck-off{background:rgba(239,68,68,0.08);color:#dc2626;}
+.ck-txt{flex:1;font-size:0.84rem;font-weight:600;line-height:1.35;}
+.ck-note{font-size:0.74rem;color:var(--text-muted);font-style:italic;margin-top:2px;}
+.ck-time{font-size:0.7rem;color:var(--text-soft);font-weight:700;flex-shrink:0;}
+.tlog{border:1px solid var(--border);border-radius:13px;padding:0.75rem 0.9rem;margin-bottom:9px;}
+.tlog-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;}
+.tlog-emp{font-weight:800;font-size:0.88rem;}
+.tlog-meta{font-size:0.72rem;color:var(--text-muted);font-weight:600;}
+.score-chip{font-weight:900;font-size:0.82rem;padding:2px 9px;border-radius:7px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <div class="topbar-row">
+      <div class="brand"><i class="fa-solid fa-chart-line"></i> İcraçı Paneli <span class="who" id="whoName">—</span></div>
+    </div>
+    <div class="tabbar" id="tabbar">
+      <button class="tab-btn active" data-t="live"      onclick="go('live')"><i class="fa-solid fa-tower-broadcast"></i> Canlı</button>
+      <button class="tab-btn"        data-t="hesabat"   onclick="go('hesabat')"><i class="fa-solid fa-chart-column"></i> Hesabat</button>
+      <button class="tab-btn"        data-t="cedvel"    onclick="go('cedvel')"><i class="fa-solid fa-calendar-week"></i> Cədvəl</button>
+      <button class="tab-btn"        data-t="idareci"   onclick="go('idareci')"><i class="fa-solid fa-user-tie"></i> İdarəçilər</button>
+      <button class="tab-btn"        data-t="checklist" onclick="go('checklist')"><i class="fa-solid fa-list-check"></i> Checklist</button>
+      <button class="tab-btn"        data-t="tullanti"  onclick="go('tullanti')"><i class="fa-solid fa-trash-can"></i> Tullantı</button>
+      <button class="tab-btn"        data-t="training"  onclick="go('training')"><i class="fa-solid fa-graduation-cap"></i> Training</button>
+    </div>
+  </div>
+
+  <div id="panel-live"      class="panel"></div>
+  <div id="panel-hesabat"   class="panel hidden"></div>
+  <div id="panel-cedvel"    class="panel hidden"></div>
+  <div id="panel-idareci"   class="panel hidden"></div>
+  <div id="panel-checklist" class="panel hidden"></div>
+  <div id="panel-tullanti"  class="panel hidden"></div>
+  <div id="panel-training"  class="panel hidden"></div>
+</div>
+
+<script src="/gsr-shim.js"></script>
+<script>
+var EXEC_KEY  = '<?= execKey ?>';
+var EXEC_NAME = '<?= execName ?>';
+document.getElementById('whoName').textContent = EXEC_NAME;
+
+// ── Köməkçilər ────────────────────────────────────────────────────
+var DAY_AZ = ['B.e.','Ç.a.','Çər.','C.a.','Cüm.','Şən.','Baz.'];
+var DEPTS  = ['Elmlər','Sahil','Gənclik','Ağ Şəhər'];
+var SHIFT_MAP = {
+  sehersm:{cls:'sb-s',lbl:'S'}, axsamsm:{cls:'sb-a',lbl:'A'}, fullsm:{cls:'sb-f',lbl:'AF'},
+  seherfullsm:{cls:'sb-sf',lbl:'SF'}, istirahetsm:{cls:'sb-i',lbl:'İst'}, '':{cls:'sb-x',lbl:'–'}
+};
+function pad(n){ return String(n).padStart(2,'0'); }
+function toYMD(d){ return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); }
+function todayYMD(){ return toYMD(new Date()); }
+function monday(off){ var n=new Date(); var dw=n.getDay()||7; var m=new Date(n.getTime()-(dw-1)*86400000); m.setHours(0,0,0,0); m.setDate(m.getDate()+off*7); return m; }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+function spin(){ return '<div class="empty"><i class="fa-solid fa-circle-notch fa-spin"></i>Yüklənir...</div>'; }
+function emptyMsg(m){ return '<div class="empty"><i class="fa-solid fa-inbox"></i>'+esc(m)+'</div>'; }
+function pctCls(p){ return p>=90?'pct-hi':p>=70?'pct-mid':'pct-lo'; }
+function call(fn,args,cb){
+  var r=google.script.run.withSuccessHandler(cb).withFailureHandler(function(e){ console.error(fn,e); });
+  r[fn].apply(r,args||[]);
+}
+
+// ── Tab keçidi ────────────────────────────────────────────────────
+var loaded={};
+function go(t){
+  ['live','hesabat','cedvel','idareci','checklist','tullanti','training'].forEach(function(x){
+    document.getElementById('panel-'+x).classList.toggle('hidden',x!==t);
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('.tab-btn'),function(b){ b.classList.toggle('active',b.dataset.t===t); });
+  LOADERS[t]();
+}
+var LOADERS={ live:loadLive, hesabat:loadHesabat, cedvel:loadCedvel, idareci:loadIdareci, checklist:loadChecklist, tullanti:loadTullanti, training:loadTraining };
+
+// ══ 1) CANLI EKRAN ════════════════════════════════════════════════
+function loadLive(){
+  var p=document.getElementById('panel-live'); p.innerHTML=spin();
+  var online=null, mgrs=null;
+  function done(){
+    if(online===null||mgrs===null) return;
+    var html='';
+    // İdarəçilər
+    html+='<div class="card"><div class="sec-label"><i class="fa-solid fa-user-tie"></i> İdarəçilər</div><div class="mgr-grid">';
+    DEPTS.forEach(function(d){
+      var m=mgrs[d]||{};
+      html+='<div class="mgr-card"><div class="d">'+esc(d)+'</div>'
+        +'<div class="s '+(m.isOnline?'s-on':'s-off')+'">'+(m.isOnline?'<i class="fa-solid fa-circle" style="font-size:0.5rem;"></i> İşdə · '+esc(m.gelis):(m.hadGelis?'Çıxıb · '+esc(m.cixis||''):'Yoxdur'))+'</div></div>';
+    });
+    html+='</div></div>';
+    // Onlayn işçilər
+    html+='<div class="card"><div class="sec-label"><i class="fa-solid fa-tower-broadcast"></i> Onlayn işçilər ('+online.length+')</div>';
+    if(!online.length){ html+=emptyMsg('Hazırda smendə işçi yoxdur.'); }
+    else { online.forEach(function(e){
+      html+='<div class="live-emp"><span class="live-dot"></span><span class="live-name">'+esc(e.name)+'</span><span class="live-dept">'+esc(e.dept)+'</span><span class="live-time">'+esc(e.checkInTime)+'</span></div>';
+    }); }
+    html+='</div>';
+    p.innerHTML=html;
+  }
+  call('getOnlineEmployees',[],function(d){ online=d||[]; done(); });
+  call('getManagersLiveStatus',[],function(d){ mgrs=d||{}; done(); });
+}
+
+// ══ 2) HESABAT ════════════════════════════════════════════════════
+var _rpY=new Date().getFullYear(), _rpM=new Date().getMonth()+1;
+function loadHesabat(){
+  var p=document.getElementById('panel-hesabat');
+  var years=''; for(var y=2025;y<=new Date().getFullYear()+1;y++) years+='<option value="'+y+'"'+(y===_rpY?' selected':'')+'>'+y+'</option>';
+  var mons=''; var MN=['Yan','Fev','Mar','Apr','May','İyn','İyl','Avq','Sen','Okt','Noy','Dek'];
+  for(var m=1;m<=12;m++) mons+='<option value="'+m+'"'+(m===_rpM?' selected':'')+'>'+MN[m-1]+'</option>';
+  p.innerHTML='<div class="ctl-row"><select id="rpY" onchange="rpCh()">'+years+'</select><select id="rpM" onchange="rpCh()">'+mons+'</select></div><div id="rpBody">'+spin()+'</div>';
+  call('getMonthlyReport',[_rpY,_rpM],function(rows){
+    rows=rows||[];
+    var h='<div class="card"><div class="sec-label"><i class="fa-solid fa-chart-column"></i> Aylıq Davamiyyət</div>';
+    if(!rows.length){ h+=emptyMsg('Bu ay üçün məlumat yoxdur.'); }
+    else{
+      h+='<table class="dt"><thead><tr><th>İşçi</th><th>Gün</th><th>Vaxt.</th><th>Gec.</th><th>%</th></tr></thead><tbody>';
+      rows.forEach(function(r){
+        h+='<tr><td><div class="nm">'+esc(r.empName)+'</div><div class="dp">'+esc(r.dept)+'</div></td>'
+          +'<td>'+r.totalDays+'</td><td style="color:#059669;">'+r.onTime+'</td><td style="color:#dc2626;">'+r.late+'</td>'
+          +'<td><span class="pctbox '+pctCls(r.pct)+'">'+r.pct+'%</span></td></tr>';
+      });
+      h+='</tbody></table>';
+    }
+    h+='</div>';
+    document.getElementById('rpBody').innerHTML=h;
+    // Xəbərdarlıqlar
+    call('getWarnings',[],function(w){
+      w=w||[]; if(!w.length) return;
+      var wh='<div class="card"><div class="sec-label"><i class="fa-solid fa-triangle-exclamation" style="color:var(--danger);"></i> Xəbərdarlıqlar (3+ gecikmə)</div>';
+      w.forEach(function(x){ wh+='<div class="warn-row"><span class="warn-badge">'+x.lateCount+'</span><span style="flex:1;font-weight:700;font-size:0.86rem;">'+esc(x.empName)+'</span><span class="live-dept">'+esc(x.dept)+'</span></div>'; });
+      wh+='</div>';
+      document.getElementById('rpBody').insertAdjacentHTML('beforeend',wh);
+    });
+  });
+}
+function rpCh(){ _rpY=+document.getElementById('rpY').value; _rpM=+document.getElementById('rpM').value; loadHesabat(); }
+
+// ══ 3) CƏDVƏL ═════════════════════════════════════════════════════
+var _cvDept='Elmlər', _cvOff=0;
+function loadCedvel(){
+  var p=document.getElementById('panel-cedvel');
+  var mon=monday(_cvOff), sun=new Date(mon.getTime()+6*86400000);
+  function fmt(d){ return d.getDate()+'.'+pad(d.getMonth()+1); }
+  var lbl=fmt(mon)+' – '+fmt(sun)+(_cvOff===0?' (Bu həftə)':_cvOff===-1?' (Keçən)':' (Gələn)');
+  var pills=DEPTS.map(function(d){ return '<button class="pill'+(d===_cvDept?' active':'')+'" onclick="cvDept(\''+d+'\')">'+esc(d)+'</button>'; }).join('');
+  p.innerHTML='<div class="ctl-row"><button class="navbtn" onclick="cvNav(-1)"><i class="fa-solid fa-chevron-left"></i></button><span class="wklbl">'+lbl+'</span><button class="navbtn" onclick="cvNav(1)"><i class="fa-solid fa-chevron-right"></i></button></div>'
+    +'<div class="pill-bar">'+pills+'</div><div class="card" id="cvBody">'+spin()+'</div>';
+  call('getCedvel',[_cvDept,toYMD(mon)],function(rows){
+    rows=rows||[];
+    var b=document.getElementById('cvBody');
+    if(!rows.length){ b.innerHTML=emptyMsg('Bu həftə üçün cədvəl yoxdur.'); return; }
+    var dates=rows[0].schedule.map(function(s){return s.date;});
+    var h='<table class="cedvel-table"><thead><tr><th>İşçi</th>';
+    dates.forEach(function(ds,i){ h+='<th>'+DAY_AZ[i]+'</th>'; });
+    h+='</tr></thead><tbody>';
+    rows.forEach(function(emp){
+      h+='<tr><td>'+esc(emp.empName)+'</td>';
+      emp.schedule.forEach(function(s){ var sm=SHIFT_MAP[s.shiftType||'']||SHIFT_MAP['']; h+='<td>'+(sm.lbl==='–'?'<span class="sb sb-x">–</span>':'<span class="sb '+sm.cls+'">'+sm.lbl+'</span>')+'</td>'; });
+      h+='</tr>';
+    });
+    h+='</tbody></table>';
+    h+='<div class="legend"><span class="sb sb-s" style="width:auto;padding:2px 7px;">S Səhər</span><span class="sb sb-a" style="width:auto;padding:2px 7px;">A Axşam</span><span class="sb sb-f" style="width:auto;padding:2px 7px;">AF Axşam Full</span><span class="sb sb-sf" style="width:auto;padding:2px 7px;">SF Səhər Full</span><span class="sb sb-i" style="width:auto;padding:2px 7px;">İst İstirahət</span></div>';
+    b.innerHTML=h;
+  });
+}
+function cvDept(d){ _cvDept=d; loadCedvel(); }
+function cvNav(n){ _cvOff+=n; loadCedvel(); }
+
+// ══ 4) İDARƏÇİLƏR ═════════════════════════════════════════════════
+function loadIdareci(){
+  var p=document.getElementById('panel-idareci'); p.innerHTML=spin();
+  var live=null, sched=null, acks=null;
+  function done(){
+    if(live===null||sched===null||acks===null) return;
+    var h='';
+    // Canlı status
+    h+='<div class="card"><div class="sec-label"><i class="fa-solid fa-user-tie"></i> Canlı Status</div><div class="mgr-grid">';
+    DEPTS.forEach(function(d){ var m=live[d]||{}; h+='<div class="mgr-card"><div class="d">'+esc(d)+'</div><div class="s '+(m.isOnline?'s-on':'s-off')+'">'+(m.isOnline?'İşdə · '+esc(m.gelis):(m.hadGelis?'Çıxıb · '+esc(m.cixis||''):'Yoxdur'))+'</div></div>'; });
+    h+='</div></div>';
+    // Həftəlik qrafik
+    h+='<div class="card"><div class="sec-label"><i class="fa-solid fa-calendar-week"></i> Həftəlik Qrafik</div>';
+    if(sched&&sched.managers&&sched.managers.length){
+      h+='<table class="cedvel-table"><thead><tr><th>Menecer</th>';
+      sched.dates.forEach(function(dd){ h+='<th>'+esc(dd.dayName)+'</th>'; });
+      h+='</tr></thead><tbody>';
+      sched.managers.forEach(function(mg){
+        h+='<tr><td>'+esc(mg.dept)+'</td>';
+        mg.schedule.forEach(function(st){ var sm=SHIFT_MAP[st||'']||SHIFT_MAP['']; h+='<td>'+(sm.lbl==='–'?'<span class="sb sb-x">–</span>':'<span class="sb '+sm.cls+'">'+sm.lbl+'</span>')+'</td>'; });
+        h+='</tr>';
+      });
+      h+='</tbody></table>';
+    } else { h+=emptyMsg('Qrafik yoxdur.'); }
+    h+='</div>';
+    // Təsdiqlər (bugün)
+    h+='<div class="card"><div class="sec-label"><i class="fa-solid fa-circle-check"></i> Bugünkü Təsdiqlər</div><div class="mgr-grid">';
+    DEPTS.forEach(function(d){
+      var a=(acks.acks&&acks.acks[d])||{};
+      h+='<div class="mgr-card"><div class="d">'+esc(d)+'</div>'
+        +'<div class="s '+(a.globalAcked?'s-on':'s-off')+'" style="font-size:0.72rem;">Ümumi: '+(a.globalAcked?esc(a.globalAckedAt||'✓'):'—')+'</div>'
+        +'<div class="s '+(a.branchAcked?'s-on':'s-off')+'" style="font-size:0.72rem;">Filial: '+(a.branchAcked?esc(a.branchAckedAt||'✓'):'—')+'</div></div>';
+    });
+    h+='</div></div>';
+    p.innerHTML=h;
+  }
+  call('getManagersLiveStatus',[],function(d){ live=d||{}; done(); });
+  call('getMgrScheduleForAdmin',[toYMD(monday(0))],function(d){ sched=d||{managers:[],dates:[]}; done(); });
+  call('getMgrAcksForAdmin',[todayYMD()],function(d){ acks=d||{acks:{}}; done(); });
+}
+
+// ══ 5) CHECKLIST ══════════════════════════════════════════════════
+var _ckDept='Elmlər', _ckDate=todayYMD();
+function loadChecklist(){
+  var p=document.getElementById('panel-checklist');
+  var pills=DEPTS.map(function(d){ return '<button class="pill'+(d===_ckDept?' active':'')+'" onclick="ckDept(\''+d+'\')">'+esc(d)+'</button>'; }).join('');
+  p.innerHTML='<div class="ctl-row"><input type="date" id="ckDate" value="'+_ckDate+'" onchange="ckDateCh()"></div><div class="pill-bar">'+pills+'</div><div class="card" id="ckBody">'+spin()+'</div>';
+  call('getChecklistReport',[_ckDate],function(res){
+    var b=document.getElementById('ckBody');
+    if(!res||!res.items||!res.items.length){ b.innerHTML=emptyMsg('Checklist elementi yoxdur.'); return; }
+    var rep=(res.report&&res.report[_ckDept])||{};
+    var done=0; res.items.forEach(function(it){ if(rep[it.item_id]&&rep[it.item_id].checked) done++; });
+    var h='<div class="sec-label"><i class="fa-solid fa-list-check"></i> '+esc(_ckDept)+' · '+done+'/'+res.items.length+'</div>';
+    res.items.forEach(function(it){
+      var st=rep[it.item_id]||{};
+      h+='<div class="ck-item"><div class="ck-ic '+(st.checked?'ck-on':'ck-off')+'"><i class="fa-solid fa-'+(st.checked?'check':'xmark')+'"></i></div>'
+        +'<div class="ck-txt">'+esc(it.text)+(st.mgrNote?'<div class="ck-note">📝 '+esc(st.mgrNote)+'</div>':'')+(st.adminNote?'<div class="ck-note" style="color:var(--primary);">🛡 '+esc(st.adminNote)+'</div>':'')+'</div>'
+        +(st.checkedAt?'<span class="ck-time">'+esc(st.checkedAt)+'</span>':'')+'</div>';
+    });
+    b.innerHTML=h;
+  });
+}
+function ckDept(d){ _ckDept=d; loadChecklist(); }
+function ckDateCh(){ _ckDate=document.getElementById('ckDate').value||todayYMD(); loadChecklist(); }
+
+// ══ 6) TULLANTI ═══════════════════════════════════════════════════
+function loadTullanti(){
+  var p=document.getElementById('panel-tullanti');
+  var now=new Date(), defMonth=now.getFullYear()+'-'+pad(now.getMonth()+1);
+  p.innerHTML='<div class="ctl-row"><input type="month" id="wMonth" value="'+defMonth+'" onchange="wMonthCh()" style="border:1.5px solid var(--border);border-radius:11px;padding:0.55rem 0.8rem;font-weight:600;font-family:inherit;"></div><div id="wBody">'+spin()+'</div>';
+  wLoad(defMonth);
+}
+function wMonthCh(){ wLoad(document.getElementById('wMonth').value); }
+function wLoad(monthStr){
+  document.getElementById('wBody').innerHTML=spin();
+  call('getWasteStatsForAdmin',[monthStr],function(rows){
+    rows=rows||[]; var h='';
+    var any=rows.some(function(r){return r.hasData;});
+    if(!any){ document.getElementById('wBody').innerHTML=emptyMsg('Bu ay üçün tullantı məlumatı yoxdur.'); return; }
+    rows.forEach(function(r){
+      if(!r.hasData) return;
+      var col=r.exceeded?'#dc2626':'#059669';
+      h+='<div class="card"><div class="waste-head"><span class="waste-dept">'+esc(r.dept)+'</span><span class="waste-pct" style="color:'+col+';">'+r.pct+'%</span></div>'
+        +'<div class="bar-bg"><div class="bar-fill" style="width:'+Math.min(100,(r.limit?r.pct/r.limit*100:0))+'%;background:'+col+';"></div></div>'
+        +'<div style="display:flex;justify-content:space-between;align-items:center;"><span class="waste-sub">Gələn: '+r.totalIn+' · Tullantı: '+r.totalWasted+' · Limit: '+r.limit+'%</span>'+(r.exceeded?'<span class="exc-badge">Limit aşıb</span>':'<span class="ok-badge">Normal</span>')+'</div>';
+      if(r.products&&r.products.length){
+        var agg={}; r.products.forEach(function(p){ if(!agg[p.name])agg[p.name]={i:0,w:0}; agg[p.name].i+=p.incoming; agg[p.name].w+=p.wasted; });
+        h+='<div style="margin-top:0.7rem;padding-top:0.6rem;border-top:1px solid var(--border);">';
+        Object.keys(agg).forEach(function(nm){ h+='<div class="prod-line"><span>'+esc(nm)+'</span><span>'+agg[nm].w+' / '+agg[nm].i+'</span></div>'; });
+        h+='</div>';
+      }
+      h+='</div>';
+    });
+    document.getElementById('wBody').innerHTML=h;
+  });
+}
+
+// ══ 7) TRAINING ═══════════════════════════════════════════════════
+var _trDate=todayYMD();
+function loadTraining(){
+  var p=document.getElementById('panel-training');
+  p.innerHTML='<div class="ctl-row"><input type="date" id="trDate" value="'+_trDate+'" onchange="trDateCh()"></div><div id="trBody">'+spin()+'</div>';
+  var logs=null, exams=null;
+  function done(){
+    if(logs===null||exams===null) return;
+    var h='';
+    // İmtahanlar
+    h+='<div class="card"><div class="sec-label"><i class="fa-solid fa-file-pen"></i> İmtahanlar ('+exams.length+')</div>';
+    if(!exams.length){ h+=emptyMsg('İmtahan yoxdur.'); }
+    else exams.forEach(function(e){
+      var mx=e.max_score||0, sc=e.score||0, pc=mx?Math.round(sc/mx*100):0;
+      var col=pc>=80?'rgba(16,185,129,0.12);color:#059669':pc>=60?'rgba(245,158,11,0.14);color:#d97706':'rgba(239,68,68,0.1);color:#dc2626';
+      h+='<div class="tlog"><div class="tlog-head"><span class="tlog-emp">'+esc(e.emp_name)+'</span><span class="score-chip" style="background:'+col+'">'+sc+'/'+mx+'</span></div>'
+        +'<div class="tlog-meta">'+esc(e.dept)+' · '+esc(e.trainer_name||'')+'</div></div>';
+    });
+    h+='</div>';
+    // Təlim logları
+    h+='<div class="card"><div class="sec-label"><i class="fa-solid fa-graduation-cap"></i> Təlim Logları ('+logs.length+')</div>';
+    if(!logs.length){ h+=emptyMsg('Təlim logu yoxdur.'); }
+    else logs.forEach(function(l){
+      var items=Array.isArray(l.items)?l.items:[];
+      var okc=items.filter(function(x){return x&&(x.checked||x.ok||x.done);}).length;
+      h+='<div class="tlog"><div class="tlog-head"><span class="tlog-emp">'+esc(l.emp_name)+'</span><span class="tlog-meta">'+esc(l.dept)+'</span></div>'
+        +'<div class="tlog-meta">Treynər: '+esc(l.trainer_name||'')+(items.length?' · '+okc+'/'+items.length+' bənd':'')+'</div>'
+        +(l.general_note?'<div class="ck-note" style="margin-top:4px;">📝 '+esc(l.general_note)+'</div>':'')+'</div>';
+    });
+    h+='</div>';
+    document.getElementById('trBody').innerHTML=h;
+  }
+  call('getExamLogs',[_trDate],function(d){ exams=(d&&d.exams)||[]; done(); });
+  call('getTrainerLogs',[_trDate],function(d){ logs=(d&&d.logs)||[]; done(); });
+}
+function trDateCh(){ _trDate=document.getElementById('trDate').value||todayYMD(); loadTraining(); }
+
+// ── Başlat ────────────────────────────────────────────────────────
+call('getDeptList',[],function(d){ if(d&&d.length) DEPTS=d; });
+loadLive();
+setInterval(function(){ if(!document.getElementById('panel-live').classList.contains('hidden')) loadLive(); },30000);
+</script>
+</body>
+</html>

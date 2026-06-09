@@ -269,6 +269,19 @@ app.get('/trainer', (req, res) => {
   }));
 });
 
+app.get('/icraci', (req, res) => {
+  const { key = '' } = req.query;
+  const execKey = U.getSetting('EXEC_KEY');
+  if (!execKey || execKey !== key)
+    return res.send('<h2 style="color:red;font-family:sans-serif;padding:2rem">İcazəsiz giriş.</h2>');
+  const execName = U.getSetting('EXEC_NAME') || 'İcraçı';
+  res.send(replaceVars(readTemplate('icraci.html'), {
+    execKey:   key,
+    execName:  execName,
+    scriptUrl: `${req.protocol}://${req.get('host')}`,
+  }));
+});
+
 app.get('/exam', (req, res) => res.send(readTemplate('exam.html')));
 
 app.get('/', (req, res) => res.redirect(`/admin?key=${ADMIN_KEY}`));
@@ -1945,6 +1958,27 @@ API.getTrainerKey = async () => {
   return { key, name };
 };
 
+// ── İCRAÇI (executive) PANELİ AÇARI ──────────────────────────────
+API.getExecKey = async () => {
+  let key = U.getSetting('EXEC_KEY');
+  if (!key) {
+    key = 'EX' + Math.random().toString(36).substring(2, 12).toUpperCase();
+    await U.setSetting('EXEC_KEY', key);
+  }
+  return { key, name: U.getSetting('EXEC_NAME') || '' };
+};
+
+API.regenerateExecKey = async () => {
+  const key = 'EX' + Math.random().toString(36).substring(2, 12).toUpperCase();
+  await U.setSetting('EXEC_KEY', key);
+  return { key };
+};
+
+API.setExecName = async (name) => {
+  await U.setSetting('EXEC_NAME', String(name || '').trim());
+  return { success: true };
+};
+
 API.setTrainerName = async (name) => {
   await U.setSetting('TRAINER_NAME', String(name || '').trim());
   return { success: true };
@@ -2322,6 +2356,8 @@ API.submitEmployeeExam = async (empId, empName, dept, role, answers) => {
       }
       const trKey = await API.getTrainerKey();
       console.log(`🎓  Treynər: http://localhost:${PORT}/trainer?key=${trKey.key}`);
+      const exKey = await API.getExecKey();
+      console.log(`📊  İcraçı: http://localhost:${PORT}/icraci?key=${exKey.key}`);
 
       // Başlarkən əvvəlki gecənin açıq smenlərini bağla, sonra hər gecə 04:00-da işlət
       try { await autoCloseShifts(); } catch (e) { console.error('[AutoClose startup]', e.message); }
