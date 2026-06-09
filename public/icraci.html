@@ -194,6 +194,13 @@ var SHIFT_MAP = {
   sehersm:{cls:'sb-s',lbl:'S'}, axsamsm:{cls:'sb-a',lbl:'A'}, fullsm:{cls:'sb-f',lbl:'AF'},
   seherfullsm:{cls:'sb-sf',lbl:'SF'}, istirahetsm:{cls:'sb-i',lbl:'İst'}, '':{cls:'sb-x',lbl:'–'}
 };
+// Menecer öz qrafiki fərqli kodlar işlədir (s/a/o) — admin MGR_COLORS/MGR_LBL ilə eyni
+var MGR_SMAP = {
+  s:{lbl:'S', bg:'#dbeafe', cl:'#1e40af'},
+  a:{lbl:'A', bg:'#ede9fe', cl:'#5b21b6'},
+  o:{lbl:'O', bg:'#fef9c3', cl:'#854d0e'},
+  '':{lbl:'–', bg:'', cl:''}
+};
 function pad(n){ return String(n).padStart(2,'0'); }
 function toYMD(d){ return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); }
 function todayYMD(){ return toYMD(new Date()); }
@@ -401,7 +408,7 @@ function renderMgrSched(sched){
     t+='</tr></thead><tbody>';
     sched.managers.forEach(function(mg){
       t+='<tr><td>'+esc(mg.dept)+'</td>';
-      mg.schedule.forEach(function(st){ var sm=SHIFT_MAP[st||'']||SHIFT_MAP['']; t+='<td>'+(sm.lbl==='–'?'<span class="sb sb-x">–</span>':'<span class="sb '+sm.cls+'">'+sm.lbl+'</span>')+'</td>'; });
+      mg.schedule.forEach(function(st){ var sm=MGR_SMAP[st]||MGR_SMAP['']; t+='<td>'+(st&&sm.bg?'<span class="sb" style="background:'+sm.bg+';color:'+sm.cl+';">'+sm.lbl+'</span>':'<span class="sb sb-x">–</span>')+'</td>'; });
       t+='</tr>';
     });
     t+='</tbody></table>';
