@@ -146,6 +146,13 @@ select,input[type=date]{border:1.5px solid var(--border);border-radius:11px;padd
 .tlog-emp{font-weight:800;font-size:0.88rem;}
 .tlog-meta{font-size:0.72rem;color:var(--text-muted);font-weight:600;}
 .score-chip{font-weight:900;font-size:0.82rem;padding:2px 9px;border-radius:7px;}
+/* Mesaj qutuları + təsdiq çipləri */
+.msg-box{background:#f8fafc;border:1px solid var(--border);border-radius:11px;padding:0.75rem 0.9rem;font-size:0.86rem;line-height:1.5;color:var(--text-main);white-space:pre-wrap;word-break:break-word;}
+.msg-empty{color:var(--text-soft);font-style:italic;}
+.ack-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:0.7rem;}
+.ack-chip{font-size:0.71rem;font-weight:700;padding:3px 9px;border-radius:100px;display:inline-flex;align-items:center;gap:4px;}
+.ack-on{background:rgba(16,185,129,0.1);color:#059669;border:1px solid rgba(16,185,129,0.15);}
+.ack-off{background:rgba(15,23,42,0.04);color:var(--text-muted);border:1px solid var(--border);}
 </style>
 </head>
 <body>
@@ -334,44 +341,60 @@ function cvDept(d){ _cvDept=d; loadCedvel(); }
 function cvNav(n){ _cvOff+=n; loadCedvel(); }
 
 // ══ 4) İDARƏÇİLƏR ═════════════════════════════════════════════════
+var _idSub='status';
+var DEPT_SLUG={'Elmlər':'elmler','Sahil':'sahil','Gənclik':'genclik','Ağ Şəhər':'agseher'};
 function loadIdareci(){
   var p=document.getElementById('panel-idareci'); p.innerHTML=spin();
-  var live=null, sched=null, acks=null;
+  var live=null, sched=null, acks=null, info=null;
   function done(){
-    if(live===null||sched===null||acks===null) return;
-    var h='';
-    // Canlı status
-    h+='<div class="card"><div class="sec-label"><i class="fa-solid fa-user-tie"></i> Canlı Status</div><div class="mgr-grid">';
-    DEPTS.forEach(function(d){ var m=live[d]||{}; h+='<div class="mgr-card"><div class="d">'+esc(d)+'</div><div class="s '+(m.isOnline?'s-on':'s-off')+'">'+(m.isOnline?'İşdə · '+esc(m.gelis):(m.hadGelis?'Çıxıb · '+esc(m.cixis||''):'Yoxdur'))+'</div></div>'; });
-    h+='</div></div>';
-    // Həftəlik qrafik
-    h+='<div class="card"><div class="sec-label"><i class="fa-solid fa-calendar-week"></i> Həftəlik Qrafik</div>';
+    if(live===null||sched===null||acks===null||info===null) return;
+    // ── STATUS subtab ──
+    var s='';
+    s+='<div class="card"><div class="sec-label"><i class="fa-solid fa-user-tie"></i> Canlı Status</div><div class="mgr-grid">';
+    DEPTS.forEach(function(d){ var m=live[d]||{}; s+='<div class="mgr-card"><div class="d">'+esc(d)+'</div><div class="s '+(m.isOnline?'s-on':'s-off')+'">'+(m.isOnline?'İşdə · '+esc(m.gelis):(m.hadGelis?'Çıxıb · '+esc(m.cixis||''):'Yoxdur'))+'</div></div>'; });
+    s+='</div></div>';
+    s+='<div class="card"><div class="sec-label"><i class="fa-solid fa-calendar-week"></i> Həftəlik Qrafik</div>';
     if(sched&&sched.managers&&sched.managers.length){
-      h+='<table class="cedvel-table"><thead><tr><th>Menecer</th>';
-      sched.dates.forEach(function(dd){ h+='<th>'+esc(dd.dayName)+'</th>'; });
-      h+='</tr></thead><tbody>';
+      s+='<table class="cedvel-table"><thead><tr><th>Menecer</th>';
+      sched.dates.forEach(function(dd){ s+='<th>'+esc(dd.dayName)+'</th>'; });
+      s+='</tr></thead><tbody>';
       sched.managers.forEach(function(mg){
-        h+='<tr><td>'+esc(mg.dept)+'</td>';
-        mg.schedule.forEach(function(st){ var sm=SHIFT_MAP[st||'']||SHIFT_MAP['']; h+='<td>'+(sm.lbl==='–'?'<span class="sb sb-x">–</span>':'<span class="sb '+sm.cls+'">'+sm.lbl+'</span>')+'</td>'; });
-        h+='</tr>';
+        s+='<tr><td>'+esc(mg.dept)+'</td>';
+        mg.schedule.forEach(function(st){ var sm=SHIFT_MAP[st||'']||SHIFT_MAP['']; s+='<td>'+(sm.lbl==='–'?'<span class="sb sb-x">–</span>':'<span class="sb '+sm.cls+'">'+sm.lbl+'</span>')+'</td>'; });
+        s+='</tr>';
       });
-      h+='</tbody></table>';
-    } else { h+=emptyMsg('Qrafik yoxdur.'); }
-    h+='</div>';
-    // Təsdiqlər (bugün)
-    h+='<div class="card"><div class="sec-label"><i class="fa-solid fa-circle-check"></i> Bugünkü Təsdiqlər</div><div class="mgr-grid">';
+      s+='</tbody></table>';
+    } else { s+=emptyMsg('Qrafik yoxdur.'); }
+    s+='</div>';
+    // ── MESAJLAR subtab (mesaj + təsdiq bir yerdə) ──
+    var m='';
+    m+='<div class="card"><div class="sec-label"><i class="fa-solid fa-bullhorn"></i> Ümumi Mesaj</div>';
+    m+='<div class="msg-box">'+(info.globalMsg?esc(info.globalMsg):'<span class="msg-empty">Mesaj yoxdur</span>')+'</div>';
+    m+='<div class="ack-chips">';
+    DEPTS.forEach(function(d){ var a=(acks.acks&&acks.acks[d])||{}; m+='<span class="ack-chip '+(a.globalAcked?'ack-on':'ack-off')+'">'+esc(d)+' '+(a.globalAcked?'<i class="fa-solid fa-check"></i> '+esc(a.globalAckedAt||''):'—')+'</span>'; });
+    m+='</div></div>';
     DEPTS.forEach(function(d){
-      var a=(acks.acks&&acks.acks[d])||{};
-      h+='<div class="mgr-card"><div class="d">'+esc(d)+'</div>'
-        +'<div class="s '+(a.globalAcked?'s-on':'s-off')+'" style="font-size:0.72rem;">Ümumi: '+(a.globalAcked?esc(a.globalAckedAt||'✓'):'—')+'</div>'
-        +'<div class="s '+(a.branchAcked?'s-on':'s-off')+'" style="font-size:0.72rem;">Filial: '+(a.branchAcked?esc(a.branchAckedAt||'✓'):'—')+'</div></div>';
+      var slug=DEPT_SLUG[d], msg=info.msgs?info.msgs[slug]:'', nm=info.names?info.names[slug]:'', a=(acks.acks&&acks.acks[d])||{};
+      m+='<div class="card"><div class="sec-label" style="margin-bottom:0.5rem;"><i class="fa-solid fa-store"></i> '+esc(d)+(nm?' · '+esc(nm):'')+'</div>';
+      m+='<div class="msg-box">'+(msg?esc(msg):'<span class="msg-empty">Mesaj yoxdur</span>')+'</div>';
+      m+='<div class="ack-chips"><span class="ack-chip '+(a.branchAcked?'ack-on':'ack-off')+'">Təsdiq: '+(a.branchAcked?'<i class="fa-solid fa-check"></i> '+esc(a.branchAckedAt||''):'—')+'</span></div></div>';
     });
-    h+='</div></div>';
-    p.innerHTML=h;
+    // ── Subtab bar + panellər ──
+    p.innerHTML='<div class="pill-bar"><button class="pill" data-id="status" onclick="idSub(\'status\')"><i class="fa-solid fa-signal"></i> Status</button>'
+      +'<button class="pill" data-id="mesaj" onclick="idSub(\'mesaj\')"><i class="fa-solid fa-envelope"></i> Mesajlar</button></div>'
+      +'<div id="idSub-status">'+s+'</div><div id="idSub-mesaj" class="hidden">'+m+'</div>';
+    idSub(_idSub);
   }
   call('getManagersLiveStatus',[],function(d){ live=d||{}; done(); });
   call('getMgrScheduleForAdmin',[toYMD(monday(0))],function(d){ sched=d||{managers:[],dates:[]}; done(); });
   call('getMgrAcksForAdmin',[todayYMD()],function(d){ acks=d||{acks:{}}; done(); });
+  call('getMgrInfo',[],function(d){ info=d||{globalMsg:'',names:{},msgs:{}}; done(); });
+}
+function idSub(t){
+  _idSub=t;
+  document.getElementById('idSub-status').classList.toggle('hidden',t!=='status');
+  document.getElementById('idSub-mesaj').classList.toggle('hidden',t!=='mesaj');
+  Array.prototype.forEach.call(document.querySelectorAll('#panel-idareci .pill'),function(b){ b.classList.toggle('active',b.dataset.id===t); });
 }
 
 // ══ 5) CHECKLIST ══════════════════════════════════════════════════
