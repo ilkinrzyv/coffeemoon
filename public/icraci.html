@@ -4,6 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
 <title>Coffeemoon · İcraçı</title>
+<link rel="manifest" href="/icraci-manifest?key=<?= execKey ?>">
+<meta name="theme-color" content="#0d9488">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="İcraçı">
+<link rel="apple-touch-icon" href="/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
@@ -549,6 +555,9 @@ loadLive();
 function liveVisible(){ return !document.getElementById('panel-live').classList.contains('hidden'); }
 setInterval(function(){ if(liveVisible()) updateExecElapsed(); }, 30000);  // keçən vaxtı tiklə (yüngül)
 setInterval(function(){ if(liveVisible()) loadLive(); }, 60000);            // yeni gəlişləri çək
+
+// PWA — quraşdırıla bilən etmək üçün servis işçisini qeyd et
+if('serviceWorker' in navigator){ navigator.serviceWorker.register('/sw.js').catch(function(){}); }
 </script>
 </body>
 </html>

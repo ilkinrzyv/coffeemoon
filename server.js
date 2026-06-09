@@ -269,6 +269,26 @@ app.get('/trainer', (req, res) => {
   }));
 });
 
+app.get('/icraci-manifest', (req, res) => {
+  const { key = '' } = req.query;
+  const startUrl = `/icraci?key=${encodeURIComponent(key)}`;
+  res.setHeader('Content-Type', 'application/manifest+json');
+  res.json({
+    name: 'Coffeemoon · İcraçı',
+    short_name: 'İcraçı',
+    description: 'Coffeemoon icraçı paneli',
+    start_url: startUrl,
+    display: 'standalone',
+    background_color: '#f1f5f9',
+    theme_color: '#0d9488',
+    orientation: 'portrait',
+    icons: [
+      { src: '/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
+      { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
+    ],
+  });
+});
+
 app.get('/icraci', (req, res) => {
   const { key = '' } = req.query;
   const execKey = U.getSetting('EXEC_KEY');
