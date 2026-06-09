@@ -159,6 +159,13 @@ select,input[type=date]{border:1.5px solid var(--border);border-radius:11px;padd
 .ack-chip{font-size:0.71rem;font-weight:700;padding:3px 9px;border-radius:100px;display:inline-flex;align-items:center;gap:4px;}
 .ack-on{background:rgba(16,185,129,0.1);color:#059669;border:1px solid rgba(16,185,129,0.15);}
 .ack-off{background:rgba(15,23,42,0.04);color:var(--text-muted);border:1px solid var(--border);}
+.exec-ta{width:100%;min-height:62px;border:1.5px solid var(--border);border-radius:11px;padding:0.6rem 0.8rem;font-size:0.86rem;font-family:inherit;color:var(--text-main);outline:none;resize:vertical;line-height:1.45;}
+.exec-ta:focus{border-color:var(--primary);}
+.send-btn{background:var(--primary);color:#fff;border:none;border-radius:10px;padding:0.5rem 1rem;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:6px;}
+.send-btn:disabled{opacity:0.5;}
+.push-bar{display:none;align-items:center;gap:8px;background:#5b5ef4;color:#fff;padding:0.6rem 0.9rem;border-radius:12px;font-size:0.82rem;font-weight:600;margin-bottom:10px;}
+#toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(120px);background:#0f172a;color:#fff;padding:0.7rem 1.2rem;border-radius:12px;font-size:0.85rem;font-weight:600;z-index:9999;opacity:0;transition:all 0.3s;pointer-events:none;max-width:90%;text-align:center;}
+#toast.show{transform:translateX(-50%) translateY(0);opacity:1;}
 </style>
 </head>
 <body>
@@ -177,6 +184,8 @@ select,input[type=date]{border:1.5px solid var(--border);border-radius:11px;padd
       <button class="tab-btn"        data-t="training"  onclick="go('training')"><i class="fa-solid fa-graduation-cap"></i> Training</button>
     </div>
   </div>
+
+  <div id="execPushBar" class="push-bar"></div>
 
   <div id="panel-live"      class="panel"></div>
   <div id="panel-hesabat"   class="panel hidden"></div>
@@ -372,15 +381,17 @@ function loadIdareci(){
       +'<div id="mgrSchedBox"></div></div>';
     // ── MESAJLAR subtab (mesaj + təsdiq bir yerdə) ──
     var m='';
-    m+='<div class="card"><div class="sec-label"><i class="fa-solid fa-bullhorn"></i> Ümumi Mesaj</div>';
-    m+='<div class="msg-box">'+(info.globalMsg?esc(info.globalMsg):'<span class="msg-empty">Mesaj yoxdur</span>')+'</div>';
+    m+='<div class="card"><div class="sec-label"><i class="fa-solid fa-bullhorn"></i> Ümumi Mesaj (bütün menecerlər)</div>';
+    m+='<textarea id="execGlobalMsg" class="exec-ta" placeholder="Bütün menecerlərə mesaj...">'+esc(info.globalMsg||'')+'</textarea>';
+    m+='<div style="display:flex;justify-content:flex-end;margin:6px 0 2px;"><button class="send-btn" onclick="sendExecMsg(\'global\')"><i class="fa-solid fa-paper-plane"></i> Göndər</button></div>';
     m+='<div class="ack-chips">';
     DEPTS.forEach(function(d){ var a=(acks.acks&&acks.acks[d])||{}; m+='<span class="ack-chip '+(a.globalAcked?'ack-on':'ack-off')+'">'+esc(d)+' '+(a.globalAcked?'<i class="fa-solid fa-check"></i> '+esc(a.globalAckedAt||''):'—')+'</span>'; });
     m+='</div></div>';
     DEPTS.forEach(function(d){
       var slug=DEPT_SLUG[d], msg=info.msgs?info.msgs[slug]:'', nm=info.names?info.names[slug]:'', a=(acks.acks&&acks.acks[d])||{};
       m+='<div class="card"><div class="sec-label" style="margin-bottom:0.5rem;"><i class="fa-solid fa-store"></i> '+esc(d)+(nm?' · '+esc(nm):'')+'</div>';
-      m+='<div class="msg-box">'+(msg?esc(msg):'<span class="msg-empty">Mesaj yoxdur</span>')+'</div>';
+      m+='<textarea id="execMsg-'+slug+'" class="exec-ta" placeholder="'+esc(d)+' menecerinə mesaj...">'+esc(msg||'')+'</textarea>';
+      m+='<div style="display:flex;justify-content:flex-end;margin:6px 0 2px;"><button class="send-btn" onclick="sendExecMsg(\''+slug+'\')"><i class="fa-solid fa-paper-plane"></i> Göndər</button></div>';
       m+='<div class="ack-chips"><span class="ack-chip '+(a.branchAcked?'ack-on':'ack-off')+'">Təsdiq: '+(a.branchAcked?'<i class="fa-solid fa-check"></i> '+esc(a.branchAckedAt||''):'—')+'</span></div></div>';
     });
     // ── Subtab bar + panellər ──
@@ -428,6 +439,21 @@ function fetchMgrSched(){
   call('getMgrScheduleForAdmin',[toYMD(monday(_idWeek))],function(d){ renderMgrSched(d||{managers:[],dates:[]}); });
 }
 function mgrWeekNav(n){ _idWeek+=n; fetchMgrSched(); }
+function sendExecMsg(slug){
+  var val, data;
+  if(slug==='global'){ val=document.getElementById('execGlobalMsg').value; data={globalMsg:val}; }
+  else { val=document.getElementById('execMsg-'+slug).value; var o={}; o[slug]=val; data={msgs:o}; }
+  call('saveExecMessages',[EXEC_KEY,data],function(r){
+    if(r&&r.success) toast(val?'Mesaj göndərildi ✓':'Mesaj təmizləndi');
+    else toast((r&&r.reason)||'Xəta baş verdi',false);
+  });
+}
+var _tt;
+function toast(msg,ok){
+  var t=document.getElementById('toast'); if(!t)return;
+  t.textContent=msg; t.style.background=(ok===false)?'#dc2626':'#0f172a';
+  t.classList.add('show'); clearTimeout(_tt); _tt=setTimeout(function(){ t.classList.remove('show'); },2800);
+}
 
 // ══ 5) CHECKLIST ══════════════════════════════════════════════════
 var _ckDept='Elmlər', _ckDate=todayYMD();
@@ -556,8 +582,40 @@ function liveVisible(){ return !document.getElementById('panel-live').classList.
 setInterval(function(){ if(liveVisible()) updateExecElapsed(); }, 30000);  // keçən vaxtı tiklə (yüngül)
 setInterval(function(){ if(liveVisible()) loadLive(); }, 60000);            // yeni gəlişləri çək
 
-// PWA — quraşdırıla bilən etmək üçün servis işçisini qeyd et
-if('serviceWorker' in navigator){ navigator.serviceWorker.register('/sw.js').catch(function(){}); }
+// ── PWA + İCRAÇI PUSH (təsdiq bildirişləri) ──────────────────────
+(function(){
+  'use strict';
+  if(!('serviceWorker' in navigator)) return;
+  var isIOS=/iPad|iPhone|iPod/.test(navigator.userAgent)&&!window.MSStream;
+  var isStandalone=window.navigator.standalone===true;
+  var isOldIOS=isIOS&&parseInt((navigator.userAgent.match(/OS (\d+)_/)||[])[1]||0)<16;
+  function u8(b64){ var pad='='.repeat((4-b64.length%4)%4); var raw=atob((b64+pad).replace(/-/g,'+').replace(/_/g,'/')); var a=new Uint8Array(raw.length); for(var i=0;i<raw.length;i++)a[i]=raw.charCodeAt(i); return a; }
+  function reg(sub){
+    if(!sub)return; var j=sub.toJSON?sub.toJSON():{};
+    google.script.run.subscribePushExec(EXEC_KEY,{ endpoint:sub.endpoint, keys:{
+      p256dh: j.keys?j.keys.p256dh:btoa(String.fromCharCode.apply(null,new Uint8Array(sub.getKey('p256dh')))),
+      auth:   j.keys?j.keys.auth  :btoa(String.fromCharCode.apply(null,new Uint8Array(sub.getKey('auth')))),
+    }});
+  }
+  function bar(html){ var b=document.getElementById('execPushBar'); if(!b)return; b.innerHTML=html+'<button onclick="document.getElementById(\'execPushBar\').style.display=\'none\'" style="background:none;border:none;color:inherit;font-size:1.2rem;cursor:pointer;padding:0 4px;margin-left:auto;">×</button>'; b.style.display='flex'; }
+  var _sw=null,_vk=null;
+  function sub(){ if(!_sw||!_vk)return; _sw.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:u8(_vk)}).then(reg).catch(function(){}); }
+  function ask(){ bar('<span style="flex:1;">🔔 Təsdiq bildirişlərini almaq?</span><button id="execPushBtn" style="background:#fff;color:#5b5ef4;border:none;border-radius:10px;padding:7px 14px;font-weight:700;cursor:pointer;font-size:0.82rem;white-space:nowrap;">İcazə ver</button>'); var btn=document.getElementById('execPushBtn'); if(btn) btn.addEventListener('click',function(){ document.getElementById('execPushBar').style.display='none'; sub(); }); }
+  function init(sw){ _sw=sw; fetch('/vapid-public-key').then(function(r){return r.json();}).then(function(d){
+    if(!d.publicKey)return; _vk=d.publicKey;
+    sw.pushManager.getSubscription().then(function(ex){
+      if(ex){ reg(ex); return; }
+      if(isIOS){
+        if(isOldIOS){ bar('<span style="flex:1;">⚠️ Bildirişlər iOS 16.4+ tələb edir.</span>'); return; }
+        if(!isStandalone){ bar('<span style="flex:1;">📲 Bildiriş üçün Ana Ekrana Əlavə Et (Paylaş → Ana Ekrana)</span>'); return; }
+        Notification.permission==='granted'?sub():ask(); return;
+      }
+      Notification.permission==='granted'?sub():(Notification.permission!=='denied'?ask():null);
+    });
+  }).catch(function(){}); }
+  navigator.serviceWorker.register('/sw.js').then(function(r){ setTimeout(function(){ init(r); },2000); }).catch(function(){});
+})();
 </script>
+<div id="toast"></div>
 </body>
 </html>

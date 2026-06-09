@@ -68,6 +68,12 @@ async function sendPushToManager(dept, title, body, extra = {}) {
   await sendPushToEmployee(mgrId, title, body, extra);
 }
 
+// İcraçıya push göndər
+async function sendPushToExec(title, body, extra = {}) {
+  if (!process.env.VAPID_PUBLIC_KEY) return;
+  await sendPushToEmployee('EXEC', title, body, extra);
+}
+
 // Bütün aktiv işçilərə push göndər (elan üçün)
 async function sendPushToAll(title, body, extra = {}) {
   if (!process.env.VAPID_PUBLIC_KEY) return;
@@ -1008,6 +1014,24 @@ API.unsubscribePushManager = async (branchKey, endpoint) => {
   return { ok: true };
 };
 
+// İcraçı push abunəliyi (emp_id = 'EXEC')
+API.subscribePushExec = async (execKey, subscription) => {
+  if (!execKey || U.getSetting('EXEC_KEY') !== execKey || !subscription?.endpoint) return { ok: false };
+  await sb.from('push_subscriptions').upsert({
+    emp_id:   'EXEC',
+    endpoint: subscription.endpoint,
+    p256dh:   subscription.keys?.p256dh || '',
+    auth:     subscription.keys?.auth   || '',
+  }, { onConflict: 'endpoint' });
+  return { ok: true };
+};
+
+API.unsubscribePushExec = async (execKey, endpoint) => {
+  if (!execKey || U.getSetting('EXEC_KEY') !== execKey || !endpoint) return { ok: false };
+  await sb.from('push_subscriptions').delete().eq('emp_id', 'EXEC').eq('endpoint', endpoint);
+  return { ok: true };
+};
+
 // ── DASHBOARD ─────────────────────────────────────────────────────
 
 API.getDashboardData = async (secret) => {
@@ -1198,6 +1222,33 @@ API.saveMgrInfo = async (data) => {
   return { success: true };
 };
 
+// İcraçı menecerlərə mesaj yazır → saxla + həmin menecer(lər)ə push
+API.saveExecMessages = async (execKey, data) => {
+  if (!execKey || U.getSetting('EXEC_KEY') !== execKey) return { success: false, reason: 'İcazəsiz.' };
+  const execName = U.getSetting('EXEC_NAME') || 'İcraçı';
+  const keys = await U.getBranchScheduleKeys();
+  if (data.globalMsg !== undefined) {
+    await U.setSetting('MGR_GLOBAL_MSG', data.globalMsg || '');
+    if (data.globalMsg) {
+      for (const dept of U.DEPTS) {
+        await sendPushToManager(dept, `📢 ${execName} — ümumi mesaj`, String(data.globalMsg).slice(0, 140),
+          { tag: 'exec-global', url: '/manager?key=' + (keys[dept] || '') });
+      }
+    }
+  }
+  for (const slug of MGR_SLUGS) {
+    if (data.msgs?.[slug] !== undefined) {
+      await U.setSetting('MGR_MSG_' + slug, data.msgs[slug] || '');
+      if (data.msgs[slug]) {
+        const dept = U.slugToDept(slug);
+        await sendPushToManager(dept, `📩 ${execName} — mesaj`, String(data.msgs[slug]).slice(0, 140),
+          { tag: 'exec-msg-' + slug, url: '/manager?key=' + (keys[dept] || '') });
+      }
+    }
+  }
+  return { success: true };
+};
+
 API.getMgrInfoForBranch = (branchKey) => {
   const check = U.validateBranchScheduleKey(branchKey);
   if (!check.valid) return null;
@@ -1384,6 +1435,11 @@ API.ackMgrMessage = async (branchKey, msgType) => {
   } else {
     await sb.from('mgr_acks').insert({ ack_id: 'ACK-' + Date.now().toString(36).toUpperCase(), date: today, dept: check.dept, ...upd });
   }
+  // İcraçıya təsdiq bildirişi
+  const typeAz = msgType === 'global' ? 'ümumi mesajı' : 'filial mesajını';
+  await sendPushToExec('✅ Mesaj təsdiqləndi',
+    `${check.dept} meneceri ${typeAz} təsdiqlədi (${ts}).`,
+    { tag: 'exec-ack-' + check.dept + '-' + msgType, url: '/icraci?key=' + U.getSetting('EXEC_KEY') });
   return { success: true, time: ts };
 };
 
