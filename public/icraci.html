@@ -307,7 +307,23 @@ function loadHesabat(){
   p.innerHTML='<div class="ctl-row"><select id="rpY" onchange="rpCh()">'+years+'</select><select id="rpM" onchange="rpCh()">'+mons+'</select></div><div id="rpBody">'+spin()+'</div>';
   call('getMonthlyReport',[_rpY,_rpM],function(rows){
     rows=rows||[];
-    var h='<div class="card"><div class="sec-label"><i class="fa-solid fa-chart-column"></i> Aylıq Davamiyyət</div>';
+    var h='';
+    if(rows.length){
+      var byDept={}, sumOn=0, sumDays=0, sumLate=0;
+      rows.forEach(function(r){ if(!byDept[r.dept])byDept[r.dept]={on:0,days:0}; byDept[r.dept].on+=r.onTime; byDept[r.dept].days+=r.totalDays; sumOn+=r.onTime; sumDays+=r.totalDays; sumLate+=r.late; });
+      var overall=sumDays>0?Math.round(sumOn/sumDays*100):0;
+      var ocol=overall>=90?'#059669':overall>=70?'#d97706':'#dc2626';
+      var bars='';
+      DEPTS.forEach(function(d){
+        var b=byDept[d]||{on:0,days:0}, pp=b.days>0?Math.round(b.on/b.days*100):0, c=pp>=90?'#059669':pp>=70?'#d97706':'#dc2626';
+        bars+='<div style="margin-bottom:0.65rem;"><div style="display:flex;justify-content:space-between;font-size:0.8rem;font-weight:700;margin-bottom:4px;"><span>'+esc(d)+'</span><span style="color:'+c+';">'+pp+'% <span style="color:var(--text-soft);font-weight:600;font-size:0.7rem;">('+b.on+'/'+b.days+')</span></span></div><div class="bar-bg"><div class="bar-fill" style="width:'+pp+'%;background:'+c+';"></div></div></div>';
+      });
+      h+='<div class="card"><div class="sec-label"><i class="fa-solid fa-chart-pie"></i> Ümumi Mənzərə · '+MN[_rpM-1]+' '+_rpY+'</div>'
+        +'<div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap;justify-content:center;">'
+        +'<div style="text-align:center;flex-shrink:0;">'+donut(overall,ocol)+'<div style="font-size:0.72rem;color:var(--text-muted);font-weight:600;margin-top:2px;">'+rows.length+' işçi · '+sumLate+' gecikmə</div></div>'
+        +'<div style="flex:1;min-width:185px;">'+bars+'</div></div></div>';
+    }
+    h+='<div class="card"><div class="sec-label"><i class="fa-solid fa-chart-column"></i> Aylıq Davamiyyət</div>';
     if(!rows.length){ h+=emptyMsg('Bu ay üçün məlumat yoxdur.'); }
     else{
       h+='<table class="dt"><thead><tr><th>İşçi</th><th>Gün</th><th>Vaxt.</th><th>Gec.</th><th>%</th></tr></thead><tbody>';
@@ -331,6 +347,16 @@ function loadHesabat(){
   });
 }
 function rpCh(){ _rpY=+document.getElementById('rpY').value; _rpM=+document.getElementById('rpM').value; loadHesabat(); }
+function donut(pct,color){
+  pct=Math.max(0,Math.min(100,pct));
+  var r=52, c=2*Math.PI*r, off=c*(1-pct/100);
+  return '<svg width="128" height="128" viewBox="0 0 130 130">'
+    +'<circle cx="65" cy="65" r="'+r+'" fill="none" stroke="rgba(15,23,42,0.07)" stroke-width="13"/>'
+    +'<circle cx="65" cy="65" r="'+r+'" fill="none" stroke="'+color+'" stroke-width="13" stroke-linecap="round" stroke-dasharray="'+c.toFixed(1)+'" stroke-dashoffset="'+off.toFixed(1)+'" transform="rotate(-90 65 65)"/>'
+    +'<text x="65" y="64" text-anchor="middle" font-size="27" font-weight="900" fill="#0f172a">'+pct+'%</text>'
+    +'<text x="65" y="83" text-anchor="middle" font-size="9.5" font-weight="800" fill="#64748b" letter-spacing="1">VAXTINDA</text>'
+    +'</svg>';
+}
 
 // ══ 3) CƏDVƏL ═════════════════════════════════════════════════════
 var _cvDept='Elmlər', _cvOff=0;
