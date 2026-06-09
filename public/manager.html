@@ -504,6 +504,9 @@ header {
   <button class="tab-btn active" id="tabBtnSched" onclick="switchTab('sched')">
     <i class="fa-solid fa-calendar-days"></i> Cədvəl
   </button>
+  <button class="tab-btn" id="tabBtnTalebler" onclick="switchTab('talebler')">
+    <i class="fa-solid fa-inbox"></i> Tələblər
+  </button>
   <button class="tab-btn" id="tabBtnChecklist" onclick="switchTab('checklist')">
     <i class="fa-solid fa-clipboard-check"></i> Çeklist
   </button>
@@ -580,6 +583,11 @@ header {
     <div id="mgrSchedResult" style="margin-top:0.8rem;font-size:0.82rem;font-weight:700;min-height:18px;text-align:center;"></div>
   </div>
 
+</div><!-- /panelSched -->
+
+<!-- ═══ TAB: TƏLƏBLƏR (İcazə · Avans · Cərimə) ═══ -->
+<div class="tab-panel" id="panelTalebler">
+
   <!-- Gec Gəliş İcazələri -->
   <div class="card">
     <div class="section-hdr">
@@ -623,7 +631,7 @@ header {
     <div id="mgrFineList"><div class="req-empty"><i class="fa-solid fa-circle-notch fa-spin"></i></div></div>
   </div>
 
-</div><!-- /panelSched -->
+</div><!-- /panelTalebler -->
 
 <!-- ═══ TAB 2: ÇEKELİST ═══ -->
 <div class="tab-panel" id="panelChecklist">
@@ -765,7 +773,7 @@ var _clLoaded    = false;
 var _wasteLoaded = false;
 
 function switchTab(name) {
-  ['sched','checklist','waste'].forEach(function(t) {
+  ['sched','talebler','checklist','waste'].forEach(function(t) {
     document.getElementById('panel' + t.charAt(0).toUpperCase() + t.slice(1)).classList.toggle('active', t === name);
     document.getElementById('tabBtn'  + t.charAt(0).toUpperCase() + t.slice(1)).classList.toggle('active', t === name);
   });
