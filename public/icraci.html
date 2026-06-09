@@ -53,6 +53,41 @@ select,input[type=date]{border:1.5px solid var(--border);border-radius:11px;padd
 .mgr-card .s{font-size:0.74rem;font-weight:700;}
 .s-on{color:var(--success);}.s-off{color:var(--text-soft);}
 
+/* Live — admin üslubu (filial kartları) */
+@keyframes livePulse{0%{box-shadow:0 0 0 0 rgba(99,102,241,0.4);}70%{box-shadow:0 0 0 6px rgba(99,102,241,0);}100%{box-shadow:0 0 0 0 rgba(99,102,241,0);}}
+.live-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.live-head .lt{font-weight:800;font-size:0.96rem;}
+.live-head .lc{font-size:0.78rem;color:var(--text-muted);font-weight:600;}
+.live-legend{display:flex;gap:12px;flex-wrap:wrap;font-size:0.68rem;color:var(--text-muted);font-weight:600;margin-top:8px;}
+.live-legend span{display:flex;align-items:center;gap:4px;}
+.ldot{width:8px;height:8px;border-radius:50%;display:inline-block;}
+.refresh-btn{margin-left:auto;border:none;background:var(--primary);color:#fff;font-weight:700;font-size:0.78rem;padding:0.5rem 0.9rem;border-radius:10px;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:6px;}
+.dept-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(258px,1fr));gap:0.9rem;}
+.dept-card{background:#fff;border:1px solid var(--border);border-radius:16px;padding:1.05rem;box-shadow:0 1px 3px rgba(15,23,42,0.03);}
+.dept-head{display:flex;align-items:center;gap:8px;margin-bottom:0.8rem;padding-bottom:0.7rem;border-bottom:1px solid rgba(15,23,42,0.05);}
+.dept-head .dn{font-weight:700;font-size:0.92rem;flex:1;}
+.cnt-badge{background:rgba(16,185,129,0.08);color:#065f46;border:1px solid rgba(16,185,129,0.12);font-size:0.72rem;font-weight:700;padding:3px 9px;border-radius:100px;}
+.cnt-badge.zero{background:rgba(15,23,42,0.03);color:var(--text-muted);border:1px solid var(--border);}
+.mlr{display:flex;align-items:center;gap:9px;padding:0.6rem 0.7rem;border-radius:11px;margin-bottom:0.7rem;border:1px solid;}
+.mlr.online{background:rgba(99,102,241,0.05);border-color:rgba(99,102,241,0.15);}
+.mlr.offline{background:rgba(15,23,42,0.02);border-color:rgba(15,23,42,0.06);}
+.mlr.left{background:rgba(245,158,11,0.05);border-color:rgba(245,158,11,0.15);}
+.mld{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.mld.online{background:#6366f1;box-shadow:0 0 0 3px rgba(99,102,241,0.15);animation:livePulse 2s infinite;}
+.mld.offline{background:#cbd5e1;}
+.mld.left{background:#f59e0b;}
+.mln{font-weight:700;font-size:0.84rem;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.mln.online{color:#3730a3;}.mln.offline{color:var(--text-muted);}.mln.left{color:#92400e;}
+.mlt{font-size:0.75rem;font-weight:700;font-family:monospace;white-space:nowrap;}
+.mlt.online{color:#6366f1;}.mlt.left{color:#f59e0b;}
+.mle{font-family:monospace;font-size:0.75rem;font-weight:700;background:rgba(99,102,241,0.08);color:#6366f1;border:1px solid rgba(99,102,241,0.12);padding:2px 7px;border-radius:6px;white-space:nowrap;}
+.erow{display:flex;align-items:center;gap:10px;padding:0.55rem 0;}
+.eav{width:33px;height:33px;border-radius:9px;background:rgba(99,102,241,0.07);border:1px solid rgba(99,102,241,0.06);display:flex;align-items:center;justify-content:center;font-weight:700;color:#6366f1;font-size:0.76rem;flex-shrink:0;}
+.enm{flex:1;min-width:0;}
+.enm .n{font-weight:600;font-size:0.87rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.enm .t{font-size:0.74rem;color:var(--text-muted);margin-top:1px;}
+.eel{font-family:monospace;font-size:0.78rem;font-weight:700;background:rgba(16,185,129,0.06);color:#059669;border:1px solid rgba(16,185,129,0.1);padding:3px 8px;border-radius:7px;white-space:nowrap;}
+
 /* Tables */
 .dt{width:100%;border-collapse:collapse;font-size:0.8rem;}
 .dt th{font-size:0.64rem;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.4px;padding:0.5rem 0.3rem;text-align:center;border-bottom:1.5px solid var(--border);}
@@ -178,31 +213,59 @@ var LOADERS={ live:loadLive, hesabat:loadHesabat, cedvel:loadCedvel, idareci:loa
 
 // ══ 1) CANLI EKRAN ════════════════════════════════════════════════
 function loadLive(){
-  var p=document.getElementById('panel-live'); p.innerHTML=spin();
+  var p=document.getElementById('panel-live');
+  if(!p.querySelector('.dept-grid')) p.innerHTML=spin();
   var online=null, mgrs=null;
+  var bc={'Elmlər':'#bfdbfe','Sahil':'#fbcfe8','Gənclik':'#bbf7d0','Ağ Şəhər':'#fef08a'};
   function done(){
     if(online===null||mgrs===null) return;
-    var html='';
-    // İdarəçilər
-    html+='<div class="card"><div class="sec-label"><i class="fa-solid fa-user-tie"></i> İdarəçilər</div><div class="mgr-grid">';
-    DEPTS.forEach(function(d){
-      var m=mgrs[d]||{};
-      html+='<div class="mgr-card"><div class="d">'+esc(d)+'</div>'
-        +'<div class="s '+(m.isOnline?'s-on':'s-off')+'">'+(m.isOnline?'<i class="fa-solid fa-circle" style="font-size:0.5rem;"></i> İşdə · '+esc(m.gelis):(m.hadGelis?'Çıxıb · '+esc(m.cixis||''):'Yoxdur'))+'</div></div>';
+    var mgrOn=0; DEPTS.forEach(function(d){ if(mgrs[d]&&mgrs[d].isOnline) mgrOn++; });
+    var total=online.length+mgrOn;
+    var h='<div class="card"><div class="live-head"><div><div class="lt">Canlı Vəziyyət</div><div class="lc">Hazırda işdə olan — <b>'+total+' nəfər</b></div></div>'
+      +'<button class="refresh-btn" onclick="loadLive()"><i class="fa-solid fa-rotate"></i> Yenilə</button></div>'
+      +'<div class="live-legend"><span><i class="ldot" style="background:#6366f1;"></i>İdarəçi işdə</span><span><i class="ldot" style="background:#f59e0b;"></i>İdarəçi çıxıb</span><span><i class="ldot" style="background:#cbd5e1;"></i>İdarəçi gəlməyib</span></div></div>';
+    h+='<div class="dept-grid">';
+    DEPTS.forEach(function(dept){
+      var be=online.filter(function(e){return e.dept===dept;});
+      var mgr=mgrs[dept]||null;
+      var tot=be.length+(mgr&&mgr.isOnline?1:0);
+      h+='<div class="dept-card"><div class="dept-head"><span class="ldot" style="width:10px;height:10px;border-radius:3px;background:'+(bc[dept]||'#e2e8f0')+';"></span><span class="dn">'+esc(dept)+'</span>'
+        +'<span class="cnt-badge'+(tot?'':' zero')+'">'+(tot?tot+' nəfər':'0')+'</span></div>';
+      if(mgr){
+        var st=mgr.isOnline?'online':(mgr.hadGelis?'left':'offline');
+        h+='<div class="mlr '+st+'"><div class="mld '+st+'"></div>'
+          +'<i class="fa-solid fa-user-tie" style="font-size:0.76rem;flex-shrink:0;color:'+(st==='online'?'#6366f1':st==='left'?'#f59e0b':'#94a3b8')+';"></i>'
+          +'<div class="mln '+st+'">'+esc(mgr.mgrName)+'</div>';
+        if(st==='online') h+='<div class="mlt online"><i class="fa-regular fa-clock" style="opacity:0.6;margin-right:2px;"></i>'+esc(mgr.gelis)+'</div><div class="mle" data-ci="'+mgr.gelisMs+'">--:--</div>';
+        else if(st==='left') h+='<div class="mlt left"><i class="fa-solid fa-right-from-bracket" style="margin-right:3px;opacity:0.6;"></i>'+esc(mgr.cixis)+'</div>';
+        else h+='<span style="font-size:0.75rem;color:#94a3b8;font-weight:600;">İşdə deyil</span>';
+        h+='</div>';
+      }
+      if(!be.length){ h+='<div style="text-align:center;padding:0.7rem 0;color:var(--text-soft);font-size:0.82rem;">Heç kim yoxdur</div>'; }
+      else be.forEach(function(emp,idx){
+        h+='<div class="erow"'+(idx<be.length-1?' style="border-bottom:1px solid rgba(15,23,42,0.04);"':'')+'>'
+          +'<div class="eav">'+getInitials(emp.name)+'</div>'
+          +'<div class="enm"><div class="n">'+esc(emp.name)+'</div><div class="t"><i class="fa-regular fa-clock"></i> '+esc(emp.checkInTime)+'</div></div>'
+          +'<div class="eel" data-ci="'+emp.checkInMs+'">--:--</div></div>';
+      });
+      h+='</div>';
     });
-    html+='</div></div>';
-    // Onlayn işçilər
-    html+='<div class="card"><div class="sec-label"><i class="fa-solid fa-tower-broadcast"></i> Onlayn işçilər ('+online.length+')</div>';
-    if(!online.length){ html+=emptyMsg('Hazırda smendə işçi yoxdur.'); }
-    else { online.forEach(function(e){
-      html+='<div class="live-emp"><span class="live-dot"></span><span class="live-name">'+esc(e.name)+'</span><span class="live-dept">'+esc(e.dept)+'</span><span class="live-time">'+esc(e.checkInTime)+'</span></div>';
-    }); }
-    html+='</div>';
-    p.innerHTML=html;
+    h+='</div>';
+    p.innerHTML=h;
+    updateExecElapsed();
   }
   call('getOnlineEmployees',[],function(d){ online=d||[]; done(); });
   call('getManagersLiveStatus',[],function(d){ mgrs=d||{}; done(); });
 }
+function updateExecElapsed(){
+  var now=Date.now();
+  document.querySelectorAll('.eel,.mle').forEach(function(el){
+    var ci=parseInt(el.getAttribute('data-ci')); if(!ci) return;
+    var diff=now-ci; if(diff<0)diff=0;
+    el.innerText=pad(Math.floor(diff/3600000))+':'+pad(Math.floor((diff%3600000)/60000));
+  });
+}
+function getInitials(n){ return String(n).split(' ').map(function(x){return x[0]||'';}).join('').substring(0,2).toUpperCase(); }
 
 // ══ 2) HESABAT ════════════════════════════════════════════════════
 var _rpY=new Date().getFullYear(), _rpM=new Date().getMonth()+1;
@@ -407,7 +470,9 @@ function trDateCh(){ _trDate=document.getElementById('trDate').value||todayYMD()
 // ── Başlat ────────────────────────────────────────────────────────
 call('getDeptList',[],function(d){ if(d&&d.length) DEPTS=d; });
 loadLive();
-setInterval(function(){ if(!document.getElementById('panel-live').classList.contains('hidden')) loadLive(); },30000);
+function liveVisible(){ return !document.getElementById('panel-live').classList.contains('hidden'); }
+setInterval(function(){ if(liveVisible()) updateExecElapsed(); }, 30000);  // keçən vaxtı tiklə (yüngül)
+setInterval(function(){ if(liveVisible()) loadLive(); }, 60000);            // yeni gəlişləri çək
 </script>
 </body>
 </html>
