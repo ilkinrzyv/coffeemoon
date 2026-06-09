@@ -1857,6 +1857,35 @@ API.getApprovedByBranch = async () => {
   return result;
 };
 
+// Admin/İcraçı: menecer cərimələri filial üzrə (bütün statuslar, pending önə)
+API.getMgrFinesForAdmin = async () => {
+  const [{ data: emps }, { data: fines }] = await Promise.all([
+    sb.from('employees').select('id,dept'),
+    sb.from('mgr_fines').select('*').order('created_at', { ascending: false }).limit(500),
+  ]);
+  const empDept = {};
+  for (const e of emps || []) empDept[String(e.id)] = e.dept;
+  const result = {};
+  for (const d of U.DEPTS) result[d] = [];
+  for (const f of fines || []) {
+    let dept = f.dept;
+    if (!result[dept]) dept = empDept[String(f.emp_id)] || f.dept || 'Digər';
+    if (!result[dept]) result[dept] = [];
+    result[dept].push({
+      fineId: f.fine_id, empName: f.emp_name, amount: f.amount, reason: f.reason || '',
+      status: f.status, createdBy: f.created_by || '', createdAt: f.created_at || '', ackedAt: f.acked_at || '',
+    });
+  }
+  for (const d of Object.keys(result)) {
+    result[d].sort((a, b) => {
+      if (a.status === 'pending' && b.status !== 'pending') return -1;
+      if (a.status !== 'pending' && b.status === 'pending') return 1;
+      return (b.createdAt || '').localeCompare(a.createdAt || '');
+    });
+  }
+  return result;
+};
+
 // Admin üçün: avans statusunu dəyişdir
 API.updateAvansStatus = async (avansId, status) => {
   if (!['approved', 'rejected', 'paid'].includes(status))

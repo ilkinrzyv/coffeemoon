@@ -351,6 +351,11 @@ body > nav { display: none; }
     </div>
   </div>
   <div id="approvalsBody">Yüklənir...</div>
+  <div class="card" style="margin-top:1rem;">
+    <div style="font-size:0.95rem;font-weight:700;"><i class="fa-solid fa-gavel" style="color:var(--danger);margin-right:6px;"></i>Menecer Cərimələri</div>
+    <div style="font-size:0.82rem;color:var(--text-muted);">Menecerlərin yazdığı cərimələr və işçi imzaları — filial üzrə</div>
+  </div>
+  <div id="finesAdminBody"></div>
 </div>
 
 <!-- CƏDVƏL -->
@@ -1027,7 +1032,7 @@ function sw(name){
   if(name==='waste'){loadProductsAdmin();}
   if(name==='yenilik'){loadYenilikler();}
   if(name==='trainer'&&!window._trainerInited){window._trainerInited=true;initTrainerTab();}
-  if(name==='approvals'){loadApprovals();}
+  if(name==='approvals'){loadApprovals();loadFinesAdmin();}
 }
 function sbToggle(){document.getElementById('adminSb').classList.toggle('open');document.getElementById('sbOverlay').classList.toggle('open');}
 function sbClose(){document.getElementById('adminSb').classList.remove('open');document.getElementById('sbOverlay').classList.remove('open');}
@@ -1438,6 +1443,36 @@ function loadApprovals(){
       body.innerHTML='<div class="card" style="color:var(--danger);font-weight:600;"><i class="fa-solid fa-triangle-exclamation"></i> Xəta: '+(e&&e.message?e.message:'Server xətası')+'</div>';
     })
     .getApprovedByBranch();
+}
+
+function fmtFineDateAdmin(s){ if(!s) return ''; var d=new Date(s); if(isNaN(d.getTime())) return s;
+  return ('0'+d.getDate()).slice(-2)+'.'+('0'+(d.getMonth()+1)).slice(-2)+'.'+d.getFullYear()+' '+('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2); }
+function loadFinesAdmin(){
+  var body=document.getElementById('finesAdminBody');
+  if(!body) return;
+  body.innerHTML='<div style="text-align:center;padding:1.5rem;color:var(--text-muted)"><i class="fa-solid fa-circle-notch fa-spin"></i></div>';
+  google.script.run
+    .withSuccessHandler(function(data){
+      data=data||{};
+      var depts=Object.keys(data);
+      var hasAny=depts.some(function(d){return (data[d]||[]).length;});
+      if(!hasAny){body.innerHTML='<div class="card" style="text-align:center;color:var(--text-muted);padding:1.5rem;"><i class="fa-solid fa-gavel" style="opacity:0.25;display:block;font-size:1.6rem;margin-bottom:0.5rem;"></i>Cərimə yoxdur.</div>';return;}
+      body.innerHTML=depts.map(function(dept){
+        var list=data[dept]||[];
+        if(!list.length) return '';
+        var rows=list.map(function(f){
+          var acked=f.status==='acknowledged';
+          var badge=acked?'<span class="badge approved">İmzalandı</span>':'<span class="badge pending">Gözləyir</span>';
+          var sig=acked?(' &nbsp;·&nbsp; <i class="fa-solid fa-signature"></i> '+fmtFineDateAdmin(f.ackedAt)):'';
+          return '<div class="izin-row"><div class="avatar">'+getInitials(f.empName)+'</div>'+
+            '<div class="izin-info"><b>'+f.empName+' — '+Number(f.amount)+' ₼</b><span>'+f.reason+'<br><i class="fa-solid fa-user-tie"></i> '+(f.createdBy||'Menecer')+' &nbsp;·&nbsp; <i class="fa-regular fa-calendar"></i> '+fmtFineDateAdmin(f.createdAt)+sig+'</span></div>'+
+            badge+'</div>';
+        }).join('');
+        return '<div class="card"><div style="font-size:0.95rem;font-weight:700;margin-bottom:0.8rem;"><i class="fa-solid fa-store" style="color:var(--primary);margin-right:6px;"></i>'+dept+' <span style="color:var(--text-muted);font-weight:600;">('+list.length+')</span></div>'+rows+'</div>';
+      }).join('');
+    })
+    .withFailureHandler(function(e){ body.innerHTML='<div class="card" style="color:var(--danger);font-weight:600;"><i class="fa-solid fa-triangle-exclamation"></i> Xəta: '+(e&&e.message?e.message:'Server xətası')+'</div>'; })
+    .getMgrFinesForAdmin();
 }
 
 // ── SCAN CİHAZLAR ────────────────────────────────────────────────
