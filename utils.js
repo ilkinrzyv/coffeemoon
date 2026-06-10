@@ -80,7 +80,7 @@ function isLate(dept, dateObj) {
   let tot = h * 60 + dateObj.getMinutes();
   if (h < 3) tot += 24 * 60;
   const lim = (h >= 3 && h < 13)
-    ? 7 * 60 + 15
+    ? 7 * 60 + 30
     : (dept === 'Gənclik' || dept === 'Ağ Şəhər') ? 16 * 60 : 15 * 60;
   return tot > lim;
 }
@@ -150,7 +150,7 @@ async function calcStreak(empId, dept) {
     if (withinPerm(dateStr, arrivalMins)) { streak++; continue; }
 
     // Əvvəlcə cədvəldəki smen, yoxdursa gəliş anında qeyd olunmuş smen (hesabatla uyğun olsun)
-    const st = shiftMap[dateStr] || row.shift_type || null;
+    const st = row.shift_type || shiftMap[dateStr] || null;
     const si = st ? getShiftInfo(dept, st) : null;
     const lim = si ? (si.lateH * 60 + si.lateM)
       : (arrivalMins < 13 * 60 ? 7 * 60 + 30 : (dept === 'Ağ Şəhər' || dept === 'Gənclik') ? 16 * 60 : 15 * 60);
@@ -281,7 +281,7 @@ function computeEmployeeXP(dept, opts) {
   for (const a of arrivals) {
     const ds   = getLogicalYMD(a.d);
     const arr  = a.d.getHours() * 60 + a.d.getMinutes();
-    const st   = cedvelMap[ds] || a.shift || null;   // calcStreak ilə eyni mənbə
+    const st   = a.shift || cedvelMap[ds] || null;   // calcStreak ilə eyni mənbə (gəliş anındakı smen)
     const si   = st ? getShiftInfo(dept, st) : null;
     const lim  = si ? (si.lateH * 60 + si.lateM)
       : (arr < 13 * 60 ? 7 * 60 + 30 : (dept === 'Ağ Şəhər' || dept === 'Gənclik') ? 16 * 60 : 15 * 60);

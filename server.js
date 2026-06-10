@@ -559,7 +559,7 @@ API.recalcAllFines = async () => {
       if (ds in permMap && arr <= permMap[ds] + 5) continue;                         // icazə vaxtından tez
       const si  = a.shift ? U.getShiftInfo(emp.dept, a.shift) : null;
       const lim = si ? (si.lateH * 60 + si.lateM)
-        : (a.d.getHours() < 13 ? 7 * 60 + 15 : (emp.dept === 'Gənclik' || emp.dept === 'Ağ Şəhər') ? 16 * 60 : 15 * 60);
+        : (a.d.getHours() < 13 ? 7 * 60 + 30 : (emp.dept === 'Gənclik' || emp.dept === 'Ağ Şəhər') ? 16 * 60 : 15 * 60);
       if (arr <= lim) continue;                                                       // vaxtında
       monthCount[ym] = (monthCount[ym] || 0) + 1;
       if (monthCount[ym] >= 3) expected[ds] = { late_num: monthCount[ym], late_mins: arr - lim };
@@ -959,7 +959,7 @@ API.validateAndLog = async (enteredPin, clientIp, forceMode) => {
         // Gecikmə cəzası — streak qalxanı
         const lateThreshold = shiftInfo
           ? (shiftInfo.lateH * 60 + shiftInfo.lateM)
-          : (ts.getHours() < 13 ? 7 * 60 + 15 : (matched.dept === 'Gənclik' || matched.dept === 'Ağ Şəhər') ? 16 * 60 : 15 * 60);
+          : (ts.getHours() < 13 ? 7 * 60 + 30 : (matched.dept === 'Gənclik' || matched.dept === 'Ağ Şəhər') ? 16 * 60 : 15 * 60);
         const lateMins = nowMins - lateThreshold;
         let penalty = lateMins >= 45 ? 50 : lateMins >= 21 ? 30 : 15;
         if (matched.streak >= 60) penalty = Math.round(penalty * 0.25);
@@ -993,7 +993,7 @@ API.validateAndLog = async (enteredPin, clientIp, forceMode) => {
           if (ds in finePermMap && tot <= finePermMap[ds] + 5) continue;
           const logSi = log.shift_type ? U.getShiftInfo(matched.dept, log.shift_type) : null;
           const lim = logSi ? (logSi.lateH * 60 + logSi.lateM)
-            : (d.getHours() < 13 ? 7 * 60 + 15 : (matched.dept === 'Gənclik' || matched.dept === 'Ağ Şəhər') ? 16 * 60 : 15 * 60);
+            : (d.getHours() < 13 ? 7 * 60 + 30 : (matched.dept === 'Gənclik' || matched.dept === 'Ağ Şəhər') ? 16 * 60 : 15 * 60);
           if (tot > lim) prevLateCount++;
         }
         const thisLateNum = prevLateCount + 1;
