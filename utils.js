@@ -258,7 +258,6 @@ const MS_BONUSES = { 7: 50, 14: 100, 30: 250, 60: 500, 100: 1000 };
 function computeEmployeeXP(dept, opts) {
   const o        = opts || {};
   const attend   = o.attendance || [];
-  const nahar    = o.nahar      || [];
   const izinRows = o.izinRows   || [];
   const permMap  = o.permMap    || {};
   const cedvelMap= o.cedvelMap  || {};
@@ -304,36 +303,7 @@ function computeEmployeeXP(dept, opts) {
     dayStreak[ds] = streak;
   }
 
-  // 2) Nahar / çıxış XP-si (gün-gün)
-  const naharByDay = {};
-  for (const n of nahar) {
-    const d = new Date(n.timestamp);
-    if (isNaN(d.getTime())) continue;
-    const ds = getLogicalDateStr(d);
-    (naharByDay[ds] = naharByDay[ds] || []).push({ d, type: n.type });
-  }
-  const checkoutDays = {};
-  for (const r of attend) {
-    if (r.type !== 'CIXIS') continue;
-    if (r.overtime === 'Avtomatik bağlandı') continue;   // avtomatik bağlanan smen XP qazandırmır (orijinalla uyğun)
-    const d = new Date(r.timestamp);
-    if (isNaN(d.getTime())) continue;
-    checkoutDays[getLogicalDateStr(d)] = true;
-  }
-  for (const ds of Object.keys(checkoutDays)) {
-    const ymd  = getLogicalDateStr_toYMD(ds);            // dayStreak açarı logicalYMD-dir
-    const mult = getXPMultiplier(dayStreak[ymd] || 0);
-    const list = naharByDay[ds] || [];
-    const get  = list.find(x => x.type === 'NAHAR_GET');
-    const qay  = list.find(x => x.type === 'NAHAR_QAY');
-    if (!get) {
-      xp += Math.round(20 * mult);                        // nahara getməyib → çıxışda +20
-    } else if (qay) {
-      const diffMin = Math.round((qay.d.getTime() - get.d.getTime()) / 60000);
-      // Canlı sistemlə eyni: real nahar 15–30 dəq (LUNCH_MIN/LUNCH_MAX) → +20
-      if (diffMin >= 15 && diffMin <= 30) xp += Math.round(20 * mult);
-    }
-  }
+  // 2) Nahar XP-si LƏĞV EDİLDİ — nahara görə artıq XP verilmir (nə çıxışda, nə recalc-da).
 
   // 3) İmtahan XP-si (özü imtahanı: test balına görə; açıq cavab keçibsə +15)
   for (const ex of exams) {
@@ -355,11 +325,6 @@ function computeEmployeeXP(dept, opts) {
   xp += auditSum;
 
   return { xp: Math.max(0, Math.round(xp)), streak, milestones: [...claimed].sort((a, b) => a - b) };
-}
-
-// logicalDateStr (Date.toDateString) → YMD çevirici (dayStreak açarı ilə uyğunlaşdırmaq üçün)
-function getLogicalDateStr_toYMD(dateStr) {
-  return toYMD(new Date(dateStr));
 }
 
 module.exports = {

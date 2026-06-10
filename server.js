@@ -14,9 +14,8 @@ const app       = express();
 const PORT      = process.env.PORT || 3000;
 const ADMIN_KEY = process.env.ADMIN_KEY || 'coffeemoon';
 
-// Nahar siyasəti (dəqiqə): bonus yalnız real, vaxtında nahara verilir
-const LUNCH_MIN = 15;   // bundan az → ani/saxta tap → bonus yox
-const LUNCH_MAX = 30;   // bundan çox → gec qayıdış → bonus yox + menecerə bildiriş
+// Nahar limiti (dəqiqə): yalnız gec qayıdış bildirişi + nahar jurnalı üçün (XP ilə bağlı deyil — nahar XP-si ləğv edilib)
+const LUNCH_MAX = 30;   // bundan çox → gec qayıdış: menecerə bildiriş + jurnalda işarələnir
 
 // ── VAPID konfiqurasiyası ─────────────────────────────────────────
 if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
@@ -1040,26 +1039,9 @@ API.validateAndLog = async (enteredPin, clientIp, forceMode) => {
       emp_id: matched.id, emp_name: matched.name, dept: matched.dept,
       timestamp: ts.toISOString(), type: 'CIXIS', overtime: overtimeStr, shift_type: todayShift || '',
     });
-    // Nahar bonusu çıxışda hesablanır (işçi nahar anında bal görməsin):
-    // nahara getməyib VƏ YA 30 dəqiqədən tez qayıdıbsa → +20 (gizli).
-    let lunchXP = 0;
-    if (!matched.is_test) {
-      const { data: naharCheck } = await sb.from('nahar').select('type,timestamp').eq('emp_id', String(matched.id));
-      const todayNahar = (naharCheck || []).filter(r => U.getLogicalDateStr(new Date(r.timestamp)) === todayStr);
-      const getN = todayNahar.find(r => r.type === 'NAHAR_GET');
-      const qayN = todayNahar.find(r => r.type === 'NAHAR_QAY');
-      let qualifies = false;
-      if (!getN) {
-        qualifies = true;                                   // nahara getməyib (saxlanılır)
-      } else if (qayN) {
-        const diffMin = Math.round((new Date(qayN.timestamp).getTime() - new Date(getN.timestamp).getTime()) / 60000);
-        // Yalnız real, vaxtında nahar: 15–30 dəq. Ani tap (<15) və gec qayıdış (>30) bonus almır.
-        if (diffMin >= LUNCH_MIN && diffMin <= LUNCH_MAX) qualifies = true;
-      }
-      if (qualifies) lunchXP = await awardXP(matched.id, 20, matched.streak || 0);
-    }
+    // Nahara görə XP LƏĞV EDİLDİ — çıxışda nahar bonusu verilmir.
     await U.sendTelegramMsg(`<b>${matched.name}</b> smendən çıxdı.\n${U.fmtTime(ts)} — ${overtimeStr}`, matched.dept);
-    return { valid: true, empName: matched.name, dept: matched.dept, type: 'CIXIS', overtime: overtimeStr, xpEarned: lunchXP };
+    return { valid: true, empName: matched.name, dept: matched.dept, type: 'CIXIS', overtime: overtimeStr };
   }
   return { valid: false, reason: 'Bu gün üçün artıq qeyd var' };
 };
