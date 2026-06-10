@@ -330,7 +330,8 @@ function computeEmployeeXP(dept, opts) {
       xp += Math.round(20 * mult);                        // nahara getməyib → çıxışda +20
     } else if (qay) {
       const diffMin = Math.round((qay.d.getTime() - get.d.getTime()) / 60000);
-      if (diffMin > 0 && diffMin < 30) xp += Math.round(20 * mult);  // tez qayıdış → +20
+      // Canlı sistemlə eyni: real nahar 15–30 dəq (LUNCH_MIN/LUNCH_MAX) → +20
+      if (diffMin >= 15 && diffMin <= 30) xp += Math.round(20 * mult);
     }
   }
 
