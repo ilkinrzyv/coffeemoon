@@ -262,13 +262,8 @@ function fmtCerimeTs(s){ if(!s) return ''; var d=new Date(s); if(isNaN(d.getTime
   return pad(d.getDate())+'.'+pad(d.getMonth()+1)+'.'+d.getFullYear()+' '+pad(d.getHours())+':'+pad(d.getMinutes()); }
 function fineStatusExec(f){
   function b(bg,cl,t){ return '<span style="flex-shrink:0;font-size:0.72rem;font-weight:700;padding:3px 9px;border-radius:8px;background:'+bg+';color:'+cl+';">'+t+'</span>'; }
-  if(f.source==='system'){
-    if(f.status==='paid')   return {txt:'Ödənilib',col:'#166534',badge:b('#dcfce7','#166534','Ödənilib')};
-    if(f.status==='waived') return {txt:'Bağışlanıb',col:'#475569',badge:b('#e2e8f0','#475569','Bağışlanıb')};
-    return {txt:'Ödənilməyib',col:'#9a3412',badge:b('#fee2e2','#9a3412','Ödənilməyib')};
-  }
-  if(f.status==='acknowledged') return {txt:'İmzalandı',col:'#166534',badge:b('#dcfce7','#166534','İmzalandı')};
-  return {txt:'Təsdiq gözlənilir',col:'#854d0e',badge:b('#fef9c3','#854d0e','Gözləyir')};
+  if(f.status==='acknowledged') return {badge:b('#dcfce7','#166534','İmzalandı')};
+  return {badge:b('#fef9c3','#854d0e','İmzalanmayıb')};
 }
 function loadCerime(){
   var p=document.getElementById('panel-cerime');
@@ -286,9 +281,9 @@ function loadCerime(){
       h+='<div class="card"><div class="dept-head" style="margin-bottom:10px;"><span class="dn">'+esc(dept)+'</span> <span class="lc">('+list.length+')</span></div>';
       list.forEach(function(f){
         var st=fineStatusExec(f);
-        var imza=(f.source!=='system' && f.status==='acknowledged')
+        var imza=(f.status==='acknowledged')
           ? '<div class="ifdoc-row"><span>İmza</span><b style="color:#166534;">✍️ '+fmtCerimeTs(f.ackedAt)+'</b></div>'
-          : '<div class="ifdoc-row"><span>Status</span><b style="color:'+st.col+';">'+st.txt+'</b></div>';
+          : '<div class="ifdoc-row"><span>İmza</span><b style="color:#854d0e;">İmzalanmayıb</b></div>';
         h+='<div class="ifdoc">'
           +'<div class="ifdoc-head" onclick="this.parentNode.classList.toggle(\'open\')">'
             +'<div class="ifdoc-sum">'+esc(f.empName)+' · '+Number(f.amount)+' ₼</div>'

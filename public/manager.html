@@ -1270,23 +1270,19 @@ function renderMgrFines(list) {
     if (badge) badge.style.display='none';
     return;
   }
-  function isOpen(f){ return f.source==='system' ? f.status==='unpaid' : f.status==='pending'; }
+  function isOpen(f){ return f.status !== 'acknowledged'; }
   var openCnt = list.filter(isOpen).length;
   if (badge) { badge.style.display = openCnt ? 'inline' : 'none'; if (openCnt) badge.innerText = openCnt; }
   el.innerHTML = list.map(function(f) {
     var dd = f.createdAt ? f.createdAt.slice(0,10).split('-').reverse().join('.') : '';
+    var yaz = f.source === 'system' ? '🤖 Yazan: Sistem' : '';
     var bcls, btxt, sub;
-    if (f.source === 'system') {
-      if (f.status==='paid')        { bcls='approved'; btxt='Ödənilib'; }
-      else if (f.status==='waived') { bcls='paid';     btxt='Bağışlanıb'; }
-      else                          { bcls='rejected'; btxt='Ödənilməyib'; }
-      sub = '<div class="req-row-sub">🤖 Yazan: Sistem</div>';
-    } else if (f.status === 'acknowledged') {
+    if (f.status === 'acknowledged') {
       bcls='approved'; btxt='İmzalandı';
-      sub = '<div class="req-row-sub" style="color:var(--success);">✍️ İmzalandı: ' + fmtFineTs(f.ackedAt) + '</div>';
+      sub = '<div class="req-row-sub" style="color:var(--success);">✍️ İmzalandı: ' + fmtFineTs(f.ackedAt) + (yaz ? ' · Sistem' : '') + '</div>';
     } else {
-      bcls='pending'; btxt='Gözləyir';
-      sub = '<div class="req-row-sub">⏳ İşçinin təsdiqi gözlənilir</div>';
+      bcls='pending'; btxt='İmzalanmayıb';
+      sub = '<div class="req-row-sub">' + (yaz || '⏳ İşçinin təsdiqi gözlənilir') + '</div>';
     }
     return '<div class="req-row"><div class="req-row-left">' +
       '<div class="req-row-name">' + f.empName + ' &nbsp;<span style="font-size:0.95rem;font-weight:800;color:var(--danger);">' + f.amount + ' ₼</span></div>' +

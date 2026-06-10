@@ -356,16 +356,16 @@ function normSystemFine(r) {
     empName:   r.emp_name,
     amount:    r.amount,
     reason,
-    status:    r.status || 'unpaid',   // unpaid | paid | waived
+    status:    r.acked ? 'acknowledged' : 'pending',   // imza statusu (ödəniş statusu ayrıdır)
     createdBy: 'Sistem',
     createdAt: r.created_at || (r.date_str ? r.date_str + 'T00:00:00.000Z' : ''),
-    ackedAt:   '',
+    ackedAt:   r.acked_at || '',
     source:    'system',
   };
 }
-// "Açıq" (hələ həll olunmamış) cərimə: menecer→pending, sistem→unpaid
+// "Açıq" cərimə = hələ imzalanmayıb (hər iki mənbə üçün)
 function fineIsOpen(f) {
-  return f.source === 'system' ? f.status === 'unpaid' : f.status === 'pending';
+  return f.status !== 'acknowledged';
 }
 
 // ── XP MÜHƏRRİKİ ─────────────────────────────────────────────────
@@ -2048,27 +2048,41 @@ API.getMyFines = async (secret) => {
   if (!secret) return [];
   const { data: emp } = await sb.from('employees').select('id').eq('secret', secret).single();
   if (!emp) return [];
-  const { data } = await sb.from('mgr_fines').select('*')
-    .eq('emp_id', String(emp.id)).order('created_at', { ascending: false }).limit(20);
-  return (data || []).map(r => ({
+  const eid = String(emp.id);
+  const [{ data: mf }, { data: sf }] = await Promise.all([
+    sb.from('mgr_fines').select('*').eq('emp_id', eid).order('created_at', { ascending: false }).limit(20),
+    sb.from('fines').select('*').eq('emp_id', eid).order('created_at', { ascending: false }).limit(20),
+  ]);
+  const out = [];
+  for (const r of mf || []) out.push({
     fineId: r.fine_id, amount: r.amount, reason: r.reason || '', status: r.status,
-    createdAt: r.created_at || '', ackedAt: r.acked_at || '', createdBy: r.created_by || '',
-  }));
+    createdAt: r.created_at || '', ackedAt: r.acked_at || '', createdBy: r.created_by || 'Menecer', source: 'manager',
+  });
+  for (const r of sf || []) out.push(normSystemFine(r));
+  return out.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
 };
 
 API.acknowledgeFine = async (secret, fineId) => {
   if (!secret || !fineId) return { success: false, reason: 'Məlumat çatışmır.' };
   const { data: emp } = await sb.from('employees').select('id,name,dept').eq('secret', secret).single();
   if (!emp) return { success: false, reason: 'İşçi tapılmadı.' };
-  const { data: fine } = await sb.from('mgr_fines').select('*').eq('fine_id', fineId).single();
+  const isSystem = String(fineId).indexOf('FN-') === 0;   // sistem cəriməsi
+  const table    = isSystem ? 'fines' : 'mgr_fines';
+  const { data: fine } = await sb.from(table).select('*').eq('fine_id', fineId).single();
   if (!fine) return { success: false, reason: 'Cərimə tapılmadı.' };
   if (String(fine.emp_id) !== String(emp.id)) return { success: false, reason: 'İcazəsiz.' };
-  if (fine.status === 'acknowledged') return { success: true, already: true };
-  const { error } = await sb.from('mgr_fines')
-    .update({ status: 'acknowledged', acked_at: new Date().toISOString() }).eq('fine_id', fineId);
-  if (error) { sbErr('acknowledgeFine', error); return { success: false, reason: 'Xəta baş verdi.' }; }
+  const now = new Date().toISOString();
+  if (isSystem) {
+    if (fine.acked) return { success: true, already: true };
+    const { error } = await sb.from('fines').update({ acked: true, acked_at: now }).eq('fine_id', fineId);
+    if (error) { sbErr('acknowledgeFine(sys)', error); return { success: false, reason: 'Xəta baş verdi.' }; }
+  } else {
+    if (fine.status === 'acknowledged') return { success: true, already: true };
+    const { error } = await sb.from('mgr_fines').update({ status: 'acknowledged', acked_at: now }).eq('fine_id', fineId);
+    if (error) { sbErr('acknowledgeFine(mgr)', error); return { success: false, reason: 'Xəta baş verdi.' }; }
+  }
   await sendPushToManager(emp.dept, '✍️ Cərimə Təsdiqləndi',
-    `${emp.name}: ${fine.amount} AZN cəriməsini təsdiqlədi (imzaladı).`, { tag: 'mgrfine-ack-' + fineId });
+    `${emp.name}: ${fine.amount} AZN cəriməsini təsdiqlədi (imzaladı).`, { tag: 'fine-ack-' + fineId });
   return { success: true };
 };
 

@@ -1462,13 +1462,9 @@ function loadApprovals(){
 function fmtFineDateAdmin(s){ if(!s) return ''; var d=new Date(s); if(isNaN(d.getTime())) return s;
   return ('0'+d.getDate()).slice(-2)+'.'+('0'+(d.getMonth()+1)).slice(-2)+'.'+d.getFullYear()+' '+('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2); }
 function fineStatusAdmin(f){
-  if(f.source==='system'){
-    if(f.status==='paid')   return {txt:'Ödənilib',   col:'var(--success)', badge:'<span class="badge approved">Ödənilib</span>'};
-    if(f.status==='waived') return {txt:'Bağışlanıb', col:'var(--text-muted)', badge:'<span class="badge" style="background:rgba(15,23,42,0.06);color:var(--text-muted);">Bağışlanıb</span>'};
-    return {txt:'Ödənilməyib', col:'var(--danger)', badge:'<span class="badge pending">Ödənilməyib</span>'};
-  }
-  if(f.status==='acknowledged') return {txt:'İmzalandı', col:'var(--success)', badge:'<span class="badge approved">İmzalandı</span>'};
-  return {txt:'Təsdiq gözlənilir', col:'var(--warning)', badge:'<span class="badge pending">Gözləyir</span>'};
+  return f.status==='acknowledged'
+    ? {badge:'<span class="badge approved">İmzalandı</span>'}
+    : {badge:'<span class="badge pending">İmzalanmayıb</span>'};
 }
 function loadFinesAdmin(){
   var body=document.getElementById('finesAdminBody');
@@ -1485,9 +1481,9 @@ function loadFinesAdmin(){
         if(!list.length) return '';
         var rows=list.map(function(f){
           var st=fineStatusAdmin(f);
-          var imza=(f.source!=='system' && f.status==='acknowledged')
+          var imza=(f.status==='acknowledged')
             ?'<div class="afdoc-row"><span>İmza</span><b style="color:var(--success);">✍️ '+fmtFineDateAdmin(f.ackedAt)+'</b></div>'
-            :'<div class="afdoc-row"><span>Status</span><b style="color:'+st.col+';">'+st.txt+'</b></div>';
+            :'<div class="afdoc-row"><span>İmza</span><b style="color:var(--warning);">İmzalanmayıb</b></div>';
           return '<div class="afdoc">'+
             '<div class="afdoc-head" onclick="this.parentNode.classList.toggle(\'open\')">'+
               '<div class="afdoc-sum"><b>'+f.empName+'</b> · '+Number(f.amount)+' ₼</div>'+
