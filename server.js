@@ -344,6 +344,30 @@ function sbErr(label, error) {
   if (error) console.error(`[SB] ${label}:`, error.message);
 }
 
+// Sistem (avtomatik gecikmə) cəriməsini menecer cəriməsi ilə ortaq formata gətirir:
+// Yazan = "Sistem", səbəb = niyə yazıldığı (gecikmə məlumatı).
+function normSystemFine(r) {
+  const reason = (r.reason && String(r.reason).trim())
+    ? r.reason
+    : `Gecikmə${r.late_num ? ` — bu ay ${r.late_num}-ci gecikmə` : ''}${r.late_mins ? `, ${r.late_mins} dəq gec` : ''}`;
+  return {
+    fineId:    r.fine_id,
+    empId:     r.emp_id,
+    empName:   r.emp_name,
+    amount:    r.amount,
+    reason,
+    status:    r.status || 'unpaid',   // unpaid | paid | waived
+    createdBy: 'Sistem',
+    createdAt: r.created_at || (r.date_str ? r.date_str + 'T00:00:00.000Z' : ''),
+    ackedAt:   '',
+    source:    'system',
+  };
+}
+// "Açıq" (hələ həll olunmamış) cərimə: menecer→pending, sistem→unpaid
+function fineIsOpen(f) {
+  return f.source === 'system' ? f.status === 'unpaid' : f.status === 'pending';
+}
+
 // ── XP MÜHƏRRİKİ ─────────────────────────────────────────────────
 // getXPMultiplier utils.js-də (tək mənbə — recalcAllXP də eyni formulu işlədir).
 
@@ -1908,29 +1932,34 @@ API.getApprovedByBranch = async () => {
 
 // Admin/İcraçı: menecer cərimələri filial üzrə (bütün statuslar, pending önə)
 API.getMgrFinesForAdmin = async () => {
-  const [{ data: emps }, { data: fines }] = await Promise.all([
+  const [{ data: emps }, { data: mfines }, { data: sfines }] = await Promise.all([
     sb.from('employees').select('id,dept'),
     sb.from('mgr_fines').select('*').order('created_at', { ascending: false }).limit(500),
+    sb.from('fines').select('*').order('created_at', { ascending: false }).limit(500),
   ]);
   const empDept = {};
   for (const e of emps || []) empDept[String(e.id)] = e.dept;
   const result = {};
   for (const d of U.DEPTS) result[d] = [];
-  for (const f of fines || []) {
-    let dept = f.dept;
-    if (!result[dept]) dept = empDept[String(f.emp_id)] || f.dept || 'Digər';
+  const place = (item, rowDept, empId) => {
+    let dept = rowDept;
+    if (!result[dept]) dept = empDept[String(empId)] || rowDept || 'Digər';
     if (!result[dept]) result[dept] = [];
-    result[dept].push({
+    result[dept].push(item);
+  };
+  for (const f of mfines || []) {
+    place({
       fineId: f.fine_id, empName: f.emp_name, amount: f.amount, reason: f.reason || '',
-      status: f.status, createdBy: f.created_by || '', createdAt: f.created_at || '', ackedAt: f.acked_at || '',
-    });
+      status: f.status, createdBy: f.created_by || 'Menecer', createdAt: f.created_at || '',
+      ackedAt: f.acked_at || '', source: 'manager',
+    }, f.dept, f.emp_id);
+  }
+  for (const f of sfines || []) {
+    place(normSystemFine(f), f.dept, f.emp_id);
   }
   for (const d of Object.keys(result)) {
-    result[d].sort((a, b) => {
-      if (a.status === 'pending' && b.status !== 'pending') return -1;
-      if (a.status !== 'pending' && b.status === 'pending') return 1;
-      return (b.createdAt || '').localeCompare(a.createdAt || '');
-    });
+    result[d].sort((a, b) =>
+      (fineIsOpen(b) ? 1 : 0) - (fineIsOpen(a) ? 1 : 0) || (b.createdAt || '').localeCompare(a.createdAt || ''));
   }
   return result;
 };
@@ -1990,24 +2019,29 @@ API.getMgrFinesForManager = async (branchKey) => {
   if (!check.valid) return [];
   const { data: empRows } = await sb.from('employees').select('id').eq('dept', check.dept);
   const empIds = (empRows || []).map(e => String(e.id));
-  const [{ data: byDept }, { data: byEmp }] = await Promise.all([
+  const noEmp = Promise.resolve({ data: [] });
+  const [{ data: mByDept }, { data: mByEmp }, { data: sByDept }, { data: sByEmp }] = await Promise.all([
     sb.from('mgr_fines').select('*').eq('dept', check.dept).order('created_at', { ascending: false }).limit(100),
-    empIds.length
-      ? sb.from('mgr_fines').select('*').in('emp_id', empIds).order('created_at', { ascending: false }).limit(100)
-      : Promise.resolve({ data: [] }),
+    empIds.length ? sb.from('mgr_fines').select('*').in('emp_id', empIds).order('created_at', { ascending: false }).limit(100) : noEmp,
+    sb.from('fines').select('*').eq('dept', check.dept).order('created_at', { ascending: false }).limit(100),
+    empIds.length ? sb.from('fines').select('*').in('emp_id', empIds).order('created_at', { ascending: false }).limit(100) : noEmp,
   ]);
   const seen = new Set();
-  const merged = [...(byDept || []), ...(byEmp || [])].filter(r => {
-    if (seen.has(r.fine_id)) return false; seen.add(r.fine_id); return true;
-  });
-  return merged.map(r => ({
-    fineId: r.fine_id, empName: r.emp_name, empId: r.emp_id, amount: r.amount,
-    reason: r.reason || '', status: r.status, createdAt: r.created_at || '', ackedAt: r.acked_at || '',
-  })).sort((a, b) => {
-    if (a.status === 'pending' && b.status !== 'pending') return -1;
-    if (a.status !== 'pending' && b.status === 'pending') return 1;
-    return (b.createdAt || '').localeCompare(a.createdAt || '');
-  });
+  const out  = [];
+  for (const r of [...(mByDept || []), ...(mByEmp || [])]) {
+    if (seen.has('m' + r.fine_id)) continue; seen.add('m' + r.fine_id);
+    out.push({
+      fineId: r.fine_id, empId: r.emp_id, empName: r.emp_name, amount: r.amount,
+      reason: r.reason || '', status: r.status, createdBy: r.created_by || 'Menecer',
+      createdAt: r.created_at || '', ackedAt: r.acked_at || '', source: 'manager',
+    });
+  }
+  for (const r of [...(sByDept || []), ...(sByEmp || [])]) {
+    if (seen.has('s' + r.fine_id)) continue; seen.add('s' + r.fine_id);
+    out.push(normSystemFine(r));
+  }
+  return out.sort((a, b) =>
+    (fineIsOpen(b) ? 1 : 0) - (fineIsOpen(a) ? 1 : 0) || (b.createdAt || '').localeCompare(a.createdAt || ''));
 };
 
 API.getMyFines = async (secret) => {

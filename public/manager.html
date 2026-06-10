@@ -1270,20 +1270,30 @@ function renderMgrFines(list) {
     if (badge) badge.style.display='none';
     return;
   }
-  var pend = list.filter(function(f){ return f.status==='pending'; }).length;
-  if (badge) { badge.style.display = pend ? 'inline' : 'none'; if (pend) badge.innerText = pend; }
+  function isOpen(f){ return f.source==='system' ? f.status==='unpaid' : f.status==='pending'; }
+  var openCnt = list.filter(isOpen).length;
+  if (badge) { badge.style.display = openCnt ? 'inline' : 'none'; if (openCnt) badge.innerText = openCnt; }
   el.innerHTML = list.map(function(f) {
-    var acked = f.status === 'acknowledged';
     var dd = f.createdAt ? f.createdAt.slice(0,10).split('-').reverse().join('.') : '';
-    var sub = acked
-      ? '<div class="req-row-sub" style="color:var(--success);">✍️ İmzalandı: ' + fmtFineTs(f.ackedAt) + '</div>'
-      : '<div class="req-row-sub">⏳ İşçinin təsdiqi gözlənilir</div>';
+    var bcls, btxt, sub;
+    if (f.source === 'system') {
+      if (f.status==='paid')        { bcls='approved'; btxt='Ödənilib'; }
+      else if (f.status==='waived') { bcls='paid';     btxt='Bağışlanıb'; }
+      else                          { bcls='rejected'; btxt='Ödənilməyib'; }
+      sub = '<div class="req-row-sub">🤖 Yazan: Sistem</div>';
+    } else if (f.status === 'acknowledged') {
+      bcls='approved'; btxt='İmzalandı';
+      sub = '<div class="req-row-sub" style="color:var(--success);">✍️ İmzalandı: ' + fmtFineTs(f.ackedAt) + '</div>';
+    } else {
+      bcls='pending'; btxt='Gözləyir';
+      sub = '<div class="req-row-sub">⏳ İşçinin təsdiqi gözlənilir</div>';
+    }
     return '<div class="req-row"><div class="req-row-left">' +
       '<div class="req-row-name">' + f.empName + ' &nbsp;<span style="font-size:0.95rem;font-weight:800;color:var(--danger);">' + f.amount + ' ₼</span></div>' +
       '<div class="req-row-note">' + f.reason + '</div>' +
       '<div class="req-row-sub">📅 ' + dd + '</div>' +
       sub + '</div>' +
-      '<span class="req-badge ' + (acked?'approved':'pending') + '">' + (acked?'İmzalandı':'Gözləyir') + '</span>' +
+      '<span class="req-badge ' + bcls + '">' + btxt + '</span>' +
     '</div>';
   }).join('');
 }
