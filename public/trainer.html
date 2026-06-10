@@ -6,6 +6,12 @@
 <title>Training Manager — <?= trainerName ?></title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link rel="manifest" href="/trainer-manifest?key=<?= trainerKey ?>">
+<meta name="theme-color" content="#0d9488">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Training">
 <style>
 :root {
   --bg:#f0f4f8;
@@ -1030,6 +1036,47 @@ function initDeptList() {
 }
 
 (function(){ selectQRole('kassir'); selectQType('test'); initDeptList(); })();
+
+// ── PWA + TRAINER PUSH (imtahan bildirişləri) ────────────────────
+(function(){
+  'use strict';
+  if(!('serviceWorker' in navigator)) return;
+  var isIOS=/iPad|iPhone|iPod/.test(navigator.userAgent)&&!window.MSStream;
+  var isStandalone=window.navigator.standalone===true;
+  var isOldIOS=isIOS&&parseInt((navigator.userAgent.match(/OS (\d+)_/)||[])[1]||0)<16;
+  function u8(b64){ var pad='='.repeat((4-b64.length%4)%4); var raw=atob((b64+pad).replace(/-/g,'+').replace(/_/g,'/')); var a=new Uint8Array(raw.length); for(var i=0;i<raw.length;i++)a[i]=raw.charCodeAt(i); return a; }
+  function bar(html){
+    var b=document.getElementById('trainerPushBar');
+    if(!b){ b=document.createElement('div'); b.id='trainerPushBar';
+      b.style.cssText='position:fixed;left:12px;right:12px;bottom:12px;z-index:9999;background:#0d9488;color:#fff;border-radius:14px;padding:11px 14px;display:flex;align-items:center;gap:10px;font-size:0.85rem;font-weight:600;box-shadow:0 8px 24px rgba(13,148,136,0.35);';
+      document.body.appendChild(b); }
+    b.innerHTML=html+'<button onclick="document.getElementById(\'trainerPushBar\').style.display=\'none\'" style="background:none;border:none;color:inherit;font-size:1.2rem;cursor:pointer;padding:0 4px;margin-left:auto;">×</button>';
+    b.style.display='flex';
+  }
+  function reg(sub){
+    if(!sub)return; var j=sub.toJSON?sub.toJSON():{};
+    google.script.run.subscribePushTrainer(TRAINER_KEY,{ endpoint:sub.endpoint, keys:{
+      p256dh: j.keys?j.keys.p256dh:btoa(String.fromCharCode.apply(null,new Uint8Array(sub.getKey('p256dh')))),
+      auth:   j.keys?j.keys.auth  :btoa(String.fromCharCode.apply(null,new Uint8Array(sub.getKey('auth')))),
+    }});
+  }
+  var _sw=null,_vk=null;
+  function sub(){ if(!_sw||!_vk)return; _sw.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:u8(_vk)}).then(reg).catch(function(){}); }
+  function ask(){ bar('<span style="flex:1;">🔔 İmtahan bildirişlərini almaq?</span><button id="trPushBtn" style="background:#fff;color:#0d9488;border:none;border-radius:10px;padding:7px 14px;font-weight:700;cursor:pointer;font-size:0.82rem;white-space:nowrap;">İcazə ver</button>'); var btn=document.getElementById('trPushBtn'); if(btn) btn.addEventListener('click',function(){ document.getElementById('trainerPushBar').style.display='none'; sub(); }); }
+  function init(sw){ _sw=sw; fetch('/vapid-public-key').then(function(r){return r.json();}).then(function(d){
+    if(!d.publicKey)return; _vk=d.publicKey;
+    sw.pushManager.getSubscription().then(function(ex){
+      if(ex){ reg(ex); return; }
+      if(isIOS){
+        if(isOldIOS){ bar('<span style="flex:1;">⚠️ Bildirişlər iOS 16.4+ tələb edir.</span>'); return; }
+        if(!isStandalone){ bar('<span style="flex:1;">📲 Bildiriş üçün Ana Ekrana Əlavə Et (Paylaş → Ana Ekrana)</span>'); return; }
+        Notification.permission==='granted'?sub():ask(); return;
+      }
+      Notification.permission==='granted'?sub():(Notification.permission!=='denied'?ask():null);
+    });
+  }).catch(function(){}); }
+  navigator.serviceWorker.register('/sw.js').then(function(r){ setTimeout(function(){ init(r); },2000); }).catch(function(){});
+})();
 </script>
 <footer style="text-align:center;padding:18px 0 14px;font-family:Inter,sans-serif;"><div style="font-size:0.72rem;font-weight:600;color:rgba(15,23,42,0.3);letter-spacing:0.01em;">created by Coffeemoon</div><div style="font-size:0.65rem;color:rgba(15,23,42,0.2);margin-top:2px;">version 1.0.1</div></footer>
 </body>

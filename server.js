@@ -78,6 +78,12 @@ async function sendPushToExec(title, body, extra = {}) {
   await sendPushToEmployee('EXEC', title, body, extra);
 }
 
+// Trainerə (təlim meneceri) push göndər
+async function sendPushToTrainer(title, body, extra = {}) {
+  if (!process.env.VAPID_PUBLIC_KEY) return;
+  await sendPushToEmployee('TRAINER', title, body, extra);
+}
+
 // Bütün aktiv işçilərə push göndər (elan üçün)
 async function sendPushToAll(title, body, extra = {}) {
   if (!process.env.VAPID_PUBLIC_KEY) return;
@@ -264,6 +270,26 @@ app.get('/admin', (req, res) => {
     adminKey:  ADMIN_KEY,
     scriptUrl: `${req.protocol}://${req.get('host')}`,
   }));
+});
+
+app.get('/trainer-manifest', (req, res) => {
+  const { key = '' } = req.query;
+  const startUrl = `/trainer?key=${encodeURIComponent(key)}`;
+  res.setHeader('Content-Type', 'application/manifest+json');
+  res.json({
+    name: 'Coffeemoon · Training',
+    short_name: 'Training',
+    description: 'Coffeemoon təlim meneceri paneli',
+    start_url: startUrl,
+    display: 'standalone',
+    background_color: '#f0f4f8',
+    theme_color: '#0d9488',
+    orientation: 'portrait',
+    icons: [
+      { src: '/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
+      { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
+    ],
+  });
 });
 
 app.get('/trainer', (req, res) => {
@@ -1129,6 +1155,23 @@ API.subscribePushExec = async (execKey, subscription) => {
 API.unsubscribePushExec = async (execKey, endpoint) => {
   if (!execKey || U.getSetting('EXEC_KEY') !== execKey || !endpoint) return { ok: false };
   await sb.from('push_subscriptions').delete().eq('emp_id', 'EXEC').eq('endpoint', endpoint);
+  return { ok: true };
+};
+
+API.subscribePushTrainer = async (trainerKey, subscription) => {
+  if (!trainerKey || U.getSetting('TRAINER_KEY') !== trainerKey || !subscription?.endpoint) return { ok: false };
+  await sb.from('push_subscriptions').upsert({
+    emp_id:   'TRAINER',
+    endpoint: subscription.endpoint,
+    p256dh:   subscription.keys?.p256dh || '',
+    auth:     subscription.keys?.auth   || '',
+  }, { onConflict: 'endpoint' });
+  return { ok: true };
+};
+
+API.unsubscribePushTrainer = async (trainerKey, endpoint) => {
+  if (!trainerKey || U.getSetting('TRAINER_KEY') !== trainerKey || !endpoint) return { ok: false };
+  await sb.from('push_subscriptions').delete().eq('emp_id', 'TRAINER').eq('endpoint', endpoint);
   return { ok: true };
 };
 
@@ -2725,6 +2768,17 @@ API.submitEmployeeExam = async (empId, empName, dept, role, answers) => {
       const { data: empRow } = await sb.from('employees').select('streak,is_test').eq('id', String(empId)).single();
       if (empRow && !empRow.is_test) await awardXP(empId, xpBase, empRow.streak || 0);
     }
+  }
+  // İmtahan bitdi → trainerə push bildiriş (Telegram yox)
+  if (!error) {
+    const openCount = graded.filter(a => a.type === 'open').length;
+    const parts = [`${empName} (${dept}) imtahanı bitirdi.`];
+    if (testTotal > 0)   parts.push(`Test: ${score}/${testTotal} düz.`);
+    if (openCount > 0)   parts.push(`${openCount} açıq sual qiymət gözləyir.`);
+    await sendPushToTrainer('📝 İmtahan tamamlandı', parts.join(' '), {
+      tag: 'exam-' + examId,
+      url: '/trainer?key=' + (U.getSetting('TRAINER_KEY') || ''),
+    });
   }
   return { success: !error, score, maxScore: testTotal, answers: graded };
 };
