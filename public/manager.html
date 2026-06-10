@@ -589,6 +589,9 @@ textarea.fine-doc-input { resize:vertical; }
   <button class="tab-btn" id="tabBtnTalebler" onclick="switchTab('talebler')">
     <i class="fa-solid fa-inbox"></i> Tələblər
   </button>
+  <button class="tab-btn" id="tabBtnNahar" onclick="switchTab('nahar')">
+    <i class="fa-solid fa-utensils"></i> Nahar
+  </button>
   <button class="tab-btn" id="tabBtnChecklist" onclick="switchTab('checklist')">
     <i class="fa-solid fa-clipboard-check"></i> Çeklist
   </button>
@@ -621,18 +624,6 @@ textarea.fine-doc-input { resize:vertical; }
       </button>
     </div>
     <div class="mgr-status" id="mgrStatus"></div>
-  </div>
-
-  <!-- Nahar Jurnalı (bugünkü nahar müddətləri) -->
-  <div class="card">
-    <div class="section-hdr">
-      <div class="section-hdr-left">
-        <i class="fa-solid fa-utensils" style="color:var(--warning);"></i> Nahar Jurnalı
-        <span id="lunchBadge" class="badge-count"></span>
-      </div>
-      <button class="icon-btn" onclick="loadLunchLog()" title="Yenilə"><i class="fa-solid fa-rotate"></i></button>
-    </div>
-    <div id="lunchLogList"><div class="req-empty"><i class="fa-solid fa-circle-notch fa-spin"></i></div></div>
   </div>
 
   <!-- Cədvəl -->
@@ -757,6 +748,20 @@ textarea.fine-doc-input { resize:vertical; }
   </div>
 
 </div><!-- /panelTalebler -->
+
+<!-- ═══ TAB: NAHAR JURNALI ═══ -->
+<div class="tab-panel" id="panelNahar">
+  <div class="card">
+    <div class="section-hdr">
+      <div class="section-hdr-left">
+        <i class="fa-solid fa-utensils" style="color:var(--warning);"></i> Nahar Jurnalı
+        <span id="lunchBadge" class="badge-count"></span>
+      </div>
+      <button class="icon-btn" onclick="loadLunchLog()" title="Yenilə"><i class="fa-solid fa-rotate"></i></button>
+    </div>
+    <div id="lunchLogList"><div class="req-empty"><i class="fa-solid fa-circle-notch fa-spin"></i></div></div>
+  </div>
+</div><!-- /panelNahar -->
 
 <!-- ═══ TAB 2: ÇEKELİST ═══ -->
 <div class="tab-panel" id="panelChecklist">
@@ -898,7 +903,7 @@ var _clLoaded    = false;
 var _wasteLoaded = false;
 
 function switchTab(name) {
-  ['sched','talebler','checklist','waste'].forEach(function(t) {
+  ['sched','talebler','nahar','checklist','waste'].forEach(function(t) {
     document.getElementById('panel' + t.charAt(0).toUpperCase() + t.slice(1)).classList.toggle('active', t === name);
     document.getElementById('tabBtn'  + t.charAt(0).toUpperCase() + t.slice(1)).classList.toggle('active', t === name);
   });
