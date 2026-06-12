@@ -83,28 +83,41 @@ async function sendPushToTrainer(title, body, extra = {}) {
   await sendPushToEmployee('TRAINER', title, body, extra);
 }
 
-// Bütün aktiv işçilərə push göndər (elan üçün)
+// Bütün aktiv işçilərə push göndər (elan üçün). Qaytarır: { sent, total }
 async function sendPushToAll(title, body, extra = {}) {
-  if (!process.env.VAPID_PUBLIC_KEY) return;
+  if (!process.env.VAPID_PUBLIC_KEY) { console.warn('[Push-all] VAPID açarı yoxdur — göndərilmədi'); return { sent: 0, total: 0 }; }
   try {
-    const { data: subs } = await sb.from('push_subscriptions').select('*');
-    if (!subs?.length) return;
+    const { data: subs, error } = await sb.from('push_subscriptions').select('*');
+    if (error) { console.error('[Push-all] abunəlik sorğusu xətası:', error.message); return { sent: 0, total: 0 }; }
+    if (!subs?.length) { console.warn('[Push-all] heç bir abunəlik tapılmadı — push göndərilmədi'); return { sent: 0, total: 0 }; }
     const payload = JSON.stringify({
       title, body, icon: '/icon-192.png', badge: '/icon-192.png',
       tag: extra.tag || 'coffeemoon-announce', url: extra.url || '/mycode',
     });
-    await Promise.allSettled(
-      subs.map(sub => webpush.sendNotification(
-        { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
-        payload
-      ).catch(async err => {
-        if (err.statusCode === 410) {
-          await sb.from('push_subscriptions').delete().eq('endpoint', sub.endpoint);
+    const results = await Promise.allSettled(
+      subs.map(async sub => {
+        try {
+          await webpush.sendNotification(
+            { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+            payload
+          );
+          return true;
+        } catch (err) {
+          // 410 Gone = abunəlik etibarsızdır, sil
+          if (err.statusCode === 410) {
+            await sb.from('push_subscriptions').delete().eq('endpoint', sub.endpoint);
+          }
+          console.warn(`[Push-all] abunəlik xətası (status ${err.statusCode || '?'}): ${String(err.body || err.message || '').slice(0, 120)}`);
+          return false;
         }
-      }))
+      })
     );
+    const sent = results.filter(r => r.status === 'fulfilled' && r.value === true).length;
+    console.log(`[Push-all] "${title}" → ${sent}/${subs.length} cihaza göndərildi`);
+    return { sent, total: subs.length };
   } catch (e) {
     console.error('[Push-all]', e.message);
+    return { sent: 0, total: 0 };
   }
 }
 
@@ -2127,16 +2140,18 @@ API.saveAnnouncement = async (data) => {
     if (!error) return { ok:true };
   }
   const newId = 'YN-' + Date.now().toString(36).toUpperCase();
-  await sb.from('announcements').insert({ id:newId, title:data.title, body:data.body, type:data.type||'info', pinned:!!data.pinned });
+  const { error: insErr } = await sb.from('announcements').insert({ id:newId, title:data.title, body:data.body, type:data.type||'info', pinned:!!data.pinned });
+  if (insErr) { sbErr('saveAnnouncement.insert', insErr); return { ok:false, error: insErr.message }; }
   // Yeni elan — bütün işçilərə push göndər
   const typeEmoji = { info:'ℹ️', success:'✅', warning:'⚠️', new:'🆕' };
   const emoji = typeEmoji[data.type] || '📢';
-  await sendPushToAll(
+  const pushRes = await sendPushToAll(
     `${emoji} ${data.title || 'Yeni Elan'}`,
     data.body ? data.body.slice(0, 100) : '',
     { tag: 'announce-' + newId }
   );
-  return { ok:true, id:newId };
+  console.log(`[Announce] yeni elan "${data.title}" əlavə olundu — push ${pushRes.sent}/${pushRes.total}`);
+  return { ok:true, id:newId, pushSent: pushRes.sent, pushTotal: pushRes.total };
 };
 
 // ── PROFİL ────────────────────────────────────────────────────────

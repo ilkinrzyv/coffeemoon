@@ -2124,8 +2124,20 @@ function submitYenilik() {
     pinned:  document.getElementById('ynPinned').checked
   };
   if (!data.title || !data.body) { alert('Başlıq və məzmun doldurulmalıdır.'); return; }
+  var isNew = !data.id;
   closeYenilikForm();
-  google.script.run.withSuccessHandler(loadYenilikler).saveAnnouncement(data);
+  google.script.run
+    .withSuccessHandler(function(res) {
+      if (res && res.ok === false) { alert('Elan saxlanmadı: ' + (res.error || 'naməlum xəta')); return; }
+      if (isNew && res) {
+        var n = res.pushSent || 0, t = res.pushTotal || 0;
+        if (t === 0) alert('Elan əlavə olundu ✅\n\n⚠️ Heç bir abunəlik tapılmadı — push göndərilmədi.\nİşçilər mycode kartında bildirişə icazə verməlidir (iOS-da əvvəlcə "Ana Ekrana Əlavə Et").');
+        else alert('Elan əlavə olundu ✅\nPush bildiriş: ' + n + '/' + t + ' cihaza göndərildi.');
+      }
+      loadYenilikler();
+    })
+    .withFailureHandler(function(err) { alert('Server xətası: ' + ((err && err.message) || err || 'naməlum')); })
+    .saveAnnouncement(data);
 }
 
 function deleteYenilik(id) {
