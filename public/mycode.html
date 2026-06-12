@@ -184,13 +184,22 @@
   }
   body.nav-open { padding-bottom:calc(74px + env(safe-area-inset-bottom)); }
   .main-tab {
-    flex:1; padding:0.7rem 0.4rem; border:none; border-radius:16px; cursor:pointer;
-    font-size:0.78rem; font-weight:700; color:var(--text-soft); background:transparent;
+    position:relative;
+    flex:1; padding:0.7rem 0.2rem; border:none; border-radius:14px; cursor:pointer;
+    font-size:0.7rem; font-weight:700; color:var(--text-soft); background:transparent;
     display:flex; flex-direction:column; align-items:center; justify-content:center;
     gap:5px; transition:all 0.22s cubic-bezier(0.16,1,0.3,1);
-    font-family:'Inter',sans-serif; line-height:1;
+    font-family:'Inter',sans-serif; line-height:1; white-space:nowrap;
   }
-  .main-tab i { font-size:1.05rem; transition:transform 0.22s; }
+  .main-tab i { font-size:1rem; transition:transform 0.22s; }
+  .tab-badge {
+    position:absolute; top:4px; right:calc(50% - 22px);
+    min-width:16px; height:16px; padding:0 4px; box-sizing:border-box;
+    background:var(--danger); color:#fff; border-radius:8px;
+    font-size:0.58rem; font-weight:800; line-height:1;
+    display:flex; align-items:center; justify-content:center;
+    box-shadow:0 1px 5px rgba(240,69,80,0.55); border:1.5px solid rgba(10,15,28,0.97);
+  }
   .main-tab:hover { background:rgba(255,255,255,0.06); color:var(--text-main); }
   .main-tab.active {
     background:rgba(91,94,244,0.18); color:var(--primary);
@@ -1701,6 +1710,18 @@
   .efdoc-reason .efdoc-lbl { display:block; margin-bottom:4px; }
   .efdoc-sign { margin:12px 15px 5px; width:calc(100% - 30px); background:#f04550; color:#fff; border:none; border-radius:11px; padding:12px; font-weight:800; font-size:0.9rem; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; font-family:inherit; }
   .efdoc-note { font-size:0.66rem; color:rgba(255,255,255,0.4); text-align:center; padding:0 15px 14px; line-height:1.4; }
+  /* İmzalanmış (tarixçə) cərimə — sönük yaşıl ton */
+  .efdoc.signed { background:linear-gradient(160deg,rgba(34,197,94,0.10),rgba(20,30,52,0.96)); border-color:rgba(34,197,94,0.3); box-shadow:0 5px 16px rgba(0,0,0,0.22); }
+  .efdoc.signed .efdoc-head-l { color:#86efac; }
+  .efdoc-badge { font-size:0.6rem; font-weight:800; letter-spacing:0.02em; padding:2px 7px; border-radius:7px; display:inline-flex; align-items:center; gap:4px; }
+  .efdoc-badge.wait { background:rgba(240,69,80,0.2); color:#fca5a5; }
+  .efdoc-badge.ok   { background:rgba(34,197,94,0.18); color:#86efac; }
+  .efdoc-signed-stamp { margin:10px 15px 14px; padding:9px 12px; border-radius:11px; background:rgba(34,197,94,0.1); border:1px solid rgba(34,197,94,0.25); color:#86efac; font-size:0.74rem; font-weight:700; display:flex; align-items:center; gap:8px; line-height:1.4; }
+  .fines-hist-sep { font-size:0.72rem; font-weight:800; letter-spacing:0.04em; text-transform:uppercase; color:var(--text-soft); margin:6px 2px 10px; display:flex; align-items:center; gap:8px; }
+  .fines-hist-sep::after { content:''; flex:1; height:1px; background:rgba(255,255,255,0.1); }
+  .fines-empty { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; padding:48px 20px; text-align:center; color:var(--text-soft); }
+  .fines-empty i { font-size:2.4rem; color:var(--success); margin-bottom:4px; }
+  .fines-empty span { font-size:0.8rem; color:var(--text-muted); }
 </style>
 </head>
 <body>
@@ -1724,6 +1745,11 @@
     <button class="main-tab" id="tabBtnIcaze" onclick="showTab('icaze')">
       <i class="fa-solid fa-clock"></i>
       İcazə
+    </button>
+    <button class="main-tab" id="tabBtnFines" onclick="showTab('fines')">
+      <i class="fa-solid fa-file-invoice-dollar"></i>
+      Cərimə
+      <span class="tab-badge" id="finesBadge" style="display:none;">0</span>
     </button>
     <button class="main-tab" id="tabBtnProfil" onclick="showTab('profil')">
       <i class="fa-solid fa-user"></i>
@@ -1753,9 +1779,6 @@
       <div class="announce-list" id="announceList"></div>
     </div>
   </div>
-
-  <!-- Cərimələr — yalnız Gündəlik tabında, cərimə varsa görünür -->
-  <div id="finesCard" style="display:none;"></div>
 
   <div class="ticket" id="ticket">
     <div class="ticket-header">
@@ -2117,6 +2140,16 @@
 
   </div><!-- /panel-qeydler -->
 
+  <!-- PANEL: CƏRİMƏLƏR -->
+  <div class="tab-panel" id="panel-fines">
+    <div class="fines-empty" id="finesEmpty" style="display:none;">
+      <i class="fa-solid fa-circle-check"></i>
+      <div>Heç bir cəriməniz yoxdur</div>
+      <span>Vaxtında gəlişlərinizi davam etdirin 💪</span>
+    </div>
+    <div id="finesCard"></div>
+  </div><!-- /panel-fines -->
+
 
 
   </div>
@@ -2260,8 +2293,8 @@
 
   function showTab(tab) {
     _activeMainTab = tab;
-    var tabs   = ['gundelik', 'cedvel', 'icaze', 'profil', 'qeydler'];
-    var btnIds = { gundelik:'tabBtnGundelik', cedvel:'tabBtnCedvel', icaze:'tabBtnIcaze', profil:'tabBtnProfil', qeydler:'tabBtnQeydler' };
+    var tabs   = ['gundelik', 'cedvel', 'icaze', 'fines', 'profil', 'qeydler'];
+    var btnIds = { gundelik:'tabBtnGundelik', cedvel:'tabBtnCedvel', icaze:'tabBtnIcaze', fines:'tabBtnFines', profil:'tabBtnProfil', qeydler:'tabBtnQeydler' };
     tabs.forEach(function(t) {
       document.getElementById('panel-' + t).classList.toggle('active', t === tab);
       document.getElementById(btnIds[t]).classList.toggle('active', t === tab);
@@ -2269,8 +2302,6 @@
     document.getElementById('ticket').style.display = (tab === 'gundelik') ? '' : 'none';
     var ac = document.getElementById('announceCard');
     if (ac && ac.dataset.hasAnnounce === '1') ac.style.display = (tab === 'gundelik') ? 'block' : 'none';
-    var fc = document.getElementById('finesCard');
-    if (fc && fc.dataset.hasFines === '1') fc.style.display = (tab === 'gundelik') ? 'block' : 'none';
     if (tab === 'profil' && !_profileLoaded) loadProfileTab();
     if (tab === 'qeydler') renderNotes();
     // Kamera: gundelik tabında aç, başqasında bağla
@@ -2493,32 +2524,60 @@
   }
   function fmtFineDate(s){ if(!s) return ''; var d=new Date(s); if(isNaN(d.getTime())) return s;
     return ('0'+d.getDate()).slice(-2)+'.'+('0'+(d.getMonth()+1)).slice(-2)+'.'+d.getFullYear()+' '+('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2); }
+  function fineDocHtml(f, signed) {
+    return '<div class="efdoc' + (signed ? ' signed' : ' open') + '">' +
+      '<div class="efdoc-head" onclick="this.parentNode.classList.toggle(\'open\')">' +
+        '<div class="efdoc-head-l"><i class="fa-solid fa-file-signature"></i> Cərimə Sənədi ' +
+          (signed
+            ? '<span class="efdoc-badge ok"><i class="fa-solid fa-circle-check"></i> İmzalanıb</span>'
+            : '<span class="efdoc-badge wait"><i class="fa-solid fa-hourglass-half"></i> Gözləyir</span>') +
+        '</div>' +
+        '<div class="efdoc-head-r"><span class="efdoc-amt">' + Number(f.amount) + ' ₼</span><i class="fa-solid fa-chevron-down efdoc-chev"></i></div>' +
+      '</div>' +
+      '<div class="efdoc-body">' +
+        '<div class="efdoc-row"><span class="efdoc-lbl">İşçi</span><span class="efdoc-val">' + EMP_NAME + '</span></div>' +
+        '<div class="efdoc-row"><span class="efdoc-lbl">Filial</span><span class="efdoc-val">' + (userDept||'-') + '</span></div>' +
+        '<div class="efdoc-row"><span class="efdoc-lbl">Tarix</span><span class="efdoc-val">' + fmtFineDate(f.createdAt) + '</span></div>' +
+        '<div class="efdoc-row"><span class="efdoc-lbl">Məbləğ</span><span class="efdoc-val" style="color:#fca5a5;">' + Number(f.amount) + ' AZN</span></div>' +
+        '<div class="efdoc-row"><span class="efdoc-lbl">Yazan</span><span class="efdoc-val">' + (f.createdBy||'Menecer') + '</span></div>' +
+        '<div class="efdoc-reason"><span class="efdoc-lbl">İzahat / səbəb</span>' + f.reason + '</div>' +
+        (signed
+          ? '<div class="efdoc-signed-stamp"><i class="fa-solid fa-circle-check"></i> Bu cərimə ' + (f.ackedAt ? fmtFineDate(f.ackedAt) + ' tarixində ' : '') + 'elektron imza ilə təsdiqlənib.</div>'
+          : '<button class="efdoc-sign" onclick="ackFine(\'' + f.fineId + '\')"><i class="fa-solid fa-signature"></i> Təsdiqlədim (imzala)</button>' +
+            '<div class="efdoc-note">Bu düyməni basmaqla cəriməni elektron formada təsdiq (imza) etmiş olursunuz.</div>') +
+      '</div>' +
+    '</div>';
+  }
   function renderMyFines(list) {
-    var card = document.getElementById('finesCard');
+    var card  = document.getElementById('finesCard');
     if (!card) return;
-    var pending = (list || []).filter(function(f){ return f.status !== 'acknowledged'; });
-    if (!pending.length) { card.style.display='none'; card.dataset.hasFines='0'; card.innerHTML=''; return; }
-    var html = pending.map(function(f) {
-      return '<div class="efdoc open">' +
-        '<div class="efdoc-head" onclick="this.parentNode.classList.toggle(\'open\')">' +
-          '<div class="efdoc-head-l"><i class="fa-solid fa-file-signature"></i> Cərimə Sənədi</div>' +
-          '<div class="efdoc-head-r"><span class="efdoc-amt">' + Number(f.amount) + ' ₼</span><i class="fa-solid fa-chevron-down efdoc-chev"></i></div>' +
-        '</div>' +
-        '<div class="efdoc-body">' +
-          '<div class="efdoc-row"><span class="efdoc-lbl">İşçi</span><span class="efdoc-val">' + EMP_NAME + '</span></div>' +
-          '<div class="efdoc-row"><span class="efdoc-lbl">Filial</span><span class="efdoc-val">' + (userDept||'-') + '</span></div>' +
-          '<div class="efdoc-row"><span class="efdoc-lbl">Tarix</span><span class="efdoc-val">' + fmtFineDate(f.createdAt) + '</span></div>' +
-          '<div class="efdoc-row"><span class="efdoc-lbl">Məbləğ</span><span class="efdoc-val" style="color:#fca5a5;">' + Number(f.amount) + ' AZN</span></div>' +
-          '<div class="efdoc-row"><span class="efdoc-lbl">Yazan</span><span class="efdoc-val">' + (f.createdBy||'Menecer') + '</span></div>' +
-          '<div class="efdoc-reason"><span class="efdoc-lbl">İzahat / səbəb</span>' + f.reason + '</div>' +
-          '<button class="efdoc-sign" onclick="ackFine(\'' + f.fineId + '\')"><i class="fa-solid fa-signature"></i> Təsdiqlədim (imzala)</button>' +
-          '<div class="efdoc-note">Bu düyməni basmaqla cəriməni elektron formada təsdiq (imza) etmiş olursunuz.</div>' +
-        '</div>' +
-      '</div>';
-    }).join('');
+    var all     = list || [];
+    var pending = all.filter(function(f){ return f.status !== 'acknowledged'; });
+    var acked   = all.filter(function(f){ return f.status === 'acknowledged'; });
+
+    // Tab badge — təsdiqlənməmiş cərimə sayı
+    var badge = document.getElementById('finesBadge');
+    if (badge) {
+      if (pending.length) { badge.style.display = 'flex'; badge.textContent = pending.length; }
+      else { badge.style.display = 'none'; }
+    }
+    card.dataset.hasFines = pending.length ? '1' : '0';
+
+    var empty = document.getElementById('finesEmpty');
+    if (!all.length) {
+      if (empty) empty.style.display = 'flex';
+      card.innerHTML = '';
+      return;
+    }
+    if (empty) empty.style.display = 'none';
+
+    var html = '';
+    pending.forEach(function(f){ html += fineDocHtml(f, false); });
+    if (acked.length) {
+      html += '<div class="fines-hist-sep">İmzalanmış cərimələr</div>';
+      acked.forEach(function(f){ html += fineDocHtml(f, true); });
+    }
     card.innerHTML = html;
-    card.dataset.hasFines = '1';
-    card.style.display = (!_activeMainTab || _activeMainTab === 'gundelik') ? 'block' : 'none';
   }
   function ackFine(fineId) {
     if (!confirm('Bu cəriməni aldığınızı və qəbul etdiyinizi təsdiqləyirsiniz.\nBu, elektron imza sayılır.')) return;
