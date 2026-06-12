@@ -580,6 +580,16 @@
   }
   .team-avatar-sm img { width:100%; height:100%; object-fit:cover; }
   .team-name { font-size:0.75rem; font-weight:800; color:var(--text-main); line-height:1.2; margin-top:6px; padding:0 4px; }
+  /* 1-ci yer (lider) — yalnız ad qızıl gradientlə parıldayır (aura/limitdən asılı deyil) */
+  .team-name-leader {
+    font-weight:900;
+    background:linear-gradient(95deg,#fff8e1,#fbbf24,#d97706,#fbbf24,#fff8e1);
+    background-size:200% auto;
+    -webkit-background-clip:text; background-clip:text;
+    -webkit-text-fill-color:transparent;
+    animation:leader-name-shine 3s linear infinite;
+  }
+  @keyframes leader-name-shine { to { background-position:200% center; } }
   .team-dept { font-size:0.6rem; color:var(--text-soft); font-weight:600; margin-top:2px; }
   .team-streak { display:none; }
   .team-reactions {
@@ -3866,7 +3876,7 @@
 
       // Ad + filial
       var nameEl = document.createElement('div');
-      nameEl.className = 'team-name';
+      nameEl.className = 'team-name' + (idx === 0 ? ' team-name-leader' : '');
       nameEl.innerText = m.empName.split(' ')[0];
 
       var deptEl = document.createElement('div');
