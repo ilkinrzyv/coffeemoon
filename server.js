@@ -708,12 +708,16 @@ API.saveCedvel = async (entries) => {
   }
   const toInsert = entries
     .filter(e => e.empId && e.dateStr && e.shiftType)
-    .map(e => ({
-      cedvel_id:  'C' + Date.now().toString(36).toUpperCase() + Math.floor(Math.random()*1000).toString(36).toUpperCase(),
+    .map((e, i) => ({
+      // i (sətir indeksi) batch daxilində unikallığa zəmanət verir — eyni ms-də random toqquşması cədvəli silmir
+      cedvel_id:  'C' + Date.now().toString(36).toUpperCase() + i.toString(36).toUpperCase() + Math.floor(Math.random()*46656).toString(36).toUpperCase(),
       emp_id:     e.empId, emp_name: e.empName, dept: e.dept,
       date_str:   e.dateStr, shift_type: e.shiftType,
     }));
-  if (toInsert.length) await sb.from('cedvel').insert(toInsert);
+  if (toInsert.length) {
+    const { error } = await sb.from('cedvel').insert(toInsert);
+    if (error) return { success: false, reason: 'Saxlama xətası: ' + error.message };
+  }
   return { success: true };
 };
 
@@ -1240,15 +1244,11 @@ API.getDashboardData = async (secret) => {
 
 // ── NAHAR ────────────────────────────────────────────────────────
 
-API.logLunch = async (enteredPin, clientIp, lunchType) => {
-  if (!enteredPin) return { valid: false, reason: 'Kod daxil edilməyib' };
+API.logLunch = async (secret, clientIp, lunchType) => {
+  if (!secret) return { valid: false, reason: 'Kod daxil edilməyib' };
   if (lunchType !== 'NAHAR_GET' && lunchType !== 'NAHAR_QAY') return { valid: false, reason: 'Yanlış nahar növü' };
-  const { data: emps } = await sb.from('employees').select('*');
-  const cW = Math.floor(Date.now() / U.TIME_STEP);
-  const matched = (emps || []).find(emp =>
-    enteredPin === U.generateDynamicPin(emp.secret, cW) ||
-    enteredPin === U.generateDynamicPin(emp.secret, cW - 1)
-  );
+  // İşçini birbaşa secret ilə tap (PIN deyil) — eyni dinamik PIN-li işçilərdə nahar başqasına yazılmasın
+  const { data: matched } = await sb.from('employees').select('*').eq('secret', secret).single();
   if (!matched) return { valid: false, reason: 'Yanlış və ya vaxtı keçmiş kod!' };
   if (clientIp) { const wc = U.checkWifiIp(matched.dept, clientIp); if (!wc.ok) return { valid: false, reason: wc.reason }; }
 

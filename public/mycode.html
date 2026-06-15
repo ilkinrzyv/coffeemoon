@@ -2662,11 +2662,10 @@
     statusEl.style.color = "var(--primary)";
     document.getElementById('btnNaharGet').disabled = true;
     document.getElementById('btnNaharQay').disabled = true;
-    var currentPin = generateDynamicPin(SECRET, Math.floor(Date.now() / TIME_STEP));
     google.script.run
       .withSuccessHandler(showLunchResult)
       .withFailureHandler(function(){ showLunchError('Sistem xətası baş verdi.'); })
-      .logLunch(currentPin, '', type);
+      .logLunch(SECRET, '', type);
   }
 
   function showLunchResult(res) {
