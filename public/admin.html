@@ -428,6 +428,14 @@ body > nav { display: none; }
       <button class="btn sm" onclick="copyExecLink()"><i class="fa-solid fa-copy"></i> Kopyala</button>
     </div>
   </div>
+  <div class="card">
+    <div class="tg-section-title" style="margin-bottom:1rem;"><i class="fa-solid fa-clipboard-check"></i> Əməliyyat Meneceri Linki</div>
+    <div class="link-row">
+      <div class="link-dept"><span style="width:10px;height:10px;border-radius:3px;background:#c7d2fe;display:inline-block;"></span>Əməliyyat</div>
+      <div id="opsLink" style="font-family:monospace;font-size:0.75rem;color:var(--text-muted);flex:2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Yüklənir...</div>
+      <button class="btn sm" onclick="copyOpsLink()"><i class="fa-solid fa-copy"></i> Kopyala</button>
+    </div>
+  </div>
 </div>
 
 <!-- CANLI -->
@@ -1039,7 +1047,7 @@ function sw(name){
   if(name==='tg')   loadTgSettings();
   if(name==='wifi') loadWifi();
   if(name==='mgr')  {loadMgr();loadMgrAcks();}
-  if(name==='cedvel'){loadSched();loadBranchLinks();loadExecLink();}
+  if(name==='cedvel'){loadSched();loadBranchLinks();loadExecLink();loadOpsLink();}
   if(name==='hesabat'){loadWarnings();initRepSelects();}
   if(name==='izin') {loadIzinList();populateIzinEmps();}
   if(name==='checklist'){initChecklist();}
@@ -1211,6 +1219,19 @@ function loadExecLink(){
 function copyExecLink(){
   if(!execLinkVal)return;
   navigator.clipboard.writeText(execLinkVal).then(function(){ alert('Link kopyalandı!'); });
+}
+
+var opsLinkVal='';
+function loadOpsLink(){
+  google.script.run.withSuccessHandler(function(res){
+    if(!res||!res.key)return;
+    opsLinkVal = SCRIPT_URL + '/ops?key=' + res.key;
+    document.getElementById('opsLink').textContent = opsLinkVal;
+  }).getOpsKey();
+}
+function copyOpsLink(){
+  if(!opsLinkVal)return;
+  navigator.clipboard.writeText(opsLinkVal).then(function(){ alert('Link kopyalandı!'); });
 }
 
 var mgrLiveData = {};

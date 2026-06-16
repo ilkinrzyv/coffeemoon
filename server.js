@@ -350,6 +350,39 @@ app.get('/icraci', (req, res) => {
   }));
 });
 
+app.get('/ops-manifest', (req, res) => {
+  const { key = '' } = req.query;
+  const startUrl = `/ops?key=${encodeURIComponent(key)}`;
+  res.setHeader('Content-Type', 'application/manifest+json');
+  res.json({
+    name: 'Coffeemoon · Əməliyyat',
+    short_name: 'Əməliyyat',
+    description: 'Coffeemoon əməliyyat meneceri paneli',
+    start_url: startUrl,
+    display: 'standalone',
+    background_color: '#0b1020',
+    theme_color: '#6366f1',
+    orientation: 'portrait',
+    icons: [
+      { src: '/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
+      { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
+    ],
+  });
+});
+
+app.get('/ops', (req, res) => {
+  const { key = '' } = req.query;
+  const opsKey = U.getSetting('OPS_KEY');
+  if (!opsKey || opsKey !== key)
+    return res.send('<h2 style="color:red;font-family:sans-serif;padding:2rem">İcazəsiz giriş.</h2>');
+  const opsName = U.getSetting('OPS_NAME') || 'Əməliyyat meneceri';
+  res.send(replaceVars(readTemplate('ops.html'), {
+    opsKey:    key,
+    opsName:   opsName,
+    scriptUrl: `${req.protocol}://${req.get('host')}`,
+  }));
+});
+
 app.get('/exam', (req, res) => res.send(readTemplate('exam.html')));
 
 app.get('/', (req, res) => res.redirect(`/admin?key=${ADMIN_KEY}`));
@@ -2415,6 +2448,233 @@ API.regenerateTrainerKey = async () => {
   const key = 'TR' + Math.random().toString(36).substring(2, 12).toUpperCase();
   await U.setSetting('TRAINER_KEY', key);
   return { key };
+};
+
+// ══════════════════════════════════════════════════════════════════
+//  ƏMƏLİYYAT MENECERİ (OPS) PANELİ
+// ══════════════════════════════════════════════════════════════════
+
+function opsAuth(key) {
+  const k = U.getSetting('OPS_KEY');
+  return !!k && k === key;
+}
+function opsId(prefix, i) {
+  return prefix + Date.now().toString(36).toUpperCase() + (i || 0).toString(36).toUpperCase() +
+    Math.floor(Math.random() * 46656).toString(36).toUpperCase();
+}
+function opsSev(s) { return (s === 'asagi' || s === 'orta' || s === 'kritik') ? s : 'orta'; }
+function opsWeekDates(weekStart) {
+  const start = new Date(weekStart);
+  const out = [];
+  for (let d = 0; d < 7; d++) out.push(U.toYMD(new Date(start.getTime() + d * 86400000)));
+  return out;
+}
+
+API.getOpsKey = async () => {
+  let key = U.getSetting('OPS_KEY');
+  if (!key) {
+    key = 'OP' + Math.random().toString(36).substring(2, 12).toUpperCase();
+    await U.setSetting('OPS_KEY', key);
+  }
+  return { key, name: U.getSetting('OPS_NAME') || '' };
+};
+API.regenerateOpsKey = async () => {
+  const key = 'OP' + Math.random().toString(36).substring(2, 12).toUpperCase();
+  await U.setSetting('OPS_KEY', key);
+  return { key };
+};
+API.setOpsName = async (name) => {
+  await U.setSetting('OPS_NAME', String(name || '').trim());
+  return { success: true };
+};
+
+// Saha rejimi üçün ilkin data — filiallar + filial üzrə işçilər
+API.getOpsBootstrap = async (key) => {
+  if (!opsAuth(key)) return null;
+  const { data: emps } = await sb.from('employees').select('id,name,dept,is_test').order('name');
+  const byDept = {};
+  for (const d of U.DEPTS) byDept[d] = [];
+  for (const e of (emps || [])) {
+    if (e.is_test) continue;
+    if (byDept[e.dept]) byDept[e.dept].push({ id: e.id, name: e.name });
+  }
+  return { depts: U.DEPTS, employees: byDept, opsName: U.getSetting('OPS_NAME') || 'Əməliyyat meneceri' };
+};
+
+// Ziyarəti saxla: visit + ratings + işçi qeydləri + işarələnmiş problemlər (hamısı bir əməliyyatda)
+API.saveOpsVisit = async (key, payload) => {
+  if (!opsAuth(key)) return { success: false, reason: 'İcazəsiz.' };
+  const p = payload || {};
+  if (!p.dept || !U.DEPTS.includes(p.dept)) return { success: false, reason: 'Filial seçilməyib.' };
+
+  const visitId = opsId('V', 0);
+  const dateStr = U.getLogicalYMD(new Date());
+  const opsName = U.getSetting('OPS_NAME') || 'Əməliyyat meneceri';
+
+  const ratings = Array.isArray(p.ratings) ? p.ratings.filter(r => r.category) : [];
+  const scored  = ratings.filter(r => Number(r.score) > 0);
+  const overall = scored.length
+    ? Math.round((scored.reduce((s, r) => s + Number(r.score), 0) / scored.length) * 10) / 10 : 0;
+
+  const { error: vErr } = await sb.from('ops_visits').insert({
+    visit_id: visitId, dept: p.dept, ops_name: opsName,
+    visit_date: dateStr, overall_score: overall, summary: String(p.summary || ''), status: 'done',
+  });
+  if (vErr) return { success: false, reason: 'Ziyarət xətası: ' + vErr.message };
+
+  if (ratings.length) {
+    const rows = ratings.map((r, i) => ({
+      rating_id: opsId('R', i), visit_id: visitId, category: String(r.category),
+      score: Number(r.score) || 0, note: String(r.note || ''), photo_url: String(r.photoUrl || ''),
+    }));
+    const { error } = await sb.from('ops_ratings').insert(rows);
+    if (error) return { success: false, reason: 'Qiymət xətası: ' + error.message };
+  }
+
+  const notes = Array.isArray(p.empNotes) ? p.empNotes.filter(n => n.empId) : [];
+  const noteRows = notes.filter(n => !n.isProblem).map((n, i) => ({
+    note_id: opsId('EN', i), visit_id: visitId, dept: p.dept,
+    emp_id: String(n.empId), emp_name: String(n.empName || ''),
+    sentiment: (n.sentiment === 'pos' || n.sentiment === 'neg') ? n.sentiment : 'neutral',
+    note: String(n.note || ''), photo_url: String(n.photoUrl || ''),
+  }));
+  if (noteRows.length) {
+    const { error } = await sb.from('ops_emp_notes').insert(noteRows);
+    if (error) return { success: false, reason: 'Qeyd xətası: ' + error.message };
+  }
+
+  // Problemlər → ops_issues (kateqoriya problemləri + işçi problemləri birlikdə)
+  const issues = [];
+  (Array.isArray(p.issues) ? p.issues : []).forEach(iss => {
+    if (!iss.title) return;
+    issues.push({
+      dept: p.dept, emp_id: String(iss.empId || ''), emp_name: String(iss.empName || ''),
+      title: String(iss.title), detail: String(iss.detail || ''),
+      severity: opsSev(iss.severity), photo_url: String(iss.photoUrl || ''),
+    });
+  });
+  notes.filter(n => n.isProblem).forEach(n => {
+    issues.push({
+      dept: p.dept, emp_id: String(n.empId), emp_name: String(n.empName || ''),
+      title: (n.note ? String(n.note).slice(0, 80) : 'İşçi problemi'),
+      detail: String(n.note || ''), severity: opsSev(n.severity), photo_url: String(n.photoUrl || ''),
+    });
+  });
+  if (issues.length) {
+    const issueRows = issues.map((x, i) => ({
+      issue_id: opsId('I', i), dept: x.dept, emp_id: x.emp_id, emp_name: x.emp_name,
+      title: x.title, detail: x.detail, severity: x.severity, status: 'open',
+      assigned_to: '', due_date: '', source_visit_id: visitId, photo_url: x.photo_url,
+    }));
+    const { error } = await sb.from('ops_issues').insert(issueRows);
+    if (error) return { success: false, reason: 'Problem xətası: ' + error.message };
+  }
+
+  return { success: true, visitId, overall };
+};
+
+// İclas — həftə üzrə filial scorecard-ları (ops balı + açıq problem sayı)
+API.getOpsMeetingData = async (key, weekStart) => {
+  if (!opsAuth(key)) return null;
+  const dstr = opsWeekDates(weekStart);
+  const { data: visits } = await sb.from('ops_visits').select('dept,overall_score,visit_date').in('visit_date', dstr);
+  const agg = {};
+  for (const dep of U.DEPTS) agg[dep] = { visits: 0, scoreSum: 0 };
+  for (const v of (visits || [])) {
+    if (!agg[v.dept]) continue;
+    agg[v.dept].visits++; agg[v.dept].scoreSum += Number(v.overall_score) || 0;
+  }
+  const { data: openIss } = await sb.from('ops_issues').select('dept,status');
+  const openByDept = {};
+  for (const dep of U.DEPTS) openByDept[dep] = 0;
+  for (const x of (openIss || [])) if (x.status !== 'resolved' && openByDept[x.dept] != null) openByDept[x.dept]++;
+  const cards = U.DEPTS.map(dep => ({
+    dept: dep, visits: agg[dep].visits,
+    score: agg[dep].visits ? Math.round((agg[dep].scoreSum / agg[dep].visits) * 10) / 10 : 0,
+    openIssues: openByDept[dep] || 0,
+  }));
+  return { weekStart: dstr[0], dates: dstr, cards };
+};
+
+// İclas — tək filial detalı (slayd): kateqoriya ortalamaları + işçi qeydləri + ziyarətlər
+API.getOpsBranchDetail = async (key, dept, weekStart) => {
+  if (!opsAuth(key) || !U.DEPTS.includes(dept)) return null;
+  const dstr = opsWeekDates(weekStart);
+  const { data: visits } = await sb.from('ops_visits').select('*').eq('dept', dept).in('visit_date', dstr);
+  const visitIds = (visits || []).map(v => v.visit_id);
+  let ratings = [], notes = [];
+  if (visitIds.length) {
+    const r = await sb.from('ops_ratings').select('*').in('visit_id', visitIds);
+    const n = await sb.from('ops_emp_notes').select('*').in('visit_id', visitIds);
+    ratings = r.data || []; notes = n.data || [];
+  }
+  const catMap = {};
+  for (const r of ratings) {
+    if (!catMap[r.category]) catMap[r.category] = { sum: 0, c: 0 };
+    if (r.score > 0) { catMap[r.category].sum += r.score; catMap[r.category].c++; }
+  }
+  const categories = Object.keys(catMap).map(cat => ({
+    category: cat, avg: catMap[cat].c ? Math.round((catMap[cat].sum / catMap[cat].c) * 10) / 10 : 0,
+  }));
+  return {
+    dept,
+    visitCount: (visits || []).length,
+    categories,
+    empNotes: notes.map(n => ({ empName: n.emp_name, sentiment: n.sentiment, note: n.note, photoUrl: n.photo_url })),
+  };
+};
+
+// İclas — problemlər tabı (saha rejimində işarələnənlər); status filtri: open | progress | resolved | all
+API.getOpsIssues = async (key, status, dept) => {
+  if (!opsAuth(key)) return null;
+  let q = sb.from('ops_issues').select('*').order('created_at', { ascending: false });
+  if (dept && U.DEPTS.includes(dept)) q = q.eq('dept', dept);
+  const { data } = await q;
+  let rows = data || [];
+  if (status === 'open') rows = rows.filter(r => r.status !== 'resolved');
+  else if (status && status !== 'all') rows = rows.filter(r => r.status === status);
+  return rows.map(r => ({
+    issueId: r.issue_id, dept: r.dept, empId: r.emp_id, empName: r.emp_name,
+    title: r.title, detail: r.detail, severity: r.severity, status: r.status,
+    assignedTo: r.assigned_to, dueDate: r.due_date, photoUrl: r.photo_url, createdAt: r.created_at,
+  }));
+};
+
+// İclasda canlı yenilənmə: status / məsul / son tarix
+API.updateOpsIssue = async (key, issueId, patch) => {
+  if (!opsAuth(key)) return { success: false, reason: 'İcazəsiz.' };
+  if (!issueId) return { success: false, reason: 'issueId yoxdur.' };
+  const p = patch || {};
+  const upd = {};
+  if (p.status && ['open', 'progress', 'resolved'].includes(p.status)) {
+    upd.status = p.status;
+    upd.resolved_at = p.status === 'resolved' ? new Date().toISOString() : null;
+  }
+  if (typeof p.assignedTo === 'string') upd.assigned_to = p.assignedTo.trim();
+  if (typeof p.dueDate === 'string') upd.due_date = p.dueDate.trim();
+  if (!Object.keys(upd).length) return { success: false, reason: 'Dəyişiklik yoxdur.' };
+  const { error } = await sb.from('ops_issues').update(upd).eq('issue_id', issueId);
+  if (error) return { success: false, reason: error.message };
+  return { success: true };
+};
+
+// Foto yükləmə — base64 → Supabase Storage (bucket: ops-photos)
+API.uploadOpsPhoto = async (key, base64, ext) => {
+  if (!opsAuth(key)) return { success: false, reason: 'İcazəsiz.' };
+  if (!base64) return { success: false, reason: 'Şəkil yoxdur.' };
+  try {
+    const clean = String(base64).replace(/^data:image\/\w+;base64,/, '');
+    const buf = Buffer.from(clean, 'base64');
+    const safeExt = (ext && /^(jpg|jpeg|png|webp)$/i.test(ext)) ? ext.toLowerCase() : 'jpg';
+    const fpath = 'ops/' + Date.now().toString(36) + Math.floor(Math.random() * 1e6).toString(36) + '.' + safeExt;
+    const { error } = await sb.storage.from('ops-photos')
+      .upload(fpath, buf, { contentType: 'image/' + (safeExt === 'jpg' ? 'jpeg' : safeExt), upsert: false });
+    if (error) return { success: false, reason: error.message };
+    const { data } = sb.storage.from('ops-photos').getPublicUrl(fpath);
+    return { success: true, url: (data && data.publicUrl) || '' };
+  } catch (e) {
+    return { success: false, reason: e.message };
+  }
 };
 
 API.getAllTrainerItems = async () => {

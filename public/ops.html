@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>Coffeemoon · Əməliyyat</title>
+<link rel="manifest" href="/ops-manifest?key=<?= opsKey ?>">
+<meta name="theme-color" content="#6366f1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Əməliyyat">
+<link rel="apple-touch-icon" href="/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+:root{
+  --primary:#6366f1;--ink:#4f46e5;--success:#10b981;--danger:#ef4444;--warn:#f59e0b;
+  --text:#0f172a;--muted:#64748b;--soft:#94a3b8;--border:rgba(15,23,42,0.09);--bg:#f1f5f9;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:15px;-webkit-tap-highlight-color:transparent;}
+.wrap{max-width:880px;margin:0 auto;padding:0 12px 80px;}
+.topbar{position:sticky;top:0;z-index:50;background:rgba(241,245,249,0.92);backdrop-filter:blur(12px);padding:0.9rem 12px 0.6rem;margin:0 -12px;}
+.topbar-row{display:flex;align-items:center;gap:10px;margin-bottom:0.7rem;}
+.brand{font-size:1.05rem;font-weight:900;display:flex;align-items:center;gap:8px;}
+.brand i{color:var(--primary);}
+.who{font-size:0.72rem;font-weight:700;color:var(--muted);background:#fff;padding:3px 10px;border-radius:100px;border:1px solid var(--border);margin-left:auto;}
+.modebar{display:flex;gap:6px;}
+.mode-btn{flex:1;padding:0.6rem;border:1.5px solid var(--border);border-radius:12px;background:#fff;cursor:pointer;font-size:0.82rem;font-weight:800;color:var(--muted);display:flex;align-items:center;justify-content:center;gap:7px;font-family:inherit;}
+.mode-btn.on{background:var(--primary);color:#fff;border-color:var(--primary);}
+.page{display:none;padding-top:1rem;}
+.page.on{display:block;}
+.card{background:#fff;border:1px solid var(--border);border-radius:16px;padding:1rem 1.1rem;margin-bottom:12px;}
+.sec-title{font-size:0.78rem;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:0.7rem;display:flex;align-items:center;gap:7px;}
+.chips{display:flex;flex-wrap:wrap;gap:7px;}
+.chip{padding:0.5rem 0.9rem;border:1.5px solid var(--border);border-radius:100px;background:#fff;cursor:pointer;font-size:0.82rem;font-weight:700;color:var(--muted);font-family:inherit;}
+.chip.on{background:var(--ink);color:#fff;border-color:var(--ink);}
+.cat{border:1px solid var(--border);border-radius:13px;padding:0.7rem 0.8rem;margin-bottom:8px;}
+.cat-head{display:flex;align-items:center;gap:9px;}
+.cat-name{flex:1;font-size:0.9rem;font-weight:700;display:flex;align-items:center;gap:8px;cursor:pointer;}
+.cat-name i{color:var(--soft);width:18px;text-align:center;}
+.segs{display:flex;gap:4px;}
+.seg{width:30px;height:30px;border:1.5px solid var(--border);background:#fff;border-radius:8px;font-weight:800;font-size:0.8rem;color:var(--soft);cursor:pointer;font-family:inherit;}
+.seg.on.s1,.seg.on.s2{background:var(--danger);border-color:var(--danger);color:#fff;}
+.seg.on.s3{background:var(--warn);border-color:var(--warn);color:#fff;}
+.seg.on.s4,.seg.on.s5{background:var(--success);border-color:var(--success);color:#fff;}
+.cat-body{margin-top:9px;display:none;}
+.cat-body.on{display:block;}
+.ta{width:100%;border:1px solid var(--border);border-radius:10px;padding:0.6rem 0.7rem;font-family:inherit;font-size:0.85rem;resize:vertical;min-height:48px;color:var(--text);}
+.row-mini{display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap;}
+.mini-btn{padding:0.45rem 0.8rem;border:1.5px solid var(--border);border-radius:10px;background:#fff;cursor:pointer;font-size:0.78rem;font-weight:700;color:var(--muted);font-family:inherit;display:flex;align-items:center;gap:6px;}
+.mini-btn.flag.on{background:#fef2f2;border-color:var(--danger);color:var(--danger);}
+.sev{display:flex;gap:5px;}
+.sev-b{padding:0.4rem 0.7rem;border:1.5px solid var(--border);border-radius:9px;background:#fff;cursor:pointer;font-size:0.74rem;font-weight:800;color:var(--soft);font-family:inherit;}
+.sev-b.on{color:#fff;}
+.sev-b.on[data-s="asagi"]{background:var(--soft);border-color:var(--soft);}
+.sev-b.on[data-s="orta"]{background:var(--warn);border-color:var(--warn);}
+.sev-b.on[data-s="kritik"]{background:var(--danger);border-color:var(--danger);}
+.thumb{width:46px;height:46px;border-radius:9px;object-fit:cover;border:1px solid var(--border);}
+.emp-card{border:1px solid var(--border);border-radius:13px;padding:0.7rem 0.8rem;margin-bottom:8px;}
+.emp-top{display:flex;align-items:center;gap:9px;margin-bottom:8px;}
+.emp-name{flex:1;font-weight:800;font-size:0.9rem;}
+.sent{display:flex;gap:5px;}
+.sent-b{width:32px;height:30px;border:1.5px solid var(--border);background:#fff;border-radius:8px;cursor:pointer;font-family:inherit;color:var(--soft);font-weight:800;}
+.sent-b.on.pos{background:var(--success);border-color:var(--success);color:#fff;}
+.sent-b.on.neg{background:var(--danger);border-color:var(--danger);color:#fff;}
+.sent-b.on.neutral{background:var(--soft);border-color:var(--soft);color:#fff;}
+.x-btn{background:none;border:none;color:var(--soft);cursor:pointer;font-size:1rem;padding:4px;}
+.btn{padding:0.8rem 1rem;border:none;border-radius:13px;background:var(--primary);color:#fff;font-weight:800;font-size:0.9rem;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;width:100%;}
+.btn.ghost{background:#fff;color:var(--muted);border:1.5px solid var(--border);}
+.score-pill{font-weight:900;font-size:1rem;}
+.status{font-size:0.82rem;font-weight:700;text-align:center;padding:0.6rem;border-radius:11px;margin-top:8px;}
+.status.ok{background:#ecfdf5;color:#047857;}
+.status.err{background:#fef2f2;color:#b91c1c;}
+.status.info{background:#eef2ff;color:var(--ink);}
+/* meeting */
+.subbar{display:flex;gap:6px;margin-bottom:12px;}
+.sub-btn{flex:1;padding:0.55rem;border:1.5px solid var(--border);border-radius:11px;background:#fff;cursor:pointer;font-size:0.8rem;font-weight:800;color:var(--muted);font-family:inherit;}
+.sub-btn.on{background:var(--ink);color:#fff;border-color:var(--ink);}
+.weeknav{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+.weeknav button{background:#fff;border:1.5px solid var(--border);border-radius:10px;width:38px;height:38px;cursor:pointer;color:var(--muted);}
+.grid4{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;}
+.bcard{background:#fff;border:1.5px solid var(--border);border-radius:15px;padding:0.9rem;cursor:pointer;}
+.bcard.best{border-color:var(--success);}
+.bcard.worst{border-color:var(--danger);}
+.bcard-top{display:flex;align-items:center;justify-content:space-between;}
+.bcard-name{font-weight:800;font-size:0.95rem;}
+.tag{font-size:0.66rem;font-weight:800;padding:2px 8px;border-radius:8px;}
+.bcard-score{font-size:1.7rem;font-weight:900;margin:5px 0;}
+.bcard-sub{font-size:0.72rem;color:var(--soft);font-weight:600;}
+.bar-row{display:flex;align-items:center;gap:9px;margin-bottom:7px;}
+.bar-name{width:46%;font-size:0.82rem;font-weight:600;}
+.bar-track{flex:1;height:8px;background:#eef2f7;border-radius:5px;overflow:hidden;}
+.bar-fill{height:100%;border-radius:5px;}
+.bar-val{width:30px;text-align:right;font-weight:800;font-size:0.82rem;}
+.issue{border:1px solid var(--border);border-radius:13px;padding:0.7rem 0.8rem;margin-bottom:9px;}
+.issue-top{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+.issue-title{flex:1;font-weight:700;font-size:0.88rem;}
+.sev-pill{font-size:0.66rem;font-weight:800;padding:2px 8px;border-radius:8px;white-space:nowrap;}
+.sev-pill.asagi{background:#f1f5f9;color:var(--muted);}
+.sev-pill.orta{background:#fffbeb;color:#b45309;}
+.sev-pill.kritik{background:#fef2f2;color:#b91c1c;}
+.issue-meta{font-size:0.74rem;color:var(--soft);margin-bottom:7px;}
+.issue-ctrls{display:flex;gap:6px;flex-wrap:wrap;align-items:center;}
+.st-sel{border:1.5px solid var(--border);border-radius:9px;padding:0.4rem 0.5rem;font-family:inherit;font-size:0.78rem;font-weight:700;background:#fff;color:var(--text);}
+.in-sm{border:1.5px solid var(--border);border-radius:9px;padding:0.4rem 0.5rem;font-family:inherit;font-size:0.78rem;width:110px;color:var(--text);}
+.empty{text-align:center;color:var(--soft);padding:2rem 1rem;font-size:0.85rem;}
+/* picker overlay */
+.overlay{position:fixed;inset:0;background:rgba(15,23,42,0.45);z-index:200;display:none;align-items:flex-end;justify-content:center;}
+.overlay.on{display:flex;}
+.sheet{background:#fff;width:100%;max-width:480px;border-radius:18px 18px 0 0;max-height:75vh;overflow:auto;padding:1rem 1rem 1.5rem;}
+.sheet h3{font-size:1rem;margin-bottom:0.8rem;display:flex;align-items:center;justify-content:space-between;}
+.pick-item{padding:0.7rem 0.8rem;border:1px solid var(--border);border-radius:11px;margin-bottom:7px;font-weight:700;font-size:0.88rem;cursor:pointer;}
+.slide-back{display:flex;align-items:center;gap:7px;color:var(--ink);font-weight:800;font-size:0.85rem;cursor:pointer;margin-bottom:10px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="topbar">
+    <div class="topbar-row">
+      <div class="brand"><i class="fa-solid fa-clipboard-check"></i> Əməliyyat<span class="who" id="whoName">—</span></div>
+    </div>
+    <div class="modebar">
+      <button class="mode-btn on" id="mb-field" onclick="switchMode('field')"><i class="fa-solid fa-location-dot"></i> Saha</button>
+      <button class="mode-btn" id="mb-meeting" onclick="switchMode('meeting')"><i class="fa-solid fa-chalkboard-user"></i> İclas</button>
+    </div>
+  </div>
+
+  <!-- ───────── SAHA / İNSPEKSİYA ───────── -->
+  <div class="page on" id="page-field">
+
+    <div class="card">
+      <div class="sec-title"><i class="fa-solid fa-store"></i> Filial</div>
+      <div class="chips" id="deptChips"></div>
+    </div>
+
+    <div id="fieldBody" style="display:none;">
+      <div class="card">
+        <div class="sec-title"><i class="fa-solid fa-list-check"></i> Yoxlama kateqoriyaları</div>
+        <div id="catList"></div>
+      </div>
+
+      <div class="card">
+        <div class="sec-title"><i class="fa-solid fa-user-group"></i> İşçi qeydləri</div>
+        <div id="empList"></div>
+        <button class="mini-btn" style="margin-top:6px;" onclick="openEmpPicker()"><i class="fa-solid fa-plus"></i> İşçi seç</button>
+      </div>
+
+      <div class="card">
+        <div class="sec-title"><i class="fa-solid fa-pen"></i> Yekun qeyd</div>
+        <textarea class="ta" id="summary" placeholder="Ümumi təəssürat, əlavə qeyd..."></textarea>
+      </div>
+
+      <button class="btn" id="saveBtn" onclick="saveVisit()"><i class="fa-solid fa-circle-check"></i> Ziyarəti bitir <span id="ovScore" class="score-pill"></span></button>
+      <div id="fieldStatus"></div>
+    </div>
+  </div>
+
+  <!-- ───────── İCLAS / PROYEKTOR ───────── -->
+  <div class="page" id="page-meeting">
+    <div class="weeknav">
+      <button onclick="weekShift(-1)"><i class="fa-solid fa-chevron-left"></i></button>
+      <div style="font-weight:800;" id="weekLabel">—</div>
+      <button onclick="weekShift(1)"><i class="fa-solid fa-chevron-right"></i></button>
+    </div>
+    <div class="subbar">
+      <button class="sub-btn on" id="sub-overview" onclick="switchSub('overview')"><i class="fa-solid fa-grip"></i> Ümumi baxış</button>
+      <button class="sub-btn" id="sub-problems" onclick="switchSub('problems')"><i class="fa-solid fa-triangle-exclamation"></i> Problemlər</button>
+    </div>
+
+    <div id="ov-overview">
+      <div class="grid4" id="branchCards"></div>
+      <div id="branchDetail" style="margin-top:12px;"></div>
+    </div>
+
+    <div id="ov-problems" style="display:none;">
+      <div class="chips" id="probFilter" style="margin-bottom:12px;"></div>
+      <div id="issueList"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- İşçi seçici -->
+<div class="overlay" id="empOverlay" onclick="if(event.target===this)closeEmpPicker()">
+  <div class="sheet">
+    <h3>İşçi seç <button class="x-btn" onclick="closeEmpPicker()"><i class="fa-solid fa-xmark"></i></button></h3>
+    <div id="pickList"></div>
+  </div>
+</div>
+
+<script src="/gsr-shim.js"></script>
+<script>
+var OPS_KEY="<?= opsKey ?>", OPS_NAME="<?= opsName ?>", SCRIPT_URL="<?= scriptUrl ?>";
+
+/* ── Kateqoriyalar (dəyişmək üçün yalnız bu siyahını redaktə et) ── */
+var CATEGORIES=[
+  {name:'Təmizlik / gigiyena', icon:'fa-spray-can-sparkles'},
+  {name:'Personal',            icon:'fa-users'},
+  {name:'Məhsul / qəhvə keyfiyyəti', icon:'fa-mug-hot'},
+  {name:'Xidmət',              icon:'fa-face-smile'},
+  {name:'Avadanlıq',           icon:'fa-screwdriver-wrench'},
+  {name:'Stok / itki',         icon:'fa-boxes-stacked'},
+  {name:'Kassa / əməliyyat',   icon:'fa-cash-register'},
+  {name:'Müştəri rəyi',        icon:'fa-star'}
+];
+
+var BOOT=null;
+var field={dept:'', ratings:{}, emps:[]};
+var meeting={weekStart:null, sub:'overview', detailDept:null, probStatus:'open'};
+
+function ymd(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function mondayOf(d){var x=new Date(d);var g=x.getDay()===0?6:x.getDay()-1;x=new Date(x.getTime()-g*86400000);x.setHours(0,0,0,0);return x;}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+document.getElementById('whoName').textContent=OPS_NAME;
+meeting.weekStart=mondayOf(new Date());
+
+google.script.run.withSuccessHandler(function(b){
+  if(!b){document.body.innerHTML='<h2 style="padding:2rem;color:#b91c1c;font-family:sans-serif">İcazəsiz.</h2>';return;}
+  BOOT=b; if(b.opsName)document.getElementById('whoName').textContent=b.opsName;
+  renderDeptChips();
+}).getOpsBootstrap(OPS_KEY);
+
+/* ───────── REJİM ───────── */
+function switchMode(m){
+  document.getElementById('mb-field').classList.toggle('on',m==='field');
+  document.getElementById('mb-meeting').classList.toggle('on',m==='meeting');
+  document.getElementById('page-field').classList.toggle('on',m==='field');
+  document.getElementById('page-meeting').classList.toggle('on',m==='meeting');
+  if(m==='meeting')loadMeeting();
+}
+
+/* ───────── SAHA ───────── */
+function renderDeptChips(){
+  document.getElementById('deptChips').innerHTML=(BOOT.depts||[]).map(function(d){
+    return '<button class="chip'+(field.dept===d?' on':'')+'" onclick="selectDept(\''+esc(d)+'\')">'+esc(d)+'</button>';
+  }).join('');
+}
+function selectDept(d){
+  if(field.dept!==d){field.dept=d;field.ratings={};field.emps=[];document.getElementById('summary').value='';}
+  renderDeptChips();
+  document.getElementById('fieldBody').style.display='block';
+  renderCats(); renderEmps(); updateOverall();
+}
+function getRating(name){
+  if(!field.ratings[name])field.ratings[name]={score:0,note:'',photoUrl:'',problem:false,severity:'orta',open:false};
+  return field.ratings[name];
+}
+function renderCats(){
+  document.getElementById('catList').innerHTML=CATEGORIES.map(function(c,idx){
+    var st=getRating(c.name);
+    var segs='';for(var k=1;k<=5;k++){segs+='<button class="seg'+(k<=st.score?' on s'+st.score:'')+'" onclick="setScore('+idx+','+k+')">'+k+'</button>';}
+    var thumb=st.photoUrl?'<img class="thumb" src="'+esc(st.photoUrl)+'">':'';
+    var sev=['asagi','orta','kritik'].map(function(s){return '<button class="sev-b'+(st.severity===s?' on':'')+'" data-s="'+s+'" onclick="setCatSev('+idx+',\''+s+'\')">'+(s==='asagi'?'Aşağı':s==='orta'?'Orta':'Kritik')+'</button>';}).join('');
+    return '<div class="cat">'+
+      '<div class="cat-head">'+
+        '<div class="cat-name" onclick="toggleCat('+idx+')"><i class="fa-solid '+c.icon+'"></i>'+esc(c.name)+'</div>'+
+        '<div class="segs">'+segs+'</div>'+
+      '</div>'+
+      '<div class="cat-body'+(st.open?' on':'')+'">'+
+        '<textarea class="ta" placeholder="Qeyd..." oninput="setCatNote('+idx+',this.value)">'+esc(st.note)+'</textarea>'+
+        '<div class="row-mini">'+
+          '<button class="mini-btn" onclick="catPhoto('+idx+')"><i class="fa-solid fa-camera"></i> Foto</button>'+thumb+
+          '<button class="mini-btn flag'+(st.problem?' on':'')+'" onclick="toggleCatProblem('+idx+')"><i class="fa-solid fa-flag"></i> Problem</button>'+
+        '</div>'+
+        (st.problem?'<div class="row-mini"><span style="font-size:0.74rem;color:var(--muted);font-weight:700;">Ağırlıq:</span><div class="sev">'+sev+'</div></div>':'')+
+      '</div>'+
+    '</div>';
+  }).join('');
+}
+function setScore(idx,n){var st=getRating(CATEGORIES[idx].name);st.score=(st.score===n?0:n);st.open=true;renderCats();updateOverall();}
+function toggleCat(idx){var st=getRating(CATEGORIES[idx].name);st.open=!st.open;renderCats();}
+function setCatNote(idx,v){getRating(CATEGORIES[idx].name).note=v;}
+function toggleCatProblem(idx){var st=getRating(CATEGORIES[idx].name);st.problem=!st.problem;renderCats();}
+function setCatSev(idx,s){getRating(CATEGORIES[idx].name).severity=s;renderCats();}
+function catPhoto(idx){pickPhoto(function(url){if(url){getRating(CATEGORIES[idx].name).photoUrl=url;renderCats();}});}
+function updateOverall(){
+  var arr=Object.keys(field.ratings).map(function(k){return field.ratings[k].score;}).filter(function(s){return s>0;});
+  var ov=arr.length?Math.round(arr.reduce(function(a,b){return a+b;},0)/arr.length*10)/10:0;
+  document.getElementById('ovScore').textContent=ov?('· '+ov):'';
+}
+
+/* işçi qeydləri */
+function openEmpPicker(){
+  if(!field.dept){alert('Əvvəlcə filial seç.');return;}
+  var list=(BOOT.employees[field.dept]||[]);
+  document.getElementById('pickList').innerHTML=list.length?list.map(function(e){
+    return '<div class="pick-item" onclick="addEmp(\''+esc(e.id)+'\',\''+esc(e.name)+'\')">'+esc(e.name)+'</div>';
+  }).join(''):'<div class="empty">Bu filialda işçi yoxdur.</div>';
+  document.getElementById('empOverlay').classList.add('on');
+}
+function closeEmpPicker(){document.getElementById('empOverlay').classList.remove('on');}
+function addEmp(id,name){
+  if(!field.emps.some(function(e){return e.empId===id;}))
+    field.emps.push({empId:id,empName:name,sentiment:'neutral',note:'',isProblem:false,severity:'orta',photoUrl:''});
+  closeEmpPicker();renderEmps();
+}
+function renderEmps(){
+  document.getElementById('empList').innerHTML=field.emps.map(function(e,idx){
+    var sent=['pos','neutral','neg'].map(function(s){var lbl=s==='pos'?'<i class="fa-solid fa-plus"></i>':s==='neg'?'<i class="fa-solid fa-minus"></i>':'<i class="fa-solid fa-circle"></i>';return '<button class="sent-b'+(e.sentiment===s?' on '+s:'')+'" onclick="setEmpSent('+idx+',\''+s+'\')">'+lbl+'</button>';}).join('');
+    var thumb=e.photoUrl?'<img class="thumb" src="'+esc(e.photoUrl)+'">':'';
+    var sev=['asagi','orta','kritik'].map(function(s){return '<button class="sev-b'+(e.severity===s?' on':'')+'" data-s="'+s+'" onclick="setEmpSev('+idx+',\''+s+'\')">'+(s==='asagi'?'Aşağı':s==='orta'?'Orta':'Kritik')+'</button>';}).join('');
+    return '<div class="emp-card">'+
+      '<div class="emp-top"><span class="emp-name">'+esc(e.empName)+'</span><div class="sent">'+sent+'</div><button class="x-btn" onclick="removeEmp('+idx+')"><i class="fa-solid fa-xmark"></i></button></div>'+
+      '<textarea class="ta" placeholder="Müşahidə / qeyd..." oninput="setEmpNote('+idx+',this.value)">'+esc(e.note)+'</textarea>'+
+      '<div class="row-mini">'+
+        '<button class="mini-btn" onclick="empPhoto('+idx+')"><i class="fa-solid fa-camera"></i> Foto</button>'+thumb+
+        '<button class="mini-btn flag'+(e.isProblem?' on':'')+'" onclick="toggleEmpProblem('+idx+')"><i class="fa-solid fa-flag"></i> Problem kimi izlə</button>'+
+      '</div>'+
+      (e.isProblem?'<div class="row-mini"><span style="font-size:0.74rem;color:var(--muted);font-weight:700;">Ağırlıq:</span><div class="sev">'+sev+'</div></div>':'')+
+    '</div>';
+  }).join('');
+}
+function setEmpSent(idx,s){field.emps[idx].sentiment=s;renderEmps();}
+function setEmpNote(idx,v){field.emps[idx].note=v;}
+function toggleEmpProblem(idx){var e=field.emps[idx];e.isProblem=!e.isProblem;if(e.isProblem)e.sentiment='neg';renderEmps();}
+function setEmpSev(idx,s){field.emps[idx].severity=s;renderEmps();}
+function removeEmp(idx){field.emps.splice(idx,1);renderEmps();}
+function empPhoto(idx){pickPhoto(function(url){if(url){field.emps[idx].photoUrl=url;renderEmps();}});}
+
+/* foto */
+function pickPhoto(cb){
+  var inp=document.createElement('input');inp.type='file';inp.accept='image/*';inp.setAttribute('capture','environment');
+  inp.onchange=function(){var f=inp.files&&inp.files[0];if(!f)return;setFieldStatus('info','Şəkil yüklənir...');compress(f,function(dataUrl){uploadPhoto(dataUrl,function(url){clearFieldStatus();cb(url);});});};
+  inp.click();
+}
+function compress(file,cb){
+  var rd=new FileReader();
+  rd.onload=function(){var img=new Image();img.onload=function(){var max=1100,w=img.width,h=img.height;if(w>max||h>max){if(w>h){h=Math.round(h*max/w);w=max;}else{w=Math.round(w*max/h);h=max;}}var c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(img,0,0,w,h);cb(c.toDataURL('image/jpeg',0.72));};img.src=rd.result;};
+  rd.readAsDataURL(file);
+}
+function uploadPhoto(dataUrl,cb){
+  google.script.run.withSuccessHandler(function(r){cb(r&&r.success?r.url:'');}).withFailureHandler(function(){cb('');}).uploadOpsPhoto(OPS_KEY,dataUrl,'jpg');
+}
+
+function setFieldStatus(cls,msg){var el=document.getElementById('fieldStatus');el.className='status '+cls;el.textContent=msg;}
+function clearFieldStatus(){var el=document.getElementById('fieldStatus');el.className='';el.textContent='';}
+
+function saveVisit(){
+  if(!field.dept){alert('Filial seç.');return;}
+  var ratings=[],issues=[];
+  CATEGORIES.forEach(function(c){
+    var st=field.ratings[c.name];if(!st)return;
+    if(st.score>0||st.note||st.photoUrl)ratings.push({category:c.name,score:st.score,note:st.note,photoUrl:st.photoUrl});
+    if(st.problem)issues.push({title:c.name+' — problem',detail:st.note,severity:st.severity,photoUrl:st.photoUrl});
+  });
+  var empNotes=field.emps.map(function(e){return {empId:e.empId,empName:e.empName,sentiment:e.sentiment,note:e.note,isProblem:e.isProblem,severity:e.severity,photoUrl:e.photoUrl};});
+  if(!ratings.length&&!empNotes.length){alert('Ən azı bir qiymət və ya işçi qeydi əlavə et.');return;}
+  var btn=document.getElementById('saveBtn');btn.disabled=true;
+  setFieldStatus('info','Saxlanılır...');
+  google.script.run.withSuccessHandler(function(r){
+    btn.disabled=false;
+    if(r&&r.success){
+      setFieldStatus('ok','Ziyarət saxlandı (bal '+(r.overall||0)+'). Problemlər iclas tabına düşdü.');
+      field.ratings={};field.emps=[];document.getElementById('summary').value='';renderCats();renderEmps();updateOverall();
+      setTimeout(clearFieldStatus,4000);
+    }else setFieldStatus('err','Xəta: '+(r?r.reason:'bilinməyən'));
+  }).withFailureHandler(function(e){btn.disabled=false;setFieldStatus('err','Server xətası: '+(e.message||e));})
+  .saveOpsVisit(OPS_KEY,{dept:field.dept,summary:document.getElementById('summary').value,ratings:ratings,empNotes:empNotes,issues:issues});
+}
+
+/* ───────── İCLAS ───────── */
+function weekLabelText(){
+  var s=new Date(meeting.weekStart),e=new Date(s.getTime()+6*86400000);
+  return s.getDate()+'.'+String(s.getMonth()+1).padStart(2,'0')+' – '+e.getDate()+'.'+String(e.getMonth()+1).padStart(2,'0');
+}
+function weekShift(n){meeting.weekStart=new Date(meeting.weekStart.getTime()+n*7*86400000);meeting.detailDept=null;loadMeeting();}
+function switchSub(s){
+  meeting.sub=s;
+  document.getElementById('sub-overview').classList.toggle('on',s==='overview');
+  document.getElementById('sub-problems').classList.toggle('on',s==='problems');
+  document.getElementById('ov-overview').style.display=s==='overview'?'block':'none';
+  document.getElementById('ov-problems').style.display=s==='problems'?'block':'none';
+  if(s==='problems')loadProblems();
+}
+function loadMeeting(){
+  document.getElementById('weekLabel').textContent=weekLabelText();
+  if(meeting.sub==='problems'){loadProblems();return;}
+  document.getElementById('branchDetail').innerHTML='';
+  document.getElementById('branchCards').innerHTML='<div class="empty">Yüklənir...</div>';
+  google.script.run.withSuccessHandler(function(d){
+    if(!d){document.getElementById('branchCards').innerHTML='<div class="empty">İcazəsiz.</div>';return;}
+    var cards=d.cards||[],scored=cards.filter(function(c){return c.visits>0;});
+    var best=null,worst=null;
+    scored.forEach(function(c){if(!best||c.score>best.score)best=c;if(!worst||c.score<worst.score)worst=c;});
+    document.getElementById('branchCards').innerHTML=cards.map(function(c){
+      var cls=scored.length>1&&best&&c.dept===best.dept?' best':(scored.length>1&&worst&&c.dept===worst.dept?' worst':'');
+      var tag=c.openIssues>0?'<span class="tag" style="background:#fffbeb;color:#b45309;">'+c.openIssues+' problem</span>':(c.visits?'<span class="tag" style="background:#ecfdf5;color:#047857;">'+c.visits+' ziyarət</span>':'<span class="tag" style="background:#f1f5f9;color:#94a3b8;">ziyarət yox</span>');
+      return '<div class="bcard'+cls+'" onclick="loadBranchDetail(\''+esc(c.dept)+'\')">'+
+        '<div class="bcard-top"><span class="bcard-name">'+esc(c.dept)+'</span>'+tag+'</div>'+
+        '<div class="bcard-score" style="color:'+(c.score>=4?'#10b981':c.score>=3?'#f59e0b':c.score>0?'#ef4444':'#cbd5e1')+'">'+(c.score||'—')+'</div>'+
+        '<div class="bcard-sub">'+c.visits+' ziyarət · '+c.openIssues+' açıq problem</div>'+
+      '</div>';
+    }).join('');
+    if(meeting.detailDept)loadBranchDetail(meeting.detailDept);
+  }).getOpsMeetingData(OPS_KEY,ymd(meeting.weekStart));
+}
+function loadBranchDetail(dept){
+  meeting.detailDept=dept;
+  var box=document.getElementById('branchDetail');
+  box.innerHTML='<div class="card"><div class="empty">Yüklənir...</div></div>';
+  google.script.run.withSuccessHandler(function(d){
+    if(!d){box.innerHTML='';return;}
+    var bars=(d.categories||[]).map(function(c){
+      var col=c.avg>=4?'#10b981':c.avg>=3?'#f59e0b':'#ef4444';
+      return '<div class="bar-row"><div class="bar-name">'+esc(c.category)+'</div><div class="bar-track"><div class="bar-fill" style="width:'+(c.avg/5*100)+'%;background:'+col+'"></div></div><div class="bar-val">'+(c.avg||'—')+'</div></div>';
+    }).join('')||'<div class="empty">Qiymət yoxdur.</div>';
+    var notes=(d.empNotes||[]).map(function(n){
+      var col=n.sentiment==='pos'?'#ecfdf5;color:#047857':n.sentiment==='neg'?'#fef2f2;color:#b91c1c':'#f1f5f9;color:#475569';
+      var ic=n.sentiment==='pos'?'fa-plus':n.sentiment==='neg'?'fa-minus':'fa-circle';
+      return '<div style="display:inline-flex;align-items:center;gap:6px;background:'+col+';padding:5px 11px;border-radius:100px;font-size:0.8rem;font-weight:700;margin:0 6px 6px 0;"><i class="fa-solid '+ic+'" style="font-size:0.7rem;"></i>'+esc(n.empName)+(n.note?' — '+esc(n.note):'')+'</div>';
+    }).join('')||'<div class="empty">İşçi qeydi yoxdur.</div>';
+    box.innerHTML='<div class="card">'+
+      '<div class="slide-back" onclick="closeDetail()"><i class="fa-solid fa-arrow-left"></i> Bütün filiallar</div>'+
+      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;"><div style="font-size:1.2rem;font-weight:900;">'+esc(dept)+'</div><div style="font-size:0.78rem;color:var(--soft);font-weight:700;">'+(d.visitCount||0)+' ziyarət</div></div>'+
+      '<div class="sec-title"><i class="fa-solid fa-chart-simple"></i> Kateqoriya ortalamaları</div>'+bars+
+      '<div class="sec-title" style="margin-top:1rem;"><i class="fa-solid fa-user-group"></i> İşçi qeydləri</div>'+notes+
+    '</div>';
+    box.scrollIntoView({behavior:'smooth',block:'start'});
+  }).getOpsBranchDetail(OPS_KEY,dept,ymd(meeting.weekStart));
+}
+function closeDetail(){meeting.detailDept=null;document.getElementById('branchDetail').innerHTML='';}
+
+/* problemlər */
+function loadProblems(){
+  document.getElementById('probFilter').innerHTML=[['open','Açıq'],['progress','Davam edir'],['resolved','Həll olundu'],['all','Hamısı']].map(function(f){
+    return '<button class="chip'+(meeting.probStatus===f[0]?' on':'')+'" onclick="setProbFilter(\''+f[0]+'\')">'+f[1]+'</button>';
+  }).join('');
+  var box=document.getElementById('issueList');box.innerHTML='<div class="empty">Yüklənir...</div>';
+  google.script.run.withSuccessHandler(function(rows){
+    if(!rows||!rows.length){box.innerHTML='<div class="empty">Problem yoxdur.</div>';return;}
+    box.innerHTML=rows.map(function(r){
+      var who=r.empName?('<i class="fa-solid fa-user"></i> '+esc(r.empName)+' · '):'';
+      var opt=function(v,l){return '<option value="'+v+'"'+(r.status===v?' selected':'')+'>'+l+'</option>';};
+      return '<div class="issue">'+
+        '<div class="issue-top"><span class="sev-pill '+r.severity+'">'+(r.severity==='kritik'?'kritik':r.severity==='asagi'?'aşağı':'orta')+'</span><span class="issue-title">'+esc(r.title)+'</span></div>'+
+        '<div class="issue-meta">'+who+'<i class="fa-solid fa-store"></i> '+esc(r.dept)+(r.detail?(' · '+esc(r.detail)):'')+'</div>'+
+        '<div class="issue-ctrls">'+
+          '<select class="st-sel" onchange="updIssue(\''+r.issueId+'\',{status:this.value})">'+opt('open','Açıq')+opt('progress','Davam edir')+opt('resolved','Həll olundu')+'</select>'+
+          '<input class="in-sm" placeholder="Məsul" value="'+esc(r.assignedTo)+'" onchange="updIssue(\''+r.issueId+'\',{assignedTo:this.value})">'+
+          '<input class="in-sm" type="date" value="'+esc(r.dueDate)+'" onchange="updIssue(\''+r.issueId+'\',{dueDate:this.value})">'+
+          (r.photoUrl?'<a href="'+esc(r.photoUrl)+'" target="_blank" class="mini-btn"><i class="fa-solid fa-image"></i></a>':'')+
+        '</div>'+
+      '</div>';
+    }).join('');
+  }).getOpsIssues(OPS_KEY,meeting.probStatus,'');
+}
+function setProbFilter(s){meeting.probStatus=s;loadProblems();}
+function updIssue(id,patch){
+  google.script.run.withSuccessHandler(function(r){
+    if(meeting.probStatus!=='all')loadProblems();
+  }).updateOpsIssue(OPS_KEY,id,patch);
+}
+</script>
+</body>
+</html>
