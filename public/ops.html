@@ -94,6 +94,10 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
 .bar-track{flex:1;height:8px;background:#eef2f7;border-radius:5px;overflow:hidden;}
 .bar-fill{height:100%;border-radius:5px;}
 .bar-val{width:30px;text-align:right;font-weight:800;font-size:0.82rem;}
+.prob-group{margin-bottom:18px;}
+.prob-group-head{display:flex;align-items:center;gap:8px;font-size:0.84rem;font-weight:800;color:var(--ink);margin:0 0 9px 2px;}
+.prob-group-head i{color:var(--soft);}
+.prob-count{background:#eef2ff;color:var(--ink);font-size:0.7rem;font-weight:800;padding:1px 9px;border-radius:100px;}
 .issue{border:1px solid var(--border);border-radius:13px;padding:0.7rem 0.8rem;margin-bottom:9px;}
 .issue-top{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
 .issue-title{flex:1;font-weight:700;font-size:0.88rem;}
@@ -432,21 +436,32 @@ function loadProblems(){
   var box=document.getElementById('issueList');box.innerHTML='<div class="empty">Yüklənir...</div>';
   google.script.run.withSuccessHandler(function(rows){
     if(!rows||!rows.length){box.innerHTML='<div class="empty">Problem yoxdur.</div>';return;}
-    box.innerHTML=rows.map(function(r){
-      var who=r.empName?('<i class="fa-solid fa-user"></i> '+esc(r.empName)+' · '):'';
-      var opt=function(v,l){return '<option value="'+v+'"'+(r.status===v?' selected':'')+'>'+l+'</option>';};
-      return '<div class="issue">'+
-        '<div class="issue-top"><span class="sev-pill '+r.severity+'">'+(r.severity==='kritik'?'kritik':r.severity==='asagi'?'aşağı':'orta')+'</span><span class="issue-title">'+esc(r.title)+'</span></div>'+
-        '<div class="issue-meta">'+who+'<i class="fa-solid fa-store"></i> '+esc(r.dept)+(r.detail?(' · '+esc(r.detail)):'')+'</div>'+
-        '<div class="issue-ctrls">'+
-          '<select class="st-sel" onchange="updIssue(\''+r.issueId+'\',{status:this.value})">'+opt('open','Açıq')+opt('progress','Davam edir')+opt('resolved','Həll olundu')+'</select>'+
-          '<input class="in-sm" placeholder="Məsul" value="'+esc(r.assignedTo)+'" onchange="updIssue(\''+r.issueId+'\',{assignedTo:this.value})">'+
-          '<input class="in-sm" type="date" value="'+esc(r.dueDate)+'" onchange="updIssue(\''+r.issueId+'\',{dueDate:this.value})">'+
-          (r.photoUrl?'<a href="'+esc(r.photoUrl)+'" target="_blank" class="mini-btn"><i class="fa-solid fa-image"></i></a>':'')+
-        '</div>'+
+    var groups={},seen=[];
+    rows.forEach(function(r){var d=r.dept||'—';if(!groups[d]){groups[d]=[];seen.push(d);}groups[d].push(r);});
+    var depts=(BOOT&&BOOT.depts?BOOT.depts.filter(function(d){return groups[d];}):[]);
+    seen.forEach(function(d){if(depts.indexOf(d)<0)depts.push(d);});
+    box.innerHTML=depts.map(function(d){
+      return '<div class="prob-group">'+
+        '<div class="prob-group-head"><i class="fa-solid fa-store"></i> '+esc(d)+' <span class="prob-count">'+groups[d].length+'</span></div>'+
+        groups[d].map(renderIssue).join('')+
       '</div>';
     }).join('');
   }).getOpsIssues(OPS_KEY,meeting.probStatus,'');
+}
+function renderIssue(r){
+  var who=r.empName?('<i class="fa-solid fa-user"></i> '+esc(r.empName)):'';
+  var meta=who+(who&&r.detail?' · ':'')+(r.detail?esc(r.detail):'');
+  var opt=function(v,l){return '<option value="'+v+'"'+(r.status===v?' selected':'')+'>'+l+'</option>';};
+  return '<div class="issue">'+
+    '<div class="issue-top"><span class="sev-pill '+r.severity+'">'+(r.severity==='kritik'?'kritik':r.severity==='asagi'?'aşağı':'orta')+'</span><span class="issue-title">'+esc(r.title)+'</span></div>'+
+    (meta?('<div class="issue-meta">'+meta+'</div>'):'')+
+    '<div class="issue-ctrls">'+
+      '<select class="st-sel" onchange="updIssue(\''+r.issueId+'\',{status:this.value})">'+opt('open','Açıq')+opt('progress','Davam edir')+opt('resolved','Həll olundu')+'</select>'+
+      '<input class="in-sm" placeholder="Məsul" value="'+esc(r.assignedTo)+'" onchange="updIssue(\''+r.issueId+'\',{assignedTo:this.value})">'+
+      '<input class="in-sm" type="date" value="'+esc(r.dueDate)+'" onchange="updIssue(\''+r.issueId+'\',{dueDate:this.value})">'+
+      (r.photoUrl?'<a href="'+esc(r.photoUrl)+'" target="_blank" class="mini-btn"><i class="fa-solid fa-image"></i></a>':'')+
+    '</div>'+
+  '</div>';
 }
 function setProbFilter(s){meeting.probStatus=s;loadProblems();}
 function updIssue(id,patch){
