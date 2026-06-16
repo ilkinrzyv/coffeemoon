@@ -115,6 +115,9 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
 .sheet h3{font-size:1rem;margin-bottom:0.8rem;display:flex;align-items:center;justify-content:space-between;}
 .pick-item{padding:0.7rem 0.8rem;border:1px solid var(--border);border-radius:11px;margin-bottom:7px;font-weight:700;font-size:0.88rem;cursor:pointer;}
 .slide-back{display:flex;align-items:center;gap:7px;color:var(--ink);font-weight:800;font-size:0.85rem;cursor:pointer;margin-bottom:10px;}
+.ce-row{display:flex;align-items:center;gap:6px;margin-bottom:7px;}
+.ce-row input{flex:1;border:1.5px solid var(--border);border-radius:9px;padding:0.5rem 0.6rem;font-family:inherit;font-size:0.85rem;color:var(--text);min-width:0;}
+.ce-ar{background:#fff;border:1.5px solid var(--border);border-radius:8px;width:32px;height:36px;cursor:pointer;color:var(--muted);flex:none;}
 </style>
 </head>
 <body>
@@ -140,7 +143,10 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
 
     <div id="fieldBody" style="display:none;">
       <div class="card">
-        <div class="sec-title"><i class="fa-solid fa-list-check"></i> Yoxlama kateqoriyaları</div>
+        <div class="sec-title" style="justify-content:space-between;">
+          <span><i class="fa-solid fa-list-check"></i> Yoxlama kateqoriyaları</span>
+          <button class="mini-btn" style="padding:0.3rem 0.6rem;" onclick="openCatEditor()"><i class="fa-solid fa-pen"></i> Düzəlt</button>
+        </div>
         <div id="catList"></div>
       </div>
 
@@ -201,6 +207,17 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
   </div>
 </div>
 
+<!-- Kateqoriya redaktoru -->
+<div class="overlay" id="catOverlay" onclick="if(event.target===this)closeCatEditor()">
+  <div class="sheet">
+    <h3>Kateqoriyalar <button class="x-btn" onclick="closeCatEditor()"><i class="fa-solid fa-xmark"></i></button></h3>
+    <div id="catEditList"></div>
+    <button class="mini-btn" style="margin:8px 0 12px;" onclick="catEditAdd()"><i class="fa-solid fa-plus"></i> Kateqoriya əlavə et</button>
+    <button class="btn" onclick="saveCatEditor()"><i class="fa-solid fa-floppy-disk"></i> Saxla</button>
+    <div id="catEditStatus"></div>
+  </div>
+</div>
+
 <script src="/gsr-shim.js"></script>
 <script>
 var OPS_KEY="<?= opsKey ?>", OPS_NAME="<?= opsName ?>", SCRIPT_URL="<?= scriptUrl ?>";
@@ -231,6 +248,7 @@ meeting.weekStart=mondayOf(new Date());
 google.script.run.withSuccessHandler(function(b){
   if(!b){document.body.innerHTML='<h2 style="padding:2rem;color:#b91c1c;font-family:sans-serif">İcazəsiz.</h2>';return;}
   BOOT=b; if(b.opsName)document.getElementById('whoName').textContent=b.opsName;
+  if(b.categories&&b.categories.length)CATEGORIES=b.categories;
   renderDeptChips();
 }).getOpsBootstrap(OPS_KEY);
 
@@ -330,6 +348,39 @@ function toggleEmpProblem(idx){var e=field.emps[idx];e.isProblem=!e.isProblem;if
 function setEmpSev(idx,s){field.emps[idx].severity=s;renderEmps();}
 function removeEmp(idx){field.emps.splice(idx,1);renderEmps();}
 function empPhoto(idx){pickPhoto(function(url){if(url){field.emps[idx].photoUrl=url;renderEmps();}});}
+
+/* kateqoriya redaktoru */
+var catEdit=[];
+function openCatEditor(){
+  catEdit=CATEGORIES.map(function(c){return {name:c.name,icon:c.icon||'fa-clipboard-check'};});
+  document.getElementById('catEditStatus').className='';document.getElementById('catEditStatus').textContent='';
+  renderCatEditor();document.getElementById('catOverlay').classList.add('on');
+}
+function closeCatEditor(){document.getElementById('catOverlay').classList.remove('on');}
+function renderCatEditor(){
+  document.getElementById('catEditList').innerHTML=catEdit.map(function(c,idx){
+    return '<div class="ce-row">'+
+      '<button class="ce-ar" onclick="catEditMove('+idx+',-1)"><i class="fa-solid fa-chevron-up"></i></button>'+
+      '<button class="ce-ar" onclick="catEditMove('+idx+',1)"><i class="fa-solid fa-chevron-down"></i></button>'+
+      '<input value="'+esc(c.name)+'" oninput="catEditName('+idx+',this.value)" placeholder="Kateqoriya adı">'+
+      '<button class="ce-ar" onclick="catEditDel('+idx+')" style="color:var(--danger);"><i class="fa-solid fa-trash"></i></button>'+
+    '</div>';
+  }).join('');
+}
+function catEditName(idx,v){catEdit[idx].name=v;}
+function catEditDel(idx){catEdit.splice(idx,1);renderCatEditor();}
+function catEditAdd(){catEdit.push({name:'',icon:'fa-clipboard-check'});renderCatEditor();}
+function catEditMove(idx,dir){var j=idx+dir;if(j<0||j>=catEdit.length)return;var t=catEdit[idx];catEdit[idx]=catEdit[j];catEdit[j]=t;renderCatEditor();}
+function saveCatEditor(){
+  var list=catEdit.map(function(c){return {name:(c.name||'').trim(),icon:c.icon||'fa-clipboard-check'};}).filter(function(c){return c.name;});
+  var st=document.getElementById('catEditStatus');
+  if(!list.length){st.className='status err';st.textContent='Ən azı bir kateqoriya lazımdır.';return;}
+  st.className='status info';st.textContent='Saxlanılır...';
+  google.script.run.withSuccessHandler(function(r){
+    if(r&&r.success){CATEGORIES=r.categories||list;closeCatEditor();renderCats();}
+    else{st.className='status err';st.textContent='Xəta: '+(r?r.reason:'bilinməyən');}
+  }).withFailureHandler(function(e){st.className='status err';st.textContent='Server xətası.';}).saveOpsCategories(OPS_KEY,list);
+}
 
 /* foto */
 function pickPhoto(cb){

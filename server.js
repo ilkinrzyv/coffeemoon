@@ -2470,6 +2470,23 @@ function opsWeekDates(weekStart) {
   return out;
 }
 
+const OPS_DEFAULT_CATS = [
+  { name: 'Təmizlik / gigiyena', icon: 'fa-spray-can-sparkles' },
+  { name: 'Personal', icon: 'fa-users' },
+  { name: 'Məhsul / qəhvə keyfiyyəti', icon: 'fa-mug-hot' },
+  { name: 'Xidmət', icon: 'fa-face-smile' },
+  { name: 'Avadanlıq', icon: 'fa-screwdriver-wrench' },
+  { name: 'Stok / itki', icon: 'fa-boxes-stacked' },
+  { name: 'Kassa / əməliyyat', icon: 'fa-cash-register' },
+  { name: 'Müştəri rəyi', icon: 'fa-star' },
+];
+function opsCategories() {
+  const raw = U.getSetting('OPS_CATEGORIES');
+  if (!raw) return OPS_DEFAULT_CATS;
+  try { const arr = JSON.parse(raw); return (Array.isArray(arr) && arr.length) ? arr : OPS_DEFAULT_CATS; }
+  catch (e) { return OPS_DEFAULT_CATS; }
+}
+
 API.getOpsKey = async () => {
   let key = U.getSetting('OPS_KEY');
   if (!key) {
@@ -2498,7 +2515,23 @@ API.getOpsBootstrap = async (key) => {
     if (e.is_test) continue;
     if (byDept[e.dept]) byDept[e.dept].push({ id: e.id, name: e.name });
   }
-  return { depts: U.DEPTS, employees: byDept, opsName: U.getSetting('OPS_NAME') || 'Əməliyyat meneceri' };
+  return { depts: U.DEPTS, employees: byDept, opsName: U.getSetting('OPS_NAME') || 'Əməliyyat meneceri', categories: opsCategories() };
+};
+
+// Kateqoriyalar — dəyişdirilə bilən (stabil deyil)
+API.getOpsCategories = async (key) => {
+  if (!opsAuth(key)) return null;
+  return opsCategories();
+};
+API.saveOpsCategories = async (key, list) => {
+  if (!opsAuth(key)) return { success: false, reason: 'İcazəsiz.' };
+  if (!Array.isArray(list)) return { success: false, reason: 'Yanlış format.' };
+  const clean = list
+    .map(c => ({ name: String((c && c.name) || '').trim().slice(0, 60), icon: String((c && c.icon) || 'fa-clipboard-check').trim().slice(0, 40) }))
+    .filter(c => c.name);
+  if (!clean.length) return { success: false, reason: 'Ən azı bir kateqoriya lazımdır.' };
+  await U.setSetting('OPS_CATEGORIES', JSON.stringify(clean));
+  return { success: true, categories: clean };
 };
 
 // Ziyarəti saxla: visit + ratings + işçi qeydləri + işarələnmiş problemlər (hamısı bir əməliyyatda)
