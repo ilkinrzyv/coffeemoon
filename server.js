@@ -2657,6 +2657,68 @@ API.getOpsBranchDetail = async (key, dept, weekStart) => {
   };
 };
 
+// İclas — TƏQDİMAT (proyektor) datası: bir çağırışda örtük + bütün filiallar (radar + son 8 ziyarət trendi + problemlər)
+API.getOpsPresentation = async (key, weekStart) => {
+  if (!opsAuth(key)) return null;
+  const dstr = opsWeekDates(weekStart);
+  const startD = new Date(weekStart); startD.setHours(0, 0, 0, 0);
+  const endD = new Date(startD.getTime() + 7 * 86400000);
+
+  const { data: weekVisitsRaw } = await sb.from('ops_visits').select('*').in('visit_date', dstr);
+  const weekVisits = weekVisitsRaw || [];
+  const { data: allIssuesRaw } = await sb.from('ops_issues').select('*');
+  const issues = allIssuesRaw || [];
+
+  const weekIssues = issues.filter(i => { const t = new Date(i.created_at); return t >= startD && t < endD; });
+  const resolvedWeek = weekIssues.filter(i => i.status === 'resolved').length;
+  const avgScore = weekVisits.length
+    ? Math.round((weekVisits.reduce((s, v) => s + (Number(v.overall_score) || 0), 0) / weekVisits.length) * 10) / 10 : 0;
+  const summary = {
+    visits: weekVisits.length,
+    problems: weekIssues.length,
+    resolvedPct: weekIssues.length ? Math.round(resolvedWeek / weekIssues.length * 100) : 0,
+    avgScore,
+  };
+
+  const sevRank = { kritik: 0, orta: 1, asagi: 2 };
+  const branches = [];
+  for (const dep of U.DEPTS) {
+    const bWeek = weekVisits.filter(v => v.dept === dep);
+    const score = bWeek.length
+      ? Math.round((bWeek.reduce((s, v) => s + (Number(v.overall_score) || 0), 0) / bWeek.length) * 10) / 10 : 0;
+
+    const weekVisitIds = bWeek.map(v => v.visit_id);
+    let ratings = [];
+    if (weekVisitIds.length) {
+      const r = await sb.from('ops_ratings').select('category,score').in('visit_id', weekVisitIds);
+      ratings = r.data || [];
+    }
+    const catMap = {};
+    for (const r of ratings) {
+      if (!catMap[r.category]) catMap[r.category] = { sum: 0, c: 0 };
+      if (r.score > 0) { catMap[r.category].sum += r.score; catMap[r.category].c++; }
+    }
+    const categories = Object.keys(catMap).map(cat => ({
+      category: cat, avg: catMap[cat].c ? Math.round((catMap[cat].sum / catMap[cat].c) * 10) / 10 : 0,
+    }));
+
+    const { data: lastV } = await sb.from('ops_visits')
+      .select('overall_score,visit_date,created_at').eq('dept', dep)
+      .order('created_at', { ascending: false }).limit(8);
+    const trend = (lastV || []).slice().reverse().map(v => ({ date: v.visit_date, score: Number(v.overall_score) || 0 }));
+
+    const openForDep = issues.filter(i => i.dept === dep && i.status !== 'resolved');
+    const bIssues = openForDep.slice()
+      .sort((a, b) => (sevRank[a.severity] ?? 9) - (sevRank[b.severity] ?? 9))
+      .slice(0, 6)
+      .map(i => ({ title: i.title, severity: i.severity, empName: i.emp_name, status: i.status }));
+
+    branches.push({ dept: dep, score, visits: bWeek.length, openIssues: openForDep.length, categories, trend, issues: bIssues });
+  }
+
+  return { weekStart: dstr[0], dates: dstr, summary, branches };
+};
+
 // İclas — problemlər tabı (saha rejimində işarələnənlər); status filtri: open | progress | resolved | all
 API.getOpsIssues = async (key, status, dept) => {
   if (!opsAuth(key)) return null;
