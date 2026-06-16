@@ -142,6 +142,9 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
 .pr-dot{width:9px;height:9px;border-radius:50%;background:rgba(255,255,255,0.2);}
 .pr-dot.on{background:#818cf8;}
 .pr-exit{position:fixed;top:1rem;right:1rem;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.14);color:#e7eaf3;width:44px;height:44px;border-radius:12px;cursor:pointer;z-index:301;}
+.pr-tab{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);color:#a9b0d0;padding:0.5rem 1.1rem;border-radius:10px;cursor:pointer;font-family:inherit;font-weight:700;font-size:0.95rem;}
+.pr-tab.on{background:#818cf8;border-color:#818cf8;color:#fff;}
+.pr-barname{width:38%;font-size:1rem;color:#d6daea;}
 @media(max-width:700px){.pr-metrics{grid-template-columns:repeat(2,1fr);}.pr-bgrid{grid-template-columns:1fr;}.pr-title{font-size:2.2rem;}.pr-bname{font-size:2rem;}.pr-bscore{font-size:2.6rem;}}
 </style>
 </head>
@@ -584,7 +587,7 @@ function updIssue(id,patch){
 }
 
 /* ───────── TƏQDİMAT (proyektor) ───────── */
-var present={slides:[],idx:0,keyHandler:null};
+var present={slides:[],idx:0,keyHandler:null,probKind:'emp'};
 function startPresent(){
   google.script.run.withSuccessHandler(function(d){
     if(!d){alert('Təqdimat datası yüklənmədi.');return;}
@@ -612,7 +615,7 @@ function renderPresent(){
   if(!s){box.innerHTML='';return;}
   box.innerHTML=s.type==='cover'?coverHTML(s.data):branchHTML(s.data);
   document.getElementById('prDots').innerHTML=present.slides.map(function(_,i){return '<div class="pr-dot'+(i===present.idx?' on':'')+'"></div>';}).join('');
-  if(s.type==='branch'){prRadar('prRadarBox',s.data.categories);prLine('prLineBox',s.data.trend);}
+  if(s.type==='branch'){present.probKind='emp';prRadar('prRadarBox',s.data.categories);prBars('prBarsBox',s.data.categories);renderPresentProbs();}
   document.getElementById('presentLayer').scrollTop=0;
 }
 function coverHTML(d){
@@ -632,19 +635,19 @@ function coverHTML(d){
 }
 function branchHTML(b){
   var col=b.score>=4?'#34d399':b.score>=3?'#fbbf24':b.score>0?'#f87171':'#64748b';
-  var probs=(b.issues||[]).map(function(p){
-    var pc=p.severity==='kritik'?'background:#7f1d1d;color:#fecaca':p.severity==='orta'?'background:#78350f;color:#fde68a':'background:#334155;color:#cbd5e1';
-    var who=p.empName?(' · '+esc(p.empName)):'';
-    return '<div class="pr-prob"><span class="pr-sevp" style="'+pc+'">'+(p.severity==='kritik'?'kritik':p.severity==='asagi'?'aşağı':'orta')+'</span><span>'+esc(p.title)+who+'</span></div>';
-  }).join('')||'<div style="color:#8b93b8;">Açıq problem yoxdur.</div>';
   return '<div class="pr-slide">'+
     '<div class="pr-bhead"><div><div class="pr-bname">'+esc(b.dept)+'</div><div class="pr-bsub">'+(b.visits||0)+' ziyarət · '+(b.openIssues||0)+' açıq problem</div></div>'+
       '<div style="text-align:right;"><div class="pr-bscore" style="color:'+col+'">'+(b.score||'—')+'</div><div class="pr-bsub">orta bal</div></div></div>'+
     '<div class="pr-bgrid">'+
       '<div><div class="pr-sub">Kateqoriya radarı</div><div id="prRadarBox"></div></div>'+
-      '<div><div class="pr-sub">Son 8 ziyarət — bal trendi</div><div id="prLineBox"></div>'+
-        '<div class="pr-sub" style="margin-top:1.5rem;">Problemlər</div>'+probs+'</div>'+
+      '<div><div class="pr-sub">Yoxlamalar üzrə</div><div id="prBarsBox"></div></div>'+
     '</div>'+
+    '<div class="pr-sub" style="margin-top:1.8rem;">Problemlər</div>'+
+    '<div style="display:flex;gap:8px;margin-bottom:12px;">'+
+      '<button class="pr-tab" id="prTabEmp" onclick="presentProbTab(\'emp\')">İşçilər</button>'+
+      '<button class="pr-tab" id="prTabGen" onclick="presentProbTab(\'general\')">Ümumi problemlər</button>'+
+    '</div>'+
+    '<div id="prProbList"></div>'+
   '</div>';
 }
 function prRadar(elId,cats){
@@ -661,18 +664,33 @@ function prRadar(elId,cats){
   for(var i=0;i<N;i++){var p=pt(i,R*(cats[i].avg||0)/max);s+='<circle cx="'+p[0].toFixed(1)+'" cy="'+p[1].toFixed(1)+'" r="4" fill="#818cf8"/>';}
   s+='</svg>';el.innerHTML=s;
 }
-function prLine(elId,trend){
+function prBars(elId,cats){
   var el=document.getElementById(elId);if(!el)return;
-  if(!trend||!trend.length){el.innerHTML='<div style="color:#8b93b8;">Ziyarət yoxdur.</div>';return;}
-  var vals=trend.map(function(t){return t.score;}),w=440,h=190,pad=30,lo=0,hi=5,n=vals.length;
-  function X(i){return pad+(n===1?(w-2*pad)/2:i*(w-2*pad)/(n-1));}
-  function Y(v){return h-pad-(v-lo)/(hi-lo)*(h-2*pad);}
-  var s='<svg viewBox="0 0 '+w+' '+h+'" width="100%" style="max-width:480px;" role="img"><title>Bal trendi</title>';
-  [1,2,3,4,5].forEach(function(g){s+='<line x1="'+pad+'" y1="'+Y(g).toFixed(1)+'" x2="'+(w-pad)+'" y2="'+Y(g).toFixed(1)+'" stroke="rgba(255,255,255,0.08)" stroke-width="1"/><text x="'+(pad-8)+'" y="'+(Y(g)+4).toFixed(1)+'" font-size="12" fill="#8b93b8" text-anchor="end">'+g+'</text>';});
-  if(n>1){var pts=vals.map(function(v,i){return X(i).toFixed(1)+','+Y(v).toFixed(1);}).join(' ');s+='<polyline points="'+pts+'" fill="none" stroke="#818cf8" stroke-width="3"/>';}
-  vals.forEach(function(v,i){s+='<circle cx="'+X(i).toFixed(1)+'" cy="'+Y(v).toFixed(1)+'" r="4.5" fill="#818cf8"/><text x="'+X(i).toFixed(1)+'" y="'+(Y(v)-10).toFixed(1)+'" font-size="12" fill="#e7eaf3" text-anchor="middle">'+v+'</text>';});
-  s+='</svg>';el.innerHTML=s;
+  if(!cats||!cats.length){el.innerHTML='<div style="color:#8b93b8;">Qiymət yoxdur.</div>';return;}
+  el.innerHTML=cats.map(function(c){
+    var v=c.avg||0,pct=v/5*100,col=v>=4?'#34d399':v>=3?'#fbbf24':v>0?'#f87171':'#475569';
+    return '<div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">'+
+      '<div class="pr-barname">'+esc(c.category)+'</div>'+
+      '<div style="flex:1;height:14px;background:rgba(255,255,255,0.08);border-radius:7px;overflow:hidden;"><div style="width:'+pct+'%;height:100%;background:'+col+';"></div></div>'+
+      '<div style="width:34px;text-align:right;font-weight:800;font-size:1.05rem;">'+(v||'—')+'</div>'+
+    '</div>';
+  }).join('');
 }
+function probRowHTML(p){
+  var pc=p.severity==='kritik'?'background:#7f1d1d;color:#fecaca':p.severity==='orta'?'background:#78350f;color:#fde68a':'background:#334155;color:#cbd5e1';
+  var who=p.empName?(' · '+esc(p.empName)):'';
+  return '<div class="pr-prob"><span class="pr-sevp" style="'+pc+'">'+(p.severity==='kritik'?'kritik':p.severity==='asagi'?'aşağı':'orta')+'</span><span>'+esc(p.title)+who+'</span></div>';
+}
+function renderPresentProbs(){
+  var sl=present.slides[present.idx],b=sl&&sl.data;if(!b)return;
+  var list=present.probKind==='emp'?(b.empIssues||[]):(b.generalIssues||[]);
+  var te=document.getElementById('prTabEmp'),tg=document.getElementById('prTabGen');
+  if(te)te.classList.toggle('on',present.probKind==='emp');
+  if(tg)tg.classList.toggle('on',present.probKind!=='emp');
+  var box=document.getElementById('prProbList');if(!box)return;
+  box.innerHTML=list.length?list.map(probRowHTML).join(''):'<div style="color:#8b93b8;">'+(present.probKind==='emp'?'İşçi problemi yoxdur.':'Ümumi problem yoxdur.')+'</div>';
+}
+function presentProbTab(kind){present.probKind=kind;renderPresentProbs();}
 </script>
 </body>
 </html>
