@@ -2702,6 +2702,11 @@ API.getOpsPresentation = async (key, weekStart) => {
       category: cat, avg: catMap[cat].c ? Math.round((catMap[cat].sum / catMap[cat].c) * 10) / 10 : 0,
     }));
 
+    const { data: lastV } = await sb.from('ops_visits')
+      .select('overall_score,visit_date,created_at').eq('dept', dep)
+      .order('created_at', { ascending: false }).limit(8);
+    const trend = (lastV || []).slice().reverse().map(v => ({ date: v.visit_date, score: Number(v.overall_score) || 0 }));
+
     const openForDep = issues.filter(i => i.dept === dep && i.status !== 'resolved');
     const bySev = arr => arr.slice()
       .sort((a, b) => (sevRank[a.severity] ?? 9) - (sevRank[b.severity] ?? 9))
@@ -2710,7 +2715,7 @@ API.getOpsPresentation = async (key, weekStart) => {
     const empIssues = bySev(openForDep.filter(i => i.emp_id));
     const generalIssues = bySev(openForDep.filter(i => !i.emp_id));
 
-    branches.push({ dept: dep, score, visits: bWeek.length, openIssues: openForDep.length, categories, empIssues, generalIssues });
+    branches.push({ dept: dep, score, visits: bWeek.length, openIssues: openForDep.length, categories, trend, empIssues, generalIssues });
   }
 
   return { weekStart: dstr[0], dates: dstr, summary, branches };
