@@ -1855,6 +1855,32 @@ API.getLatePermsForManager = async (branchKey) => {
   });
 };
 
+// İcraçı: bütün filiallar üzrə gecikmə icazələri (filial → siyahı)
+API.getLatePermsForExec = async (execKey) => {
+  if (!execKey || U.getSetting('EXEC_KEY') !== execKey) return null;
+  const { data } = await sb.from('late_perms').select('*')
+    .order('created_at', { ascending: false }).limit(400);
+  const result = {};
+  for (const d of U.DEPTS) result[d] = [];
+  for (const r of (data || [])) {
+    const dept = r.dept || '';
+    if (!result[dept]) result[dept] = [];
+    result[dept].push({
+      permId: r.perm_id, empId: r.emp_id, empName: r.emp_name, dept,
+      dateStr: r.date_str, requestedTime: r.requested_time,
+      status: r.status, createdAt: r.created_at, approvedAt: r.approved_at || '',
+    });
+  }
+  for (const d of Object.keys(result)) {
+    result[d].sort((a, b) => {
+      if (a.status === 'pending' && b.status !== 'pending') return -1;
+      if (a.status !== 'pending' && b.status === 'pending') return  1;
+      return (b.createdAt || '').localeCompare(a.createdAt || '');
+    });
+  }
+  return result;
+};
+
 API.approveLatePerm = async (branchKey, permId, action) => {
   const check = U.validateBranchScheduleKey(branchKey);
   if (!check.valid) return { success: false, reason: 'İcazəsiz.' };

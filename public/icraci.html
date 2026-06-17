@@ -30,6 +30,12 @@ body{font-family:'Inter',system-ui,sans-serif;background:#f1f5f9;color:var(--tex
 .tab-btn{flex:1 1 auto;min-width:84px;padding:0.5rem 0.4rem;border:1.5px solid var(--border);border-radius:11px;background:#fff;cursor:pointer;font-size:0.74rem;font-weight:700;color:var(--text-muted);display:flex;align-items:center;justify-content:center;gap:5px;transition:all 0.16s;font-family:inherit;}
 .tab-btn.active{border-color:var(--primary);background:rgba(13,148,136,0.08);color:var(--primary);}
 .tab-btn i{font-size:0.82rem;}
+.subtabbar{display:flex;flex-wrap:wrap;gap:5px;margin-top:12px;}
+.subtab{flex:1 1 auto;min-width:78px;padding:0.45rem 0.5rem;border:1.5px solid var(--border);border-radius:10px;background:#fff;cursor:pointer;font-size:0.74rem;font-weight:700;color:var(--text-muted);font-family:inherit;display:flex;align-items:center;justify-content:center;gap:5px;}
+.subtab.active{border-color:var(--primary);background:rgba(13,148,136,0.08);color:var(--primary);}
+.sbadge{background:#fef9c3;color:#854d0e;font-size:0.64rem;font-weight:800;padding:0 6px;border-radius:7px;}
+.iz-row{display:flex;align-items:center;gap:10px;padding:0.6rem 0;border-bottom:1px solid var(--border);}
+.iz-row:last-child{border-bottom:none;}
 .panel{padding-top:1rem;}
 .hidden{display:none!important;}
 .card{background:#fff;border:1px solid var(--border);border-radius:16px;padding:1rem 1.1rem;margin-bottom:12px;box-shadow:0 1px 3px rgba(15,23,42,0.03);}
@@ -197,6 +203,7 @@ select,input[type=date]{border:1.5px solid var(--border);border-radius:11px;padd
       <button class="tab-btn"        data-t="tullanti"  onclick="go('tullanti')"><i class="fa-solid fa-trash-can"></i> Tullantı</button>
       <button class="tab-btn"        data-t="training"  onclick="go('training')"><i class="fa-solid fa-graduation-cap"></i> Training</button>
       <button class="tab-btn"        data-t="cerime"    onclick="go('cerime')"><i class="fa-solid fa-gavel"></i> Cərimə</button>
+      <button class="tab-btn"        data-t="icaze"     onclick="go('icaze')"><i class="fa-solid fa-clock"></i> İcazələr</button>
     </div>
   </div>
 
@@ -210,6 +217,7 @@ select,input[type=date]{border:1.5px solid var(--border);border-radius:11px;padd
   <div id="panel-tullanti"  class="panel hidden"></div>
   <div id="panel-training"  class="panel hidden"></div>
   <div id="panel-cerime"    class="panel hidden"></div>
+  <div id="panel-icaze"     class="panel hidden"></div>
 </div>
 
 <script src="/gsr-shim.js"></script>
@@ -249,13 +257,59 @@ function call(fn,args,cb){
 // ── Tab keçidi ────────────────────────────────────────────────────
 var loaded={};
 function go(t){
-  ['live','hesabat','cedvel','idareci','checklist','tullanti','training','cerime'].forEach(function(x){
+  ['live','hesabat','cedvel','idareci','checklist','tullanti','training','cerime','icaze'].forEach(function(x){
     document.getElementById('panel-'+x).classList.toggle('hidden',x!==t);
   });
   Array.prototype.forEach.call(document.querySelectorAll('.tab-btn'),function(b){ b.classList.toggle('active',b.dataset.t===t); });
   LOADERS[t]();
 }
-var LOADERS={ live:loadLive, hesabat:loadHesabat, cedvel:loadCedvel, idareci:loadIdareci, checklist:loadChecklist, tullanti:loadTullanti, training:loadTraining, cerime:loadCerime };
+var LOADERS={ live:loadLive, hesabat:loadHesabat, cedvel:loadCedvel, idareci:loadIdareci, checklist:loadChecklist, tullanti:loadTullanti, training:loadTraining, cerime:loadCerime, icaze:loadIcaze };
+
+// ══ GECİKMƏ İCAZƏLƏRİ (filial üzrə subtab) ════
+var icazeData=null, icazeDept=null;
+function loadIcaze(){
+  var p=document.getElementById('panel-icaze');
+  p.innerHTML=spin();
+  call('getLatePermsForExec',[EXEC_KEY],function(data){
+    icazeData=data||{};
+    if(!icazeDept || DEPTS.indexOf(icazeDept)<0) icazeDept=DEPTS[0];
+    renderIcaze();
+  });
+}
+function selectIcazeDept(d){ icazeDept=d; renderIcaze(); }
+function izBadge(s){
+  function b(bg,cl,t){ return '<span style="flex-shrink:0;font-size:0.72rem;font-weight:700;padding:3px 9px;border-radius:8px;background:'+bg+';color:'+cl+';">'+t+'</span>'; }
+  if(s==='approved') return b('#dcfce7','#166534','Təsdiqlənib');
+  if(s==='rejected') return b('#fee2e2','#991b1b','Rədd edilib');
+  return b('#fef9c3','#854d0e','Gözləyir');
+}
+function izDate(s){ var x=String(s||'').split('-'); return x.length===3 ? (x[2]+'.'+x[1]+'.'+x[0]) : (s||''); }
+function renderIcaze(){
+  var p=document.getElementById('panel-icaze');
+  var data=icazeData||{};
+  var h='<div class="card"><div class="live-head"><div><div class="lt">Gecikmə İcazələri</div>'
+    +'<div class="lc">İşçilərin gecikmə üçün aldığı icazələr — filial üzrə</div></div>'
+    +'<button class="refresh-btn" onclick="loadIcaze()"><i class="fa-solid fa-rotate"></i> Yenilə</button></div>'
+    +'<div class="subtabbar">'+DEPTS.map(function(d){
+        var pend=(data[d]||[]).filter(function(x){return x.status==='pending';}).length;
+        return '<button class="subtab'+(d===icazeDept?' active':'')+'" onclick="selectIcazeDept(\''+esc(d)+'\')">'+esc(d)
+          +(pend?' <span class="sbadge">'+pend+'</span>':'')+'</button>';
+      }).join('')+'</div></div>';
+  var list=data[icazeDept]||[];
+  if(!list.length){ p.innerHTML=h+emptyMsg('Bu filialda gecikmə icazəsi yoxdur.'); return; }
+  var pend=list.filter(function(x){return x.status==='pending';}).length;
+  var appr=list.filter(function(x){return x.status==='approved';}).length;
+  h+='<div class="card"><div class="dept-head" style="margin-bottom:6px;"><span class="dn">'+esc(icazeDept)+'</span> '
+    +'<span class="lc">('+list.length+' icazə · '+appr+' təsdiq · '+pend+' gözləyir)</span></div>';
+  list.forEach(function(r){
+    h+='<div class="iz-row"><div style="flex:1;min-width:0;">'
+      +'<div style="font-weight:700;font-size:0.86rem;">'+esc(r.empName||'—')+'</div>'
+      +'<div class="lc" style="font-size:0.74rem;"><i class="fa-solid fa-calendar-day"></i> '+esc(izDate(r.dateStr))+' · gəliş: <b>'+esc(r.requestedTime||'—')+'</b></div>'
+      +'</div>'+izBadge(r.status)+'</div>';
+  });
+  h+='</div>';
+  p.innerHTML=h;
+}
 
 // ══ CƏRİMƏLƏR (menecer cərimələri + işçi imzaları, filial üzrə) ════
 function fmtCerimeTs(s){ if(!s) return ''; var d=new Date(s); if(isNaN(d.getTime())) return s;
