@@ -301,6 +301,7 @@ body > nav { display: none; }
     <div class="sb-sect">Sistem</div>
     <button class="sb-item" data-pg="yenilik" onclick="sw('yenilik')"><span class="sb-ic"><i class="fa-solid fa-bell-concierge"></i></span> Yeniliklər</button>
     <button class="sb-item" data-pg="mgr" onclick="sw('mgr')"><span class="sb-ic"><i class="fa-solid fa-user-tie"></i></span> İdarəçilər</button>
+    <button class="sb-item" data-pg="links" onclick="sw('links')"><span class="sb-ic"><i class="fa-solid fa-link"></i></span> Vəzifə Linkləri</button>
     <button class="sb-item" data-pg="dev" onclick="sw('dev')"><span class="sb-ic"><i class="fa-solid fa-mobile-screen"></i></span> Cihazlar</button>
     <button class="sb-item" data-pg="tg" onclick="sw('tg')"><span class="sb-ic"><i class="fa-brands fa-telegram"></i></span> Telegram</button>
     <button class="sb-item" data-pg="wifi" onclick="sw('wifi')"><span class="sb-ic"><i class="fa-solid fa-wifi"></i></span> WiFi</button>
@@ -338,6 +339,7 @@ body > nav { display: none; }
   <button class="tab" onclick="sw('yenilik')"><i class="fa-solid fa-bell-concierge"></i> Yeniliklər</button>
   <button class="tab" onclick="sw('trainer')"><i class="fa-solid fa-graduation-cap"></i> Training</button>
   <button class="tab" onclick="sw('approvals')"><i class="fa-solid fa-circle-check"></i> Təsdiqlər</button>
+  <button class="tab" onclick="sw('links')"><i class="fa-solid fa-link"></i> Linklər</button>
 </nav>
 
 <!-- İŞÇİLƏR -->
@@ -416,6 +418,10 @@ body > nav { display: none; }
     <div style="overflow-x:auto;"><table class="sched-table" id="schedTable"><thead><tr><th style="text-align:left;">İşçi</th></tr></thead><tbody></tbody></table></div>
     <div id="schedResult" class="tg-result" style="margin-top:1rem;"></div>
   </div>
+</div>
+
+<!-- VƏZİFƏ LİNKLƏRİ -->
+<div id="tab-links" class="page">
   <div class="card">
     <div class="tg-section-title" style="margin-bottom:1rem;"><i class="fa-solid fa-link"></i> Filial İdarəçi Linkləri</div>
     <div id="branchLinks">Yüklənir...</div>
@@ -434,6 +440,14 @@ body > nav { display: none; }
       <div class="link-dept"><span style="width:10px;height:10px;border-radius:3px;background:#c7d2fe;display:inline-block;"></span>Əməliyyat</div>
       <div id="opsLink" style="font-family:monospace;font-size:0.75rem;color:var(--text-muted);flex:2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Yüklənir...</div>
       <button class="btn sm" onclick="copyOpsLink()"><i class="fa-solid fa-copy"></i> Kopyala</button>
+    </div>
+  </div>
+  <div class="card">
+    <div class="tg-section-title" style="margin-bottom:1rem;"><i class="fa-solid fa-graduation-cap"></i> Təlim Paneli Linki</div>
+    <div class="link-row">
+      <div class="link-dept"><span style="width:10px;height:10px;border-radius:3px;background:#fde68a;display:inline-block;"></span>Təlim</div>
+      <div id="trKeyLink" style="font-family:monospace;font-size:0.75rem;color:var(--text-muted);flex:2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">—</div>
+      <button class="btn sm" onclick="copyTrainerLink()"><i class="fa-solid fa-copy"></i> Kopyala</button>
     </div>
   </div>
 </div>
@@ -497,15 +511,6 @@ body > nav { display: none; }
         <button class="btn primary" onclick="saveTrainerName()"><i class="fa-solid fa-floppy-disk"></i> Saxla</button>
       </div>
       <div id="tr-save-result" class="tg-result" style="display:none;margin-top:0.6rem;"></div>
-    </div>
-
-    <!-- Sabit link -->
-    <div>
-      <div class="tg-section-title" style="font-size:0.72rem;margin-bottom:0.6rem;"><i class="fa-solid fa-link"></i> Təlim Paneli Linki (sabit)</div>
-      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-        <div style="flex:1;background:#f8fafc;border:1px solid rgba(15,23,42,0.07);border-radius:11px;padding:0.7rem 1rem;font-size:0.8rem;font-weight:600;color:var(--primary);min-width:200px;word-break:break-all;" id="trKeyLink">—</div>
-        <button class="btn sm" onclick="copyTrainerLink()"><i class="fa-solid fa-copy"></i> Kopyala</button>
-      </div>
     </div>
   </div>
 
@@ -1033,7 +1038,7 @@ function getDayShort(s){var d=new Date(s);var names=['B.e.','Ç.a.','Çər.','C.
 
 // ── TAB SW ───────────────────────────────────────────────────────
 function sw(name){
-  var tabs=['emp','cedvel','att','hesabat','izin','dev','tg','mgr','wifi','checklist','waste','yenilik','trainer','approvals'];
+  var tabs=['emp','cedvel','att','hesabat','izin','dev','tg','mgr','wifi','checklist','waste','yenilik','trainer','approvals','links'];
   tabs.forEach(function(n){
     var el=document.getElementById('tab-'+n);
     if(el) el.classList.toggle('active',n===name);
@@ -1047,7 +1052,8 @@ function sw(name){
   if(name==='tg')   loadTgSettings();
   if(name==='wifi') loadWifi();
   if(name==='mgr')  {loadMgr();loadMgrAcks();}
-  if(name==='cedvel'){loadSched();loadBranchLinks();loadExecLink();loadOpsLink();}
+  if(name==='cedvel'){loadSched();}
+  if(name==='links'){loadBranchLinks();loadExecLink();loadOpsLink();loadTrainerKey();}
   if(name==='hesabat'){loadWarnings();initRepSelects();}
   if(name==='izin') {loadIzinList();populateIzinEmps();}
   if(name==='checklist'){initChecklist();}
