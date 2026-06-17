@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lider — Qızıl Ad — Preview</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+* { box-sizing:border-box; margin:0; padding:0; }
+
+body {
+  background: #090e1a;
+  font-family: 'Inter', sans-serif;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 64px 24px 72px;
+  min-height: 100vh;
+  background-image:
+    radial-gradient(ellipse 70% 45% at 15% 5%, rgba(217,119,6,0.1) 0%, transparent 55%),
+    radial-gradient(ellipse 60% 40% at 85% 95%, rgba(251,191,36,0.07) 0%, transparent 55%);
+}
+
+/* ── HEADER ── */
+.hd { text-align:center; margin-bottom:64px; }
+.hd-title { font-size:1.55rem; font-weight:900; color:#f8fafc; letter-spacing:-0.6px; margin-bottom:6px; }
+.hd-sub   { font-size:0.82rem; color:#64748b; font-weight:500; }
+
+/* ── LAYOUT ── */
+.row { display:flex; gap:56px; align-items:flex-end; justify-content:center; flex-wrap:wrap; }
+.col { display:flex; flex-direction:column; align-items:center; gap:20px; }
+
+/* ── TIER CHIP ── */
+.tier-chip { display:flex; flex-direction:column; align-items:center; gap:5px; text-align:center; }
+.tier-name { font-size:0.75rem; font-weight:800; text-transform:uppercase; letter-spacing:1.5px; }
+.tier-range { font-size:0.63rem; font-weight:700; padding:2px 9px; border-radius:9px; border:1px solid; }
+.tier-desc { font-size:0.62rem; color:#475569; font-weight:500; line-height:1.55; max-width:130px; }
+
+/* ── CARD WRAP ── */
+.tc-wrap { position:relative; width:124px; }
+
+/* ── TEAM CARD ── */
+.team-card {
+  width:100%; border-radius:18px; padding:0 0 14px; text-align:center;
+  background:linear-gradient(168deg, #1c2540 0%, #141c30 100%);
+  border:1.5px solid rgba(255,255,255,0.07);
+  display:flex; flex-direction:column; align-items:center;
+  overflow:hidden; position:relative; z-index:1;
+}
+.stripe { width:100%; height:56px; flex-shrink:0; }
+.avatar {
+  width:54px; height:54px; border-radius:15px;
+  display:flex; align-items:center; justify-content:center; font-size:1.45rem;
+  margin-top:-23px; border:2.5px solid #141c30; position:relative; z-index:2;
+}
+.card-name   { font-size:0.79rem; font-weight:800; color:#e2e8f0; margin-top:9px; }
+.card-dept   { font-size:0.62rem; color:#475569; font-weight:600; margin-top:2px; }
+.card-streak { font-size:0.62rem; font-weight:700; color:#fbbf24; background:rgba(251,191,36,0.1); border-radius:20px; padding:2px 8px; margin-top:6px; }
+.card-like   { font-size:0.72rem; margin-top:8px; color:#475569; }
+
+.aura-none { box-shadow:0 6px 24px rgba(0,0,0,0.5); }
+
+/* ════════════════ LİDER (1-ci yer) — YALNIZ QIZIL AD ════════════════ */
+/* Heç bir tac/çərçivə/nişan yoxdur — sadəcə işçinin adı qızıl gradientlə parıldayır */
+.champ-name {
+  font-size:0.82rem; font-weight:900; margin-top:9px; letter-spacing:0.2px;
+  background:linear-gradient(95deg, #fff8e1, #fbbf24, #d97706, #fbbf24, #fff8e1);
+  background-size:200% auto;
+  -webkit-background-clip:text; background-clip:text;
+  -webkit-text-fill-color:transparent;
+  animation:champ-name-shine 3s linear infinite;
+}
+@keyframes champ-name-shine { to { background-position:200% center; } }
+
+/* Gold aura (stack nümunəsi — lider həm də yüksək XP-li olduqda) */
+.aura-gold { border-color:rgba(251,191,36,0.62); animation:gold-pulse 2.5s ease-in-out infinite; }
+@keyframes gold-pulse {
+  0%,100% { box-shadow:0 6px 24px rgba(0,0,0,0.5), 0 0 26px rgba(251,191,36,0.26); }
+  50%     { box-shadow:0 6px 24px rgba(0,0,0,0.5), 0 0 48px rgba(251,191,36,0.62), 0 0 88px rgba(251,191,36,0.16); }
+}
+@keyframes shimmer-rtl {
+  0%       { left:135%; opacity:0; }
+  8%       { opacity:1; }
+  48%      { left:-80%; opacity:1; }
+  52%,100% { left:-80%; opacity:0; }
+}
+.gold-shimmer { position:absolute; inset:0; border-radius:inherit; pointer-events:none; z-index:3; overflow:hidden; }
+.gold-shimmer::after {
+  content:''; position:absolute; top:-50%; left:135%; width:55%; height:200%;
+  background:linear-gradient(90deg, transparent, rgba(217,119,6,0.22), rgba(255,240,110,0.58), rgba(217,119,6,0.22), transparent);
+  transform:rotate(-15deg); animation:shimmer-rtl 3.2s ease-in-out infinite;
+}
+
+/* ── LEGEND ── */
+.legend {
+  display:flex; gap:28px; flex-wrap:wrap; justify-content:center;
+  margin-top:56px; padding-top:32px; border-top:1px solid rgba(255,255,255,0.05);
+  width:100%; max-width:560px;
+}
+.legend-item { display:flex; align-items:flex-start; gap:10px; max-width:220px; }
+.legend-dot { width:10px; height:10px; border-radius:50%; margin-top:4px; flex-shrink:0; }
+.legend-text b { font-size:0.75rem; font-weight:800; display:block; margin-bottom:3px; }
+.legend-text span { font-size:0.65rem; color:#475569; font-weight:500; line-height:1.5; }
+</style>
+</head>
+<body>
+
+<div class="hd">
+  <div class="hd-title">Lider — Qızıl Ad</div>
+  <div class="hd-sub">1-ci yerə yalnız qızıl gradient ad — tac, çərçivə, nişan yoxdur</div>
+</div>
+
+<div class="row">
+
+  <!-- NORMAL (baseline) -->
+  <div class="col">
+    <div class="tier-chip">
+      <div class="tier-name" style="color:#64748b;">Normal</div>
+      <div class="tier-range" style="color:#64748b;border-color:rgba(71,85,105,0.28);background:rgba(71,85,105,0.07);">2-ci və aşağı</div>
+      <div class="tier-desc">Adi ağ ad</div>
+    </div>
+    <div class="tc-wrap">
+      <div class="team-card aura-none">
+        <div class="stripe" style="background:linear-gradient(90deg,#3b4e8c,#6366f1);"></div>
+        <div class="avatar" style="background:linear-gradient(135deg,#4f46e5,#818cf8);box-shadow:0 4px 14px rgba(99,102,241,0.4);">☕</div>
+        <div class="card-name">Rəşad</div>
+        <div class="card-dept">Sahil</div>
+        <div class="card-like">👍 2</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LİDER (yalnız qızıl ad — aurasız, aşağı XP-li lider) -->
+  <div class="col">
+    <div class="tier-chip">
+      <div class="tier-name" style="color:#fbbf24;">Lider</div>
+      <div class="tier-range" style="color:#d97706;border-color:rgba(217,119,6,0.38);background:rgba(217,119,6,0.1);">1-ci · aurasız</div>
+      <div class="tier-desc">XP az olsa belə — yalnız ad qızıldır</div>
+    </div>
+    <div class="tc-wrap">
+      <div class="team-card aura-none">
+        <div class="stripe" style="background:linear-gradient(90deg,#3b4e8c,#6366f1);"></div>
+        <div class="avatar" style="background:linear-gradient(135deg,#4f46e5,#818cf8);box-shadow:0 4px 14px rgba(99,102,241,0.4);">☕</div>
+        <div class="champ-name">Aysel</div>
+        <div class="card-dept">Gənclik</div>
+        <div class="card-streak">🔥 9</div>
+        <div class="card-like">👍 4</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LİDER + GOLD AURA (qızıl ad aura ilə birgə) -->
+  <div class="col">
+    <div class="tier-chip">
+      <div class="tier-name" style="color:#fde68a;">Lider + Gold</div>
+      <div class="tier-range" style="color:#d97706;border-color:rgba(217,119,6,0.38);background:rgba(217,119,6,0.12);">1-ci · 1500+ XP</div>
+      <div class="tier-desc">Qızıl ad mövcud aura ilə birgə</div>
+    </div>
+    <div class="tc-wrap">
+      <div class="team-card aura-gold">
+        <div class="stripe" style="background:linear-gradient(90deg,#78250b,#fbbf24);"></div>
+        <div class="avatar" style="background:linear-gradient(135deg,#d97706,#b45309);box-shadow:0 4px 18px rgba(217,119,6,0.7);">🌙</div>
+        <div class="champ-name">İlkin</div>
+        <div class="card-dept">Elmlər</div>
+        <div class="card-streak">🔥 112</div>
+        <div class="card-like">👍 21</div>
+        <div class="gold-shimmer"></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- LEGEND -->
+<div class="legend">
+  <div class="legend-item">
+    <div class="legend-dot" style="background:#fbbf24;box-shadow:0 0 8px rgba(251,191,36,0.7);"></div>
+    <div class="legend-text">
+      <b style="color:#fbbf24;">Qızıl gradient ad</b>
+      <span>Yalnız 1-ci yerdəki işçinin adı qızılla parıldayır — başqa heç bir nişan yoxdur</span>
+    </div>
+  </div>
+  <div class="legend-item">
+    <div class="legend-dot" style="background:#fde68a;box-shadow:0 0 8px rgba(253,230,138,0.7);"></div>
+    <div class="legend-text">
+      <b style="color:#fde68a;">Auradan asılı deyil</b>
+      <span>Lider XP nə olursa olsun qızıl ad alır; gold aura ilə də toqquşmadan birgə işləyir</span>
+    </div>
+  </div>
+</div>
+
+<footer style="text-align:center;padding:18px 0 14px;font-family:Inter,sans-serif;"><div style="font-size:0.72rem;font-weight:600;color:rgba(148,163,184,0.35);letter-spacing:0.01em;">created by Coffeemoon</div><div style="font-size:0.65rem;color:rgba(148,163,184,0.22);margin-top:2px;">lider preview · v1.0.1</div></footer>
+</body>
+</html>

@@ -156,7 +156,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
       <div class="brand"><i class="fa-solid fa-clipboard-check"></i> Əməliyyat<span class="who" id="whoName">—</span></div>
     </div>
     <div class="modebar">
-      <button class="mode-btn on" id="mb-field" onclick="switchMode('field')"><i class="fa-solid fa-location-dot"></i> Saha</button>
+      <button class="mode-btn on" id="mb-field" onclick="switchMode('field')"><i class="fa-solid fa-location-dot"></i> Yoxlamalar</button>
       <button class="mode-btn" id="mb-meeting" onclick="switchMode('meeting')"><i class="fa-solid fa-chalkboard-user"></i> İclas</button>
     </div>
   </div>
@@ -189,7 +189,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
         <textarea class="ta" id="summary" placeholder="Ümumi təəssürat, əlavə qeyd..."></textarea>
       </div>
 
-      <button class="btn" id="saveBtn" onclick="saveVisit()"><i class="fa-solid fa-circle-check"></i> Ziyarəti bitir <span id="ovScore" class="score-pill"></span></button>
+      <button class="btn" id="saveBtn" onclick="saveVisit()"><i class="fa-solid fa-circle-check"></i> Yoxlamanı bitir <span id="ovScore" class="score-pill"></span></button>
       <div id="fieldStatus"></div>
     </div>
   </div>
@@ -455,7 +455,7 @@ function saveVisit(){
   google.script.run.withSuccessHandler(function(r){
     btn.disabled=false;
     if(r&&r.success){
-      setFieldStatus('ok','Ziyarət saxlandı (bal '+(r.overall||0)+'). Problemlər iclas tabına düşdü.');
+      setFieldStatus('ok','Yoxlama saxlandı (bal '+(r.overall||0)+'). Problemlər iclas tabına düşdü.');
       field.ratings={};field.emps=[];document.getElementById('summary').value='';renderCats();renderEmps();updateOverall();
       setTimeout(clearFieldStatus,4000);
     }else setFieldStatus('err','Xəta: '+(r?r.reason:'bilinməyən'));
@@ -489,11 +489,11 @@ function loadMeeting(){
     scored.forEach(function(c){if(!best||c.score>best.score)best=c;if(!worst||c.score<worst.score)worst=c;});
     document.getElementById('branchCards').innerHTML=cards.map(function(c){
       var cls=scored.length>1&&best&&c.dept===best.dept?' best':(scored.length>1&&worst&&c.dept===worst.dept?' worst':'');
-      var tag=c.openIssues>0?'<span class="tag" style="background:#fffbeb;color:#b45309;">'+c.openIssues+' problem</span>':(c.visits?'<span class="tag" style="background:#ecfdf5;color:#047857;">'+c.visits+' ziyarət</span>':'<span class="tag" style="background:#f1f5f9;color:#94a3b8;">ziyarət yox</span>');
+      var tag=c.openIssues>0?'<span class="tag" style="background:#fffbeb;color:#b45309;">'+c.openIssues+' problem</span>':(c.visits?'<span class="tag" style="background:#ecfdf5;color:#047857;">'+c.visits+' yoxlama</span>':'<span class="tag" style="background:#f1f5f9;color:#94a3b8;">yoxlama yox</span>');
       return '<div class="bcard'+cls+'" onclick="loadBranchDetail(\''+esc(c.dept)+'\')">'+
         '<div class="bcard-top"><span class="bcard-name">'+esc(c.dept)+'</span>'+tag+'</div>'+
         '<div class="bcard-score" style="color:'+(c.score>=4?'#10b981':c.score>=3?'#f59e0b':c.score>0?'#ef4444':'#cbd5e1')+'">'+(c.score||'—')+'</div>'+
-        '<div class="bcard-sub">'+c.visits+' ziyarət · '+c.openIssues+' açıq problem</div>'+
+        '<div class="bcard-sub">'+c.visits+' yoxlama · '+c.openIssues+' açıq problem</div>'+
       '</div>';
     }).join('');
     if(meeting.detailDept)loadBranchDetail(meeting.detailDept);
@@ -516,7 +516,7 @@ function loadBranchDetail(dept){
     }).join('')||'<div class="empty">İşçi qeydi yoxdur.</div>';
     box.innerHTML='<div class="card">'+
       '<div class="slide-back" onclick="closeDetail()"><i class="fa-solid fa-arrow-left"></i> Bütün filiallar</div>'+
-      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;"><div style="font-size:1.2rem;font-weight:900;">'+esc(dept)+'</div><div style="font-size:0.78rem;color:var(--soft);font-weight:700;">'+(d.visitCount||0)+' ziyarət</div></div>'+
+      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;"><div style="font-size:1.2rem;font-weight:900;">'+esc(dept)+'</div><div style="font-size:0.78rem;color:var(--soft);font-weight:700;">'+(d.visitCount||0)+' yoxlama</div></div>'+
       '<div class="sec-title"><i class="fa-solid fa-chart-simple"></i> Kateqoriya ortalamaları</div>'+bars+
       '<div class="sec-title" style="margin-top:1rem;"><i class="fa-solid fa-user-group"></i> İşçi qeydləri</div>'+notes+
     '</div>';
@@ -626,7 +626,7 @@ function coverHTML(d){
     '<div class="pr-title">Həftəlik iclas</div>'+
     '<div class="pr-week">'+weekLabelText()+'</div>'+
     '<div class="pr-metrics">'+
-      m(su.visits||0,'Ümumi ziyarət')+
+      m(su.visits||0,'Ümumi yoxlama')+
       m(su.problems||0,'Problem')+
       m((su.resolvedPct||0)+'%','Həll olundu')+
       m(su.avgScore||0,'Orta bal')+
@@ -636,7 +636,7 @@ function coverHTML(d){
 function branchHTML(b){
   var col=b.score>=4?'#34d399':b.score>=3?'#fbbf24':b.score>0?'#f87171':'#64748b';
   return '<div class="pr-slide">'+
-    '<div class="pr-bhead"><div><div class="pr-bname">'+esc(b.dept)+'</div><div class="pr-bsub">'+(b.visits||0)+' ziyarət · '+(b.openIssues||0)+' açıq problem</div></div>'+
+    '<div class="pr-bhead"><div><div class="pr-bname">'+esc(b.dept)+'</div><div class="pr-bsub">'+(b.visits||0)+' yoxlama · '+(b.openIssues||0)+' açıq problem</div></div>'+
       '<div style="text-align:right;"><div class="pr-bscore" style="color:'+col+'">'+(b.score||'—')+'</div><div class="pr-bsub">orta bal</div></div></div>'+
     '<div class="pr-bgrid">'+
       '<div><div class="pr-sub">Kateqoriya radarı</div><div id="prRadarBox"></div></div>'+
@@ -650,18 +650,35 @@ function branchHTML(b){
     '<div id="prProbList"></div>'+
   '</div>';
 }
+function wrapLabel(t,max){
+  var words=String(t).split(' '),lines=[],cur='';
+  words.forEach(function(w){
+    if(!cur)cur=w;
+    else if((cur+' '+w).length<=max)cur+=' '+w;
+    else{lines.push(cur);cur=w;}
+  });
+  if(cur)lines.push(cur);
+  return lines;
+}
 function prRadar(elId,cats){
   var el=document.getElementById(elId);if(!el)return;
   var N=cats?cats.length:0;
   if(!N){el.innerHTML='<div style="color:#8b93b8;">Qiymət yoxdur.</div>';return;}
-  var size=360,c=size/2,R=118,max=5;
-  function pt(i,r){var a=-Math.PI/2+i*2*Math.PI/N;return [c+r*Math.cos(a),c+r*Math.sin(a)];}
-  var s='<svg viewBox="0 0 '+size+' '+size+'" width="100%" style="max-width:360px;" role="img"><title>Kateqoriya radarı</title>';
-  for(var ring=1;ring<=max;ring++){var pts='';for(var i=0;i<N;i++){var p=pt(i,R*ring/max);pts+=p[0].toFixed(1)+','+p[1].toFixed(1)+' ';}s+='<polygon points="'+pts+'" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>';}
-  for(var i=0;i<N;i++){var p=pt(i,R);s+='<line x1="'+c+'" y1="'+c+'" x2="'+p[0].toFixed(1)+'" y2="'+p[1].toFixed(1)+'" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>';var lp=pt(i,R+15),anc=lp[0]<c-4?'end':lp[0]>c+4?'start':'middle';s+='<text x="'+lp[0].toFixed(1)+'" y="'+lp[1].toFixed(1)+'" font-size="13" fill="#a9b0d0" text-anchor="'+anc+'" dominant-baseline="middle">'+esc(cats[i].category)+'</text>';}
-  var dp='';for(var i=0;i<N;i++){var p=pt(i,R*(cats[i].avg||0)/max);dp+=p[0].toFixed(1)+','+p[1].toFixed(1)+' ';}
-  s+='<polygon points="'+dp+'" fill="rgba(129,140,248,0.25)" stroke="#818cf8" stroke-width="2.5"/>';
-  for(var i=0;i<N;i++){var p=pt(i,R*(cats[i].avg||0)/max);s+='<circle cx="'+p[0].toFixed(1)+'" cy="'+p[1].toFixed(1)+'" r="4" fill="#818cf8"/>';}
+  var W=520,H=410,cx=W/2,cy=H/2,R=128,labelR=142,max=5,i,p,ring,pts;
+  function pt(i,r){var a=-Math.PI/2+i*2*Math.PI/N;return [cx+r*Math.cos(a),cy+r*Math.sin(a)];}
+  var s='<svg viewBox="0 0 '+W+' '+H+'" width="100%" style="max-width:540px;display:block;margin:0 auto;" role="img"><title>Kateqoriya radarı</title>';
+  for(ring=1;ring<=max;ring++){pts='';for(i=0;i<N;i++){p=pt(i,R*ring/max);pts+=p[0].toFixed(1)+','+p[1].toFixed(1)+' ';}s+='<polygon points="'+pts+'" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>';}
+  for(i=0;i<N;i++){p=pt(i,R);s+='<line x1="'+cx+'" y1="'+cy+'" x2="'+p[0].toFixed(1)+'" y2="'+p[1].toFixed(1)+'" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>';}
+  for(i=0;i<N;i++){
+    var lp=pt(i,labelR),anc=lp[0]<cx-6?'end':lp[0]>cx+6?'start':'middle';
+    var lines=wrapLabel(cats[i].category,14),lh=16,y0=lp[1]-(lines.length-1)*lh/2,lx=lp[0].toFixed(1);
+    var tx='<text x="'+lx+'" y="'+y0.toFixed(1)+'" font-size="15" fill="#c2c8e0" text-anchor="'+anc+'" dominant-baseline="middle">';
+    lines.forEach(function(ln,k){tx+='<tspan x="'+lx+'" dy="'+(k===0?0:lh)+'">'+esc(ln)+'</tspan>';});
+    s+=tx+'</text>';
+  }
+  var dp='';for(i=0;i<N;i++){p=pt(i,R*(cats[i].avg||0)/max);dp+=p[0].toFixed(1)+','+p[1].toFixed(1)+' ';}
+  s+='<polygon points="'+dp+'" fill="rgba(129,140,248,0.28)" stroke="#818cf8" stroke-width="3"/>';
+  for(i=0;i<N;i++){p=pt(i,R*(cats[i].avg||0)/max);s+='<circle cx="'+p[0].toFixed(1)+'" cy="'+p[1].toFixed(1)+'" r="4.5" fill="#818cf8"/>';}
   s+='</svg>';el.innerHTML=s;
 }
 function prBars(elId,cats){
