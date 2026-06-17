@@ -2635,11 +2635,13 @@ API.getOpsBranchDetail = async (key, dept, weekStart) => {
   const dstr = opsWeekDates(weekStart);
   const { data: visits } = await sb.from('ops_visits').select('*').eq('dept', dept).in('visit_date', dstr);
   const visitIds = (visits || []).map(v => v.visit_id);
-  let ratings = [], notes = [];
+  let ratings = [], notes = [], empProblems = [];
   if (visitIds.length) {
     const r = await sb.from('ops_ratings').select('*').in('visit_id', visitIds);
     const n = await sb.from('ops_emp_notes').select('*').in('visit_id', visitIds);
+    const ip = await sb.from('ops_issues').select('emp_id,emp_name,title,detail,severity').in('source_visit_id', visitIds);
     ratings = r.data || []; notes = n.data || [];
+    empProblems = (ip.data || []).filter(i => i.emp_id);   // işçiyə bağlı problemlər
   }
   const catMap = {};
   for (const r of ratings) {
@@ -2649,12 +2651,16 @@ API.getOpsBranchDetail = async (key, dept, weekStart) => {
   const categories = Object.keys(catMap).map(cat => ({
     category: cat, avg: catMap[cat].c ? Math.round((catMap[cat].sum / catMap[cat].c) * 10) / 10 : 0,
   }));
-  return {
-    dept,
-    visitCount: (visits || []).length,
-    categories,
-    empNotes: notes.map(n => ({ empName: n.emp_name, sentiment: n.sentiment, note: n.note, photoUrl: n.photo_url })),
-  };
+  // Kateqoriya qeydləri (not yazılmış, problem işarələnməsə də) — heç bir müşahidə itməsin
+  const catNotes = ratings
+    .filter(r => r.note && String(r.note).trim())
+    .map(r => ({ category: r.category, note: r.note, score: r.score, photoUrl: r.photo_url }));
+  // İşçi qeydləri: adi qeydlər + işçi problemləri (hamısı bir yerdə görünsün)
+  const empNotes = [
+    ...notes.map(n => ({ empName: n.emp_name, sentiment: n.sentiment, note: n.note, photoUrl: n.photo_url, isProblem: false })),
+    ...empProblems.map(i => ({ empName: i.emp_name, sentiment: 'neg', note: i.detail || i.title, isProblem: true })),
+  ];
+  return { dept, visitCount: (visits || []).length, categories, catNotes, empNotes };
 };
 
 // İclas — TƏQDİMAT (proyektor) datası: bir çağırışda örtük + bütün filiallar (radar + son 8 ziyarət trendi + problemlər)

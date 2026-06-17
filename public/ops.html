@@ -516,15 +516,19 @@ function loadBranchDetail(dept){
       var col=c.avg>=4?'#10b981':c.avg>=3?'#f59e0b':'#ef4444';
       return '<div class="bar-row"><div class="bar-name">'+esc(c.category)+'</div><div class="bar-track"><div class="bar-fill" style="width:'+(c.avg/5*100)+'%;background:'+col+'"></div></div><div class="bar-val">'+(c.avg||'—')+'</div></div>';
     }).join('')||'<div class="empty">Qiymət yoxdur.</div>';
+    var catNotes=(d.catNotes||[]).map(function(c){
+      return '<div style="font-size:0.83rem;margin-bottom:7px;line-height:1.45;"><span style="font-weight:800;">'+esc(c.category)+':</span> '+esc(c.note)+(c.photoUrl?' <a href="'+esc(c.photoUrl)+'" target="_blank" style="color:var(--ink);"><i class="fa-solid fa-image"></i></a>':'')+'</div>';
+    }).join('')||'<div class="empty">Qeyd yoxdur.</div>';
     var notes=(d.empNotes||[]).map(function(n){
-      var col=n.sentiment==='pos'?'#ecfdf5;color:#047857':n.sentiment==='neg'?'#fef2f2;color:#b91c1c':'#f1f5f9;color:#475569';
-      var ic=n.sentiment==='pos'?'fa-plus':n.sentiment==='neg'?'fa-minus':'fa-circle';
+      var col=n.isProblem||n.sentiment==='neg'?'#fef2f2;color:#b91c1c':n.sentiment==='pos'?'#ecfdf5;color:#047857':'#f1f5f9;color:#475569';
+      var ic=n.isProblem?'fa-flag':n.sentiment==='pos'?'fa-plus':n.sentiment==='neg'?'fa-minus':'fa-circle';
       return '<div style="display:inline-flex;align-items:center;gap:6px;background:'+col+';padding:5px 11px;border-radius:100px;font-size:0.8rem;font-weight:700;margin:0 6px 6px 0;"><i class="fa-solid '+ic+'" style="font-size:0.7rem;"></i>'+esc(n.empName)+(n.note?' — '+esc(n.note):'')+'</div>';
     }).join('')||'<div class="empty">İşçi qeydi yoxdur.</div>';
     box.innerHTML='<div class="card">'+
       '<div class="slide-back" onclick="closeDetail()"><i class="fa-solid fa-arrow-left"></i> Bütün filiallar</div>'+
       '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;"><div style="font-size:1.2rem;font-weight:900;">'+esc(dept)+'</div><div style="font-size:0.78rem;color:var(--soft);font-weight:700;">'+(d.visitCount||0)+' yoxlama</div></div>'+
       '<div class="sec-title"><i class="fa-solid fa-chart-simple"></i> Kateqoriya ortalamaları</div>'+bars+
+      '<div class="sec-title" style="margin-top:1rem;"><i class="fa-solid fa-note-sticky"></i> Qeydlər</div>'+catNotes+
       '<div class="sec-title" style="margin-top:1rem;"><i class="fa-solid fa-user-group"></i> İşçi qeydləri</div>'+notes+
     '</div>';
     box.scrollIntoView({behavior:'smooth',block:'start'});
