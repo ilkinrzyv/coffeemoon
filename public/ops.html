@@ -654,7 +654,7 @@ function branchHTML(b){
       '<div style="text-align:right;"><div class="pr-bscore" style="color:'+col+'">'+(b.score||'—')+'</div><div class="pr-bsub">orta bal</div></div></div>'+
     '<div class="pr-bgrid">'+
       '<div><div class="pr-sub">Kateqoriya radarı</div><div id="prRadarBox"></div></div>'+
-      '<div><div class="pr-sub">Ziyarət ardıcıllığı</div><div id="prLineBox"></div></div>'+
+      '<div><div class="pr-sub">Yoxlama ardıcıllığı</div><div id="prLineBox"></div></div>'+
     '</div>'+
     '<div class="pr-sub" style="margin-top:1.8rem;">Problemlər</div>'+
     '<div style="display:flex;gap:8px;margin-bottom:12px;">'+
@@ -697,11 +697,11 @@ function prRadar(elId,cats){
 }
 function prLine(elId,trend){
   var el=document.getElementById(elId);if(!el)return;
-  if(!trend||!trend.length){el.innerHTML='<div style="color:#8b93b8;">Ziyarət yoxdur.</div>';return;}
+  if(!trend||!trend.length){el.innerHTML='<div style="color:#8b93b8;">Yoxlama yoxdur.</div>';return;}
   var vals=trend.map(function(t){return t.score;}),w=460,h=210,pad=32,lo=0,hi=5,n=vals.length;
   function X(i){return pad+(n===1?(w-2*pad)/2:i*(w-2*pad)/(n-1));}
   function Y(v){return h-pad-(v-lo)/(hi-lo)*(h-2*pad);}
-  var s='<svg viewBox="0 0 '+w+' '+h+'" width="100%" style="max-width:520px;display:block;" role="img"><title>Ziyarət ardıcıllığı</title>';
+  var s='<svg viewBox="0 0 '+w+' '+h+'" width="100%" style="max-width:520px;display:block;" role="img"><title>Yoxlama ardıcıllığı</title>';
   [1,2,3,4,5].forEach(function(g){s+='<line x1="'+pad+'" y1="'+Y(g).toFixed(1)+'" x2="'+(w-pad)+'" y2="'+Y(g).toFixed(1)+'" stroke="rgba(255,255,255,0.08)" stroke-width="1"/><text x="'+(pad-8)+'" y="'+(Y(g)+4).toFixed(1)+'" font-size="13" fill="#8b93b8" text-anchor="end">'+g+'</text>';});
   if(n>1){var pts=vals.map(function(v,i){return X(i).toFixed(1)+','+Y(v).toFixed(1);}).join(' ');s+='<polyline points="'+pts+'" fill="none" stroke="#818cf8" stroke-width="3"/>';}
   vals.forEach(function(v,i){s+='<circle cx="'+X(i).toFixed(1)+'" cy="'+Y(v).toFixed(1)+'" r="5" fill="#818cf8"/><text x="'+X(i).toFixed(1)+'" y="'+(Y(v)-11).toFixed(1)+'" font-size="13" fill="#e7eaf3" text-anchor="middle">'+v+'</text>';});
