@@ -879,7 +879,7 @@ API.getMonthlyReport = async (year, month) => {
     let lateCount = 0, onTime = 0, totalHours = 0;
     for (const r of gelisLogs) {
       const d           = new Date(r.timestamp);
-      const dateStr     = U.toYMD(d);
+      const dateStr     = U.getLogicalYMD(d);   // canlı sistemlə eyni gün (icazə/izin gecə-yarısı sərhədində düz tapılsın)
       const arrivalMins = d.getHours() * 60 + d.getMinutes();
       // Tam gün izin → vaxtında
       if (onLeave(leaveMap, emp.id, dateStr)) { onTime++; continue; }
@@ -928,7 +928,7 @@ API.getWarnings = async () => {
     let late = 0;
     for (const r of myLogs) {
       const d       = new Date(r.timestamp);
-      const dateStr = U.toYMD(d);
+      const dateStr = U.getLogicalYMD(d);   // canlı sistemlə eyni gün (icazə/izin gecə-yarısı sərhədində düz tapılsın)
       const arrMins = d.getHours() * 60 + d.getMinutes();
       if (onLeave(leaveMap, emp.id, dateStr) || withinLatePerm(latePermMap, emp.id, dateStr, arrMins)) continue;
       const si  = r.shift_type ? U.getShiftInfo(emp.dept, r.shift_type) : null;
