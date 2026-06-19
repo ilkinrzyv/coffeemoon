@@ -866,11 +866,18 @@ API.getMonthlyReport = async (year, month) => {
   const startStr = `${year}-${m}-01`;
   const endStr   = month === 12 ? `${year + 1}-01-01` : `${year}-${String(month + 1).padStart(2, '0')}-01`;
 
-  const [{ data: logs }, leaveMap, latePermMap] = await Promise.all([
+  const [{ data: logs }, leaveMap, latePermMap, { data: cedvelData }] = await Promise.all([
     sb.from('attendance').select('*').gte('timestamp', startStr).lt('timestamp', endStr),
     buildLeaveMap(),
     buildLatePermMap(),
+    sb.from('cedvel').select('emp_id,date_str,shift_type').gte('date_str', startStr).lt('date_str', endStr),
   ]);
+
+  // calcStreak ilə eyni mənbə: attendance-da shift_type yoxdursa cedveldən al
+  const cedvelMap = {};
+  for (const c of cedvelData || []) {
+    cedvelMap[String(c.emp_id) + '|' + c.date_str] = c.shift_type || null;
+  }
 
   const result = (emps || []).map(emp => {
     const myLogs    = (logs || []).filter(r => r.emp_id === emp.id);
@@ -885,7 +892,9 @@ API.getMonthlyReport = async (year, month) => {
       if (onLeave(leaveMap, emp.id, dateStr)) { onTime++; continue; }
       // Gec gəliş icazəsi → yalnız icazə vaxtı + 5 dəq içindədirsə vaxtında
       if (withinLatePerm(latePermMap, emp.id, dateStr, arrivalMins)) { onTime++; continue; }
-      const si   = r.shift_type ? U.getShiftInfo(emp.dept, r.shift_type) : null;
+      // calcStreak ilə eyni smen məntiqi: attendance → cedvel → fallback
+      const st   = r.shift_type || cedvelMap[String(emp.id) + '|' + dateStr] || null;
+      const si   = st ? U.getShiftInfo(emp.dept, st) : null;
       const late = si
         ? arrivalMins > (si.lateH * 60 + si.lateM)
         : U.isLate(emp.dept, d);
@@ -916,11 +925,18 @@ API.getWarnings = async () => {
   const monday = new Date(now.getTime() - (dow === 0 ? 6 : dow - 1) * 86400000);
   monday.setHours(0, 0, 0, 0);
 
-  const [{ data: logs }, leaveMap, latePermMap] = await Promise.all([
+  const mondayStr = U.toYMD(monday);
+  const [{ data: logs }, leaveMap, latePermMap, { data: warnCedvel }] = await Promise.all([
     sb.from('attendance').select('*').eq('type', 'GƏLİŞ').gte('timestamp', monday.toISOString()),
     buildLeaveMap(),
     buildLatePermMap(),
+    sb.from('cedvel').select('emp_id,date_str,shift_type').gte('date_str', mondayStr),
   ]);
+
+  const warnCedvelMap = {};
+  for (const c of warnCedvel || []) {
+    warnCedvelMap[String(c.emp_id) + '|' + c.date_str] = c.shift_type || null;
+  }
 
   const warnings = [];
   for (const emp of emps || []) {
@@ -931,9 +947,10 @@ API.getWarnings = async () => {
       const dateStr = U.getLogicalYMD(d);   // canlı sistemlə eyni gün (icazə/izin gecə-yarısı sərhədində düz tapılsın)
       const arrMins = d.getHours() * 60 + d.getMinutes();
       if (onLeave(leaveMap, emp.id, dateStr) || withinLatePerm(latePermMap, emp.id, dateStr, arrMins)) continue;
-      const si  = r.shift_type ? U.getShiftInfo(emp.dept, r.shift_type) : null;
+      const st  = r.shift_type || warnCedvelMap[String(emp.id) + '|' + dateStr] || null;
+      const si  = st ? U.getShiftInfo(emp.dept, st) : null;
       const isL = si
-        ? (d.getHours() * 60 + d.getMinutes()) > (si.lateH * 60 + si.lateM)
+        ? arrMins > (si.lateH * 60 + si.lateM)
         : U.isLate(emp.dept, d);
       if (isL) late++;
     }
