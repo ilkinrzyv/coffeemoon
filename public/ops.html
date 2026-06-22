@@ -104,6 +104,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
 .sev-pill.orta{background:#fffbeb;color:#b45309;}
 .sev-pill.kritik{background:#fef2f2;color:#b91c1c;}
 .issue-meta{font-size:0.74rem;color:var(--soft);margin-bottom:7px;}
+.issue-ts{margin-left:auto;font-size:0.68rem;color:var(--muted);white-space:nowrap;}
 .issue-ctrls{display:flex;gap:6px;flex-wrap:wrap;align-items:center;}
 .st-sel{border:1.5px solid var(--border);border-radius:9px;padding:0.4rem 0.5rem;font-family:inherit;font-size:0.78rem;font-weight:700;background:#fff;color:var(--text);}
 .in-sm{border:1.5px solid var(--border);border-radius:9px;padding:0.4rem 0.5rem;font-family:inherit;font-size:0.78rem;width:110px;color:var(--text);}
@@ -536,6 +537,12 @@ function loadBranchDetail(dept){
 }
 function closeDetail(){meeting.detailDept=null;document.getElementById('branchDetail').innerHTML='';}
 
+function fmtIssueTime(ts){
+  if(!ts) return '';
+  var d=new Date(ts);
+  var months=['Yan','Fev','Mar','Apr','May','İyn','İyl','Avq','Sep','Okt','Noy','Dek'];
+  return d.getDate()+' '+months[d.getMonth()]+' · '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+}
 /* problemlər */
 function loadProblems(){
   var box=document.getElementById('issueList');box.innerHTML='<div class="empty">Yüklənir...</div>';
@@ -580,7 +587,7 @@ function renderIssue(r){
   var meta=who+(who&&r.detail?' · ':'')+(r.detail?esc(r.detail):'');
   var opt=function(v,l){return '<option value="'+v+'"'+(r.status===v?' selected':'')+'>'+l+'</option>';};
   return '<div class="issue">'+
-    '<div class="issue-top"><span class="sev-pill '+r.severity+'">'+(r.severity==='kritik'?'kritik':r.severity==='asagi'?'aşağı':'orta')+'</span><span class="issue-title">'+esc(r.title)+'</span></div>'+
+    '<div class="issue-top"><span class="sev-pill '+r.severity+'">'+(r.severity==='kritik'?'kritik':r.severity==='asagi'?'aşağı':'orta')+'</span><span class="issue-title">'+esc(r.title)+'</span>'+(r.createdAt?'<span class="issue-ts">'+fmtIssueTime(r.createdAt)+'</span>':'')+  '</div>'+
     (meta?('<div class="issue-meta">'+meta+'</div>'):'')+
     '<div class="issue-ctrls">'+
       '<select class="st-sel" onchange="updIssue(\''+r.issueId+'\',{status:this.value})">'+opt('open','Açıq')+opt('progress','Davam edir')+opt('resolved','Həll olundu')+'</select>'+
