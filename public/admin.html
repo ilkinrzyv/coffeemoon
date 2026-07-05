@@ -1089,7 +1089,7 @@ function renderEmps(){
 function copyLink(l){navigator.clipboard.writeText(l);alert('Link kopyalandı!');}
 function sendMsg(id,name){var m=prompt(name+' üçün mesaj:',emps.filter(function(x){return x.id===id;})[0].message||'');if(m!==null)google.script.run.withSuccessHandler(loadEmps).updateEmployeeMessage(id,m);}
 function addEmp(){var n=document.getElementById('iName').value,d=document.getElementById('iDept').value;if(!n||!d)return alert('Ad və Filial qeyd edin!');google.script.run.withSuccessHandler(function(){document.getElementById('iName').value='';loadEmps();}).addEmployee(n,d);}
-function delEmp(id,name){if(confirm(name+' silinsin?'))google.script.run.withSuccessHandler(loadEmps).removeEmployee(id);}
+function delEmp(id,name){if(!confirm('⚠️ '+name+' silinsin?\n\nBu işçinin BÜTÜN datası (davamiyyət, nahar, cədvəl, izin, XP, imtahan, profil, cərimə, ops qeydləri...) həmişəlik silinəcək. Bu əməliyyat geri qaytarıla bilməz!'))return;google.script.run.withSuccessHandler(function(r){if(r&&r.success===false)alert('Silinmədi: '+(r.reason||'Xəta'));loadEmps();}).removeEmployee(id);}
 function resetDev(id,name){if(confirm(name+' — telefon kilidi sıfırlansın?'))google.script.run.withSuccessHandler(function(){alert('Sıfırlandı!');}).resetDevice(id);}
 
 // ── CƏDVƏL ───────────────────────────────────────────────────────

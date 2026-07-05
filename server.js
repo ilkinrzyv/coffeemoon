@@ -482,9 +482,43 @@ API.addEmployee = async (name, dept) => {
   return { success: !error };
 };
 
+// İşçini VƏ ona bağlı BÜTÜN datanı sil (davamiyyət, nahar, cədvəl, izin, XP, imtahan, profil, reaksiya, cərimə, ops qeydləri...).
+// Diqqətli sıra: əvvəlcə uşaq cədvəllər, ən sonda işçi qeydi — belədə xəta olsa "sahibsiz" (orphan) sətir qalmır.
 API.removeEmployee = async (id) => {
+  if (!id) return { success: false, reason: 'İşçi ID tapılmadı.' };
+
+  // İşçi həqiqətən varmı? (boş/yanlış id ilə səhvən silinmə olmasın)
+  const { data: emp } = await sb.from('employees').select('id,name').eq('id', id).single();
+  if (!emp) return { success: false, reason: 'İşçi tapılmadı.' };
+
+  // emp_id sütunu ilə işçiyə bağlı bütün cədvəllər
+  const empTables = [
+    'attendance', 'nahar', 'cedvel', 'izin', 'late_perms', 'avans',
+    'fines', 'mgr_fines', 'xp_audit_log', 'trainer_exams', 'trainer_logs',
+    'profiles', 'push_subscriptions', 'ops_emp_notes', 'ops_issues',
+  ];
+
+  const failed = [];
+  await Promise.all(empTables.map(async (t) => {
+    const { error } = await sb.from(t).delete().eq('emp_id', id);
+    if (error) { sbErr('removeEmployee:' + t, error); failed.push(t); }
+  }));
+
+  // Reaksiyalar — həm göndərən, həm alan tərəf
+  const { error: rFrom } = await sb.from('reactions').delete().eq('from_emp_id', id);
+  if (rFrom) { sbErr('removeEmployee:reactions_from', rFrom); failed.push('reactions'); }
+  const { error: rTo } = await sb.from('reactions').delete().eq('to_emp_id', id);
+  if (rTo) { sbErr('removeEmployee:reactions_to', rTo); failed.push('reactions'); }
+
+  // Bir hissə silinmədisə — işçini SAXLA, orphan yaratma, xəta qaytar (yenidən cəhd təmiz olsun).
+  if (failed.length) {
+    return { success: false, reason: 'Bəzi məlumatlar silinmədi: ' + [...new Set(failed)].join(', ') + '. İşçi silinmədi, yenidən cəhd edin.' };
+  }
+
+  // Ən sonda işçinin özünü sil
   const { error } = await sb.from('employees').delete().eq('id', id);
-  return { success: !error };
+  if (error) { sbErr('removeEmployee:employees', error); return { success: false, reason: 'İşçi qeydi silinmədi.' }; }
+  return { success: true };
 };
 
 // Bütün işçilərin streakını yenidən hesabla (admin funksiyası)
