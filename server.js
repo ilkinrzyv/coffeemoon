@@ -754,7 +754,9 @@ API.getCedvel = async (dept, weekStart) => {
     dates.push(U.toYMD(dd));
   }
   const { data: emps } = await sb.from('employees').select('*').eq('dept', dept).order('name');
-  const { data: rows } = await sb.from('cedvel').select('*').eq('dept', dept).in('date_str', dates);
+  // cedvel_id üzrə artan sırala: təkrar (emp_id,date_str) sətir olarsa, sonuncu (ən yeni) təyin qalib gəlir
+  // — getEmployeeShift ilə uyğun ki, menecer və işçi eyni smeni görsün.
+  const { data: rows } = await sb.from('cedvel').select('*').eq('dept', dept).in('date_str', dates).order('cedvel_id', { ascending: true });
   const map = {};
   for (const r of rows || []) {
     if (!map[r.emp_id]) map[r.emp_id] = {};
@@ -773,14 +775,19 @@ API.saveCedvel = async (entries) => {
   if (empIds.length && dates.length) {
     await sb.from('cedvel').delete().in('emp_id', empIds).in('date_str', dates);
   }
-  const toInsert = entries
-    .filter(e => e.empId && e.dateStr && e.shiftType)
-    .map((e, i) => ({
-      // i (sətir indeksi) batch daxilində unikallığa zəmanət verir — eyni ms-də random toqquşması cədvəli silmir
-      cedvel_id:  'C' + Date.now().toString(36).toUpperCase() + i.toString(36).toUpperCase() + Math.floor(Math.random()*46656).toString(36).toUpperCase(),
-      emp_id:     e.empId, emp_name: e.empName, dept: e.dept,
-      date_str:   e.dateStr, shift_type: e.shiftType,
-    }));
+  // Eyni (emp_id,date_str) xanə batch-də təkrarlanarsa sonuncunu saxla — uq_cedvel_emp_date
+  // unikal indeksi ilə toqquşub BÜTÜN saxlamanın uğursuz olmasının qarşısını alır.
+  const cellMap = new Map();
+  for (const e of entries) {
+    if (!e.empId || !e.dateStr || !e.shiftType) continue;
+    cellMap.set(String(e.empId) + '|' + e.dateStr, e);
+  }
+  const toInsert = [...cellMap.values()].map((e, i) => ({
+    // i (sətir indeksi) batch daxilində unikallığa zəmanət verir — eyni ms-də random toqquşması cədvəli silmir
+    cedvel_id:  'C' + Date.now().toString(36).toUpperCase() + i.toString(36).toUpperCase() + Math.floor(Math.random()*46656).toString(36).toUpperCase(),
+    emp_id:     e.empId, emp_name: e.empName, dept: e.dept,
+    date_str:   e.dateStr, shift_type: e.shiftType,
+  }));
   if (toInsert.length) {
     const { error } = await sb.from('cedvel').insert(toInsert);
     if (error) return { success: false, reason: 'Saxlama xətası: ' + error.message };

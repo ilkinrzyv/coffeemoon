@@ -87,9 +87,15 @@ function isLate(dept, dateObj) {
 
 // ── DB köməkçi sorğular ───────────────────────────────────────────
 async function getEmployeeShift(empId, dateStr) {
+  // DİQQƏT: cedvel-də (emp_id,date_str) üzrə unikallıq məhdudiyyəti yoxdur → təkrar sətir ola bilər.
+  // .single() təkrar sətirdə XƏTA verib null qaytarırdı → işçi cədvəli görmürdü (menecer görürdü).
+  // İndi təkrara dözümlü: ən son yazılmış qeyd qalib (getCedvel menecer görünüşü ilə uyğun).
   const { data } = await sb.from('cedvel')
-    .select('shift_type').eq('emp_id', String(empId)).eq('date_str', dateStr).single();
-  return data ? data.shift_type || null : null;
+    .select('shift_type')
+    .eq('emp_id', String(empId)).eq('date_str', dateStr)
+    .order('cedvel_id', { ascending: false })
+    .limit(1);
+  return (data && data.length) ? (data[0].shift_type || null) : null;
 }
 
 async function hasApprovedLeave(empId, dateStr) {
