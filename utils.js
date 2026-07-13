@@ -54,16 +54,16 @@ function generateDynamicPin(secret, tw) {
 // ── Smen məntiqi ─────────────────────────────────────────────────
 const SHIFT_TABLE = {
   A: {
-    sehersm:     { startH:7,  startM:30, durH:9,  lateH:7,  lateM:30, label:'Səhər (07:30-16:30)'      },
+    sehersm:     { startH:7,  startM:30, durH:9,  lateH:7,  lateM:15, label:'Səhər (07:30-16:30)'      },
     axsamsm:     { startH:16, startM:0,  durH:9,  lateH:16, lateM:0,  label:'Axşam (16:00-01:00)'      },
     fullsm:      { startH:14, startM:0,  durH:11, lateH:14, lateM:0,  label:'Axşam Full (14:00-01:00)' },
-    seherfullsm: { startH:7,  startM:30, durH:11, lateH:7,  lateM:30, label:'Səhər Full (07:30-18:30)' },
+    seherfullsm: { startH:7,  startM:30, durH:11, lateH:7,  lateM:15, label:'Səhər Full (07:30-18:30)' },
   },
   B: {
-    sehersm:     { startH:7,  startM:30, durH:8,  lateH:7,  lateM:30, label:'Səhər (07:30-15:30)'      },
+    sehersm:     { startH:7,  startM:30, durH:8,  lateH:7,  lateM:15, label:'Səhər (07:30-15:30)'      },
     axsamsm:     { startH:15, startM:0,  durH:8,  lateH:15, lateM:0,  label:'Axşam (15:00-23:00)'      },
     fullsm:      { startH:13, startM:0,  durH:10, lateH:13, lateM:0,  label:'Axşam Full (13:00-23:00)' },
-    seherfullsm: { startH:7,  startM:30, durH:10, lateH:7,  lateM:30, label:'Səhər Full (07:30-17:30)' },
+    seherfullsm: { startH:7,  startM:30, durH:10, lateH:7,  lateM:15, label:'Səhər Full (07:30-17:30)' },
   },
 };
 
