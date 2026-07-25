@@ -467,8 +467,9 @@ API.getEmployees = async () => {
     dept:    emp.dept,
     secret:  emp.secret,
     message: emp.message || '',
-    streak:  emp.is_test ? 999 : (emp.streak || 0),
-    xp:      emp.is_test ? 999999 : (emp.xp || 0),
+    is_test: !!emp.is_test,
+    streak:  emp.streak || 0,
+    xp:      emp.xp || 0,
   }));
   return result.sort((a, b) => b.streak - a.streak);
 };
@@ -2325,12 +2326,12 @@ API.getTeamProfiles = async (secret) => {
   const { data: profiles } = await sb.from('profiles').select('*');
   const pm = {};
   for (const p of profiles || []) pm[p.emp_id] = p;
-  const result = (emps || []).map(e => ({
+  const result = (emps || []).filter(e => !e.is_test).map(e => ({
     empId:       e.id,
     empName:     e.name,
     dept:        e.dept,
-    streak:      e.is_test ? 999 : (e.streak || 0),
-    xp:          e.is_test ? 999999 : (e.xp || 0),
+    streak:      e.streak || 0,
+    xp:          e.xp || 0,
     avatarType:  pm[e.id]?.avatar_type  || 'preset',
     avatarValue: pm[e.id]?.avatar_value || 'mug-hot',
     accentColor: pm[e.id]?.accent_color || '#5b5ef4',
@@ -2386,16 +2387,15 @@ API.getPublicProfile = async (secret, targetEmpId) => {
   const { data: caller } = await sb.from('employees').select('id').eq('secret', secret).single();
   if (!caller) return null;
   const { data: emp } = await sb.from('employees').select('id,name,dept,is_test,streak,xp').eq('id', targetEmpId).single();
-  if (!emp) return null;
-  const targetIsTest = emp.is_test === true;
+  if (!emp || emp.is_test) return null;   // test/demo hesabı liderlik/aurada göstərilmir
   const { data: p } = await sb.from('profiles').select('*').eq('emp_id', emp.id).single();
-  const streak = targetIsTest ? 999 : (emp.streak || 0);
+  const streak = emp.streak || 0;
   const now = new Date();
   const report = await API.getMonthlyReport(now.getFullYear(), now.getMonth() + 1);
   const myR = report.find(r => r.empId === emp.id) || { totalDays: 0, onTime: 0, late: 0, pct: 0 };
   return {
     empId: emp.id, empName: emp.name, dept: emp.dept, streak,
-    xp:          targetIsTest ? 999999 : (emp.xp || 0),
+    xp:          emp.xp || 0,
     avatarType:  p?.avatar_type  || 'preset',
     avatarValue: p?.avatar_value || 'mug-hot',
     accentColor: p?.accent_color || '#5b5ef4',

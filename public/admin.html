@@ -1075,8 +1075,9 @@ function renderEmps(){
   list.innerHTML=emps.map(function(e){
     var sb=e.streak>0?'<span class="emp-streak-lbl"><i class="fa-solid fa-fire"></i>'+e.streak+' gün</span>':'';
     var xpb=(e.xp>0)?'<span class="emp-xp-lbl"><i class="fa-solid fa-coins"></i>'+e.xp+' XP</span>':'';
+    var tb=e.is_test?'<span style="font-size:0.62rem;font-weight:700;letter-spacing:.4px;color:#f59e0b;background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.35);border-radius:5px;padding:1px 5px;margin-left:6px;vertical-align:middle;">TEST</span>':'';
     return '<div class="emp-row"><div class="avatar">'+getInitials(e.name)+'</div>'+
-      '<div class="emp-name"><b>'+e.name+'</b>'+sb+xpb+'<span><i class="fa-solid fa-briefcase"></i>'+e.dept+'</span></div>'+
+      '<div class="emp-name"><b>'+e.name+'</b>'+tb+sb+xpb+'<span><i class="fa-solid fa-briefcase"></i>'+e.dept+'</span></div>'+
       '<div class="live-pin">'+generateDynamicPin(e.secret,cW)+'</div>'+
       '<div class="btn-group">'+
         '<button class="action-btn" onclick="copyLink(\''+SCRIPT_URL+'/mycode?name='+encodeURIComponent(e.name)+'&secret='+e.secret+'\')"><i class="fa-solid fa-link"></i> Kart</button>'+
