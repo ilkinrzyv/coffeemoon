@@ -1017,9 +1017,9 @@ body > nav { display: none; }
 
 <script src="/gsr-shim.js"></script>
 <script>
-// Admin açarı — gsr-shim hər API sorğusunda bunu X-CM-Key başlığında göndərir.
-// var (const yox), çünki shim onu window üzərindən oxuyur.
-var ADMIN_KEY = '<?= adminKey ?>';
+// DİQQƏT: admin açarını BURAYA YAZMA. Açar ixtiyari simvol saxlaya bilər (apostrof, tərs slef)
+// və şablon əvəzlənməsi sətri pozub bütün skripti sındırır (panel tam boş qalır).
+// gsr-shim açarı URL-dən (?key=) özü oxuyur — /admin həmişə açarla açılır.
 const SCRIPT_URL = window.location.origin;
 const TIME_STEP=10000;
 let emps=[],allLogs=[],scanDevices=[],onlineData=[],elapsedTimer=null;
