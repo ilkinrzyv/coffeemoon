@@ -29,6 +29,9 @@ const API_POLICY = {
   addEmployee: 'admin', removeEmployee: 'admin',
   recalcAllStreaks: 'admin', recalcAllXP: 'admin', recalcAllFines: 'admin',
   updateEmployeeMessage: 'admin', getEmployeesByDept: 'admin',
+  updateEmployeeDept: 'admin',      // filial dəyişmək — yalnız admin
+  // Filial iş saatları: oxumaq panellərə lazımdır, dəyişmək yalnız admin
+  getShiftConfig: 'staff', saveShiftConfig: 'admin', resetShiftConfig: 'admin',
   registerEmployeeSession: 'admin', // heç yerdən çağırılmır (ölü kod)
 
   // ── Cərimələr (admin)

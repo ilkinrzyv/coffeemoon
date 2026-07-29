@@ -52,37 +52,109 @@ function generateDynamicPin(secret, tw) {
 }
 
 // ── Smen məntiqi ─────────────────────────────────────────────────
+// Saatlar artıq HARDCODE DEYİL: admin panelindən dəyişilir və `settings.SHIFT_CONFIG`-də
+// JSON kimi saxlanılır. Aşağıdakı cədvəl yalnız İLKİN DƏYƏRDİR (konfiqurasiya yoxdursa/pozulubsa).
+// Beləliklə mövcud davranış birinci gün eyni qalır.
 const SHIFT_TABLE = {
   A: {
-    sehersm:     { startH:7,  startM:30, durH:9,  lateH:7,  lateM:15, label:'Səhər (07:30-16:30)'      },
-    axsamsm:     { startH:16, startM:0,  durH:9,  lateH:16, lateM:0,  label:'Axşam (16:00-01:00)'      },
-    fullsm:      { startH:14, startM:0,  durH:11, lateH:14, lateM:0,  label:'Axşam Full (14:00-01:00)' },
-    seherfullsm: { startH:7,  startM:30, durH:11, lateH:7,  lateM:15, label:'Səhər Full (07:30-18:30)' },
+    sehersm:     { startH:7,  startM:30, durH:9,  lateH:7,  lateM:15 },
+    axsamsm:     { startH:16, startM:0,  durH:9,  lateH:16, lateM:0  },
+    fullsm:      { startH:14, startM:0,  durH:11, lateH:14, lateM:0  },
+    seherfullsm: { startH:7,  startM:30, durH:11, lateH:7,  lateM:15 },
+    // Cədvəldə smen təyin olunmayıbsa istifadə olunan ehtiyat hədlər:
+    fbMorningH:7, fbMorningM:30, fbEveningH:16, fbEveningM:0,
   },
   B: {
-    sehersm:     { startH:7,  startM:30, durH:8,  lateH:7,  lateM:15, label:'Səhər (07:30-15:30)'      },
-    axsamsm:     { startH:15, startM:0,  durH:8,  lateH:15, lateM:0,  label:'Axşam (15:00-23:00)'      },
-    fullsm:      { startH:13, startM:0,  durH:10, lateH:13, lateM:0,  label:'Axşam Full (13:00-23:00)' },
-    seherfullsm: { startH:7,  startM:30, durH:10, lateH:7,  lateM:15, label:'Səhər Full (07:30-17:30)' },
+    sehersm:     { startH:7,  startM:30, durH:8,  lateH:7,  lateM:15 },
+    axsamsm:     { startH:15, startM:0,  durH:8,  lateH:15, lateM:0  },
+    fullsm:      { startH:13, startM:0,  durH:10, lateH:13, lateM:0  },
+    seherfullsm: { startH:7,  startM:30, durH:10, lateH:7,  lateM:15 },
+    fbMorningH:7, fbMorningM:30, fbEveningH:15, fbEveningM:0,
   },
 };
+
+const SHIFT_TYPES = ['sehersm', 'axsamsm', 'fullsm', 'seherfullsm'];
+const SHIFT_NAMES = { sehersm:'Səhər', axsamsm:'Axşam', fullsm:'Axşam Full', seherfullsm:'Səhər Full' };
+
+// Gəlişin "səhər" yoxsa "axşam" hissəsinə aid olduğunu ayıran sərhəd (cədvəlsiz günlər üçün).
+// Bu iş saatı deyil, daxili bölgü həddidir — ona görə konfiqurasiyaya çıxarılmayıb.
+const DAYPART_BOUNDARY_MIN = 13 * 60;
 
 function getShiftGroup(dept) {
   return (dept === 'Ağ Şəhər' || dept === 'Gənclik') ? 'A' : 'B';
 }
+
+// İlkin (hardcode) cədvəldən filial üzrə konfiqurasiya qur
+function defaultShiftConfig() {
+  const cfg = {};
+  for (const dept of Object.keys(DEPT_SLUG)) {
+    const g = SHIFT_TABLE[getShiftGroup(dept)];
+    cfg[dept] = JSON.parse(JSON.stringify(g));
+  }
+  return cfg;
+}
+
+// Konfiqurasiya keşi — `getShiftInfo` sinxron və döngülərdə çağırılır (recalcAllXP),
+// ona görə eyni JSON mətni təkrar parse edilmir.
+let _shiftCfgRaw = null, _shiftCfgParsed = null;
+
+function getShiftConfig() {
+  const raw = getSetting('SHIFT_CONFIG');
+  if (!raw) return defaultShiftConfig();
+  if (raw === _shiftCfgRaw && _shiftCfgParsed) return _shiftCfgParsed;
+  try {
+    const parsed = JSON.parse(raw);
+    const base = defaultShiftConfig();
+    // Çatışmayan filial/smen olarsa ilkin dəyərlə tamamla (yarımçıq konfiq sistemi sındırmasın)
+    for (const dept of Object.keys(base)) {
+      if (!parsed[dept]) { parsed[dept] = base[dept]; continue; }
+      for (const t of SHIFT_TYPES) if (!parsed[dept][t]) parsed[dept][t] = base[dept][t];
+      for (const k of ['fbMorningH', 'fbMorningM', 'fbEveningH', 'fbEveningM']) {
+        if (typeof parsed[dept][k] !== 'number') parsed[dept][k] = base[dept][k];
+      }
+    }
+    _shiftCfgRaw = raw; _shiftCfgParsed = parsed;
+    return parsed;
+  } catch (e) {
+    console.error('[SHIFT_CONFIG] parse xətası — ilkin dəyərlər işlədilir:', e.message);
+    return defaultShiftConfig();
+  }
+}
+
+function pad2(n) { return String(n).padStart(2, '0'); }
+
+// Smen etiketi saatlardan avtomatik qurulur: "Səhər (07:30-15:30)"
+function shiftLabel(type, s) {
+  const endTot = (s.startH * 60 + s.startM + s.durH * 60) % (24 * 60);
+  return `${SHIFT_NAMES[type] || type} (${pad2(s.startH)}:${pad2(s.startM)}-${pad2(Math.floor(endTot / 60))}:${pad2(endTot % 60)})`;
+}
+
 function getShiftInfo(dept, shiftType) {
   if (!shiftType || shiftType === 'istirahetsm' || shiftType === '') return null;
-  const g = getShiftGroup(dept);
-  return (SHIFT_TABLE[g] && SHIFT_TABLE[g][shiftType]) || null;
+  const d = getShiftConfig()[dept];
+  const s = d && d[shiftType];
+  if (!s) return null;
+  return { ...s, label: shiftLabel(shiftType, s) };
 }
+
+// ⭐ TƏK MƏNBƏ: gecikmə həddi (dəqiqə ilə).
+// Smen məlumdursa onun `lateH/lateM`-i, deyilsə filialın ehtiyat həddi işlədilir.
+// Əvvəl bu məntiq 7 ayrı yerdə təkrarlanırdı (7:30 / 16:00 / 15:00 hardcode).
+function getLateLimit(dept, shiftType, arrivalMins) {
+  const si = shiftType ? getShiftInfo(dept, shiftType) : null;
+  if (si) return si.lateH * 60 + si.lateM;
+  const d = getShiftConfig()[dept] || defaultShiftConfig()[dept] || SHIFT_TABLE.B;
+  return (arrivalMins < DAYPART_BOUNDARY_MIN)
+    ? d.fbMorningH * 60 + d.fbMorningM
+    : d.fbEveningH * 60 + d.fbEveningM;
+}
+
 function isLate(dept, dateObj) {
   const h = dateObj.getHours();
   let tot = h * 60 + dateObj.getMinutes();
   if (h < 3) tot += 24 * 60;
-  const lim = (h >= 3 && h < 13)
-    ? 7 * 60 + 30
-    : (dept === 'Gənclik' || dept === 'Ağ Şəhər') ? 16 * 60 : 15 * 60;
-  return tot > lim;
+  // Gecə 03:00-dan əvvəlki gəliş "axşam" tərəfə aiddir (tot 24 saat əlavə edilib)
+  return tot > getLateLimit(dept, null, h < 3 ? DAYPART_BOUNDARY_MIN : tot);
 }
 
 // ── DB köməkçi sorğular ───────────────────────────────────────────
@@ -157,9 +229,7 @@ async function calcStreak(empId, dept) {
 
     // Əvvəlcə cədvəldəki smen, yoxdursa gəliş anında qeyd olunmuş smen (hesabatla uyğun olsun)
     const st = row.shift_type || shiftMap[dateStr] || null;
-    const si = st ? getShiftInfo(dept, st) : null;
-    const lim = si ? (si.lateH * 60 + si.lateM)
-      : (arrivalMins < 13 * 60 ? 7 * 60 + 30 : (dept === 'Ağ Şəhər' || dept === 'Gənclik') ? 16 * 60 : 15 * 60);
+    const lim = getLateLimit(dept, st, arrivalMins);
     if (arrivalMins <= lim) streak++;
     else break; // Gecikmiş gün — streak dayanır
   }
@@ -287,9 +357,7 @@ function computeEmployeeXP(dept, opts) {
     const ds   = getLogicalYMD(a.d);
     const arr  = a.d.getHours() * 60 + a.d.getMinutes();
     const st   = a.shift || cedvelMap[ds] || null;   // calcStreak ilə eyni mənbə (gəliş anındakı smen)
-    const si   = st ? getShiftInfo(dept, st) : null;
-    const lim  = si ? (si.lateH * 60 + si.lateM)
-      : (arr < 13 * 60 ? 7 * 60 + 30 : (dept === 'Ağ Şəhər' || dept === 'Gənclik') ? 16 * 60 : 15 * 60);
+    const lim  = getLateLimit(dept, st, arr);
     const withinPerm = (ds in permMap) && arr <= permMap[ds] + 5;
     const onTime = onIzin(ds) || withinPerm || arr <= lim;
     const streakBefore = streak;
@@ -338,7 +406,8 @@ module.exports = {
   getXPMultiplier, computeEmployeeXP, MS_BONUSES,
   toYMD, fmtTime, getLogicalYMD, getLogicalDateStr,
   generateDynamicPin, TIME_STEP,
-  getShiftInfo, isLate, SHIFT_TABLE,
+  getShiftInfo, isLate, SHIFT_TABLE, SHIFT_TYPES, SHIFT_NAMES,
+  getShiftConfig, defaultShiftConfig, getLateLimit, shiftLabel,
   getEmployeeShift, hasApprovedLeave, getApprovedLatePerm,
   deptToSlug, slugToDept, SLUGS, DEPTS,
   getBranchScheduleKeys, validateBranchScheduleKey,

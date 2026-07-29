@@ -334,6 +334,7 @@ body > nav { display: none; }
   <button class="tab" onclick="sw('tg')"><i class="fa-brands fa-telegram"></i> Telegram</button>
   <button class="tab" onclick="sw('mgr')"><i class="fa-solid fa-user-tie"></i> İdarəçilər</button>
   <button class="tab" onclick="sw('wifi')"><i class="fa-solid fa-wifi"></i> WiFi</button>
+  <button class="tab" onclick="sw('saatlar')"><i class="fa-solid fa-clock"></i> Saatlar</button>
   <button class="tab" onclick="sw('checklist')"><i class="fa-solid fa-clipboard-check"></i> Çeklist</button>
   <button class="tab" onclick="sw('waste')"><i class="fa-solid fa-box-archive"></i> Tullantılar</button>
   <button class="tab" onclick="sw('yenilik')"><i class="fa-solid fa-bell-concierge"></i> Yeniliklər</button>
@@ -798,6 +799,28 @@ body > nav { display: none; }
   </div>
 </div>
 
+<!-- ═══════════ FİLİAL İŞ SAATLARI ═══════════ -->
+<div id="tab-saatlar" class="page">
+  <div class="card">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:1rem;">
+      <div style="width:40px;height:40px;border-radius:11px;background:rgba(79,70,229,0.06);border:1px solid rgba(79,70,229,0.08);display:flex;align-items:center;justify-content:center;color:var(--primary);flex-shrink:0;"><i class="fa-solid fa-clock"></i></div>
+      <div><div style="font-weight:700;font-size:0.95rem;">Filial İş Saatları</div><div style="font-size:0.82rem;color:var(--text-muted);">Smen saatları və gecikmə hədləri — kodu dəyişmədən</div></div>
+    </div>
+    <div style="background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.2);border-radius:12px;padding:0.85rem 1.05rem;margin-bottom:1.2rem;font-size:0.83rem;line-height:1.5;">
+      <b><i class="fa-solid fa-triangle-exclamation" style="color:#f59e0b;"></i> Diqqət:</b>
+      Saat dəyişikliyi <b>dərhal</b> qüvvəyə minir və bundan sonrakı bütün gəlişlərə tətbiq olunur.
+      <b>Streak/XP-ni yenidən hesablasanız</b> (İşçilər tabı), keçmiş günlər də YENİ saatlarla qiymətləndiriləcək.
+      Ona görə saatları ayın ortasında dəyişməkdən çəkinin.
+    </div>
+    <div id="shiftCfgBody">Yüklənir...</div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:1.2rem;">
+      <button class="btn primary" onclick="saveShiftCfg()"><i class="fa-solid fa-floppy-disk"></i> Saxla</button>
+      <button class="btn" onclick="resetShiftCfg()"><i class="fa-solid fa-rotate-left"></i> İlkin dəyərlərə qaytar</button>
+    </div>
+    <div class="tg-result" id="shiftCfgResult"></div>
+  </div>
+</div>
+
 <!-- ═══════════ ÇEKLİST TAB HTML ═══════════ -->
 <div id="tab-checklist" class="page">
  
@@ -1064,6 +1087,7 @@ function sw(name){
   if(name==='yenilik'){loadYenilikler();}
   if(name==='trainer'&&!window._trainerInited){window._trainerInited=true;initTrainerTab();}
   if(name==='approvals'){loadApprovals();loadFinesAdmin();}
+  if(name==='saatlar'&&!_shiftMeta){initShiftCfg();}
 }
 function sbToggle(){document.getElementById('adminSb').classList.toggle('open');document.getElementById('sbOverlay').classList.toggle('open');}
 function sbClose(){document.getElementById('adminSb').classList.remove('open');document.getElementById('sbOverlay').classList.remove('open');}
@@ -1071,6 +1095,7 @@ function sbClose(){document.getElementById('adminSb').classList.remove('open');d
 function generateDynamicPin(s,tw){var str=s.toString()+tw.toString(),hash=0;for(var i=0;i<str.length;i++){hash=(hash<<5)-hash+str.charCodeAt(i);hash|=0;}hash^=(hash<<13);hash^=(hash>>>17);hash^=(hash<<5);return(Math.abs(Math.imul(hash,1664525)+1013904223)%10000).toString().padStart(4,'0');}
 
 // ── İŞÇİLƏR ─────────────────────────────────────────────────────
+var DEPT_LIST=['Elmlər','Sahil','Gənclik','Ağ Şəhər'];
 function loadEmps(){google.script.run.withSuccessHandler(function(d){emps=d||[];renderEmps();}).getEmployees();}
 function renderEmps(){
   var cW=Math.floor(Date.now()/TIME_STEP),list=document.getElementById('empList');
@@ -1083,6 +1108,9 @@ function renderEmps(){
       '<div class="emp-name"><b>'+e.name+'</b>'+tb+sb+xpb+'<span><i class="fa-solid fa-briefcase"></i>'+e.dept+'</span></div>'+
       '<div class="live-pin">'+generateDynamicPin(e.secret,cW)+'</div>'+
       '<div class="btn-group">'+
+        '<select class="action-btn" style="padding:4px 6px;cursor:pointer;" title="Filialı dəyiş" onchange="changeDept(\''+e.id+'\',this.value,this)">'+
+          DEPT_LIST.map(function(d){return '<option value="'+d+'"'+(d===e.dept?' selected':'')+'>'+d+'</option>';}).join('')+
+        '</select>'+
         '<button class="action-btn" onclick="copyLink(\''+SCRIPT_URL+'/mycode?name='+encodeURIComponent(e.name)+'&secret='+e.secret+'\')"><i class="fa-solid fa-link"></i> Kart</button>'+
         '<button class="action-btn" style="'+(e.message?'color:var(--primary);font-weight:600;':'')+'" onclick="sendMsg(\''+e.id+'\',\''+e.name+'\')"><i class="fa-regular fa-envelope"></i></button>'+
         '<button class="action-btn" style="color:var(--warning)" onclick="resetDev(\''+e.id+'\',\''+e.name+'\')"><i class="fa-solid fa-mobile"></i></button>'+
@@ -1090,11 +1118,114 @@ function renderEmps(){
       '</div></div>';
   }).join('');
 }
+// Filial dəyişmə — işçi adını onclick-ə YAZMIRIQ (adda apostrof olsa sətri pozar), id ilə axtarırıq.
+function changeDept(id,newDept,sel){
+  var e=emps.filter(function(x){return x.id===id;})[0];
+  if(!e){return;}
+  if(newDept===e.dept){return;}
+  if(!confirm(e.name+' — filial dəyişsin?\n\n'+e.dept+'  →  '+newDept+'\n\n• Keçmiş davamiyyət qeydləri köhnə filialda qalır (real tarixçə).\n• Bugündən sonrakı cədvəl sətirləri yeni filiala keçir.\n• Yeni filialın smen saatları tətbiq olunacaq.')){
+    if(sel)sel.value=e.dept;
+    return;
+  }
+  if(sel)sel.disabled=true;
+  google.script.run.withSuccessHandler(function(r){
+    if(!r||r.success===false){alert('Dəyişmədi: '+((r&&r.reason)||'Xəta'));loadEmps();return;}
+    alert(e.name+': '+r.from+' → '+r.to+'\nKöçürülən cədvəl sətri: '+(r.movedSchedule||0));
+    loadEmps();
+  }).withFailureHandler(function(err){alert('Server xətası: '+((err&&err.message)||'naməlum'));loadEmps();})
+    .updateEmployeeDept(id,newDept);
+}
 function copyLink(l){navigator.clipboard.writeText(l);alert('Link kopyalandı!');}
 function sendMsg(id,name){var m=prompt(name+' üçün mesaj:',emps.filter(function(x){return x.id===id;})[0].message||'');if(m!==null)google.script.run.withSuccessHandler(loadEmps).updateEmployeeMessage(id,m);}
 function addEmp(){var n=document.getElementById('iName').value,d=document.getElementById('iDept').value;if(!n||!d)return alert('Ad və Filial qeyd edin!');google.script.run.withSuccessHandler(function(){document.getElementById('iName').value='';loadEmps();}).addEmployee(n,d);}
 function delEmp(id,name){if(!confirm('⚠️ '+name+' silinsin?\n\nBu işçinin BÜTÜN datası (davamiyyət, nahar, cədvəl, izin, XP, imtahan, profil, cərimə, ops qeydləri...) həmişəlik silinəcək. Bu əməliyyat geri qaytarıla bilməz!'))return;google.script.run.withSuccessHandler(function(r){if(r&&r.success===false)alert('Silinmədi: '+(r.reason||'Xəta'));loadEmps();}).removeEmployee(id);}
 function resetDev(id,name){if(confirm(name+' — telefon kilidi sıfırlansın?'))google.script.run.withSuccessHandler(function(){alert('Sıfırlandı!');}).resetDevice(id);}
+
+// ── FİLİAL İŞ SAATLARI ───────────────────────────────────────────
+var _shiftCfg=null,_shiftMeta=null;
+function pad2(n){return String(n).padStart(2,'0');}
+function hm(h,m){return pad2(h)+':'+pad2(m);}
+function parseHM(v,fbH,fbM){
+  var p=String(v||'').split(':');
+  var h=parseInt(p[0],10),m=parseInt(p[1],10);
+  if(!isFinite(h)||h<0||h>23)h=fbH;
+  if(!isFinite(m)||m<0||m>59)m=fbM;
+  return {h:h,m:m};
+}
+function initShiftCfg(){
+  google.script.run.withSuccessHandler(function(r){
+    if(!r){document.getElementById('shiftCfgBody').innerHTML='<div style="color:var(--danger)">Yüklənmədi.</div>';return;}
+    _shiftCfg=r.config;_shiftMeta=r;renderShiftCfg();
+  }).withFailureHandler(function(e){
+    document.getElementById('shiftCfgBody').innerHTML='<div style="color:var(--danger)">Xəta: '+((e&&e.message)||'server')+'</div>';
+  }).getShiftConfig();
+}
+function renderShiftCfg(){
+  var types=_shiftMeta.types,names=_shiftMeta.names;
+  document.getElementById('shiftCfgBody').innerHTML=_shiftMeta.depts.map(function(dept){
+    var d=_shiftCfg[dept]||{};
+    var rows=types.map(function(t){
+      var s=d[t]||{startH:0,startM:0,durH:8,lateH:0,lateM:0};
+      var id='sc-'+_shiftMeta.depts.indexOf(dept)+'-'+t;
+      return '<tr>'+
+        '<td style="font-weight:600;white-space:nowrap;padding:5px 8px 5px 0;">'+(names[t]||t)+'</td>'+
+        '<td style="padding:5px 6px;"><input type="time" id="'+id+'-start" value="'+hm(s.startH,s.startM)+'" style="width:110px;"></td>'+
+        '<td style="padding:5px 6px;"><input type="number" id="'+id+'-dur" value="'+s.durH+'" min="1" max="24" style="width:64px;"></td>'+
+        '<td style="padding:5px 6px;"><input type="time" id="'+id+'-late" value="'+hm(s.lateH,s.lateM)+'" style="width:110px;"></td>'+
+      '</tr>';
+    }).join('');
+    var di=_shiftMeta.depts.indexOf(dept);
+    return '<div style="border:1px solid var(--border,rgba(0,0,0,0.08));border-radius:12px;padding:0.9rem 1rem;margin-bottom:1rem;">'+
+      '<div style="font-weight:700;margin-bottom:0.6rem;"><i class="fa-solid fa-store"></i> '+dept+'</div>'+
+      '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:0.85rem;">'+
+        '<tr style="color:var(--text-muted);font-size:0.72rem;text-transform:uppercase;letter-spacing:.6px;">'+
+          '<th style="text-align:left;padding-right:8px;">Smen</th><th style="text-align:left;">Başlama</th>'+
+          '<th style="text-align:left;">Saat</th><th style="text-align:left;">Gecikmə həddi</th></tr>'+
+        rows+
+      '</table></div>'+
+      '<div style="margin-top:0.7rem;padding-top:0.7rem;border-top:1px dashed rgba(0,0,0,0.1);font-size:0.8rem;">'+
+        '<div style="color:var(--text-muted);margin-bottom:5px;">Cədvəldə smen təyin olunmayan gün üçün ehtiyat hədlər:</div>'+
+        '<span style="margin-right:14px;">Səhər <input type="time" id="sc-'+di+'-fbM" value="'+hm(d.fbMorningH,d.fbMorningM)+'" style="width:110px;"></span>'+
+        '<span>Axşam <input type="time" id="sc-'+di+'-fbE" value="'+hm(d.fbEveningH,d.fbEveningM)+'" style="width:110px;"></span>'+
+      '</div>'+
+    '</div>';
+  }).join('');
+}
+function collectShiftCfg(){
+  var out={};
+  _shiftMeta.depts.forEach(function(dept,di){
+    var d=_shiftCfg[dept]||{},o={};
+    _shiftMeta.types.forEach(function(t){
+      var s=d[t]||{},id='sc-'+di+'-'+t;
+      var st=parseHM(document.getElementById(id+'-start').value,s.startH,s.startM);
+      var lt=parseHM(document.getElementById(id+'-late').value,s.lateH,s.lateM);
+      var du=parseInt(document.getElementById(id+'-dur').value,10);
+      o[t]={startH:st.h,startM:st.m,lateH:lt.h,lateM:lt.m,durH:(isFinite(du)&&du>=1&&du<=24)?du:s.durH};
+    });
+    var fm=parseHM(document.getElementById('sc-'+di+'-fbM').value,d.fbMorningH,d.fbMorningM);
+    var fe=parseHM(document.getElementById('sc-'+di+'-fbE').value,d.fbEveningH,d.fbEveningM);
+    o.fbMorningH=fm.h;o.fbMorningM=fm.m;o.fbEveningH=fe.h;o.fbEveningM=fe.m;
+    out[dept]=o;
+  });
+  return out;
+}
+function saveShiftCfg(){
+  if(!_shiftMeta)return;
+  var res=document.getElementById('shiftCfgResult');
+  res.innerHTML='<i class="fa-solid fa-circle-notch fa-spin"></i> Saxlanılır...';
+  google.script.run.withSuccessHandler(function(r){
+    if(r&&r.success){_shiftCfg=r.config;renderShiftCfg();res.innerHTML='<span style="color:var(--success);font-weight:600;"><i class="fa-solid fa-check"></i> Saxlanıldı — dərhal qüvvədədir.</span>';}
+    else res.innerHTML='<span style="color:var(--danger);font-weight:600;">Xəta: '+((r&&r.reason)||'bilinmir')+'</span>';
+  }).withFailureHandler(function(e){res.innerHTML='<span style="color:var(--danger);font-weight:600;">Server xətası: '+((e&&e.message)||'naməlum')+'</span>';})
+    .saveShiftConfig(collectShiftCfg());
+}
+function resetShiftCfg(){
+  if(!confirm('Bütün filialların saatları İLKİN dəyərlərə qaytarılsın?'))return;
+  var res=document.getElementById('shiftCfgResult');
+  google.script.run.withSuccessHandler(function(r){
+    if(r&&r.success){_shiftCfg=r.config;renderShiftCfg();res.innerHTML='<span style="color:var(--success);font-weight:600;"><i class="fa-solid fa-check"></i> İlkin dəyərlərə qaytarıldı.</span>';}
+  }).resetShiftConfig();
+}
 
 // ── CƏDVƏL ───────────────────────────────────────────────────────
 var SHIFT_CYCLE=['sehersm','axsamsm','fullsm','seherfullsm','istirahetsm',''];

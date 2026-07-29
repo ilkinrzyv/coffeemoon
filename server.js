@@ -659,9 +659,7 @@ API.recalcAllFines = async () => {
       const arr = a.d.getHours() * 60 + a.d.getMinutes();
       if (izin.some(r => ds >= r.start_date && ds <= r.end_date)) continue;        // tam gün izin
       if (ds in permMap && arr <= permMap[ds] + 5) continue;                         // icazə vaxtından tez
-      const si  = a.shift ? U.getShiftInfo(emp.dept, a.shift) : null;
-      const lim = si ? (si.lateH * 60 + si.lateM)
-        : (a.d.getHours() < 13 ? 7 * 60 + 30 : (emp.dept === 'Gənclik' || emp.dept === 'Ağ Şəhər') ? 16 * 60 : 15 * 60);
+      const lim = U.getLateLimit(emp.dept, a.shift, arr);
       if (arr <= lim) continue;                                                       // vaxtında
       monthCount[ym] = (monthCount[ym] || 0) + 1;
       if (monthCount[ym] >= 3) expected[ds] = { late_num: monthCount[ym], late_mins: arr - lim };
@@ -700,6 +698,89 @@ API.recalcAllFines = async () => {
 API.updateEmployeeMessage = async (id, msg) => {
   const { error } = await sb.from('employees').update({ message: msg || '' }).eq('id', id);
   return { success: !error };
+};
+
+// İşçinin filialını dəyiş (əvvəl bunu yalnız Supabase-dən əl ilə etmək olurdu).
+// Tarixçəyə TOXUNMUR: keçmiş davamiyyət/nahar qeydləri yazıldığı filialda qalır (real tarixçə).
+// Yalnız BUGÜNDƏN SONRAKI cədvəl sətirləri yeni filiala keçir ki, yeni menecer onları görüb redaktə edə bilsin.
+API.updateEmployeeDept = async (id, dept) => {
+  if (!id || !dept) return { success: false, reason: 'İşçi və filial tələb olunur.' };
+  if (!U.DEPTS.includes(dept)) return { success: false, reason: 'Belə filial yoxdur: ' + dept };
+
+  const { data: emp } = await sb.from('employees').select('id,name,dept').eq('id', id).single();
+  if (!emp) return { success: false, reason: 'İşçi tapılmadı.' };
+  if (emp.dept === dept) return { success: false, reason: 'İşçi onsuz da bu filialdadır.' };
+
+  const { error } = await sb.from('employees').update({ dept }).eq('id', id);
+  if (error) { sbErr('updateEmployeeDept', error); return { success: false, reason: error.message }; }
+
+  // Gələcək cədvəl sətirlərini yeni filiala köçür
+  const todayYMD = U.toYMD(new Date());
+  const { error: cErr, count } = await sb.from('cedvel')
+    .update({ dept }, { count: 'exact' })
+    .eq('emp_id', String(id)).gte('date_str', todayYMD);
+  sbErr('updateEmployeeDept:cedvel', cErr);
+
+  // Smen qrupu (saatlar) dəyişmiş ola bilər → streak-i yenidən hesabla ki, panel uyğun göstərsin
+  let newStreak = null;
+  try {
+    newStreak = await U.calcStreak(id, dept);
+    await sb.from('employees').update({ streak: newStreak }).eq('id', id);
+  } catch (e) { console.error('[updateEmployeeDept] streak:', e.message); }
+
+  await U.sendTelegramMsg(`<b>${emp.name}</b> filialı dəyişdi: ${emp.dept} → <b>${dept}</b>`, dept);
+  return { success: true, from: emp.dept, to: dept, movedSchedule: count || 0, streak: newStreak };
+};
+
+// ── FİLİAL İŞ SAATLARI (smen konfiqurasiyası) ────────────────────
+// Saatlar settings.SHIFT_CONFIG-də JSON kimi saxlanılır; kodda hardcode qalmayıb.
+
+API.getShiftConfig = async () => ({
+  config:   U.getShiftConfig(),
+  defaults: U.defaultShiftConfig(),
+  depts:    U.DEPTS,
+  types:    U.SHIFT_TYPES,
+  names:    U.SHIFT_NAMES,
+});
+
+API.saveShiftConfig = async (cfg) => {
+  if (!cfg || typeof cfg !== 'object') return { success: false, reason: 'Yanlış format.' };
+
+  const num = (v, min, max, fb) => {
+    const n = Math.round(Number(v));
+    return (Number.isFinite(n) && n >= min && n <= max) ? n : fb;
+  };
+  const base  = U.defaultShiftConfig();
+  const clean = {};
+
+  for (const dept of U.DEPTS) {
+    const src = cfg[dept] || base[dept];
+    const out = {};
+    for (const t of U.SHIFT_TYPES) {
+      const s = src[t] || base[dept][t];
+      const d = base[dept][t];
+      out[t] = {
+        startH: num(s.startH, 0, 23, d.startH),
+        startM: num(s.startM, 0, 59, d.startM),
+        durH:   num(s.durH,   1, 24, d.durH),
+        lateH:  num(s.lateH,  0, 23, d.lateH),
+        lateM:  num(s.lateM,  0, 59, d.lateM),
+      };
+    }
+    out.fbMorningH = num(src.fbMorningH, 0, 23, base[dept].fbMorningH);
+    out.fbMorningM = num(src.fbMorningM, 0, 59, base[dept].fbMorningM);
+    out.fbEveningH = num(src.fbEveningH, 0, 23, base[dept].fbEveningH);
+    out.fbEveningM = num(src.fbEveningM, 0, 59, base[dept].fbEveningM);
+    clean[dept] = out;
+  }
+
+  await U.setSetting('SHIFT_CONFIG', JSON.stringify(clean));
+  return { success: true, config: U.getShiftConfig() };
+};
+
+API.resetShiftConfig = async () => {
+  await U.setSetting('SHIFT_CONFIG', '');
+  return { success: true, config: U.getShiftConfig() };
 };
 
 API.bindDevice = async (secret, deviceId) => {
@@ -1087,9 +1168,7 @@ API.validateAndLog = async (enteredPin, clientIp, forceMode) => {
         }
       } else {
         // Gecikmə cəzası — streak qalxanı
-        const lateThreshold = shiftInfo
-          ? (shiftInfo.lateH * 60 + shiftInfo.lateM)
-          : (ts.getHours() < 13 ? 7 * 60 + 30 : (matched.dept === 'Gənclik' || matched.dept === 'Ağ Şəhər') ? 16 * 60 : 15 * 60);
+        const lateThreshold = U.getLateLimit(matched.dept, todayShift, ts.getHours() * 60 + ts.getMinutes());
         const lateMins = nowMins - lateThreshold;
         let penalty = lateMins >= 45 ? 50 : lateMins >= 21 ? 30 : 15;
         if (matched.streak >= 60) penalty = Math.round(penalty * 0.25);
@@ -1121,9 +1200,7 @@ API.validateAndLog = async (enteredPin, clientIp, forceMode) => {
           if ((monthIzin || []).some(r => ds >= r.start_date && ds <= r.end_date)) continue;
           // Gec gəliş icazəsi: icazə vaxtından (+5 dəq) tez gəlibsə → cərimə sayılmır
           if (ds in finePermMap && tot <= finePermMap[ds] + 5) continue;
-          const logSi = log.shift_type ? U.getShiftInfo(matched.dept, log.shift_type) : null;
-          const lim = logSi ? (logSi.lateH * 60 + logSi.lateM)
-            : (d.getHours() < 13 ? 7 * 60 + 30 : (matched.dept === 'Gənclik' || matched.dept === 'Ağ Şəhər') ? 16 * 60 : 15 * 60);
+          const lim = U.getLateLimit(matched.dept, log.shift_type, tot);
           if (tot > lim) prevLateCount++;
         }
         const thisLateNum = prevLateCount + 1;
