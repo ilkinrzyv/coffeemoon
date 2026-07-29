@@ -261,7 +261,7 @@ function pickBranch(dept, btn) {
   google.script.run
     .withSuccessHandler(function(d){ allEmps=d||[]; renderEmps(dept); })
     .withFailureHandler(function(){ document.getElementById('empList').innerHTML='<div class="empty"><i class="fa-solid fa-triangle-exclamation"></i><p>Xəta baş verdi.</p></div>'; })
-    .getEmployees();
+    .getEmployeesLite();
 }
 
 function renderEmps(dept) {

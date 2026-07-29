@@ -14,6 +14,9 @@ const app       = express();
 const PORT      = process.env.PORT || 3000;
 const ADMIN_KEY = process.env.ADMIN_KEY || 'coffeemoon';
 
+// API təhlükəsizlik qatı — icazə cədvəli və rol həlli auth.js-dədir.
+const auth = require('./auth');
+
 // Nahar limiti (dəqiqə): yalnız gec qayıdış bildirişi + nahar jurnalı üçün (XP ilə bağlı deyil — nahar XP-si ləğv edilib)
 const LUNCH_MAX = 30;   // bundan çox → gec qayıdış: menecerə bildiriş + jurnalda işarələnir
 
@@ -390,8 +393,6 @@ app.get('/', (req, res) => res.redirect(`/admin?key=${ADMIN_KEY}`));
 // ══════════════════════════════════════════════════════════════════
 //  API MARŞRUTU
 // ══════════════════════════════════════════════════════════════════
-//  API MARŞRUTU
-// ══════════════════════════════════════════════════════════════════
 
 app.post('/api/:fn', async (req, res) => {
   const fn   = req.params.fn;
@@ -399,6 +400,14 @@ app.post('/api/:fn', async (req, res) => {
   try {
     const handler = API[fn];
     if (!handler) return res.status(404).json({ error: 'Funksiya tapılmadı: ' + fn });
+
+    const acc = auth.apiAccess(fn, req.get('X-CM-Key') || '');
+    if (!acc.ok) {
+      if (auth.AUTH_ENFORCE) return res.status(403).json({ error: 'İcazəsiz.' });
+      // Log-only rejim: bloklamırıq, yalnız qeyd edirik ki, təsnifat səhvləri zərərsiz görünsün.
+      console.warn(`[AUTH] ${fn} — tələb: ${acc.level}, gələn rol: ${acc.role || 'yox'} (log-only)`);
+    }
+
     const result = await handler(...args);
     res.json(result ?? null);
   } catch (e) {
@@ -472,6 +481,19 @@ API.getEmployees = async () => {
     xp:      emp.xp || 0,
   }));
   return result.sort((a, b) => b.streak - a.streak);
+};
+
+// secret-siz işçi siyahısı — açarı olmayan səhifələr üçün (/exam) və trainer paneli.
+// getEmployees admin-ə məxsusdur, çünki login açarını (secret) qaytarır.
+API.getEmployeesLite = async () => {
+  const { data, error } = await sb.from('employees').select('id,name,dept,is_test').order('name');
+  sbErr('getEmployeesLite', error);
+  return (data || []).map(emp => ({
+    id:      emp.id,
+    name:    emp.name,
+    dept:    emp.dept,
+    is_test: !!emp.is_test,
+  }));
 };
 
 API.addEmployee = async (name, dept) => {

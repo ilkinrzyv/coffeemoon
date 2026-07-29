@@ -12,6 +12,23 @@
 (function () {
   'use strict';
 
+  // Səhifənin öz açarını tapır (hər panel açarını qlobal dəyişəndə saxlayır).
+  // Çağırış anında oxunur — shim səhifə skriptlərindən ƏVVƏL yüklənir, ona görə
+  // yükləmə anında bu dəyişənlər hələ mövcud olmur.
+  // Tapılmasa URL-dəki ?key= / ?secret= ehtiyat yol kimi işlədilir.
+  function pageKey() {
+    // 1) Qlobal dəyişən (var ilə elan olunanlar window-a düşür)
+    var names = ['ADMIN_KEY', 'BRANCH_KEY', 'TRAINER_KEY', 'EXEC_KEY', 'OPS_KEY', 'SECRET'];
+    for (var i = 0; i < names.length; i++) {
+      if (window[names[i]]) return String(window[names[i]]);
+    }
+    // 2) Ehtiyat: URL (hər panel öz açarı ilə açılır, PWA start_url-də də açar var)
+    try {
+      var q = new URLSearchParams(window.location.search);
+      return q.get('key') || q.get('secret') || '';
+    } catch (e) { return ''; }
+  }
+
   function createRunner(successCb, failureCb) {
     var runner = {
       withSuccessHandler: function (cb) {
@@ -29,9 +46,12 @@
         // prop = funksiya adı (məs. getEmployees, saveCedvel, ...)
         return function () {
           var args = Array.prototype.slice.call(arguments);
+          var hdrs = { 'Content-Type': 'application/json' };
+          var k = pageKey();
+          if (k) hdrs['X-CM-Key'] = k;   // server rolu bu açardan tanıyır
           fetch('/api/' + prop, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: hdrs,
             body: JSON.stringify({ args: args }),
           })
             .then(function (r) {

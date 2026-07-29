@@ -427,7 +427,8 @@ header{background:linear-gradient(135deg,rgba(255,255,255,0.94) 0%,rgba(240,253,
 <div id="toast"></div>
 <script src="/gsr-shim.js"></script>
 <script>
-const TRAINER_KEY  = '<?= trainerKey ?>';
+// var (const yox) — gsr-shim açarı window üzərindən oxuyur (const window-a düşmür).
+var TRAINER_KEY  = '<?= trainerKey ?>';
 const TRAINER_NAME = '<?= trainerName ?>';
 
 var _tt;
@@ -547,7 +548,7 @@ function selectBranch(dept, btn) {
   if (allEmps.length){renderEmpList(dept);return;}
   google.script.run.withSuccessHandler(function(d){allEmps=d||[];renderEmpList(dept);})
     .withFailureHandler(function(e){document.getElementById('empList').innerHTML='<div class="empty"><i class="fa-solid fa-triangle-exclamation"></i><p>'+(e.message||'Xəta')+'</p></div>';})
-    .getEmployees();
+    .getEmployeesLite();
 }
 
 function renderEmpList(dept) {
@@ -791,7 +792,7 @@ function loadRateList() {
   google.script.run
     .withSuccessHandler(function(d) { _allEmpsForRate = (d||[]).filter(function(e){ return !e.is_test; }); renderRateList(); })
     .withFailureHandler(function() { el.innerHTML = '<div class="empty"><i class="fa-solid fa-triangle-exclamation"></i><p>Yüklənə bilmədi.</p></div>'; })
-    .getEmployees();
+    .getEmployeesLite();
 }
 
 function filterRateList(dept) {

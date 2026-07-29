@@ -1,4 +1,6 @@
-const CACHE = 'coffeemoon-v2';
+// DİQQƏT: gsr-shim.js keş-əvvəl strategiya ilə saxlanılır. Shim dəyişəndə bu adı MÜTLƏQ qaldır,
+// yoxsa quraşdırılmış PWA-lar köhnə shim-i işlədəcək (açar göndərilməyəcək → API sorğuları rədd olunacaq).
+const CACHE = 'coffeemoon-v3';
 const STATIC = ['/gsr-shim.js', '/icon-192.png', '/icon-512.png'];
 
 self.addEventListener('install', e => {
