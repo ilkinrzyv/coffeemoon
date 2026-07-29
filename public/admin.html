@@ -15,10 +15,7 @@ body::after{content:'';position:fixed;bottom:-10%;left:-10%;width:50vw;height:50
 header{background:rgba(255,255,255,0.85);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);padding:1rem 1.5rem;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:20;box-shadow:0 2px 10px rgba(15,23,42,0.03);}
 .logo{font-size:1.1rem;font-weight:800;display:flex;align-items:center;gap:9px;text-transform:uppercase;letter-spacing:2px;color:var(--text-main);}
 .logo i{color:var(--primary);}
-nav{display:flex;gap:4px;padding:1.2rem 1.5rem 0;max-width:1200px;margin:0 auto;flex-wrap:wrap;}
-.tab{padding:0.65rem 1.1rem;background:transparent;border:none;color:var(--text-muted);cursor:pointer;font-size:0.88rem;font-weight:600;border-radius:10px;transition:all 0.2s;display:flex;gap:6px;align-items:center;white-space:nowrap;}
-.tab:hover{background:rgba(15,23,42,0.03);color:var(--text-main);}
-.tab.active{color:var(--primary);background:rgba(79,70,245,0.08);}
+/* Köhnə üfüqi tab menyusunun (nav/.tab) stilləri silindi — menyu yalnız yan paneldədir (.sb-item). */
 .badge-count{background:var(--warning);color:#fff;font-size:0.7rem;padding:2px 6px;border-radius:20px;font-weight:700;}
 .page{display:none;padding:1.2rem 1.5rem;max-width:1200px;margin:0 auto;}
 .page.active{display:block;animation:fadeIn 0.35s cubic-bezier(0.16,1,0.3,1);}
@@ -220,8 +217,6 @@ input:focus,select:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(7
 .wl-card{background:#fff;border:1px solid var(--border);border-radius:13px;padding:0.9rem 1.1rem;display:flex;align-items:center;justify-content:space-between;gap:8px;}
 .wl-dept{font-size:0.88rem;font-weight:700;}
 .wl-pct{font-size:1.2rem;font-weight:800;color:var(--primary);font-family:monospace;}
-/* köhnə üfüqi tab nav gizlədilir — sidebar əvəz edir */
-body > nav { display: none; }
 
 /* ── SIDEBAR ──────────────────────────────────────────────────── */
 .sb-overlay{position:fixed;inset:0;background:rgba(15,23,42,0.38);backdrop-filter:blur(3px);z-index:199;opacity:0;pointer-events:none;transition:opacity .25s;}
@@ -302,9 +297,10 @@ body > nav { display: none; }
     <button class="sb-item" data-pg="yenilik" onclick="sw('yenilik')"><span class="sb-ic"><i class="fa-solid fa-bell-concierge"></i></span> Yeniliklər</button>
     <button class="sb-item" data-pg="mgr" onclick="sw('mgr')"><span class="sb-ic"><i class="fa-solid fa-user-tie"></i></span> İdarəçilər</button>
     <button class="sb-item" data-pg="links" onclick="sw('links')"><span class="sb-ic"><i class="fa-solid fa-link"></i></span> Vəzifə Linkləri</button>
-    <button class="sb-item" data-pg="dev" onclick="sw('dev')"><span class="sb-ic"><i class="fa-solid fa-mobile-screen"></i></span> Cihazlar</button>
+    <button class="sb-item" data-pg="dev" id="devTab" onclick="sw('dev')"><span class="sb-ic"><i class="fa-solid fa-mobile-screen"></i></span> Cihazlar<span id="devBadge"></span></button>
     <button class="sb-item" data-pg="tg" onclick="sw('tg')"><span class="sb-ic"><i class="fa-brands fa-telegram"></i></span> Telegram</button>
     <button class="sb-item" data-pg="wifi" onclick="sw('wifi')"><span class="sb-ic"><i class="fa-solid fa-wifi"></i></span> WiFi</button>
+    <button class="sb-item" data-pg="saatlar" onclick="sw('saatlar')"><span class="sb-ic"><i class="fa-solid fa-clock"></i></span> İş Saatları</button>
   </div>
 
   <div class="sb-foot">
@@ -324,24 +320,10 @@ body > nav { display: none; }
     <div class="logo"><i class="fa-solid fa-mug-hot"></i> Coffeemoon Admin</div>
   </div>
 </header>
-<nav>
-  <button class="tab" onclick="sw('emp')"><i class="fa-solid fa-users"></i> İşçilər</button>
-  <button class="tab" onclick="sw('cedvel')"><i class="fa-solid fa-calendar-days"></i> Cədvəl</button>
-  <button class="tab active" onclick="sw('att')"><i class="fa-solid fa-circle-dot"></i> Canlı</button>
-  <button class="tab" onclick="sw('hesabat')"><i class="fa-solid fa-chart-bar"></i> Hesabat</button>
-  <button class="tab" onclick="sw('izin')"><i class="fa-solid fa-umbrella-beach"></i> İcazə</button>
-  <button class="tab" onclick="sw('dev')" id="devTab"><i class="fa-solid fa-mobile-screen"></i> Cihazlar</button>
-  <button class="tab" onclick="sw('tg')"><i class="fa-brands fa-telegram"></i> Telegram</button>
-  <button class="tab" onclick="sw('mgr')"><i class="fa-solid fa-user-tie"></i> İdarəçilər</button>
-  <button class="tab" onclick="sw('wifi')"><i class="fa-solid fa-wifi"></i> WiFi</button>
-  <button class="tab" onclick="sw('saatlar')"><i class="fa-solid fa-clock"></i> Saatlar</button>
-  <button class="tab" onclick="sw('checklist')"><i class="fa-solid fa-clipboard-check"></i> Çeklist</button>
-  <button class="tab" onclick="sw('waste')"><i class="fa-solid fa-box-archive"></i> Tullantılar</button>
-  <button class="tab" onclick="sw('yenilik')"><i class="fa-solid fa-bell-concierge"></i> Yeniliklər</button>
-  <button class="tab" onclick="sw('trainer')"><i class="fa-solid fa-graduation-cap"></i> Training</button>
-  <button class="tab" onclick="sw('approvals')"><i class="fa-solid fa-circle-check"></i> Təsdiqlər</button>
-  <button class="tab" onclick="sw('links')"><i class="fa-solid fa-link"></i> Linklər</button>
-</nav>
+<!-- Köhnə üfüqi <nav> menyusu SİLİNDİ (2026-07-29). Menyu yalnız yan paneldədir (.sb-item).
+     Səbəb: nav CSS ilə gizlədilmişdi, amma sw() düymələri İNDEKS üzrə uyğunlaşdırırdı —
+     yeni səhifə əlavə edəndə sıra sürüşüb səhv tab işarələnirdi. Yeni səhifə üçün yalnız:
+     1) yan panelə .sb-item düyməsi,  2) sw()-dəki tabs siyahısına ad,  3) <div id="tab-AD" class="page">. -->
 
 <!-- İŞÇİLƏR -->
 <div id="tab-emp" class="page">
@@ -1064,12 +1046,13 @@ function getDayShort(s){var d=new Date(s);var names=['B.e.','Ç.a.','Çər.','C.
 
 // ── TAB SW ───────────────────────────────────────────────────────
 function sw(name){
-  var tabs=['emp','cedvel','att','hesabat','izin','dev','tg','mgr','wifi','checklist','waste','yenilik','trainer','approvals','links'];
+  // Səhifə adları — sıra əhəmiyyətsizdir (indeks uyğunluğu tələb edən köhnə nav silinib).
+  // Yeni səhifə əlavə edəndə bura adı yaz + yan panelə .sb-item düyməsi qoy.
+  var tabs=['emp','cedvel','att','hesabat','izin','dev','tg','mgr','wifi','checklist','waste','yenilik','trainer','approvals','links','saatlar'];
   tabs.forEach(function(n){
     var el=document.getElementById('tab-'+n);
     if(el) el.classList.toggle('active',n===name);
   });
-  document.querySelectorAll('.tab').forEach(function(t,i){t.classList.toggle('active',tabs[i]===name);});
   // Sidebar active state
   document.querySelectorAll('.sb-item').forEach(function(el){el.classList.toggle('on',el.dataset.pg===name);});
   sbClose();
@@ -1674,8 +1657,10 @@ function loadDevices(){
   document.getElementById('devList').innerHTML='<div class="card" style="text-align:center;padding:2rem;color:var(--text-muted);"><i class="fa-solid fa-circle-notch fa-spin"></i></div>';
   google.script.run.withSuccessHandler(function(data){
     scanDevices=data||[];renderDevices();
+    // Gözləyən cihaz nişanı — yalnız nişan sahəsini yeniləyirik (düymənin öz məzmununa toxunmuruq)
     var pc=scanDevices.filter(function(d){return d.status==='pending';}).length;
-    document.getElementById('devTab').innerHTML='<i class="fa-solid fa-mobile-screen"></i> Cihazlar'+(pc>0?' <span class="badge-count">'+pc+'</span>':'');
+    var badge=document.getElementById('devBadge');
+    if(badge) badge.innerHTML=pc>0?' <span class="badge-count">'+pc+'</span>':'';
   }).getScanDevices();
 }
 function renderDevices(){
