@@ -2229,6 +2229,7 @@
 </div>
 
 <script src="/gsr-shim.js"></script>
+<script src="/common.js"></script>
 <script>
   var SECRET    = "<?= secret ?>";
   var EMP_NAME  = "<?= empName ?>";
@@ -2272,12 +2273,7 @@
     return 'rgba('+((n>>16)&255)+','+((n>>8)&255)+','+(n&255)+','+alpha+')';
   }
 
-  function generateDynamicPin(secret, timeWindow) {
-    var str = secret.toString() + timeWindow.toString(), hash = 0;
-    for (var i = 0; i < str.length; i++) { hash = (hash << 5) - hash + str.charCodeAt(i); hash |= 0; }
-    hash ^= (hash << 13); hash ^= (hash >>> 17); hash ^= (hash << 5);
-    return (Math.abs(Math.imul(hash, 1664525) + 1013904223) % 10000).toString().padStart(4, '0');
-  }
+  // generateDynamicPin common.js-dədir (server utils.js ilə eyni alqoritm).
 
   function buildDeviceId() {
     // localStorage-də mövcud ID varsa, həmişə onu istifadə et.

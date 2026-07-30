@@ -1063,6 +1063,7 @@ input:focus,select:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(7
 </div>
 
 <script src="/gsr-shim.js"></script>
+<script src="/common.js"></script>
 <script>
 // DİQQƏT: admin açarını BURAYA YAZMA. Açar ixtiyari simvol saxlaya bilər (apostrof, tərs slef)
 // və şablon əvəzlənməsi sətri pozub bütün skripti sındırır (panel tam boş qalır).
@@ -1073,19 +1074,11 @@ let emps=[],allLogs=[],scanDevices=[],onlineData=[],elapsedTimer=null;
 let schedData=[],schedWeekStart=getMondayYMD(new Date());
 
 function getInitials(n){return String(n).split(' ').map(function(x){return x[0];}).join('').substring(0,2).toUpperCase();}
-function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+// (ortaq köməkçi common.js-ə köçürüldü)
 function empName(id){var e=emps.filter(function(x){return x.id===id;})[0];return e?e.name:'';}
 function getMondayYMD(d){var dow=d.getDay(),delta=(dow===0?6:dow-1);var m=new Date(d.getTime()-delta*86400000);m.setHours(0,0,0,0);return toYMD(m);}
-function toYMD(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
-function fmtDMY(s){
-  if(!s) return '';
-  if(s instanceof Date)
-    return String(s.getDate()).padStart(2,'0')+'.'+
-           String(s.getMonth()+1).padStart(2,'0')+'.'+
-           s.getFullYear();
-  var p=String(s).split('-');
-  return p.length===3 ? p[2]+'.'+p[1]+'.'+p[0] : String(s);
-}
+// (ortaq köməkçi common.js-ə köçürüldü)
+// (fmtDMY common.js-ə köçürüldü)
 function getDayShort(s){var d=new Date(s);var names=['B.e.','Ç.a.','Çər.','C.a.','Cüm.','Şən.','Baz.'];return names[d.getDay()===0?6:d.getDay()-1];}
 
 // ── TAB SW ───────────────────────────────────────────────────────
@@ -1119,7 +1112,7 @@ function sw(name){
 function sbToggle(){document.getElementById('adminSb').classList.toggle('open');document.getElementById('sbOverlay').classList.toggle('open');}
 function sbClose(){document.getElementById('adminSb').classList.remove('open');document.getElementById('sbOverlay').classList.remove('open');}
 
-function generateDynamicPin(s,tw){var str=s.toString()+tw.toString(),hash=0;for(var i=0;i<str.length;i++){hash=(hash<<5)-hash+str.charCodeAt(i);hash|=0;}hash^=(hash<<13);hash^=(hash>>>17);hash^=(hash<<5);return(Math.abs(Math.imul(hash,1664525)+1013904223)%10000).toString().padStart(4,'0');}
+// (ortaq köməkçi common.js-ə köçürüldü)
 
 // ── İŞÇİLƏR ─────────────────────────────────────────────────────
 var DEPT_LIST=['Elmlər','Sahil','Gənclik','Ağ Şəhər'];

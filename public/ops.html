@@ -223,6 +223,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
 
 
 <script src="/gsr-shim.js"></script>
+<script src="/common.js"></script>
 <script>
 var OPS_KEY="<?= opsKey ?>", OPS_NAME="<?= opsName ?>", SCRIPT_URL="<?= scriptUrl ?>";
 
@@ -244,7 +245,7 @@ var meeting={weekStart:null, sub:'overview', detailDept:null, probStatus:'open',
 
 function ymd(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function mondayOf(d){var x=new Date(d);var g=x.getDay()===0?6:x.getDay()-1;x=new Date(x.getTime()-g*86400000);x.setHours(0,0,0,0);return x;}
-function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+// (ortaq köməkçi common.js-ə köçürüldü)
 
 document.getElementById('whoName').textContent=OPS_NAME;
 meeting.weekStart=mondayOf(new Date());

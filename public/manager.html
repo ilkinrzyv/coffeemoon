@@ -867,6 +867,7 @@ textarea.fine-doc-input { resize:vertical; }
 <div id="clToast"></div>
 
 <script src="/gsr-shim.js"></script>
+<script src="/common.js"></script>
 <script>
 var BRANCH_KEY = '<?= branchKey ?>';
 var DEPT       = '<?= dept ?>';
@@ -943,8 +944,8 @@ function renderShiftInfo() {
 // ── Cədvəl ───────────────────────────────────────────────────────
 var schedData = [], weekStart = getMondayYMD(new Date());
 
-function toYMD(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
-function fmtDMY(s){ if(!s)return''; var p=s.split('-'); return p[2]+'.'+p[1]+'.'+p[0]; }
+// (ortaq köməkçi common.js-ə köçürüldü)
+// (ortaq köməkçi common.js-ə köçürüldü)
 function getMondayYMD(d){ var dow=d.getDay(), delta=(dow===0?6:dow-1); var m=new Date(d.getTime()-delta*86400000); m.setHours(0,0,0,0); return toYMD(m); }
 function getDayShort(s){ var names=['B.e.','Ç.a.','Çər.','C.a.','Cüm.','Şən.','Baz.']; var d=new Date(s); return names[d.getDay()===0?6:d.getDay()-1]; }
 function getInitials(n){ return String(n).split(' ').map(function(x){return x[0];}).join('').substring(0,2).toUpperCase(); }

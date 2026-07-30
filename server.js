@@ -3311,6 +3311,7 @@ API.submitEmployeeExam = async (empId, empName, dept, role, answers) => {
 
     app.listen(PORT, async () => {
       console.log(`☕  Coffeemoon http://localhost:${PORT}`);
+      console.log(`🧩  Node ${process.version} · TZ ${process.env.TZ} · auth ${auth.AUTH_ENFORCE ? 'İCBARİ' : 'log-only'}`);
       console.log(`🔑  Admin: http://localhost:${PORT}/admin?key=${ADMIN_KEY}`);
       const keys = await U.getBranchScheduleKeys();
       for (const [dept, key] of Object.entries(keys)) {

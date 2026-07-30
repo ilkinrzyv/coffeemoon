@@ -282,6 +282,7 @@ select,input[type=date]{border:1.5px solid var(--border);border-radius:11px;padd
 </div>
 
 <script src="/gsr-shim.js"></script>
+<script src="/common.js"></script>
 <script>
 var EXEC_KEY  = '<?= execKey ?>';
 var EXEC_NAME = '<?= execName ?>';
@@ -303,10 +304,10 @@ var MGR_SMAP = {
   '':{lbl:'–', bg:'', cl:''}
 };
 function pad(n){ return String(n).padStart(2,'0'); }
-function toYMD(d){ return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); }
+// (ortaq köməkçi common.js-ə köçürüldü)
 function todayYMD(){ return toYMD(new Date()); }
 function monday(off){ var n=new Date(); var dw=n.getDay()||7; var m=new Date(n.getTime()-(dw-1)*86400000); m.setHours(0,0,0,0); m.setDate(m.getDate()+off*7); return m; }
-function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+// (ortaq köməkçi common.js-ə köçürüldü)
 function spin(){ return '<div class="empty"><i class="fa-solid fa-circle-notch fa-spin"></i>Yüklənir...</div>'; }
 function emptyMsg(m){ return '<div class="empty"><i class="fa-solid fa-inbox"></i>'+esc(m)+'</div>'; }
 function pctCls(p){ return p>=90?'pct-hi':p>=70?'pct-mid':'pct-lo'; }
