@@ -8,9 +8,6 @@
     "dev": "nodemon server.js",
     "test": "node test-auth.js && node test-shift.js && node test-pin.js"
   },
-  "engines": {
-    "node": ">=18"
-  },
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",
     "compression": "^1.7.4",
