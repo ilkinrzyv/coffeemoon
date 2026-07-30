@@ -125,7 +125,7 @@ const API_POLICY = {
   // ── Ops paneli (hamısı opsAuth ilə)
   getOpsBootstrap: 'self', getOpsCategories: 'self', saveOpsCategories: 'self',
   saveOpsVisit: 'self', getOpsMeetingData: 'self', getOpsBranchDetail: 'self',
-  getOpsPresentation: 'self', getOpsIssues: 'self', updateOpsIssue: 'self',
+  getOpsIssues: 'self', updateOpsIssue: 'self',
   uploadOpsPhoto: 'self',
 
   // ── Trainer

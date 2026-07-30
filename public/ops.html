@@ -116,39 +116,14 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
 .sheet h3{font-size:1rem;margin-bottom:0.8rem;display:flex;align-items:center;justify-content:space-between;}
 .pick-item{padding:0.7rem 0.8rem;border:1px solid var(--border);border-radius:11px;margin-bottom:7px;font-weight:700;font-size:0.88rem;cursor:pointer;}
 .slide-back{display:flex;align-items:center;gap:7px;color:var(--ink);font-weight:800;font-size:0.85rem;cursor:pointer;margin-bottom:10px;}
+/* problem qrupları — işçi və ümumi problemlər bir siyahıda, başlıqla ayrılır */
+.prob-group{margin-bottom:16px;}
+.prob-group:last-child{margin-bottom:0;}
+.prob-group-head{display:flex;align-items:center;gap:8px;font-size:0.76rem;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:0.7px;padding-bottom:7px;margin-bottom:9px;border-bottom:1px solid var(--border);}
+.prob-group-n{margin-left:auto;background:var(--border);color:var(--ink);border-radius:100px;padding:1px 9px;font-size:0.74rem;letter-spacing:0;}
 .ce-row{display:flex;align-items:center;gap:6px;margin-bottom:7px;}
 .ce-row input{flex:1;border:1.5px solid var(--border);border-radius:9px;padding:0.5rem 0.6rem;font-family:inherit;font-size:0.85rem;color:var(--text);min-width:0;}
 .ce-ar{background:#fff;border:1.5px solid var(--border);border-radius:8px;width:32px;height:36px;cursor:pointer;color:var(--muted);flex:none;}
-/* təqdimat (proyektor) */
-#presentLayer{display:none;position:fixed;inset:0;z-index:300;background:#0b1020;color:#e7eaf3;overflow:auto;font-family:'Inter',sans-serif;}
-.pr-slide{min-height:100vh;display:flex;flex-direction:column;justify-content:center;padding:5vh 5vw 14vh;max-width:1120px;margin:0 auto;}
-.pr-kicker{font-size:1rem;color:#8b93b8;font-weight:700;letter-spacing:0.5px;}
-.pr-title{font-size:3rem;font-weight:900;margin:0.2rem 0;}
-.pr-week{font-size:1.3rem;color:#a9b0d0;font-weight:600;margin-bottom:2rem;}
-.pr-metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:1.2rem;}
-.pr-metric{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);border-radius:18px;padding:1.5rem;}
-.pr-mv{font-size:3rem;font-weight:900;line-height:1;}
-.pr-ml{font-size:0.95rem;color:#a9b0d0;font-weight:600;margin-top:0.5rem;}
-.pr-bhead{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:1.5rem;}
-.pr-bname{font-size:2.6rem;font-weight:900;}
-.pr-bsub{font-size:1rem;color:#8b93b8;font-weight:600;}
-.pr-bscore{font-size:3.4rem;font-weight:900;line-height:1;}
-.pr-bgrid{display:grid;grid-template-columns:1fr 1fr;gap:2.5rem;align-items:start;}
-.pr-sub{font-size:1rem;color:#a9b0d0;font-weight:700;margin-bottom:0.8rem;}
-.pr-prob{display:flex;align-items:center;gap:10px;margin-bottom:10px;font-size:1.05rem;}
-.pr-sevp{font-size:0.78rem;font-weight:800;padding:2px 10px;border-radius:8px;white-space:nowrap;}
-.pr-nav{position:fixed;bottom:0;left:0;right:0;display:flex;align-items:center;justify-content:center;gap:18px;padding:1rem;}
-.pr-nav button{background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.14);color:#e7eaf3;width:48px;height:48px;border-radius:12px;cursor:pointer;font-size:1.1rem;}
-.pr-dots{display:flex;gap:7px;}
-.pr-dot{width:9px;height:9px;border-radius:50%;background:rgba(255,255,255,0.2);}
-.pr-dot.on{background:#818cf8;}
-.pr-exit{position:fixed;top:1rem;right:1rem;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.14);color:#e7eaf3;width:44px;height:44px;border-radius:12px;cursor:pointer;z-index:301;}
-.pr-tab{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);color:#a9b0d0;padding:0.5rem 1.1rem;border-radius:10px;cursor:pointer;font-family:inherit;font-weight:700;font-size:0.95rem;}
-.pr-tab.on{background:#818cf8;border-color:#818cf8;color:#fff;}
-.pr-zoom{position:fixed;top:1rem;left:1rem;display:flex;align-items:center;gap:8px;z-index:301;}
-.pr-zoom button{background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.14);color:#e7eaf3;width:44px;height:44px;border-radius:12px;cursor:pointer;font-size:1rem;}
-.pr-zoom span{font-size:0.85rem;color:#a9b0d0;font-weight:700;min-width:42px;text-align:center;}
-@media(max-width:700px){.pr-metrics{grid-template-columns:repeat(2,1fr);}.pr-bgrid{grid-template-columns:1fr;}.pr-title{font-size:2.2rem;}.pr-bname{font-size:2rem;}.pr-bscore{font-size:2.6rem;}}
 </style>
 </head>
 <body>
@@ -210,7 +185,6 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
     </div>
 
     <div id="ov-overview">
-      <button class="btn" style="margin-bottom:12px;" onclick="startPresent()"><i class="fa-solid fa-display"></i> Təqdimat rejimi</button>
       <div class="grid4" id="branchCards"></div>
       <div id="branchDetail" style="margin-top:12px;"></div>
     </div>
@@ -219,11 +193,8 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
       <div class="chips" id="probDeptTabs"></div>
       <div id="probHint" class="empty">Problemləri görmək üçün filial seç.</div>
       <div id="probInner" style="display:none;">
-        <div class="subbar" style="margin:12px 0 10px;">
-          <button class="sub-btn on" id="pk-emp" onclick="setProbKind('emp')"><i class="fa-solid fa-user-group"></i> İşçilər</button>
-          <button class="sub-btn" id="pk-general" onclick="setProbKind('general')"><i class="fa-solid fa-store"></i> Ümumi problemlər</button>
-        </div>
-        <div class="chips" id="probFilter" style="margin-bottom:12px;"></div>
+        <!-- İşçi və ümumi problemlər BİR siyahıdadır (əvvəl iki ayrı tab idi) -->
+        <div class="chips" id="probFilter" style="margin:12px 0;"></div>
         <div id="issueList"></div>
       </div>
     </div>
@@ -250,21 +221,6 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
   </div>
 </div>
 
-<!-- Təqdimat (proyektor) qatı -->
-<div id="presentLayer">
-  <button class="pr-exit" onclick="exitPresent()" aria-label="Bağla"><i class="fa-solid fa-xmark"></i></button>
-  <div class="pr-zoom">
-    <button onclick="presentZoom(-1)" aria-label="Kiçilt"><i class="fa-solid fa-magnifying-glass-minus"></i></button>
-    <span id="prZoomLabel">100%</span>
-    <button onclick="presentZoom(1)" aria-label="Böyüt"><i class="fa-solid fa-magnifying-glass-plus"></i></button>
-  </div>
-  <div id="presentSlide"></div>
-  <div class="pr-nav">
-    <button onclick="presentPrev()" aria-label="Əvvəlki"><i class="fa-solid fa-chevron-left"></i></button>
-    <div class="pr-dots" id="prDots"></div>
-    <button onclick="presentNext()" aria-label="Növbəti"><i class="fa-solid fa-chevron-right"></i></button>
-  </div>
-</div>
 
 <script src="/gsr-shim.js"></script>
 <script>
@@ -284,7 +240,7 @@ var CATEGORIES=[
 
 var BOOT=null;
 var field={dept:'', ratings:{}, emps:[]};
-var meeting={weekStart:null, sub:'overview', detailDept:null, probStatus:'open', probDept:null, probKind:'emp', probCache:[]};
+var meeting={weekStart:null, sub:'overview', detailDept:null, probStatus:'open', probDept:null, probCache:[]};
 
 function ymd(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function mondayOf(d){var x=new Date(d);var g=x.getDay()===0?6:x.getDay()-1;x=new Date(x.getTime()-g*86400000);x.setHours(0,0,0,0);return x;}
@@ -578,18 +534,27 @@ function renderProbList(){
   var hint=document.getElementById('probHint'),inner=document.getElementById('probInner');
   if(!meeting.probDept){hint.style.display='block';inner.style.display='none';return;}
   hint.style.display='none';inner.style.display='block';
-  document.getElementById('pk-emp').classList.toggle('on',meeting.probKind==='emp');
-  document.getElementById('pk-general').classList.toggle('on',meeting.probKind==='general');
   document.getElementById('probFilter').innerHTML=[['open','Açıq'],['progress','Davam edir'],['resolved','Həll olundu'],['all','Hamısı']].map(function(f){
     return '<button class="chip'+(meeting.probStatus===f[0]?' on':'')+'" onclick="setProbFilter(\''+f[0]+'\')">'+f[1]+'</button>';
   }).join('');
-  var rows=(meeting.probCache||[]).filter(function(r){return r.dept===meeting.probDept;})
-    .filter(function(r){return meeting.probKind==='emp'?!!r.empId:!r.empId;});
+
+  // İşçi və ümumi problemlər ARTIQ BİR SİYAHIDADIR — tab dəyişmədən hamısı görünür,
+  // yalnız başlıqlarla ayrılır ki, səliqəli qalsın.
+  var all=(meeting.probCache||[]).filter(function(r){return r.dept===meeting.probDept;});
+  var emp=all.filter(function(r){return !!r.empId;});
+  var gen=all.filter(function(r){return !r.empId;});
   var box=document.getElementById('issueList');
-  if(!rows.length){box.innerHTML='<div class="empty">'+(meeting.probKind==='emp'?'İşçi problemi yoxdur.':'Ümumi problem yoxdur.')+'</div>';return;}
-  box.innerHTML=rows.map(renderIssue).join('');
+  if(!all.length){box.innerHTML='<div class="empty">Bu filialda problem yoxdur.</div>';return;}
+
+  function grup(bas,ikon,list){
+    if(!list.length)return '';
+    return '<div class="prob-group">'+
+      '<div class="prob-group-head"><i class="fa-solid '+ikon+'"></i>'+bas+'<span class="prob-group-n">'+list.length+'</span></div>'+
+      list.map(renderIssue).join('')+
+    '</div>';
+  }
+  box.innerHTML=grup('İşçi problemləri','fa-user-group',emp)+grup('Ümumi problemlər','fa-store',gen);
 }
-function setProbKind(k){meeting.probKind=k;renderProbList();}
 function renderIssue(r){
   var who=r.empName?('<i class="fa-solid fa-user"></i> '+esc(r.empName)):'';
   var meta=who+(who&&r.detail?' · ':'')+(r.detail?esc(r.detail):'');
@@ -612,135 +577,6 @@ function updIssue(id,patch){
   }).updateOpsIssue(OPS_KEY,id,patch);
 }
 
-/* ───────── TƏQDİMAT (proyektor) ───────── */
-var present={slides:[],idx:0,keyHandler:null,probKind:'emp'};
-function startPresent(){
-  google.script.run.withSuccessHandler(function(d){
-    if(!d){alert('Təqdimat datası yüklənmədi.');return;}
-    var slides=[{type:'cover',data:d}];
-    (d.branches||[]).forEach(function(b){slides.push({type:'branch',data:b});});
-    present.slides=slides;present.idx=0;present.zoom=1;
-    document.getElementById('presentLayer').style.display='block';
-    document.body.style.overflow='hidden';
-    present.keyHandler=function(e){if(e.key==='ArrowRight'||e.key===' '){e.preventDefault();presentNext();}else if(e.key==='ArrowLeft'){presentPrev();}else if(e.key==='Escape'){exitPresent();}else if(e.key==='+'||e.key==='='){presentZoom(1);}else if(e.key==='-'||e.key==='_'){presentZoom(-1);}};
-    document.addEventListener('keydown',present.keyHandler);
-    try{if(document.documentElement.requestFullscreen)document.documentElement.requestFullscreen();}catch(e){}
-    renderPresent();
-  }).getOpsPresentation(OPS_KEY,ymd(meeting.weekStart));
-}
-function exitPresent(){
-  document.getElementById('presentLayer').style.display='none';
-  document.body.style.overflow='';
-  if(present.keyHandler){document.removeEventListener('keydown',present.keyHandler);present.keyHandler=null;}
-  try{if(document.fullscreenElement&&document.exitFullscreen)document.exitFullscreen();}catch(e){}
-}
-function presentNext(){if(present.idx<present.slides.length-1){present.idx++;renderPresent();}}
-function presentPrev(){if(present.idx>0){present.idx--;renderPresent();}}
-function presentZoom(dir){present.zoom=Math.min(2,Math.max(0.6,Math.round(((present.zoom||1)+dir*0.1)*10)/10));applyPresentZoom();}
-function applyPresentZoom(){
-  var z=present.zoom||1,el=document.getElementById('presentSlide');
-  if(el){el.style.transformOrigin='top center';el.style.transform='scale('+z+')';}
-  var lbl=document.getElementById('prZoomLabel');if(lbl)lbl.textContent=Math.round(z*100)+'%';
-}
-function renderPresent(){
-  var s=present.slides[present.idx],box=document.getElementById('presentSlide');
-  if(!s){box.innerHTML='';return;}
-  box.innerHTML=s.type==='cover'?coverHTML(s.data):branchHTML(s.data);
-  document.getElementById('prDots').innerHTML=present.slides.map(function(_,i){return '<div class="pr-dot'+(i===present.idx?' on':'')+'"></div>';}).join('');
-  if(s.type==='branch'){present.probKind='emp';prRadar('prRadarBox',s.data.categories);prLine('prLineBox',s.data.trend);renderPresentProbs();}
-  applyPresentZoom();
-  document.getElementById('presentLayer').scrollTop=0;
-}
-function coverHTML(d){
-  var su=d.summary||{};
-  function m(v,l){return '<div class="pr-metric"><div class="pr-mv">'+v+'</div><div class="pr-ml">'+l+'</div></div>';}
-  return '<div class="pr-slide">'+
-    '<div class="pr-kicker">Coffeemoon · əməliyyat hesabatı</div>'+
-    '<div class="pr-title">Həftəlik iclas</div>'+
-    '<div class="pr-week">'+weekLabelText()+'</div>'+
-    '<div class="pr-metrics">'+
-      m(su.visits||0,'Ümumi yoxlama')+
-      m(su.problems||0,'Problem')+
-      m((su.resolvedPct||0)+'%','Həll olundu')+
-      m(su.avgScore||0,'Orta bal')+
-    '</div>'+
-  '</div>';
-}
-function branchHTML(b){
-  var col=b.score>=4?'#34d399':b.score>=3?'#fbbf24':b.score>0?'#f87171':'#64748b';
-  return '<div class="pr-slide">'+
-    '<div class="pr-bhead"><div><div class="pr-bname">'+esc(b.dept)+'</div><div class="pr-bsub">'+(b.visits||0)+' yoxlama · '+(b.openIssues||0)+' açıq problem</div></div>'+
-      '<div style="text-align:right;"><div class="pr-bscore" style="color:'+col+'">'+(b.score||'—')+'</div><div class="pr-bsub">orta bal</div></div></div>'+
-    '<div class="pr-bgrid">'+
-      '<div><div class="pr-sub">Kateqoriya radarı</div><div id="prRadarBox"></div></div>'+
-      '<div><div class="pr-sub">Yoxlama ardıcıllığı</div><div id="prLineBox"></div></div>'+
-    '</div>'+
-    '<div class="pr-sub" style="margin-top:1.8rem;">Problemlər</div>'+
-    '<div style="display:flex;gap:8px;margin-bottom:12px;">'+
-      '<button class="pr-tab" id="prTabEmp" onclick="presentProbTab(\'emp\')">İşçilər</button>'+
-      '<button class="pr-tab" id="prTabGen" onclick="presentProbTab(\'general\')">Ümumi problemlər</button>'+
-    '</div>'+
-    '<div id="prProbList"></div>'+
-  '</div>';
-}
-function wrapLabel(t,max){
-  var words=String(t).split(' '),lines=[],cur='';
-  words.forEach(function(w){
-    if(!cur)cur=w;
-    else if((cur+' '+w).length<=max)cur+=' '+w;
-    else{lines.push(cur);cur=w;}
-  });
-  if(cur)lines.push(cur);
-  return lines;
-}
-function prRadar(elId,cats){
-  var el=document.getElementById(elId);if(!el)return;
-  var N=cats?cats.length:0;
-  if(!N){el.innerHTML='<div style="color:#8b93b8;">Qiymət yoxdur.</div>';return;}
-  var W=520,H=410,cx=W/2,cy=H/2,R=128,labelR=142,max=5,i,p,ring,pts;
-  function pt(i,r){var a=-Math.PI/2+i*2*Math.PI/N;return [cx+r*Math.cos(a),cy+r*Math.sin(a)];}
-  var s='<svg viewBox="0 0 '+W+' '+H+'" width="100%" style="max-width:540px;display:block;margin:0 auto;" role="img"><title>Kateqoriya radarı</title>';
-  for(ring=1;ring<=max;ring++){pts='';for(i=0;i<N;i++){p=pt(i,R*ring/max);pts+=p[0].toFixed(1)+','+p[1].toFixed(1)+' ';}s+='<polygon points="'+pts+'" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>';}
-  for(i=0;i<N;i++){p=pt(i,R);s+='<line x1="'+cx+'" y1="'+cy+'" x2="'+p[0].toFixed(1)+'" y2="'+p[1].toFixed(1)+'" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>';}
-  for(i=0;i<N;i++){
-    var lp=pt(i,labelR),anc=lp[0]<cx-6?'end':lp[0]>cx+6?'start':'middle';
-    var lines=wrapLabel(cats[i].category,14),lh=16,y0=lp[1]-(lines.length-1)*lh/2,lx=lp[0].toFixed(1);
-    var tx='<text x="'+lx+'" y="'+y0.toFixed(1)+'" font-size="15" fill="#c2c8e0" text-anchor="'+anc+'" dominant-baseline="middle">';
-    lines.forEach(function(ln,k){tx+='<tspan x="'+lx+'" dy="'+(k===0?0:lh)+'">'+esc(ln)+'</tspan>';});
-    s+=tx+'</text>';
-  }
-  var dp='';for(i=0;i<N;i++){p=pt(i,R*(cats[i].avg||0)/max);dp+=p[0].toFixed(1)+','+p[1].toFixed(1)+' ';}
-  s+='<polygon points="'+dp+'" fill="rgba(129,140,248,0.28)" stroke="#818cf8" stroke-width="3"/>';
-  for(i=0;i<N;i++){p=pt(i,R*(cats[i].avg||0)/max);s+='<circle cx="'+p[0].toFixed(1)+'" cy="'+p[1].toFixed(1)+'" r="4.5" fill="#818cf8"/>';}
-  s+='</svg>';el.innerHTML=s;
-}
-function prLine(elId,trend){
-  var el=document.getElementById(elId);if(!el)return;
-  if(!trend||!trend.length){el.innerHTML='<div style="color:#8b93b8;">Yoxlama yoxdur.</div>';return;}
-  var vals=trend.map(function(t){return t.score;}),w=460,h=210,pad=32,lo=0,hi=5,n=vals.length;
-  function X(i){return pad+(n===1?(w-2*pad)/2:i*(w-2*pad)/(n-1));}
-  function Y(v){return h-pad-(v-lo)/(hi-lo)*(h-2*pad);}
-  var s='<svg viewBox="0 0 '+w+' '+h+'" width="100%" style="max-width:520px;display:block;" role="img"><title>Yoxlama ardıcıllığı</title>';
-  [1,2,3,4,5].forEach(function(g){s+='<line x1="'+pad+'" y1="'+Y(g).toFixed(1)+'" x2="'+(w-pad)+'" y2="'+Y(g).toFixed(1)+'" stroke="rgba(255,255,255,0.08)" stroke-width="1"/><text x="'+(pad-8)+'" y="'+(Y(g)+4).toFixed(1)+'" font-size="13" fill="#8b93b8" text-anchor="end">'+g+'</text>';});
-  if(n>1){var pts=vals.map(function(v,i){return X(i).toFixed(1)+','+Y(v).toFixed(1);}).join(' ');s+='<polyline points="'+pts+'" fill="none" stroke="#818cf8" stroke-width="3"/>';}
-  vals.forEach(function(v,i){s+='<circle cx="'+X(i).toFixed(1)+'" cy="'+Y(v).toFixed(1)+'" r="5" fill="#818cf8"/><text x="'+X(i).toFixed(1)+'" y="'+(Y(v)-11).toFixed(1)+'" font-size="13" fill="#e7eaf3" text-anchor="middle">'+v+'</text>';});
-  s+='</svg>';el.innerHTML=s;
-}
-function probRowHTML(p){
-  var pc=p.severity==='kritik'?'background:#7f1d1d;color:#fecaca':p.severity==='orta'?'background:#78350f;color:#fde68a':'background:#334155;color:#cbd5e1';
-  var who=p.empName?(' · '+esc(p.empName)):'';
-  return '<div class="pr-prob"><span class="pr-sevp" style="'+pc+'">'+(p.severity==='kritik'?'kritik':p.severity==='asagi'?'aşağı':'orta')+'</span><span>'+esc(p.title)+who+'</span></div>';
-}
-function renderPresentProbs(){
-  var sl=present.slides[present.idx],b=sl&&sl.data;if(!b)return;
-  var list=present.probKind==='emp'?(b.empIssues||[]):(b.generalIssues||[]);
-  var te=document.getElementById('prTabEmp'),tg=document.getElementById('prTabGen');
-  if(te)te.classList.toggle('on',present.probKind==='emp');
-  if(tg)tg.classList.toggle('on',present.probKind!=='emp');
-  var box=document.getElementById('prProbList');if(!box)return;
-  box.innerHTML=list.length?list.map(probRowHTML).join(''):'<div style="color:#8b93b8;">'+(present.probKind==='emp'?'İşçi problemi yoxdur.':'Ümumi problem yoxdur.')+'</div>';
-}
-function presentProbTab(kind){present.probKind=kind;renderPresentProbs();}
 </script>
 </body>
 </html>
