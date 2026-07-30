@@ -525,9 +525,17 @@ function loadBranchDetail(dept){
       var ic=n.isProblem?'fa-flag':n.sentiment==='pos'?'fa-plus':n.sentiment==='neg'?'fa-minus':'fa-circle';
       return '<div style="display:inline-flex;align-items:center;gap:6px;background:'+col+';padding:5px 11px;border-radius:100px;font-size:0.8rem;font-weight:700;margin:0 6px 6px 0;"><i class="fa-solid '+ic+'" style="font-size:0.7rem;"></i>'+esc(n.empName)+(n.note?' — '+esc(n.note):'')+'</div>';
     }).join('')||'<div class="empty">İşçi qeydi yoxdur.</div>';
+    // Kim yoxlayıb — ops və icraçı ziyarətləri bir siyahıda
+    var who=(d.visits||[]).map(function(v){
+      var dt=String(v.visitDate||'').slice(5).split('-').reverse().join('.');
+      return '<div style="display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);padding:4px 10px;border-radius:100px;font-size:0.76rem;font-weight:700;margin:0 6px 6px 0;">'+
+        '<i class="fa-solid fa-user-check" style="font-size:0.68rem;opacity:.7;"></i>'+esc(v.opsName||'—')+
+        '<span style="opacity:.6;">'+dt+'</span>'+(v.overall?'<span style="opacity:.85;">· '+v.overall+'</span>':'')+'</div>';
+    }).join('');
     box.innerHTML='<div class="card">'+
       '<div class="slide-back" onclick="closeDetail()"><i class="fa-solid fa-arrow-left"></i> Bütün filiallar</div>'+
       '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;"><div style="font-size:1.2rem;font-weight:900;">'+esc(dept)+'</div><div style="font-size:0.78rem;color:var(--soft);font-weight:700;">'+(d.visitCount||0)+' yoxlama</div></div>'+
+      (who?'<div style="margin-bottom:12px;">'+who+'</div>':'')+
       '<div class="sec-title"><i class="fa-solid fa-chart-simple"></i> Kateqoriya ortalamaları</div>'+bars+
       '<div class="sec-title" style="margin-top:1rem;"><i class="fa-solid fa-note-sticky"></i> Qeydlər</div>'+catNotes+
       '<div class="sec-title" style="margin-top:1rem;"><i class="fa-solid fa-user-group"></i> İşçi qeydləri</div>'+notes+

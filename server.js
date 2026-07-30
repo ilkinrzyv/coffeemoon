@@ -2641,6 +2641,27 @@ function opsAuth(key) {
   const k = U.getSetting('OPS_KEY');
   return !!k && k === key;
 }
+
+// Saha yoxlaması həm əməliyyat meneceri, həm İCRAÇI tərəfindən aparıla bilər.
+// Qeydlər eyni cədvəllərə (ops_visits/ratings/emp_notes/issues) yazılır — iclas görünüşü dəyişmir.
+// Yalnız yoxlama ilə bağlı funksiyalarda işlədilir; iclas/təqdimat/problem idarəsi ops-a məxsus qalır.
+function opsFieldAuth(key) {
+  if (!key) return { ok: false };
+  const opsKey = U.getSetting('OPS_KEY');
+  if (opsKey && opsKey === key) {
+    return { ok: true, role: 'ops', name: U.getSetting('OPS_NAME') || 'Əməliyyat meneceri' };
+  }
+  const execKey = U.getSetting('EXEC_KEY');
+  if (execKey && execKey === key) {
+    return { ok: true, role: 'exec', name: U.getSetting('EXEC_NAME') || 'İcraçı' };
+  }
+  return { ok: false };
+}
+
+// ops_visits.ops_name-də yoxlamanı KİMİN apardığı görünsün (iki müfəttiş var).
+function opsInspectorLabel(auth) {
+  return auth.role === 'exec' ? `${auth.name} (İcraçı)` : auth.name;
+}
 function opsId(prefix, i) {
   return prefix + Date.now().toString(36).toUpperCase() + (i || 0).toString(36).toUpperCase() +
     Math.floor(Math.random() * 46656).toString(36).toUpperCase();
@@ -2690,7 +2711,8 @@ API.setOpsName = async (name) => {
 
 // Saha rejimi üçün ilkin data — filiallar + filial üzrə işçilər
 API.getOpsBootstrap = async (key) => {
-  if (!opsAuth(key)) return null;
+  const auth = opsFieldAuth(key);           // ops VƏ YA icraçı
+  if (!auth.ok) return null;
   const { data: emps } = await sb.from('employees').select('id,name,dept,is_test').order('name');
   const byDept = {};
   for (const d of U.DEPTS) byDept[d] = [];
@@ -2698,12 +2720,17 @@ API.getOpsBootstrap = async (key) => {
     if (e.is_test) continue;
     if (byDept[e.dept]) byDept[e.dept].push({ id: e.id, name: e.name });
   }
-  return { depts: U.DEPTS, employees: byDept, opsName: U.getSetting('OPS_NAME') || 'Əməliyyat meneceri', categories: opsCategories() };
+  return {
+    depts: U.DEPTS, employees: byDept,
+    opsName: auth.name,                     // çağıranın öz adı (icraçıda icraçının adı)
+    role: auth.role,                        // 'ops' | 'exec' — panel buna görə fərqlənə bilər
+    categories: opsCategories(),
+  };
 };
 
-// Kateqoriyalar — dəyişdirilə bilən (stabil deyil)
+// Kateqoriyalar — dəyişdirilə bilən (stabil deyil). Oxumaq icraçıya da lazımdır (yoxlama formasını qurur).
 API.getOpsCategories = async (key) => {
-  if (!opsAuth(key)) return null;
+  if (!opsFieldAuth(key).ok) return null;
   return opsCategories();
 };
 API.saveOpsCategories = async (key, list) => {
@@ -2719,13 +2746,14 @@ API.saveOpsCategories = async (key, list) => {
 
 // Ziyarəti saxla: visit + ratings + işçi qeydləri + işarələnmiş problemlər (hamısı bir əməliyyatda)
 API.saveOpsVisit = async (key, payload) => {
-  if (!opsAuth(key)) return { success: false, reason: 'İcazəsiz.' };
+  const auth = opsFieldAuth(key);           // ops VƏ YA icraçı
+  if (!auth.ok) return { success: false, reason: 'İcazəsiz.' };
   const p = payload || {};
   if (!p.dept || !U.DEPTS.includes(p.dept)) return { success: false, reason: 'Filial seçilməyib.' };
 
   const visitId = opsId('V', 0);
   const dateStr = U.getLogicalYMD(new Date());
-  const opsName = U.getSetting('OPS_NAME') || 'Əməliyyat meneceri';
+  const opsName = opsInspectorLabel(auth);  // kim yoxladı — iclas görünüşündə görünür
 
   const ratings = Array.isArray(p.ratings) ? p.ratings.filter(r => r.category) : [];
   const scored  = ratings.filter(r => Number(r.score) > 0);
@@ -2843,7 +2871,12 @@ API.getOpsBranchDetail = async (key, dept, weekStart) => {
     ...notes.map(n => ({ empName: n.emp_name, sentiment: n.sentiment, note: n.note, photoUrl: n.photo_url, isProblem: false })),
     ...empProblems.map(i => ({ empName: i.emp_name, sentiment: 'neg', note: i.detail || i.title, isProblem: true })),
   ];
-  return { dept, visitCount: (visits || []).length, categories, catNotes, empNotes };
+  // Kim, nə vaxt yoxlayıb (ops + icraçı ziyarətləri bir siyahıda, tarixə görə)
+  const visitList = (visits || [])
+    .slice()
+    .sort((a, b) => String(a.visit_date).localeCompare(String(b.visit_date)))
+    .map(v => ({ visitDate: v.visit_date, opsName: v.ops_name || '', overall: v.overall_score || 0, summary: v.summary || '' }));
+  return { dept, visitCount: (visits || []).length, categories, catNotes, empNotes, visits: visitList };
 };
 
 // İclas — TƏQDİMAT (proyektor) datası: bir çağırışda örtük + bütün filiallar (radar + son 8 ziyarət trendi + problemlər)
@@ -2946,7 +2979,7 @@ API.updateOpsIssue = async (key, issueId, patch) => {
 
 // Foto yükləmə — base64 → Supabase Storage (bucket: ops-photos)
 API.uploadOpsPhoto = async (key, base64, ext) => {
-  if (!opsAuth(key)) return { success: false, reason: 'İcazəsiz.' };
+  if (!opsFieldAuth(key).ok) return { success: false, reason: 'İcazəsiz.' };   // icraçı da foto əlavə edir
   if (!base64) return { success: false, reason: 'Şəkil yoxdur.' };
   try {
     const clean = String(base64).replace(/^data:image\/\w+;base64,/, '');

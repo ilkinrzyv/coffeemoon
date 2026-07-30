@@ -186,6 +186,54 @@ select,input[type=date]{border:1.5px solid var(--border);border-radius:11px;padd
 .ifdoc-row b{color:#0f172a;font-weight:700;}
 .ifdoc-reason{padding:9px 13px;border-top:1px solid #eef1f6;font-size:0.85rem;color:#0f172a;line-height:1.45;}
 .ifdoc-reason span{display:block;color:#64748b;font-weight:600;font-size:0.75rem;margin-bottom:3px;}
+/* ═══ SAHA YOXLAMASI (ops paneli ilə eyni məntiq, işıqlı tema) ═══ */
+.yx-sec{display:flex;align-items:center;gap:7px;font-size:0.8rem;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:0.7rem;}
+.yx-chips{display:flex;flex-wrap:wrap;gap:6px;}
+.yx-chip{padding:0.45rem 0.85rem;border:1.5px solid var(--border);border-radius:100px;background:#fff;cursor:pointer;font-size:0.8rem;font-weight:700;color:var(--text-muted);font-family:inherit;}
+.yx-chip.on{border-color:var(--primary);background:rgba(13,148,136,0.09);color:var(--primary);}
+.yx-cat{border:1px solid var(--border);border-radius:12px;padding:0.6rem 0.7rem;margin-bottom:8px;}
+.yx-cat-head{display:flex;align-items:center;gap:8px;justify-content:space-between;flex-wrap:wrap;}
+.yx-cat-name{display:flex;align-items:center;gap:7px;font-size:0.85rem;font-weight:700;cursor:pointer;flex:1 1 auto;min-width:120px;}
+.yx-cat-name i{color:var(--primary);width:16px;text-align:center;}
+.yx-segs{display:flex;gap:3px;}
+.yx-seg{width:29px;height:29px;border:1.5px solid var(--border);border-radius:8px;background:#fff;cursor:pointer;font-size:0.76rem;font-weight:800;color:var(--text-soft);font-family:inherit;}
+.yx-seg.on{color:#fff;border-color:transparent;}
+.yx-seg.on.s1,.yx-seg.on.s2{background:var(--danger);}
+.yx-seg.on.s3{background:var(--amber);}
+.yx-seg.on.s4,.yx-seg.on.s5{background:var(--success);}
+.yx-body{display:none;margin-top:8px;}
+.yx-body.on{display:block;}
+.yx-ta{width:100%;border:1.5px solid var(--border);border-radius:10px;padding:0.5rem 0.6rem;font-family:inherit;font-size:0.83rem;resize:vertical;min-height:52px;background:#fff;color:var(--text-main);}
+.yx-ta:focus{outline:none;border-color:var(--primary);}
+.yx-row{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-top:7px;}
+.yx-mini{padding:0.32rem 0.65rem;border:1.5px solid var(--border);border-radius:9px;background:#fff;cursor:pointer;font-size:0.75rem;font-weight:700;color:var(--text-muted);font-family:inherit;display:inline-flex;align-items:center;gap:5px;}
+.yx-mini.flag.on{border-color:var(--danger);color:var(--danger);background:rgba(239,68,68,0.07);}
+.yx-thumb{width:34px;height:34px;border-radius:8px;object-fit:cover;border:1px solid var(--border);}
+.yx-sev{display:flex;gap:4px;}
+.yx-sev-b{padding:0.25rem 0.55rem;border:1.5px solid var(--border);border-radius:8px;background:#fff;cursor:pointer;font-size:0.72rem;font-weight:700;color:var(--text-muted);font-family:inherit;}
+.yx-sev-b.on{border-color:var(--amber);background:rgba(245,158,11,0.1);color:#b45309;}
+.yx-emp{border:1px solid var(--border);border-radius:12px;padding:0.6rem 0.7rem;margin-bottom:8px;}
+.yx-emp-top{display:flex;align-items:center;gap:8px;margin-bottom:7px;}
+.yx-emp-name{font-size:0.85rem;font-weight:800;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.yx-sent{display:flex;gap:3px;}
+.yx-sent-b{width:27px;height:27px;border:1.5px solid var(--border);border-radius:8px;background:#fff;cursor:pointer;font-size:0.68rem;color:var(--text-soft);font-family:inherit;}
+.yx-sent-b.on.pos{border-color:var(--success);color:var(--success);background:rgba(16,185,129,0.09);}
+.yx-sent-b.on.neg{border-color:var(--danger);color:var(--danger);background:rgba(239,68,68,0.09);}
+.yx-sent-b.on.neutral{border-color:var(--text-soft);color:var(--text-muted);background:rgba(100,116,139,0.08);}
+.yx-x{width:27px;height:27px;border:none;background:transparent;color:var(--text-soft);cursor:pointer;font-size:0.85rem;}
+.yx-save{width:100%;padding:0.8rem;border:none;border-radius:13px;background:var(--primary);color:#fff;font-size:0.92rem;font-weight:800;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;}
+.yx-save:disabled{opacity:0.55;cursor:default;}
+.yx-status{margin-top:9px;padding:0.6rem 0.8rem;border-radius:10px;font-size:0.82rem;font-weight:700;display:none;}
+.yx-status.on{display:block;}
+.yx-status.ok{background:rgba(16,185,129,0.1);color:#047857;}
+.yx-status.err{background:rgba(239,68,68,0.1);color:#b91c1c;}
+.yx-status.info{background:rgba(13,148,136,0.09);color:var(--primary);}
+.yx-ov{background:rgba(255,255,255,0.22);padding:2px 9px;border-radius:100px;font-size:0.8rem;}
+.yx-overlay{position:fixed;inset:0;background:rgba(15,23,42,0.45);z-index:200;display:none;align-items:flex-end;justify-content:center;}
+.yx-overlay.on{display:flex;}
+.yx-sheet{background:#fff;width:100%;max-width:520px;border-radius:18px 18px 0 0;padding:1rem 1.1rem 1.4rem;max-height:72vh;overflow-y:auto;}
+.yx-pick{padding:0.62rem 0.7rem;border-bottom:1px solid var(--border);cursor:pointer;font-size:0.87rem;font-weight:600;}
+.yx-pick:active{background:rgba(13,148,136,0.06);}
 </style>
 </head>
 <body>
@@ -204,6 +252,7 @@ select,input[type=date]{border:1.5px solid var(--border);border-radius:11px;padd
       <button class="tab-btn"        data-t="training"  onclick="go('training')"><i class="fa-solid fa-graduation-cap"></i> Training</button>
       <button class="tab-btn"        data-t="cerime"    onclick="go('cerime')"><i class="fa-solid fa-gavel"></i> Cərimə</button>
       <button class="tab-btn"        data-t="icaze"     onclick="go('icaze')"><i class="fa-solid fa-clock"></i> İcazələr</button>
+      <button class="tab-btn"        data-t="yoxlama"   onclick="go('yoxlama')"><i class="fa-solid fa-location-dot"></i> Yoxlama</button>
     </div>
   </div>
 
@@ -218,6 +267,18 @@ select,input[type=date]{border:1.5px solid var(--border);border-radius:11px;padd
   <div id="panel-training"  class="panel hidden"></div>
   <div id="panel-cerime"    class="panel hidden"></div>
   <div id="panel-icaze"     class="panel hidden"></div>
+  <div id="panel-yoxlama"   class="panel hidden"></div>
+</div>
+
+<!-- Yoxlama: işçi seçmə pəncərəsi -->
+<div class="yx-overlay" id="yxEmpOverlay" onclick="if(event.target===this)yxCloseEmpPicker()">
+  <div class="yx-sheet">
+    <div class="yx-sec" style="justify-content:space-between;">
+      <span><i class="fa-solid fa-user-group"></i> İşçi seç</span>
+      <button class="yx-mini" onclick="yxCloseEmpPicker()"><i class="fa-solid fa-xmark"></i> Bağla</button>
+    </div>
+    <div id="yxPickList"></div>
+  </div>
 </div>
 
 <script src="/gsr-shim.js"></script>
@@ -257,13 +318,13 @@ function call(fn,args,cb){
 // ── Tab keçidi ────────────────────────────────────────────────────
 var loaded={};
 function go(t){
-  ['live','hesabat','cedvel','idareci','checklist','tullanti','training','cerime','icaze'].forEach(function(x){
+  ['live','hesabat','cedvel','idareci','checklist','tullanti','training','cerime','icaze','yoxlama'].forEach(function(x){
     document.getElementById('panel-'+x).classList.toggle('hidden',x!==t);
   });
   Array.prototype.forEach.call(document.querySelectorAll('.tab-btn'),function(b){ b.classList.toggle('active',b.dataset.t===t); });
   LOADERS[t]();
 }
-var LOADERS={ live:loadLive, hesabat:loadHesabat, cedvel:loadCedvel, idareci:loadIdareci, checklist:loadChecklist, tullanti:loadTullanti, training:loadTraining, cerime:loadCerime, icaze:loadIcaze };
+var LOADERS={ live:loadLive, hesabat:loadHesabat, cedvel:loadCedvel, idareci:loadIdareci, checklist:loadChecklist, tullanti:loadTullanti, training:loadTraining, cerime:loadCerime, icaze:loadIcaze, yoxlama:loadYoxlama };
 
 // ══ GECİKMƏ İCAZƏLƏRİ (filial üzrə subtab) ════
 var icazeData=null, icazeDept=null;
@@ -718,6 +779,210 @@ function logCardExec(log,uid){
     return '<div style="display:flex;align-items:flex-start;gap:8px;padding:6px 0;border-bottom:1px solid rgba(15,23,42,0.04);"><div style="width:20px;height:20px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;margin-top:1px;background:'+(ok?'rgba(16,185,129,0.12)':'rgba(239,68,68,0.07)')+';"><i class="fa-solid '+(ok?'fa-check':'fa-xmark')+'" style="font-size:0.6rem;color:'+(ok?'#10b981':'#ef4444')+'"></i></div><div style="flex:1;"><div style="font-size:0.83rem;font-weight:600;color:'+(ok?'var(--text-main)':'var(--danger)')+';">'+esc(item.text)+'</div>'+(item.note?'<div style="font-size:0.76rem;color:#92400e;background:rgba(245,158,11,0.07);border-radius:6px;padding:3px 7px;margin-top:3px;">'+esc(item.note)+'</div>':'')+'</div><span style="font-size:0.68rem;color:var(--text-soft);white-space:nowrap;padding-top:2px;">'+esc(item.category||'')+'</span></div>';
   }).join('');
   return '<div class="tlog" style="padding:0;"><div onclick="exToggle(\''+uid+'\')" style="cursor:pointer;padding:0.75rem 0.9rem;"><div class="tlog-head"><span class="tlog-emp">'+esc(log.emp_name||'—')+'</span><span class="tlog-meta">'+esc(log.dept||'')+' · '+time+'</span></div><div style="display:flex;align-items:center;gap:9px;margin-top:6px;"><div style="flex:1;height:5px;background:rgba(15,23,42,0.07);border-radius:100px;overflow:hidden;"><div style="height:100%;width:'+pc+'%;background:'+clr+';border-radius:100px;"></div></div><span style="font-size:0.78rem;font-weight:700;color:'+clr+';white-space:nowrap;"><i class="fa-solid fa-check-double"></i> '+done+'/'+total+'</span><i class="fa-solid fa-chevron-down" id="ico-'+uid+'" style="font-size:0.72rem;color:var(--text-soft);transition:transform 0.25s;flex-shrink:0;"></i></div><div style="font-size:0.72rem;color:var(--text-muted);margin-top:4px;">Trainer: '+esc(log.trainer_name||'')+'</div></div><div id="det-'+uid+'" style="overflow:hidden;max-height:0;transition:max-height 0.35s ease;"><div style="padding:0 0.9rem 0.8rem;">'+(rows||'<div style="font-size:0.82rem;color:var(--text-soft);padding-top:8px;">Bənd yoxdur.</div>')+(log.general_note?'<div class="ck-note" style="margin-top:8px;">📝 '+esc(log.general_note)+'</div>':'')+'</div></div></div>';
+}
+
+// ══ SAHA YOXLAMASI ═══════════════════════════════════════════════
+// Əməliyyat meneceri panelindəki "Yoxlamalar" ilə eyni məntiq və eyni API-lər.
+// Qeydlər eyni cədvəllərə yazılır (ops_visits/ratings/emp_notes/issues) → ops panelinin
+// iclas görünüşündə eyni formada görünür, yalnız "kim yoxladı" fərqlənir.
+var yxBoot=null, yxCats=[], yx={dept:'',ratings:{},emps:[]};
+
+function loadYoxlama(){
+  var p=document.getElementById('panel-yoxlama');
+  if(yxBoot){ yxRender(); return; }
+  p.innerHTML=spin();
+  call('getOpsBootstrap',[EXEC_KEY],function(b){
+    if(!b){ p.innerHTML=emptyMsg('Yoxlama moduluna icazə yoxdur.'); return; }
+    yxBoot=b;
+    yxCats=(b.categories&&b.categories.length)?b.categories:[];
+    yxRender();
+  });
+}
+
+function yxRender(){
+  var p=document.getElementById('panel-yoxlama');
+  p.innerHTML=
+    '<div class="card">'+
+      '<div class="yx-sec"><i class="fa-solid fa-store"></i> Filial</div>'+
+      '<div class="yx-chips" id="yxDeptChips"></div>'+
+    '</div>'+
+    '<div id="yxBody" style="display:none;">'+
+      '<div class="card">'+
+        '<div class="yx-sec"><i class="fa-solid fa-list-check"></i> Yoxlama kateqoriyaları</div>'+
+        '<div id="yxCatList"></div>'+
+      '</div>'+
+      '<div class="card">'+
+        '<div class="yx-sec"><i class="fa-solid fa-user-group"></i> İşçi qeydləri</div>'+
+        '<div id="yxEmpList"></div>'+
+        '<button class="yx-mini" style="margin-top:7px;" onclick="yxOpenEmpPicker()"><i class="fa-solid fa-plus"></i> İşçi seç</button>'+
+      '</div>'+
+      '<div class="card">'+
+        '<div class="yx-sec"><i class="fa-solid fa-pen"></i> Yekun qeyd</div>'+
+        '<textarea class="yx-ta" id="yxSummary" placeholder="Ümumi təəssürat, əlavə qeyd..."></textarea>'+
+      '</div>'+
+      '<button class="yx-save" id="yxSaveBtn" onclick="yxSave()"><i class="fa-solid fa-circle-check"></i> Yoxlamanı bitir <span class="yx-ov" id="yxOv"></span></button>'+
+      '<div class="yx-status" id="yxStatus"></div>'+
+    '</div>';
+  yxRenderDepts();
+  if(yx.dept){ document.getElementById('yxBody').style.display='block'; yxRenderCats(); yxRenderEmps(); yxUpdateOverall(); }
+}
+
+function yxRenderDepts(){
+  document.getElementById('yxDeptChips').innerHTML=(yxBoot.depts||[]).map(function(d,i){
+    return '<button class="yx-chip'+(yx.dept===d?' on':'')+'" onclick="yxSelectDept('+i+')">'+esc(d)+'</button>';
+  }).join('');
+}
+// Filialı İNDEKS ilə ötürürük — adda apostrof olsa da sətir pozulmasın
+function yxSelectDept(i){
+  var d=(yxBoot.depts||[])[i]; if(!d)return;
+  if(yx.dept!==d){ yx.dept=d; yx.ratings={}; yx.emps=[]; }
+  yxRenderDepts();
+  document.getElementById('yxBody').style.display='block';
+  var s=document.getElementById('yxSummary'); if(s)s.value='';
+  yxRenderCats(); yxRenderEmps(); yxUpdateOverall();
+}
+
+function yxGetRating(name){
+  if(!yx.ratings[name]) yx.ratings[name]={score:0,note:'',photoUrl:'',problem:false,severity:'orta',open:false};
+  return yx.ratings[name];
+}
+var YX_SEV=[['asagi','Aşağı'],['orta','Orta'],['kritik','Kritik']];
+function yxRenderCats(){
+  document.getElementById('yxCatList').innerHTML=yxCats.map(function(c,idx){
+    var st=yxGetRating(c.name), segs='';
+    for(var k=1;k<=5;k++) segs+='<button class="yx-seg'+(k<=st.score?' on s'+st.score:'')+'" onclick="yxSetScore('+idx+','+k+')">'+k+'</button>';
+    var thumb=st.photoUrl?'<img class="yx-thumb" src="'+esc(st.photoUrl)+'">':'';
+    var sev=YX_SEV.map(function(s){return '<button class="yx-sev-b'+(st.severity===s[0]?' on':'')+'" onclick="yxSetCatSev('+idx+',\''+s[0]+'\')">'+s[1]+'</button>';}).join('');
+    return '<div class="yx-cat">'+
+      '<div class="yx-cat-head">'+
+        '<div class="yx-cat-name" onclick="yxToggleCat('+idx+')"><i class="fa-solid '+esc(c.icon||'fa-clipboard-check')+'"></i>'+esc(c.name)+'</div>'+
+        '<div class="yx-segs">'+segs+'</div>'+
+      '</div>'+
+      '<div class="yx-body'+(st.open?' on':'')+'">'+
+        '<textarea class="yx-ta" placeholder="Qeyd..." oninput="yxSetCatNote('+idx+',this.value)">'+esc(st.note)+'</textarea>'+
+        '<div class="yx-row">'+
+          '<button class="yx-mini" onclick="yxCatPhoto('+idx+')"><i class="fa-solid fa-camera"></i> Foto</button>'+thumb+
+          '<button class="yx-mini flag'+(st.problem?' on':'')+'" onclick="yxToggleCatProblem('+idx+')"><i class="fa-solid fa-flag"></i> Problem</button>'+
+        '</div>'+
+        (st.problem?'<div class="yx-row"><span style="font-size:0.74rem;color:var(--text-muted);font-weight:700;">Ağırlıq:</span><div class="yx-sev">'+sev+'</div></div>':'')+
+      '</div>'+
+    '</div>';
+  }).join('')||emptyMsg('Kateqoriya yoxdur.');
+}
+function yxSetScore(i,n){ var st=yxGetRating(yxCats[i].name); st.score=(st.score===n?0:n); st.open=true; yxRenderCats(); yxUpdateOverall(); }
+function yxToggleCat(i){ var st=yxGetRating(yxCats[i].name); st.open=!st.open; yxRenderCats(); }
+function yxSetCatNote(i,v){ yxGetRating(yxCats[i].name).note=v; }
+function yxToggleCatProblem(i){ var st=yxGetRating(yxCats[i].name); st.problem=!st.problem; yxRenderCats(); }
+function yxSetCatSev(i,s){ yxGetRating(yxCats[i].name).severity=s; yxRenderCats(); }
+function yxCatPhoto(i){ yxPickPhoto(function(url){ if(url){ yxGetRating(yxCats[i].name).photoUrl=url; yxRenderCats(); } }); }
+function yxUpdateOverall(){
+  var arr=Object.keys(yx.ratings).map(function(k){return yx.ratings[k].score;}).filter(function(s){return s>0;});
+  var ov=arr.length?Math.round(arr.reduce(function(a,b){return a+b;},0)/arr.length*10)/10:0;
+  var el=document.getElementById('yxOv'); if(el) el.textContent=ov?('· '+ov):'';
+}
+
+// ── İşçi qeydləri ──
+var _yxPick=[];
+function yxOpenEmpPicker(){
+  if(!yx.dept){ alert('Əvvəlcə filial seç.'); return; }
+  _yxPick=(yxBoot.employees[yx.dept]||[]);
+  document.getElementById('yxPickList').innerHTML=_yxPick.length
+    ? _yxPick.map(function(e,i){ return '<div class="yx-pick" onclick="yxAddEmp('+i+')">'+esc(e.name)+'</div>'; }).join('')
+    : emptyMsg('Bu filialda işçi yoxdur.');
+  document.getElementById('yxEmpOverlay').classList.add('on');
+}
+function yxCloseEmpPicker(){ document.getElementById('yxEmpOverlay').classList.remove('on'); }
+// İşçini İNDEKS ilə əlavə edirik — adda apostrof olsa da sınmasın
+function yxAddEmp(i){
+  var e=_yxPick[i]; if(!e)return;
+  if(!yx.emps.some(function(x){return x.empId===e.id;}))
+    yx.emps.push({empId:e.id,empName:e.name,sentiment:'neutral',note:'',isProblem:false,severity:'orta',photoUrl:''});
+  yxCloseEmpPicker(); yxRenderEmps();
+}
+function yxRenderEmps(){
+  document.getElementById('yxEmpList').innerHTML=yx.emps.map(function(e,idx){
+    var sent=[['pos','fa-plus'],['neutral','fa-circle'],['neg','fa-minus']].map(function(s){
+      return '<button class="yx-sent-b'+(e.sentiment===s[0]?' on '+s[0]:'')+'" onclick="yxSetEmpSent('+idx+',\''+s[0]+'\')"><i class="fa-solid '+s[1]+'"></i></button>';
+    }).join('');
+    var thumb=e.photoUrl?'<img class="yx-thumb" src="'+esc(e.photoUrl)+'">':'';
+    var sev=YX_SEV.map(function(s){return '<button class="yx-sev-b'+(e.severity===s[0]?' on':'')+'" onclick="yxSetEmpSev('+idx+',\''+s[0]+'\')">'+s[1]+'</button>';}).join('');
+    return '<div class="yx-emp">'+
+      '<div class="yx-emp-top"><span class="yx-emp-name">'+esc(e.empName)+'</span><div class="yx-sent">'+sent+'</div><button class="yx-x" onclick="yxRemoveEmp('+idx+')"><i class="fa-solid fa-xmark"></i></button></div>'+
+      '<textarea class="yx-ta" placeholder="Müşahidə / qeyd..." oninput="yxSetEmpNote('+idx+',this.value)">'+esc(e.note)+'</textarea>'+
+      '<div class="yx-row">'+
+        '<button class="yx-mini" onclick="yxEmpPhoto('+idx+')"><i class="fa-solid fa-camera"></i> Foto</button>'+thumb+
+        '<button class="yx-mini flag'+(e.isProblem?' on':'')+'" onclick="yxToggleEmpProblem('+idx+')"><i class="fa-solid fa-flag"></i> Problem kimi izlə</button>'+
+      '</div>'+
+      (e.isProblem?'<div class="yx-row"><span style="font-size:0.74rem;color:var(--text-muted);font-weight:700;">Ağırlıq:</span><div class="yx-sev">'+sev+'</div></div>':'')+
+    '</div>';
+  }).join('');
+}
+function yxSetEmpSent(i,s){ yx.emps[i].sentiment=s; yxRenderEmps(); }
+function yxSetEmpNote(i,v){ yx.emps[i].note=v; }
+function yxToggleEmpProblem(i){ var e=yx.emps[i]; e.isProblem=!e.isProblem; if(e.isProblem)e.sentiment='neg'; yxRenderEmps(); }
+function yxSetEmpSev(i,s){ yx.emps[i].severity=s; yxRenderEmps(); }
+function yxRemoveEmp(i){ yx.emps.splice(i,1); yxRenderEmps(); }
+function yxEmpPhoto(i){ yxPickPhoto(function(url){ if(url){ yx.emps[i].photoUrl=url; yxRenderEmps(); } }); }
+
+// ── Foto (ops paneli ilə eyni: kiçildib Supabase storage-a yükləyir) ──
+function yxPickPhoto(cb){
+  var inp=document.createElement('input'); inp.type='file'; inp.accept='image/*';
+  inp.onchange=function(){
+    var f=inp.files&&inp.files[0]; if(!f)return;
+    yxStatus('info','Şəkil yüklənir...');
+    yxCompress(f,function(dataUrl){
+      call('uploadOpsPhoto',[EXEC_KEY,dataUrl,'jpg'],function(r){
+        yxStatus('', ''); cb(r&&r.success?r.url:'');
+      });
+    });
+  };
+  inp.click();
+}
+function yxCompress(file,cb){
+  var rd=new FileReader();
+  rd.onload=function(){
+    var img=new Image();
+    img.onload=function(){
+      var max=1100,w=img.width,h=img.height;
+      if(w>max||h>max){ if(w>h){h=Math.round(h*max/w);w=max;} else {w=Math.round(w*max/h);h=max;} }
+      var c=document.createElement('canvas'); c.width=w; c.height=h;
+      c.getContext('2d').drawImage(img,0,0,w,h);
+      cb(c.toDataURL('image/jpeg',0.72));
+    };
+    img.src=rd.result;
+  };
+  rd.readAsDataURL(file);
+}
+
+function yxStatus(cls,msg){
+  var el=document.getElementById('yxStatus'); if(!el)return;
+  el.className='yx-status'+(cls?' on '+cls:''); el.textContent=msg||'';
+}
+
+function yxSave(){
+  if(!yx.dept){ alert('Filial seç.'); return; }
+  var ratings=[], issues=[];
+  yxCats.forEach(function(c){
+    var st=yx.ratings[c.name]; if(!st)return;
+    if(st.score>0||st.note||st.photoUrl) ratings.push({category:c.name,score:st.score,note:st.note,photoUrl:st.photoUrl});
+    if(st.problem) issues.push({title:c.name+' — problem',detail:st.note,severity:st.severity,photoUrl:st.photoUrl});
+  });
+  var empNotes=yx.emps.map(function(e){ return {empId:e.empId,empName:e.empName,sentiment:e.sentiment,note:e.note,isProblem:e.isProblem,severity:e.severity,photoUrl:e.photoUrl}; });
+  if(!ratings.length&&!empNotes.length){ alert('Ən azı bir qiymət və ya işçi qeydi əlavə et.'); return; }
+  var btn=document.getElementById('yxSaveBtn'); btn.disabled=true;
+  yxStatus('info','Saxlanılır...');
+  var payload={dept:yx.dept,summary:document.getElementById('yxSummary').value,ratings:ratings,empNotes:empNotes,issues:issues};
+  google.script.run.withSuccessHandler(function(r){
+    btn.disabled=false;
+    if(r&&r.success){
+      yxStatus('ok','Yoxlama saxlandı (bal '+(r.overall||0)+'). Əməliyyat panelinin iclas bölməsinə düşdü.');
+      yx.ratings={}; yx.emps=[]; document.getElementById('yxSummary').value='';
+      yxRenderCats(); yxRenderEmps(); yxUpdateOverall();
+      setTimeout(function(){ yxStatus('',''); },5000);
+    } else yxStatus('err','Xəta: '+((r&&r.reason)||'bilinməyən'));
+  }).withFailureHandler(function(e){
+    btn.disabled=false; yxStatus('err','Server xətası: '+((e&&e.message)||e));
+  }).saveOpsVisit(EXEC_KEY,payload);
 }
 
 // ── Başlat ────────────────────────────────────────────────────────
