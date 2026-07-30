@@ -10,9 +10,18 @@ if (!url || !key) {
   process.exit(1);
 }
 
+// DİQQƏT: Node 22-dən əvvəlki versiyalarda qlobal `WebSocket` YOXDUR.
+// @supabase/supabase-js klient qurularkən RealtimeClient yaradır və WebSocket axtarır;
+// tapmasa server BAŞLAYAN ANDA çökür ("Node.js 18 detected without native WebSocket support").
+// Railway hazırda Node 18 işlədir → `ws` paketini transport kimi özümüz veririk.
+// Belədə Node versiyasından asılılıq tamamilə aradan qalxır.
+// (Realtime funksiyasını istifadə etmirik, amma klient onsuz qurulmur.)
+const ws = require('ws');
+
 // Service Role Key → RLS-i keçir, tam giriş
 const supabase = createClient(url, key, {
   auth: { persistSession: false },
+  realtime: { transport: ws },
 });
 
 module.exports = supabase;
