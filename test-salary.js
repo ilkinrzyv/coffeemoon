@@ -114,5 +114,24 @@ check(pay('Barista', 'Sahil', 'sehersm').pay === 21, 'yarımçıq konfiqdə veri
 check(pay('Cleaner', 'Sahil', 'sehersm').pay === 18.33, 'yarımçıq konfiqdə çatışmayan vəzifə ilkin dəyərlə tamamlanmır');
 check(pay('Barista', 'Gənclik', 'axsamsm').taxi === 7, 'yarımçıq konfiqdə taksi ilkin qayda ilə işləməlidir');
 
+// ── 12) Tutulma qaydaları (cərimə / avans) ──
+console.log('\n12) Tutulma qaydaları');
+U.setSetting('SALARY_CONFIG', '').catch(() => {});   // ilkin dəyərlərə qayıt
+const d = U.getSalaryConfig();
+check(d.fineStatuses.includes('unpaid'), 'ödənilməmiş cərimə defolt tutulmalıdır');
+check(!d.fineStatuses.includes('paid'), 'ödənilmiş cərimə defolt tutulmamalıdır');
+check(!d.fineStatuses.includes('waived'), 'BAĞIŞLANMIŞ cərimə heç vaxt tutulmamalıdır');
+check(d.avansStatuses.includes('approved') && d.avansStatuses.includes('paid'), 'təsdiqlənmiş+ödənilmiş avans tutulmalıdır');
+check(!d.avansStatuses.includes('pending') && !d.avansStatuses.includes('rejected'), 'gözləyən/rədd edilən avans tutulmamalıdır');
+check(d.mgrFinesOnlyAcked === false, 'menecer cəriməsi defolt olaraq hamısı tutulur');
+
+// Net hesab: brüt − cərimə − avans
+console.log('\n13) Net ödəniş riyaziyyatı');
+const g1 = U.computeDayPay('Team Leader', 'Gənclik', 'tamgun');   // 46.66 + 7
+const brut = U.round2(g1.pay + g1.taxi);
+check(brut === 53.66, `brüt 53.66 olmalıdır, alınan ${brut}`);
+check(U.round2(brut - 30 - 150) === -126.34, 'tutulma brütdən çox olsa MƏNFİ çıxmalıdır (borc)');
+check(U.round2(brut - 30) === 23.66, 'cərimə çıxılması səhvdir');
+
 console.log(`\n${'═'.repeat(50)}\nNƏTİCƏ: ${pass} keçdi, ${fail} uğursuz`);
 process.exit(fail ? 1 : 0);

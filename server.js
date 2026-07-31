@@ -1121,6 +1121,12 @@ API.saveSalaryConfig = async (cfg) => {
     taxiShifts: Array.isArray(cfg.taxiShifts) ? cfg.taxiShifts.filter(s => U.ALL_SHIFT_TYPES.includes(s)) : base.taxiShifts,
   };
   for (const p of U.POSITIONS) clean.rates[p] = num(cfg.rates && cfg.rates[p], base.rates[p]);
+  // Tutulma qaydaları — yalnız tanınan statuslar qəbul edilir ('waived'/'rejected' heç vaxt)
+  clean.fineStatuses = Array.isArray(cfg.fineStatuses)
+    ? cfg.fineStatuses.filter(s => ['unpaid', 'paid'].includes(s)) : base.fineStatuses;
+  clean.avansStatuses = Array.isArray(cfg.avansStatuses)
+    ? cfg.avansStatuses.filter(s => ['approved', 'paid'].includes(s)) : base.avansStatuses;
+  clean.mgrFinesOnlyAcked = typeof cfg.mgrFinesOnlyAcked === 'boolean' ? cfg.mgrFinesOnlyAcked : base.mgrFinesOnlyAcked;
   await U.setSetting('SALARY_CONFIG', JSON.stringify(clean));
   return { success: true, config: U.getSalaryConfig() };
 };
@@ -1138,11 +1144,37 @@ API.getSalaryReport = async (year, month) => {
   const startStr = `${y}-${m}-01`;
   const endStr   = mo === 12 ? `${y + 1}-01-01` : `${y}-${String(mo + 1).padStart(2, '0')}-01`;
 
-  const [{ data: emps }, { data: logs }, { data: cedvelRows }] = await Promise.all([
+  const [{ data: emps }, { data: logs }, { data: cedvelRows }, { data: sysFines }, { data: mgrFines }, { data: avansRows }] = await Promise.all([
     sb.from('employees').select('id,name,dept,position,is_test'),
     sb.from('attendance').select('emp_id,timestamp,type,shift_type').gte('timestamp', startStr).lt('timestamp', endStr),
     sb.from('cedvel').select('emp_id,date_str,shift_type').gte('date_str', startStr).lt('date_str', endStr),
+    // Tutulmalar — hamısı həmin aya aiddir
+    sb.from('fines').select('emp_id,date_str,amount,reason,status').gte('date_str', startStr).lt('date_str', endStr),
+    sb.from('mgr_fines').select('emp_id,amount,reason,status,created_at,created_by').gte('created_at', startStr).lt('created_at', endStr),
+    sb.from('avans').select('emp_id,amount,note,status,date_str').gte('date_str', startStr).lt('date_str', endStr),
   ]);
+
+  // Tutulmaları işçi üzrə yığ (konfiqurasiyadakı status qaydalarına görə)
+  const tutulma = {};
+  const tut = (id) => (tutulma[id] = tutulma[id] || { cerime: 0, avans: 0, siyahi: [] });
+  for (const f of sysFines || []) {
+    if (!cfg.fineStatuses.includes(f.status || 'unpaid')) continue;
+    const t = tut(String(f.emp_id)); const m = Number(f.amount) || 0;
+    t.cerime += m;
+    t.siyahi.push({ nov: 'cerime', date: f.date_str || '', mebleg: m, qeyd: f.reason || 'Gecikmə cəriməsi', menbe: 'Sistem' });
+  }
+  for (const f of mgrFines || []) {
+    if (cfg.mgrFinesOnlyAcked && f.status !== 'acknowledged') continue;
+    const t = tut(String(f.emp_id)); const m = Number(f.amount) || 0;
+    t.cerime += m;
+    t.siyahi.push({ nov: 'cerime', date: U.toYMD(new Date(f.created_at || Date.now())), mebleg: m, qeyd: f.reason || 'Menecer cəriməsi', menbe: f.created_by || 'Menecer' });
+  }
+  for (const a of avansRows || []) {
+    if (!cfg.avansStatuses.includes(a.status)) continue;
+    const t = tut(String(a.emp_id)); const m = Number(a.amount) || 0;
+    t.avans += m;
+    t.siyahi.push({ nov: 'avans', date: a.date_str || '', mebleg: m, qeyd: a.note || 'Avans', menbe: a.status === 'paid' ? 'Ödənilib' : 'Təsdiqlənib' });
+  }
 
   // Cədvəl: emp|gün → smen
   const cedvelMap = {};
@@ -1174,21 +1206,29 @@ API.getSalaryReport = async (year, month) => {
         if (shift === 'tamgun') tamGunSayi++;
         detay.push({ date: ds, shift, shiftName: U.SHIFT_NAMES[shift] || '—', pay: g.pay, taxi: g.taxi });
       }
+      const t = tutulma[String(e.id)] || { cerime: 0, avans: 0, siyahi: [] };
+      const brut = U.round2(maas + taksi);
       return {
         empId: e.id, empName: e.name, dept: e.dept, position: e.position || '',
         rate: cfg.rates[e.position] || 0,
         gunSayi: detay.length, smenSayi, tamGunSayi,
-        maas: U.round2(maas), taksi: U.round2(taksi), cemi: U.round2(maas + taksi),
-        detay,
+        maas: U.round2(maas), taksi: U.round2(taksi), brut,
+        cerime: U.round2(t.cerime), avans: U.round2(t.avans),
+        cemi: U.round2(brut - t.cerime - t.avans),     // ƏLƏ VERİLƏCƏK məbləğ
+        detay, tutulmalar: t.siyahi.sort((a, b) => String(a.date).localeCompare(String(b.date))),
       };
     })
+    // Yalnız tutulması olan (amma işləməyən) işçilər də görünsün
+    .filter(r => r.gunSayi > 0 || r.cerime > 0 || r.avans > 0)
     .sort((a, b) => a.dept.localeCompare(b.dept) || b.cemi - a.cemi);
 
   const totals = rows.reduce((t, r) => {
-    t.maas += r.maas; t.taksi += r.taksi; t.cemi += r.cemi; t.gun += r.gunSayi; t.smen += r.smenSayi;
+    t.maas += r.maas; t.taksi += r.taksi; t.brut += r.brut;
+    t.cerime += r.cerime; t.avans += r.avans; t.cemi += r.cemi;
+    t.gun += r.gunSayi; t.smen += r.smenSayi;
     return t;
-  }, { maas: 0, taksi: 0, cemi: 0, gun: 0, smen: 0 });
-  ['maas', 'taksi', 'cemi'].forEach(k => { totals[k] = U.round2(totals[k]); });
+  }, { maas: 0, taksi: 0, brut: 0, cerime: 0, avans: 0, cemi: 0, gun: 0, smen: 0 });
+  ['maas', 'taksi', 'brut', 'cerime', 'avans', 'cemi'].forEach(k => { totals[k] = U.round2(totals[k]); });
 
   // Vəzifəsi təyin edilməyənlər 0 maaş alır — admin xəbərdar olsun
   totals.vezifesiz = rows.filter(r => !r.position && r.gunSayi > 0).length;

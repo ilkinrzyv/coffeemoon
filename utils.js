@@ -278,6 +278,16 @@ const DEFAULT_SALARY = {
   taxi: 7,                                        // günlük sabit məbləğ (tam gündə DƏ 7, iki qat deyil)
   taxiDepts: ['Ağ Şəhər', 'Gənclik'],             // taksi yalnız bu filiallarda
   taxiShifts: ['axsamsm', 'fullsm', 'tamgun'],    // axşam tərəfli smenlər
+
+  // ── Tutulmalar ──
+  // Sistem cərimələrinin statusu: unpaid | paid | waived.
+  // 'waived' (bağışlanıb) heç vaxt tutulmur; 'paid' isə nağd alınıbsa təkrar tutulmasın deyə defolt xaricdədir.
+  fineStatuses: ['unpaid'],
+  // Menecer cərimələrində ödəniş statusu YOXDUR (yalnız imza) — hamısı tutulur.
+  // Yalnız işçi imzalayanları tutmaq istəsən bunu false et:
+  mgrFinesOnlyAcked: false,
+  // Avans statusu: pending | approved | rejected | paid
+  avansStatuses: ['approved', 'paid'],
 };
 
 // Bir günə neçə smen maaşı düşür
@@ -298,6 +308,9 @@ function getSalaryConfig() {
       taxi: typeof (p && p.taxi) === 'number' ? p.taxi : base.taxi,
       taxiDepts: Array.isArray(p && p.taxiDepts) ? p.taxiDepts : base.taxiDepts,
       taxiShifts: Array.isArray(p && p.taxiShifts) ? p.taxiShifts : base.taxiShifts,
+      fineStatuses: Array.isArray(p && p.fineStatuses) ? p.fineStatuses : base.fineStatuses,
+      mgrFinesOnlyAcked: typeof (p && p.mgrFinesOnlyAcked) === 'boolean' ? p.mgrFinesOnlyAcked : base.mgrFinesOnlyAcked,
+      avansStatuses: Array.isArray(p && p.avansStatuses) ? p.avansStatuses : base.avansStatuses,
     };
     // Vəzifə siyahısında olmayan açarları at, çatışmayanı ilkin dəyərlə tamamla
     for (const pos of POSITIONS) if (typeof cfg.rates[pos] !== 'number') cfg.rates[pos] = base.rates[pos];

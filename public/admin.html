@@ -1380,12 +1380,14 @@ function maasRender(){
   if(!_maasData)return;
   var body=document.getElementById('maasBody'), rows=maasFiltered();
   document.getElementById('maasCount').textContent=rows.length+' / '+(_maasData.rows||[]).length+' işçi';
-  var t=rows.reduce(function(s,r){s.maas+=r.maas;s.taksi+=r.taksi;s.cemi+=r.cemi;s.gun+=r.gunSayi;s.smen+=r.smenSayi;return s;},{maas:0,taksi:0,cemi:0,gun:0,smen:0});
+  var t=rows.reduce(function(s,r){s.maas+=r.maas;s.taksi+=r.taksi;s.brut+=r.brut;s.cerime+=r.cerime;s.avans+=r.avans;s.cemi+=r.cemi;s.gun+=r.gunSayi;s.smen+=r.smenSayi;return s;},
+    {maas:0,taksi:0,brut:0,cerime:0,avans:0,cemi:0,gun:0,smen:0});
   var r2=function(n){return Math.round(n*100)/100;};
   document.getElementById('maasStats').innerHTML=
-    faStat(r2(t.maas)+' ₼','Maaş','')+
-    faStat(r2(t.taksi)+' ₼','Taksi','var(--warning)')+
-    faStat(r2(t.cemi)+' ₼','ÜMUMİ ÖDƏNİŞ','var(--success)')+
+    faStat(r2(t.brut)+' ₼','Brüt (maaş+taksi)','')+
+    faStat('−'+r2(t.cerime)+' ₼','Cərimə',t.cerime?'var(--danger)':'')+
+    faStat('−'+r2(t.avans)+' ₼','Avans',t.avans?'var(--primary)':'')+
+    faStat(r2(t.cemi)+' ₼','ƏLƏ VERİLƏCƏK','var(--success)')+
     faStat(t.gun+' gün · '+t.smen+' smen','İş həcmi','');
 
   var xeb='';
@@ -1397,7 +1399,9 @@ function maasRender(){
   if(!rows.length){ body.innerHTML=xeb+faBos('Bu ay üçün ödəniləcək gün tapılmadı.'); return; }
   body.innerHTML=xeb+'<div style="overflow-x:auto;"><table class="emp-tbl">'+
     '<thead><tr><th>İşçi</th><th>Vəzifə</th><th style="text-align:center;">Gün</th><th style="text-align:center;">Smen</th>'+
-    '<th style="text-align:right;">Maaş</th><th style="text-align:right;">Taksi</th><th style="text-align:right;">Cəmi</th><th></th></tr></thead><tbody>'+
+    '<th style="text-align:right;">Maaş</th><th style="text-align:right;">Taksi</th>'+
+    '<th style="text-align:right;">Cərimə</th><th style="text-align:right;">Avans</th>'+
+    '<th style="text-align:right;">Ələ veriləcək</th><th></th></tr></thead><tbody>'+
     rows.map(maasSetir).join('')+'</tbody></table></div>';
 }
 function maasSetir(r){
@@ -1415,12 +1419,36 @@ function maasSetir(r){
       '<td data-l="Smen" style="text-align:center;"><span class="emp-num">'+r.smenSayi+'</span>'+tg+'</td>'+
       '<td data-l="Maaş" style="text-align:right;"><span class="fa-money">'+r.maas+' ₼</span></td>'+
       '<td data-l="Taksi" style="text-align:right;"><span class="fa-money" style="color:'+(r.taksi?'var(--warning)':'var(--text-soft)')+';">'+(r.taksi||'—')+(r.taksi?' ₼':'')+'</span></td>'+
-      '<td data-l="Cəmi" style="text-align:right;"><span class="fa-money" style="color:var(--success);font-size:0.95rem;">'+r.cemi+' ₼</span></td>'+
+      '<td data-l="Cərimə" style="text-align:right;"><span class="fa-money" style="color:'+(r.cerime?'var(--danger)':'var(--text-soft)')+';">'+(r.cerime?'−'+r.cerime+' ₼':'—')+'</span></td>'+
+      '<td data-l="Avans" style="text-align:right;"><span class="fa-money" style="color:'+(r.avans?'var(--primary)':'var(--text-soft)')+';">'+(r.avans?'−'+r.avans+' ₼':'—')+'</span></td>'+
+      '<td data-l="Ələ veriləcək" style="text-align:right;"><span class="fa-money" style="color:'+(r.cemi<0?'var(--danger)':'var(--success)')+';font-size:0.95rem;">'+r.cemi+' ₼</span></td>'+
       '<td style="text-align:right;"><i class="fa-solid fa-chevron-down fa-chev"></i></td>'+
     '</tr>'+
-    '<tr class="fa-detay" style="display:none;"><td colspan="8" style="padding-top:0;">'+
+    '<tr class="fa-detay" style="display:none;"><td colspan="10" style="padding-top:0;">'+
       '<div class="fa-reason"><b>Günlük təfərrüat ('+r.gunSayi+' gün)</b>'+
-      '<table style="width:100%;font-size:0.8rem;">'+detay+'</table></div></td></tr>';
+      (detay?'<table style="width:100%;font-size:0.8rem;">'+detay+'</table>':'<span style="color:var(--text-muted);">Bu ay iş günü yoxdur.</span>')+
+      maasTutulmaHTML(r)+
+      '<div style="margin-top:8px;padding-top:7px;border-top:1px solid rgba(15,23,42,0.12);display:flex;justify-content:space-between;font-weight:800;font-size:0.85rem;">'+
+        '<span>Brüt '+r.brut+' ₼ − cərimə '+r.cerime+' ₼ − avans '+r.avans+' ₼</span>'+
+        '<span style="color:'+(r.cemi<0?'var(--danger)':'var(--success)')+';">= '+r.cemi+' ₼</span>'+
+      '</div>'+
+      '</div></td></tr>';
+}
+
+// Tutulmaların (cərimə/avans) sətir-sətir siyahısı — hansı məbləğ haradan gəlir
+function maasTutulmaHTML(r){
+  var list=r.tutulmalar||[];
+  if(!list.length) return '';
+  return '<div style="margin-top:9px;padding-top:8px;border-top:1px dashed rgba(15,23,42,0.15);">'+
+    '<b style="display:block;font-size:0.66rem;text-transform:uppercase;letter-spacing:0.6px;color:var(--text-muted);margin-bottom:4px;">Tutulmalar</b>'+
+    '<table style="width:100%;font-size:0.8rem;">'+list.map(function(t){
+      var cerime=t.nov==='cerime';
+      return '<tr><td style="padding:3px 8px 3px 0;white-space:nowrap;color:var(--text-muted);">'+esc(fmtDMY(t.date))+'</td>'+
+        '<td style="padding:3px 8px;"><span style="font-weight:700;color:'+(cerime?'var(--danger)':'var(--primary)')+';">'+(cerime?'Cərimə':'Avans')+'</span> '+
+          '<span style="color:var(--text-muted);">'+esc(t.qeyd)+'</span></td>'+
+        '<td style="padding:3px 8px;color:var(--text-soft);white-space:nowrap;">'+esc(t.menbe)+'</td>'+
+        '<td style="padding:3px 0 3px 8px;text-align:right;font-variant-numeric:tabular-nums;font-weight:700;color:'+(cerime?'var(--danger)':'var(--primary)')+';">−'+t.mebleg+' ₼</td></tr>';
+    }).join('')+'</table></div>';
 }
 
 // ── Dərəcələr (admin dəyişir) ──
@@ -1453,6 +1481,24 @@ function maasRenderCfg(){
           return '<button class="emp-chip'+(c.taxiShifts.indexOf(s)>=0?' on':'')+'" onclick="maasToggle(\'taxiShifts\',\''+s+'\')">'+ad+'</button>';
         }).join('')+'</div></div>'+
     '</div>'+
+    '<div class="sh-shift"><div class="sh-head"><span class="sh-name"><i class="fa-solid fa-scissors"></i> Maaşdan tutulmalar</span></div>'+
+      '<div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.7rem;">Hansı cərimə və avanslar həmin ayın maaşından çıxılsın.</div>'+
+      '<div><div style="font-size:0.7rem;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:6px;">Sistem cəriməsi (gecikmə)</div>'+
+        '<div style="display:flex;gap:6px;flex-wrap:wrap;">'+[['unpaid','Ödənilməyib'],['paid','Ödənilib']].map(function(s){
+          return '<button class="emp-chip'+((c.fineStatuses||[]).indexOf(s[0])>=0?' on':'')+'" onclick="maasToggle(\'fineStatuses\',\''+s[0]+'\')">'+s[1]+'</button>';
+        }).join('')+'</div>'+
+        '<div class="sh-hint" style="padding-top:6px;">«Bağışlanıb» statusu heç vaxt tutulmur.</div></div>'+
+      '<div style="margin-top:0.9rem;"><div style="font-size:0.7rem;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:6px;">Menecer cəriməsi</div>'+
+        '<div style="display:flex;gap:6px;flex-wrap:wrap;">'+
+          '<button class="emp-chip'+(!c.mgrFinesOnlyAcked?' on':'')+'" onclick="maasSetMgrAck(false)">Hamısı</button>'+
+          '<button class="emp-chip'+(c.mgrFinesOnlyAcked?' on':'')+'" onclick="maasSetMgrAck(true)">Yalnız işçi imzalayanlar</button>'+
+        '</div></div>'+
+      '<div style="margin-top:0.9rem;"><div style="font-size:0.7rem;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:6px;">Avans</div>'+
+        '<div style="display:flex;gap:6px;flex-wrap:wrap;">'+[['approved','Təsdiqlənib'],['paid','Ödənilib']].map(function(s){
+          return '<button class="emp-chip'+((c.avansStatuses||[]).indexOf(s[0])>=0?' on':'')+'" onclick="maasToggle(\'avansStatuses\',\''+s[0]+'\')">'+s[1]+'</button>';
+        }).join('')+'</div>'+
+        '<div class="sh-hint" style="padding-top:6px;">«Gözləyir» və «rədd edilib» heç vaxt tutulmur.</div></div>'+
+    '</div>'+
     '<div class="sh-bar">'+
       '<button class="btn primary" onclick="maasSaveCfg()"><i class="fa-solid fa-floppy-disk"></i> Saxla</button>'+
       '<button class="btn" onclick="maasResetCfg()"><i class="fa-solid fa-rotate-left"></i> İlkin dəyərlər</button>'+
@@ -1460,10 +1506,11 @@ function maasRenderCfg(){
     '</div>';
 }
 function maasToggle(sahe,val){
-  var arr=_maasCfg[sahe], i=arr.indexOf(val);
+  var arr=_maasCfg[sahe]||(_maasCfg[sahe]=[]), i=arr.indexOf(val);
   if(i>=0) arr.splice(i,1); else arr.push(val);
   maasRenderCfg();
 }
+function maasSetMgrAck(v){ _maasCfg.mgrFinesOnlyAcked=v; maasRenderCfg(); }
 function maasSaveCfg(){
   var st=document.getElementById('maasCfgState');
   st.innerHTML='<i class="fa-solid fa-circle-notch fa-spin"></i> Saxlanılır...';
