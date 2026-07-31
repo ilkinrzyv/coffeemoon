@@ -33,6 +33,37 @@ input:focus,select:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(7
 .btn.sm{padding:6px 11px;font-size:0.82rem;border-radius:9px;}
 .add-form{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
 /* Employee list */
+/* ── FİLİAL İŞ SAATLARI ── */
+.sh-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:1.1rem;}
+.sh-tab{padding:0.5rem 1rem;border:1.5px solid rgba(15,23,42,0.1);border-radius:11px;background:#fff;cursor:pointer;font-size:0.84rem;font-weight:700;color:var(--text-muted);font-family:inherit;display:flex;align-items:center;gap:7px;}
+.sh-tab.on{border-color:var(--primary);background:rgba(79,70,229,0.07);color:var(--primary);}
+.sh-tab .sh-dot{width:7px;height:7px;border-radius:50%;background:var(--warning);display:none;}
+.sh-tab.dirty .sh-dot{display:block;}
+.sh-shift{border:1px solid rgba(15,23,42,0.1);border-radius:14px;padding:0.95rem 1.05rem;margin-bottom:0.8rem;background:#fff;}
+.sh-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:0.75rem;}
+.sh-name{font-size:0.95rem;font-weight:800;color:var(--text-main);}
+.sh-span{font-size:0.84rem;font-weight:700;color:var(--primary);font-variant-numeric:tabular-nums;margin-left:auto;white-space:nowrap;}
+.sh-dur{font-size:0.78rem;color:var(--text-muted);font-weight:600;}
+/* 24 saatlıq zolaq */
+.sh-track{position:relative;height:26px;background:rgba(15,23,42,0.045);border-radius:7px;margin-bottom:0.8rem;overflow:hidden;}
+.sh-fill{position:absolute;top:0;bottom:0;background:linear-gradient(90deg,rgba(79,70,229,0.75),rgba(99,102,241,0.55));}
+.sh-late{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--danger);}
+.sh-late::after{content:'';position:absolute;top:0;left:-3px;width:8px;height:8px;border-radius:50%;background:var(--danger);}
+.sh-hour{position:absolute;top:0;bottom:0;width:1px;background:rgba(15,23,42,0.07);}
+.sh-hlbl{position:absolute;bottom:2px;font-size:0.58rem;color:var(--text-muted);font-weight:700;transform:translateX(-50%);}
+.sh-fields{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;}
+.sh-f{display:flex;flex-direction:column;gap:4px;}
+.sh-f label{font-size:0.66rem;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.6px;}
+.sh-f input{padding:0.45rem 0.6rem;border:1.5px solid rgba(15,23,42,0.12);border-radius:9px;font-size:0.86rem;font-family:inherit;color:var(--text-main);background:#fff;font-variant-numeric:tabular-nums;}
+.sh-f input:focus{outline:none;border-color:var(--primary);}
+.sh-hint{font-size:0.74rem;color:var(--text-muted);font-weight:600;padding-bottom:0.5rem;}
+.sh-hint b{color:var(--danger);}
+.sh-fb{border:1px dashed rgba(15,23,42,0.15);border-radius:12px;padding:0.85rem 1rem;background:rgba(15,23,42,0.015);}
+.sh-fb-t{font-size:0.78rem;font-weight:700;color:var(--text-muted);margin-bottom:0.65rem;}
+.sh-bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:1.2rem;padding-top:1rem;border-top:1px solid rgba(15,23,42,0.09);}
+.sh-state{font-size:0.8rem;font-weight:700;margin-left:auto;}
+@media(max-width:600px){ .sh-fields{gap:10px;} .sh-f input{width:100%;} .sh-f{flex:1 1 90px;} }
+
 /* ── İŞÇİLƏR CƏDVƏLİ ── */
 .emp-bar{display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding-bottom:0.95rem;margin-bottom:0.3rem;border-bottom:1px solid rgba(15,23,42,0.09);}
 .emp-search{flex:1 1 200px;min-width:0;padding:0.55rem 0.85rem;border:1.5px solid rgba(15,23,42,0.1);border-radius:10px;font-size:0.87rem;background:#fff;color:var(--text-main);}
@@ -830,16 +861,21 @@ input:focus,select:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(7
       <div style="width:40px;height:40px;border-radius:11px;background:rgba(79,70,229,0.06);border:1px solid rgba(79,70,229,0.08);display:flex;align-items:center;justify-content:center;color:var(--primary);flex-shrink:0;"><i class="fa-solid fa-clock"></i></div>
       <div><div style="font-weight:700;font-size:0.95rem;">Filial İş Saatları</div><div style="font-size:0.82rem;color:var(--text-muted);">Smen saatları və gecikmə hədləri — kodu dəyişmədən</div></div>
     </div>
-    <div style="background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.2);border-radius:12px;padding:0.85rem 1.05rem;margin-bottom:1.2rem;font-size:0.83rem;line-height:1.5;">
-      <b><i class="fa-solid fa-triangle-exclamation" style="color:#f59e0b;"></i> Diqqət:</b>
-      Saat dəyişikliyi <b>dərhal</b> qüvvəyə minir və bundan sonrakı bütün gəlişlərə tətbiq olunur.
-      <b>Streak/XP-ni yenidən hesablasanız</b> (İşçilər tabı), keçmiş günlər də YENİ saatlarla qiymətləndiriləcək.
-      Ona görə saatları ayın ortasında dəyişməkdən çəkinin.
+    <div style="background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.2);border-radius:12px;padding:0.7rem 0.95rem;margin-bottom:1.1rem;font-size:0.8rem;line-height:1.45;color:var(--text-muted);">
+      <b style="color:#b45309;"><i class="fa-solid fa-triangle-exclamation"></i> Dəyişiklik dərhal qüvvəyə minir.</b>
+      Keçmiş günlərə yalnız «Streak/XP yenilə» düymələrini basanda tətbiq olunur.
     </div>
+
+    <!-- Filial seçimi — eyni anda yalnız bir filial göstərilir -->
+    <div class="sh-tabs" id="shDeptTabs"></div>
+
     <div id="shiftCfgBody">Yüklənir...</div>
-    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:1.2rem;">
-      <button class="btn primary" onclick="saveShiftCfg()"><i class="fa-solid fa-floppy-disk"></i> Saxla</button>
-      <button class="btn" onclick="resetShiftCfg()"><i class="fa-solid fa-rotate-left"></i> İlkin dəyərlərə qaytar</button>
+
+    <div class="sh-bar">
+      <button class="btn primary" id="shSaveBtn" onclick="saveShiftCfg()"><i class="fa-solid fa-floppy-disk"></i> Saxla</button>
+      <button class="btn" onclick="shCopyFrom()"><i class="fa-solid fa-copy"></i> Başqa filialdan köçür</button>
+      <button class="btn" onclick="resetShiftCfg()"><i class="fa-solid fa-rotate-left"></i> İlkin dəyərlər</button>
+      <span class="sh-state" id="shState"></span>
     </div>
     <div class="tg-result" id="shiftCfgResult"></div>
   </div>
@@ -1203,78 +1239,151 @@ function parseHM(v,fbH,fbM){
   if(!isFinite(m)||m<0||m>59)m=fbM;
   return {h:h,m:m};
 }
+var _shDept='', _shSaved='';   // seçili filial + son saxlanmış vəziyyət (dəyişiklik izləmək üçün)
+
 function initShiftCfg(){
   google.script.run.withSuccessHandler(function(r){
     if(!r){document.getElementById('shiftCfgBody').innerHTML='<div style="color:var(--danger)">Yüklənmədi.</div>';return;}
-    _shiftCfg=r.config;_shiftMeta=r;renderShiftCfg();
+    _shiftCfg=r.config;_shiftMeta=r;
+    _shDept=r.depts[0];
+    _shSaved=JSON.stringify(_shiftCfg);
+    renderShiftTabs();renderShiftCfg();
   }).withFailureHandler(function(e){
     document.getElementById('shiftCfgBody').innerHTML='<div style="color:var(--danger)">Xəta: '+((e&&e.message)||'server')+'</div>';
   }).getShiftConfig();
 }
+
+// Hansı filialda saxlanmamış dəyişiklik var?
+function shDirty(dept){
+  if(!_shSaved)return false;
+  var eski=JSON.parse(_shSaved)[dept]||{};
+  return JSON.stringify(eski)!==JSON.stringify(_shiftCfg[dept]||{});
+}
+function renderShiftTabs(){
+  document.getElementById('shDeptTabs').innerHTML=_shiftMeta.depts.map(function(d,i){
+    return '<button class="sh-tab'+(d===_shDept?' on':'')+(shDirty(d)?' dirty':'')+'" onclick="shSelectDept('+i+')">'+
+      '<i class="fa-solid fa-store" style="font-size:0.75rem;opacity:.65;"></i>'+esc(d)+'<span class="sh-dot"></span></button>';
+  }).join('');
+  var deyisen=_shiftMeta.depts.filter(shDirty).length;
+  var st=document.getElementById('shState');
+  if(st) st.innerHTML=deyisen
+    ? '<span style="color:var(--warning);"><i class="fa-solid fa-circle-exclamation"></i> '+deyisen+' filialda saxlanmamış dəyişiklik</span>'
+    : '<span style="color:var(--text-muted);">Bütün dəyişikliklər saxlanılıb</span>';
+}
+function shSelectDept(i){ _shDept=_shiftMeta.depts[i]||_shDept; renderShiftTabs(); renderShiftCfg(); }
+// 24 saatlıq vizual zolaq: smenin başlanğıc→bitiş aralığı + gecikmə həddi nişanı
+function shTrack(s){
+  var st=s.startH*60+s.startM, en=st+s.durH*60, lt=s.lateH*60+s.lateM;
+  var seg=function(a,b){ return '<div class="sh-fill" style="left:'+(a/1440*100)+'%;width:'+((b-a)/1440*100)+'%"></div>'; };
+  var html='';
+  for(var h=3;h<24;h+=3){ var x=h*60/1440*100; html+='<div class="sh-hour" style="left:'+x+'%"></div><div class="sh-hlbl" style="left:'+x+'%">'+h+'</div>'; }
+  html += en<=1440 ? seg(st,en) : (seg(st,1440)+seg(0,en-1440));   // gecə yarısını keçən smen iki hissəyə bölünür
+  html += '<div class="sh-late" style="left:'+(lt/1440*100)+'%" title="Gecikmə həddi"></div>';
+  return '<div class="sh-track">'+html+'</div>';
+}
+// Bitiş vaxtı və gecikmə güzəşti insan dilində
+function shEnd(s){ var t=(s.startH*60+s.startM+s.durH*60)%1440; return hm(Math.floor(t/60),t%60); }
+function shLateHint(s){
+  var fark=(s.lateH*60+s.lateM)-(s.startH*60+s.startM);
+  if(fark===0) return 'başlama vaxtı ilə eyni';
+  return fark<0 ? 'başlamadan <b>'+(-fark)+' dəq əvvəl</b>' : 'başlamadan <b>'+fark+' dəq sonra</b>';
+}
+
 function renderShiftCfg(){
-  var types=_shiftMeta.types,names=_shiftMeta.names;
-  document.getElementById('shiftCfgBody').innerHTML=_shiftMeta.depts.map(function(dept){
-    var d=_shiftCfg[dept]||{};
-    var rows=types.map(function(t){
+  var dept=_shDept, d=_shiftCfg[dept]||{}, names=_shiftMeta.names;
+  var di=_shiftMeta.depts.indexOf(dept);
+  document.getElementById('shiftCfgBody').innerHTML=
+    _shiftMeta.types.map(function(t,ti){
       var s=d[t]||{startH:0,startM:0,durH:8,lateH:0,lateM:0};
-      var id='sc-'+_shiftMeta.depts.indexOf(dept)+'-'+t;
-      return '<tr>'+
-        '<td style="font-weight:600;white-space:nowrap;padding:5px 8px 5px 0;">'+(names[t]||t)+'</td>'+
-        '<td style="padding:5px 6px;"><input type="time" id="'+id+'-start" value="'+hm(s.startH,s.startM)+'" style="width:110px;"></td>'+
-        '<td style="padding:5px 6px;"><input type="number" id="'+id+'-dur" value="'+s.durH+'" min="1" max="24" style="width:64px;"></td>'+
-        '<td style="padding:5px 6px;"><input type="time" id="'+id+'-late" value="'+hm(s.lateH,s.lateM)+'" style="width:110px;"></td>'+
-      '</tr>';
-    }).join('');
-    var di=_shiftMeta.depts.indexOf(dept);
-    return '<div style="border:1px solid var(--border,rgba(0,0,0,0.08));border-radius:12px;padding:0.9rem 1rem;margin-bottom:1rem;">'+
-      '<div style="font-weight:700;margin-bottom:0.6rem;"><i class="fa-solid fa-store"></i> '+dept+'</div>'+
-      '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:0.85rem;">'+
-        '<tr style="color:var(--text-muted);font-size:0.72rem;text-transform:uppercase;letter-spacing:.6px;">'+
-          '<th style="text-align:left;padding-right:8px;">Smen</th><th style="text-align:left;">Başlama</th>'+
-          '<th style="text-align:left;">Saat</th><th style="text-align:left;">Gecikmə həddi</th></tr>'+
-        rows+
-      '</table></div>'+
-      '<div style="margin-top:0.7rem;padding-top:0.7rem;border-top:1px dashed rgba(0,0,0,0.1);font-size:0.8rem;">'+
-        '<div style="color:var(--text-muted);margin-bottom:5px;">Cədvəldə smen təyin olunmayan gün üçün ehtiyat hədlər:</div>'+
-        '<span style="margin-right:14px;">Səhər <input type="time" id="sc-'+di+'-fbM" value="'+hm(d.fbMorningH,d.fbMorningM)+'" style="width:110px;"></span>'+
-        '<span>Axşam <input type="time" id="sc-'+di+'-fbE" value="'+hm(d.fbEveningH,d.fbEveningM)+'" style="width:110px;"></span>'+
+      return '<div class="sh-shift">'+
+        '<div class="sh-head">'+
+          '<span class="sh-name">'+esc(names[t]||t)+'</span>'+
+          '<span class="sh-span">'+hm(s.startH,s.startM)+' → '+shEnd(s)+' <span class="sh-dur">· '+s.durH+' saat</span></span>'+
+        '</div>'+
+        shTrack(s)+
+        '<div class="sh-fields">'+
+          '<div class="sh-f"><label>Başlama</label><input type="time" value="'+hm(s.startH,s.startM)+'" oninput="shSet(\''+t+'\',\'start\',this.value)"></div>'+
+          '<div class="sh-f"><label>Müddət (saat)</label><input type="number" min="1" max="24" value="'+s.durH+'" oninput="shSet(\''+t+'\',\'dur\',this.value)" style="width:74px;"></div>'+
+          '<div class="sh-f"><label>Gecikmə həddi</label><input type="time" value="'+hm(s.lateH,s.lateM)+'" oninput="shSet(\''+t+'\',\'late\',this.value)"></div>'+
+          '<div class="sh-hint">Bu vaxtdan sonra gələn <b>gecikmiş</b> sayılır<br>('+shLateHint(s)+')</div>'+
+        '</div>'+
+      '</div>';
+    }).join('')+
+    '<div class="sh-fb">'+
+      '<div class="sh-fb-t"><i class="fa-solid fa-circle-question"></i> Cədvəldə smen təyin olunmayan gün üçün ehtiyat hədlər</div>'+
+      '<div class="sh-fields">'+
+        '<div class="sh-f"><label>Səhər gəlişi</label><input type="time" value="'+hm(d.fbMorningH,d.fbMorningM)+'" oninput="shSetFb(\'M\',this.value)"></div>'+
+        '<div class="sh-f"><label>Axşam gəlişi</label><input type="time" value="'+hm(d.fbEveningH,d.fbEveningM)+'" oninput="shSetFb(\'E\',this.value)"></div>'+
+        '<div class="sh-hint">Saat 13:00-a qədər gələnə səhər, sonra axşam həddi tətbiq olunur</div>'+
       '</div>'+
     '</div>';
-  }).join('');
 }
-function collectShiftCfg(){
-  var out={};
-  _shiftMeta.depts.forEach(function(dept,di){
-    var d=_shiftCfg[dept]||{},o={};
-    _shiftMeta.types.forEach(function(t){
-      var s=d[t]||{},id='sc-'+di+'-'+t;
-      var st=parseHM(document.getElementById(id+'-start').value,s.startH,s.startM);
-      var lt=parseHM(document.getElementById(id+'-late').value,s.lateH,s.lateM);
-      var du=parseInt(document.getElementById(id+'-dur').value,10);
-      o[t]={startH:st.h,startM:st.m,lateH:lt.h,lateM:lt.m,durH:(isFinite(du)&&du>=1&&du<=24)?du:s.durH};
-    });
-    var fm=parseHM(document.getElementById('sc-'+di+'-fbM').value,d.fbMorningH,d.fbMorningM);
-    var fe=parseHM(document.getElementById('sc-'+di+'-fbE').value,d.fbEveningH,d.fbEveningM);
-    o.fbMorningH=fm.h;o.fbMorningM=fm.m;o.fbEveningH=fe.h;o.fbEveningM=fe.m;
-    out[dept]=o;
-  });
-  return out;
+
+// Dəyəri BİRBAŞA modelə yazırıq — belədə görünməyən filialların məlumatı itmir
+function shSet(t,sahe,val){
+  var s=_shiftCfg[_shDept][t];
+  if(sahe==='dur'){ var n=parseInt(val,10); if(isFinite(n)&&n>=1&&n<=24) s.durH=n; }
+  else { var p=parseHM(val, sahe==='start'?s.startH:s.lateH, sahe==='start'?s.startM:s.lateM);
+         if(sahe==='start'){s.startH=p.h;s.startM=p.m;} else {s.lateH=p.h;s.lateM=p.m;} }
+  shTouched();
 }
+function shSetFb(hansi,val){
+  var d=_shiftCfg[_shDept];
+  var p=parseHM(val, hansi==='M'?d.fbMorningH:d.fbEveningH, hansi==='M'?d.fbMorningM:d.fbEveningM);
+  if(hansi==='M'){d.fbMorningH=p.h;d.fbMorningM=p.m;} else {d.fbEveningH=p.h;d.fbEveningM=p.m;}
+  shTouched();
+}
+// Yalnız zolağı/başlığı yenilə — input fokusu itməsin deyə tam yenidən qurmuruq
+var _shRedraw=null;
+function shTouched(){
+  renderShiftTabs();
+  clearTimeout(_shRedraw);
+  _shRedraw=setTimeout(function(){
+    var aktiv=document.activeElement, i=-1;
+    var hamisi=Array.prototype.slice.call(document.querySelectorAll('#shiftCfgBody input'));
+    i=hamisi.indexOf(aktiv);
+    renderShiftCfg();
+    if(i>=0){ var yeni=document.querySelectorAll('#shiftCfgBody input')[i]; if(yeni)yeni.focus(); }
+  },450);
+}
+
+function shCopyFrom(){
+  var basqa=_shiftMeta.depts.filter(function(d){return d!==_shDept;});
+  var secim=prompt('Hansı filialın saatları «'+_shDept+'» filialına köçürülsün?\n\n'+basqa.map(function(d,i){return (i+1)+') '+d;}).join('\n'),'1');
+  var idx=parseInt(secim,10)-1;
+  if(!(idx>=0&&idx<basqa.length))return;
+  var menbe=basqa[idx];
+  if(!confirm(menbe+' → '+_shDept+'\n\n«'+_shDept+'» filialının bütün saatları əvəz olunacaq. Davam?'))return;
+  _shiftCfg[_shDept]=JSON.parse(JSON.stringify(_shiftCfg[menbe]));
+  renderShiftTabs();renderShiftCfg();
+  document.getElementById('shiftCfgResult').innerHTML='<span style="color:var(--text-muted);font-size:0.83rem;">'+menbe+' saatları köçürüldü — saxlamağı unutma.</span>';
+}
+function collectShiftCfg(){ return _shiftCfg; }
 function saveShiftCfg(){
   if(!_shiftMeta)return;
-  var res=document.getElementById('shiftCfgResult');
+  var res=document.getElementById('shiftCfgResult'),btn=document.getElementById('shSaveBtn');
+  btn.disabled=true;
   res.innerHTML='<i class="fa-solid fa-circle-notch fa-spin"></i> Saxlanılır...';
   google.script.run.withSuccessHandler(function(r){
-    if(r&&r.success){_shiftCfg=r.config;renderShiftCfg();res.innerHTML='<span style="color:var(--success);font-weight:600;"><i class="fa-solid fa-check"></i> Saxlanıldı — dərhal qüvvədədir.</span>';}
-    else res.innerHTML='<span style="color:var(--danger);font-weight:600;">Xəta: '+((r&&r.reason)||'bilinmir')+'</span>';
-  }).withFailureHandler(function(e){res.innerHTML='<span style="color:var(--danger);font-weight:600;">Server xətası: '+((e&&e.message)||'naməlum')+'</span>';})
+    btn.disabled=false;
+    if(r&&r.success){
+      _shiftCfg=r.config;_shSaved=JSON.stringify(_shiftCfg);
+      renderShiftTabs();renderShiftCfg();
+      res.innerHTML='<span style="color:var(--success);font-weight:600;"><i class="fa-solid fa-check"></i> Saxlanıldı — dərhal qüvvədədir.</span>';
+      setTimeout(function(){res.innerHTML='';},4000);
+    } else res.innerHTML='<span style="color:var(--danger);font-weight:600;">Xəta: '+((r&&r.reason)||'bilinmir')+'</span>';
+  }).withFailureHandler(function(e){btn.disabled=false;res.innerHTML='<span style="color:var(--danger);font-weight:600;">Server xətası: '+((e&&e.message)||'naməlum')+'</span>';})
     .saveShiftConfig(collectShiftCfg());
 }
 function resetShiftCfg(){
-  if(!confirm('Bütün filialların saatları İLKİN dəyərlərə qaytarılsın?'))return;
+  if(!confirm('Bütün filialların saatları İLKİN dəyərlərə qaytarılsın?\n\nBu, 4 filialın hamısına aiddir.'))return;
   var res=document.getElementById('shiftCfgResult');
   google.script.run.withSuccessHandler(function(r){
-    if(r&&r.success){_shiftCfg=r.config;renderShiftCfg();res.innerHTML='<span style="color:var(--success);font-weight:600;"><i class="fa-solid fa-check"></i> İlkin dəyərlərə qaytarıldı.</span>';}
+    if(r&&r.success){
+      _shiftCfg=r.config;_shSaved=JSON.stringify(_shiftCfg);
+      renderShiftTabs();renderShiftCfg();
+      res.innerHTML='<span style="color:var(--success);font-weight:600;"><i class="fa-solid fa-check"></i> İlkin dəyərlərə qaytarıldı.</span>';
+    }
   }).resetShiftConfig();
 }
 
