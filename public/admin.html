@@ -405,6 +405,7 @@ tr.open .fa-chev{transform:rotate(180deg);}
   <div class="card add-form">
     <input id="iName" placeholder="İşçinin Adı Soyadı">
     <select id="iDept"><option value="" disabled selected>Filial Seçin</option><option value="Elmlər">Elmlər</option><option value="Sahil">Sahil</option><option value="Gənclik">Gənclik</option><option value="Ağ Şəhər">Ağ Şəhər</option></select>
+    <select id="iPos"><option value="" selected>Vəzifə (istəyə görə)</option></select>
     <button class="btn primary" onclick="addEmp()"><i class="fa-solid fa-user-plus"></i> Əlavə et</button>
   </div>
 
@@ -1178,6 +1179,17 @@ function sbClose(){document.getElementById('adminSb').classList.remove('open');d
 
 // ── İŞÇİLƏR ─────────────────────────────────────────────────────
 var DEPT_LIST=['Elmlər','Sahil','Gənclik','Ağ Şəhər'];
+// Vəzifə siyahısı serverdən gəlir (tək mənbə — utils.js POSITIONS)
+var POS_LIST=[];
+function loadPositions(){
+  google.script.run.withSuccessHandler(function(d){
+    POS_LIST=d||[];
+    var sel=document.getElementById('iPos');
+    if(sel) sel.innerHTML='<option value="" selected>Vəzifə (istəyə görə)</option>'+
+      POS_LIST.map(function(p){return '<option value="'+esc(p)+'">'+esc(p)+'</option>';}).join('');
+    if(emps.length) renderEmps();
+  }).getPositions();
+}
 function loadEmps(){google.script.run.withSuccessHandler(function(d){emps=d||[];renderEmpChips();renderEmps();}).getEmployees();}
 var _empDeptF='';   // '' = hamısı
 function setEmpDeptF(d){ _empDeptF=d; renderEmpChips(); renderEmps(); }
@@ -1204,7 +1216,7 @@ function renderEmps(){
   list.innerHTML=
     '<div style="overflow-x:auto;"><table class="emp-tbl">'+
       '<thead><tr>'+
-        '<th>İşçi</th><th>Filial</th><th style="text-align:center;">Streak</th>'+
+        '<th>İşçi</th><th>Filial</th><th>Vəzifə</th><th style="text-align:center;">Streak</th>'+
         '<th style="text-align:center;">XP</th><th style="text-align:center;">Canlı PIN</th><th style="text-align:right;">Əməliyyat</th>'+
       '</tr></thead><tbody>'+
     rows.map(function(e){
@@ -1215,6 +1227,10 @@ function renderEmps(){
           (e.message?'<div class="emp-sub"><i class="fa-regular fa-envelope"></i> mesaj var</div>':'')+'</div></div></td>'+
         '<td data-l="Filial"><select class="emp-dept-sel" title="Filialı dəyiş" onchange="changeDept(\''+e.id+'\',this.value,this)">'+
           DEPT_LIST.map(function(d){return '<option value="'+d+'"'+(d===e.dept?' selected':'')+'>'+d+'</option>';}).join('')+
+        '</select></td>'+
+        '<td data-l="Vəzifə"><select class="emp-dept-sel" title="Vəzifəni dəyiş" onchange="changePos(\''+e.id+'\',this.value,this)">'+
+          '<option value=""'+(!e.position?' selected':'')+'>— seçilməyib —</option>'+
+          POS_LIST.map(function(p){return '<option value="'+esc(p)+'"'+(p===e.position?' selected':'')+'>'+esc(p)+'</option>';}).join('')+
         '</select></td>'+
         '<td data-l="Streak" style="text-align:center;"><span class="emp-num" style="color:'+(e.streak>0?'#b45309':'var(--text-muted)')+';">'+(e.streak||0)+'</span></td>'+
         '<td data-l="XP" style="text-align:center;"><span class="emp-num" style="color:'+(e.xp>0?'#4f46e5':'var(--text-muted)')+';">'+(e.xp||0)+'</span></td>'+
@@ -1246,11 +1262,36 @@ function changeDept(id,newDept,sel){
   }).withFailureHandler(function(err){alert('Server xətası: '+((err&&err.message)||'naməlum'));loadEmps();})
     .updateEmployeeDept(id,newDept);
 }
+// Vəzifə dəyişmə — təsdiq pəncərəsi lazım deyil (geri qaytarmaq asandır)
+function changePos(id,yeni,sel){
+  var e=emps.filter(function(x){return x.id===id;})[0];
+  if(!e||yeni===e.position)return;
+  var kohne=e.position;
+  if(sel)sel.disabled=true;
+  google.script.run.withSuccessHandler(function(r){
+    if(sel)sel.disabled=false;
+    if(!r||r.success===false){ alert('Dəyişmədi: '+((r&&r.reason)||'Xəta')); if(sel)sel.value=kohne||''; return; }
+    e.position=yeni;
+  }).withFailureHandler(function(err){
+    if(sel){sel.disabled=false;sel.value=kohne||'';}
+    alert('Server xətası: '+((err&&err.message)||'naməlum'));
+  }).updateEmployeePosition(id,yeni);
+}
 function copyLink(l){navigator.clipboard.writeText(l);alert('Link kopyalandı!');}
 // DİQQƏT: bu funksiyalara işçi ADI ötürülmür — adda apostrof olsa onclick sətri pozulur.
 // Ad id ilə siyahıdan tapılır (bax: yaddaşdakı şablon injeksiya tələsi).
 function sendMsg(id){var e=emps.filter(function(x){return x.id===id;})[0];if(!e)return;var m=prompt(e.name+' üçün mesaj:',e.message||'');if(m!==null)google.script.run.withSuccessHandler(loadEmps).updateEmployeeMessage(id,m);}
-function addEmp(){var n=document.getElementById('iName').value,d=document.getElementById('iDept').value;if(!n||!d)return alert('Ad və Filial qeyd edin!');google.script.run.withSuccessHandler(function(){document.getElementById('iName').value='';loadEmps();}).addEmployee(n,d);}
+function addEmp(){
+  var n=document.getElementById('iName').value, d=document.getElementById('iDept').value,
+      p=(document.getElementById('iPos')||{}).value||'';
+  if(!n||!d)return alert('Ad və Filial qeyd edin!');
+  google.script.run.withSuccessHandler(function(r){
+    if(r&&r.success===false)return alert('Əlavə olunmadı: '+(r.reason||'Xəta'));
+    document.getElementById('iName').value='';
+    var ps=document.getElementById('iPos'); if(ps)ps.value='';
+    loadEmps();
+  }).addEmployee(n,d,p);
+}
 function delEmp(id){var name=empName(id);if(!name)return;if(!confirm('⚠️ '+name+' silinsin?\n\nBu işçinin BÜTÜN datası (davamiyyət, nahar, cədvəl, izin, XP, imtahan, profil, cərimə, ops qeydləri...) həmişəlik silinəcək. Bu əməliyyat geri qaytarıla bilməz!'))return;google.script.run.withSuccessHandler(function(r){if(r&&r.success===false)alert('Silinmədi: '+(r.reason||'Xəta'));loadEmps();}).removeEmployee(id);}
 function resetDev(id){var name=empName(id);if(!name)return;if(confirm(name+' — telefon kilidi sıfırlansın?'))google.script.run.withSuccessHandler(function(){alert('Sıfırlandı!');}).resetDevice(id);}
 
@@ -2021,7 +2062,7 @@ function refreshPins(){
   });
 }
 setInterval(function(){if(document.getElementById('tab-emp').classList.contains('active'))refreshPins();},5000);
-loadEmps(); loadDevices(); loadAtt(); loadWifi(); loadMgr();
+loadPositions(); loadEmps(); loadDevices(); loadAtt(); loadWifi(); loadMgr();
 var clItems  = [];
 var clReport = null;
 var clBranch = 'Ağ Şəhər';

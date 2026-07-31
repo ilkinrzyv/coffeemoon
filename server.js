@@ -466,41 +466,61 @@ const API = {};
 
 // ── İŞÇİLƏR ─────────────────────────────────────────────────────
 
+// `position` sütunu positions-migration.sql işlədilməyibsə hələ mövcud olmaya bilər.
+// Deploy miqrasiyadan ƏVVƏL baş verə bilər — o aralıqda işçi əlavə etmək dayanmasın deyə
+// əməliyyat sütunsuz təkrarlanır. Miqrasiya işlədiləndən sonra bu yol heç işə düşmür.
+function positionColMissing(err) {
+  const m = String((err && err.message) || '').toLowerCase();
+  return m.includes('position') && (m.includes('column') || m.includes('schema') || m.includes('find'));
+}
+
 API.getEmployees = async () => {
   const { data, error } = await sb.from('employees').select('*').order('name');
   sbErr('getEmployees', error);
   const emps = data || [];
   const result = emps.map(emp => ({
-    id:      emp.id,
-    name:    emp.name,
-    dept:    emp.dept,
-    secret:  emp.secret,
-    message: emp.message || '',
-    is_test: !!emp.is_test,
-    streak:  emp.streak || 0,
-    xp:      emp.xp || 0,
+    id:       emp.id,
+    name:     emp.name,
+    dept:     emp.dept,
+    position: emp.position || '',
+    secret:   emp.secret,
+    message:  emp.message || '',
+    is_test:  !!emp.is_test,
+    streak:   emp.streak || 0,
+    xp:       emp.xp || 0,
   }));
   return result.sort((a, b) => b.streak - a.streak);
 };
 
+// Mövcud vəzifə siyahısı — frontend onu koddan yox, buradan alır (tək mənbə)
+API.getPositions = async () => U.POSITIONS;
+
 // secret-siz işçi siyahısı — açarı olmayan səhifələr üçün (/exam) və trainer paneli.
 // getEmployees admin-ə məxsusdur, çünki login açarını (secret) qaytarır.
 API.getEmployeesLite = async () => {
-  const { data, error } = await sb.from('employees').select('id,name,dept,is_test').order('name');
+  let { data, error } = await sb.from('employees').select('id,name,dept,position,is_test').order('name');
+  if (error && positionColMissing(error)) {
+    ({ data, error } = await sb.from('employees').select('id,name,dept,is_test').order('name'));
+  }
   sbErr('getEmployeesLite', error);
   return (data || []).map(emp => ({
-    id:      emp.id,
-    name:    emp.name,
-    dept:    emp.dept,
-    is_test: !!emp.is_test,
+    id:       emp.id,
+    name:     emp.name,
+    dept:     emp.dept,
+    position: emp.position || '',
+    is_test:  !!emp.is_test,
   }));
 };
 
-API.addEmployee = async (name, dept) => {
+API.addEmployee = async (name, dept, position) => {
   if (!name || !dept) return { success: false, reason: 'Ad və Filial tələb olunur.' };
+  if (position && !U.isValidPosition(position)) return { success: false, reason: 'Belə vəzifə yoxdur: ' + position };
   const id     = 'E' + Date.now().toString(36).toUpperCase().slice(-5);
   const secret = Math.random().toString(36).substring(2, 10).toUpperCase();
-  const { error } = await sb.from('employees').insert({ id, name, dept, secret });
+  let { error } = await sb.from('employees').insert({ id, name, dept, secret, position: position || '' });
+  if (error && positionColMissing(error)) {
+    ({ error } = await sb.from('employees').insert({ id, name, dept, secret }));
+  }
   sbErr('addEmployee', error);
   return { success: !error };
 };
@@ -698,6 +718,19 @@ API.recalcAllFines = async () => {
 API.updateEmployeeMessage = async (id, msg) => {
   const { error } = await sb.from('employees').update({ message: msg || '' }).eq('id', id);
   return { success: !error };
+};
+
+// İşçinin vəzifəsini dəyiş (Barista / Cashier / Team Leader / Cleaner)
+API.updateEmployeePosition = async (id, position) => {
+  if (!id) return { success: false, reason: 'İşçi ID tapılmadı.' };
+  const pos = position || '';
+  if (pos && !U.isValidPosition(pos)) return { success: false, reason: 'Belə vəzifə yoxdur: ' + pos };
+  let { error } = await sb.from('employees').update({ position: pos }).eq('id', id);
+  if (error && positionColMissing(error)) {
+    return { success: false, reason: 'Vəzifə sütunu hələ yaradılmayıb — positions-migration.sql işlədilməlidir.' };
+  }
+  sbErr('updateEmployeePosition', error);
+  return { success: !error, position: pos };
 };
 
 // İşçinin filialını dəyiş (əvvəl bunu yalnız Supabase-dən əl ilə etmək olurdu).

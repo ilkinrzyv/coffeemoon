@@ -243,6 +243,12 @@ const SLUG_DEPT = Object.fromEntries(Object.entries(DEPT_SLUG).map(([d,s]) => [s
 const SLUGS     = Object.values(DEPT_SLUG);
 const DEPTS     = Object.keys(DEPT_SLUG);
 
+// ── Vəzifələr ─────────────────────────────────────────────────────
+// employees.position sütununda saxlanılır. Adı `role` DEYİL — çünki `role`
+// artıq imtahan suallarında (kassir/barista/umumi) və auth rollarında işlənir.
+const POSITIONS = ['Barista', 'Cashier', 'Team Leader', 'Cleaner'];
+function isValidPosition(p) { return POSITIONS.includes(p); }
+
 function deptToSlug(dept)  { return DEPT_SLUG[dept] || ''; }
 function slugToDept(slug)  { return SLUG_DEPT[slug] || ''; }
 
@@ -410,6 +416,7 @@ module.exports = {
   getShiftConfig, defaultShiftConfig, getLateLimit, shiftLabel,
   getEmployeeShift, hasApprovedLeave, getApprovedLatePerm,
   deptToSlug, slugToDept, SLUGS, DEPTS,
+  POSITIONS, isValidPosition,
   getBranchScheduleKeys, validateBranchScheduleKey,
   checkWifiIp,
   getTelegramSettings, sendTelegramMsg, deptChatId,
