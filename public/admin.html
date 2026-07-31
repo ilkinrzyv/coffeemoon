@@ -64,6 +64,24 @@ input:focus,select:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(7
 .sh-state{font-size:0.8rem;font-weight:700;margin-left:auto;}
 @media(max-width:600px){ .sh-fields{gap:10px;} .sh-f input{width:100%;} .sh-f{flex:1 1 90px;} }
 
+/* ── CƏRİMƏ & AVANS ── */
+.fa-sub{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:1rem;}
+.fa-sb{padding:0.55rem 1.05rem;border:1.5px solid rgba(15,23,42,0.1);border-radius:11px;background:#fff;cursor:pointer;font-size:0.85rem;font-weight:700;color:var(--text-muted);font-family:inherit;display:flex;align-items:center;gap:8px;}
+.fa-sb.on{border-color:var(--primary);background:rgba(79,70,229,0.07);color:var(--primary);}
+.fa-sb .n{background:rgba(15,23,42,0.07);border-radius:100px;padding:1px 8px;font-size:0.72rem;font-weight:800;}
+.fa-sb.on .n{background:rgba(79,70,229,0.14);}
+.fa-stats{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:1rem;}
+.fa-stat{flex:1 1 130px;border:1px solid rgba(15,23,42,0.09);border-radius:12px;padding:0.7rem 0.9rem;background:#fff;}
+.fa-stat .v{font-size:1.3rem;font-weight:900;font-variant-numeric:tabular-nums;line-height:1.1;}
+.fa-stat .l{font-size:0.7rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-top:2px;}
+.fa-reason{background:rgba(15,23,42,0.03);border-radius:9px;padding:0.6rem 0.8rem;font-size:0.83rem;line-height:1.5;color:var(--text-main);}
+.fa-reason b{display:block;font-size:0.66rem;text-transform:uppercase;letter-spacing:0.6px;color:var(--text-muted);margin-bottom:3px;}
+.fa-money{font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap;}
+.fa-exp{cursor:pointer;}
+.fa-exp:hover td{background:rgba(79,70,229,0.03);}
+.fa-chev{transition:transform 0.2s;font-size:0.7rem;color:var(--text-soft);}
+tr.open .fa-chev{transform:rotate(180deg);}
+
 /* ── İŞÇİLƏR CƏDVƏLİ ── */
 .emp-bar{display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding-bottom:0.95rem;margin-bottom:0.3rem;border-bottom:1px solid rgba(15,23,42,0.09);}
 .emp-search{flex:1 1 200px;min-width:0;padding:0.55rem 0.85rem;border:1.5px solid rgba(15,23,42,0.1);border-radius:10px;font-size:0.87rem;background:#fff;color:var(--text-main);}
@@ -345,7 +363,7 @@ input:focus,select:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(7
 
     <div class="sb-sect">İcazə & Növbə</div>
     <button class="sb-item" data-pg="izin" onclick="sw('izin')"><span class="sb-ic"><i class="fa-solid fa-umbrella-beach"></i></span> İcazə</button>
-    <button class="sb-item" data-pg="approvals" onclick="sw('approvals')"><span class="sb-ic"><i class="fa-solid fa-circle-check"></i></span> Təsdiqlər</button>
+    <button class="sb-item" data-pg="approvals" onclick="sw('approvals')"><span class="sb-ic"><i class="fa-solid fa-gavel"></i></span> Cərimə & Avans</button>
     <button class="sb-item" data-pg="checklist" onclick="sw('checklist')"><span class="sb-ic"><i class="fa-solid fa-clipboard-check"></i></span> Çeklist</button>
     <button class="sb-item" data-pg="waste" onclick="sw('waste')"><span class="sb-ic"><i class="fa-solid fa-box-archive"></i></span> Tullantılar</button>
     <button class="sb-item" data-pg="trainer" onclick="sw('trainer')"><span class="sb-ic"><i class="fa-solid fa-graduation-cap"></i></span> Training</button>
@@ -414,20 +432,28 @@ input:focus,select:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(7
 <!-- TƏSDİQLƏR (Menecer təsdiqləri — İcazə & Avans, filial üzrə) -->
 <div id="tab-approvals" class="page">
   <div class="card">
-    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
-      <div>
-        <div style="font-size:0.95rem;font-weight:700;"><i class="fa-solid fa-circle-check" style="color:var(--success);margin-right:6px;"></i>Menecer Təsdiqləri</div>
-        <div style="font-size:0.82rem;color:var(--text-muted);">Menecerlərin təsdiqlədiyi gec gəliş icazələri və avanslar — filial üzrə</div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:1rem;">
+      <div style="width:40px;height:40px;border-radius:11px;background:rgba(79,70,229,0.06);border:1px solid rgba(79,70,229,0.08);display:flex;align-items:center;justify-content:center;color:var(--primary);flex-shrink:0;"><i class="fa-solid fa-gavel"></i></div>
+      <div style="flex:1;">
+        <div style="font-weight:700;font-size:0.95rem;">Cərimələr və Avanslar</div>
+        <div style="font-size:0.82rem;color:var(--text-muted);">Menecerlərin yazdığı cərimələr, avans və gec gəliş icazələri</div>
       </div>
-      <button class="btn" onclick="loadApprovals()"><i class="fa-solid fa-rotate"></i> Yenilə</button>
+      <button class="btn" onclick="faReload()"><i class="fa-solid fa-rotate"></i> Yenilə</button>
     </div>
+
+    <!-- Alt bölmələr -->
+    <div class="fa-sub" id="faSubTabs"></div>
+
+    <!-- Filial filtri + axtarış (cədvəldən kənarda — yenilənəndə itməsin) -->
+    <div class="emp-bar">
+      <input class="emp-search" id="faSearch" placeholder="İşçi adı ilə axtar..." oninput="faRender()">
+      <div id="faDeptChips" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
+      <span class="emp-count" id="faCount"></span>
+    </div>
+
+    <div class="fa-stats" id="faStats"></div>
+    <div id="faBody">Yüklənir...</div>
   </div>
-  <div id="approvalsBody">Yüklənir...</div>
-  <div class="card" style="margin-top:1rem;">
-    <div style="font-size:0.95rem;font-weight:700;"><i class="fa-solid fa-gavel" style="color:var(--danger);margin-right:6px;"></i>Menecer Cərimələri</div>
-    <div style="font-size:0.82rem;color:var(--text-muted);">Menecerlərin yazdığı cərimələr və işçi imzaları — filial üzrə</div>
-  </div>
-  <div id="finesAdminBody"></div>
 </div>
 
 <!-- CƏDVƏL -->
@@ -1142,7 +1168,7 @@ function sw(name){
   if(name==='waste'){loadProductsAdmin();}
   if(name==='yenilik'){loadYenilikler();}
   if(name==='trainer'&&!window._trainerInited){window._trainerInited=true;initTrainerTab();}
-  if(name==='approvals'){loadApprovals();loadFinesAdmin();}
+  if(name==='approvals'){loadApprovals();}
   if(name==='saatlar'&&!_shiftMeta){initShiftCfg();}
 }
 function sbToggle(){document.getElementById('adminSb').classList.toggle('open');document.getElementById('sbOverlay').classList.toggle('open');}
@@ -1741,93 +1767,160 @@ function doUpdateIzin(){var id=document.getElementById('izinModalId').value,st=d
 function delIzin(id){if(confirm('Bu icazə qeydi silinsin?'))google.script.run.withSuccessHandler(loadIzinList).removeIzin(id);}
 
 // ── MENECER TƏSDİQLƏRİ (İcazə & Avans, filial üzrə) ──────────────
+// ══ CƏRİMƏ & AVANS ═══════════════════════════════════════════════
+// Üç məlumat növü bir yerdə idi və filial-filial qarışırdı. İndi alt bölmələrə
+// ayrılıb, hər biri tək cədvəldə, filial filtri və axtarışla.
+var _faSub='fines', _faDept='', _faFines=null, _faAppr=null;
+
+var FA_SUBS=[
+  {id:'fines', ad:'Cərimələr',            ikon:'fa-gavel'},
+  {id:'avans', ad:'Avanslar',             ikon:'fa-money-bill-wave'},
+  {id:'perms', ad:'Gec gəliş icazələri',  ikon:'fa-clock'},
+];
+
 function loadApprovals(){
-  var body=document.getElementById('approvalsBody');
-  body.innerHTML='<div style="text-align:center;padding:2rem;color:var(--text-muted)"><i class="fa-solid fa-circle-notch fa-spin"></i></div>';
-  google.script.run
-    .withSuccessHandler(function(data){
-      data=data||{};
-      var depts=Object.keys(data);
-      var hasAny=depts.some(function(d){return (data[d].latePerms||[]).length||(data[d].avans||[]).length;});
-      if(!depts.length||!hasAny){body.innerHTML='<div class="card" style="text-align:center;color:var(--text-muted);padding:2.5rem;"><i class="fa-solid fa-inbox" style="opacity:0.25;display:block;font-size:1.8rem;margin-bottom:0.6rem;"></i>Təsdiqlənmiş icazə və ya avans yoxdur.</div>';return;}
-      var sc={approved:'<span class="badge approved">Təsdiqləndi</span>',paid:'<span class="badge approved">Ödənildi</span>'};
-      var sep='<div style="height:1px;background:rgba(255,255,255,0.06);margin:0.9rem 0;"></div>';
-      var subTitle=function(ic,txt,n){return '<div style="font-size:0.78rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;margin:0.4rem 0 0.6rem;"><i class="fa-solid '+ic+'"></i> '+txt+' ('+n+')</div>';};
-      var empty=function(t){return '<div style="color:var(--text-muted);font-size:0.84rem;padding:0.2rem 0;">'+t+'</div>';};
-      body.innerHTML=depts.map(function(dept){
-        var d=data[dept]||{latePerms:[],avans:[]};
-        var perms=d.latePerms||[], avans=d.avans||[];
-        var permsHtml=perms.length?perms.map(function(p){
-          return '<div class="izin-row"><div class="avatar">'+getInitials(p.empName)+'</div>'+
-            '<div class="izin-info"><b>'+p.empName+'</b><span><i class="fa-regular fa-calendar"></i> '+fmtDMY(p.dateStr)+' &nbsp;|&nbsp; <i class="fa-regular fa-clock"></i> '+(p.requestedTime||'')+'</span></div>'+
-            sc.approved+'</div>';
-        }).join(''):empty('İcazə yoxdur.');
-        var avansHtml=avans.length?avans.map(function(a){
-          return '<div class="izin-row"><div class="avatar">'+getInitials(a.empName)+'</div>'+
-            '<div class="izin-info"><b>'+a.empName+'</b><span><i class="fa-solid fa-coins"></i> '+Number(a.amount)+' AZN'+(a.note?' &nbsp;|&nbsp; '+a.note:'')+' &nbsp;|&nbsp; <i class="fa-regular fa-calendar"></i> '+fmtDMY(a.dateStr)+'</span></div>'+
-            (sc[a.status]||'')+'</div>';
-        }).join(''):empty('Avans yoxdur.');
-        return '<div class="card">'+
-          '<div style="font-size:0.95rem;font-weight:700;margin-bottom:0.8rem;"><i class="fa-solid fa-store" style="color:var(--primary);margin-right:6px;"></i>'+dept+'</div>'+
-          subTitle('fa-clock','Gec Gəliş İcazələri',perms.length)+permsHtml+
-          sep+
-          subTitle('fa-money-bill-wave','Avanslar',avans.length)+avansHtml+
-          '</div>';
-      }).join('');
-    })
-    .withFailureHandler(function(e){
-      body.innerHTML='<div class="card" style="color:var(--danger);font-weight:600;"><i class="fa-solid fa-triangle-exclamation"></i> Xəta: '+(e&&e.message?e.message:'Server xətası')+'</div>';
-    })
-    .getApprovedByBranch();
+  if(_faFines&&_faAppr){ faRenderAll(); return; }
+  faReload();
+}
+function faReload(){
+  _faFines=null;_faAppr=null;
+  document.getElementById('faBody').innerHTML='<div style="text-align:center;padding:2rem;color:var(--text-muted)"><i class="fa-solid fa-circle-notch fa-spin"></i></div>';
+  google.script.run.withSuccessHandler(function(d){ _faFines=d||{}; if(_faAppr)faRenderAll(); })
+    .withFailureHandler(function(e){ _faFines={}; faErr(e); }).getMgrFinesForAdmin();
+  google.script.run.withSuccessHandler(function(d){ _faAppr=d||{}; if(_faFines)faRenderAll(); })
+    .withFailureHandler(function(e){ _faAppr={}; faErr(e); }).getApprovedByBranch();
+}
+function faErr(e){
+  document.getElementById('faBody').innerHTML='<div style="color:var(--danger);font-weight:600;padding:1rem;"><i class="fa-solid fa-triangle-exclamation"></i> Xəta: '+((e&&e.message)||'Server xətası')+'</div>';
+}
+
+// Bütün sətirləri düz siyahıya çevir (filial hər sətirdə saxlanılır)
+function faRows(nov){
+  var out=[];
+  if(nov==='fines'){
+    Object.keys(_faFines||{}).forEach(function(dept){
+      (_faFines[dept]||[]).forEach(function(f){ out.push({dept:dept,d:f}); });
+    });
+  } else {
+    Object.keys(_faAppr||{}).forEach(function(dept){
+      var blok=_faAppr[dept]||{};
+      ((nov==='avans'?blok.avans:blok.latePerms)||[]).forEach(function(x){ out.push({dept:dept,d:x}); });
+    });
+  }
+  return out;
+}
+function faFiltered(nov){
+  var q=((document.getElementById('faSearch')||{}).value||'').trim().toLowerCase();
+  return faRows(nov).filter(function(r){
+    if(_faDept&&r.dept!==_faDept)return false;
+    return !q||String(r.d.empName||'').toLowerCase().indexOf(q)>=0;
+  });
+}
+function faRenderAll(){ faRenderSubs(); faRenderChips(); faRender(); }
+
+function faRenderSubs(){
+  document.getElementById('faSubTabs').innerHTML=FA_SUBS.map(function(s){
+    return '<button class="fa-sb'+(_faSub===s.id?' on':'')+'" onclick="faSetSub(\''+s.id+'\')">'+
+      '<i class="fa-solid '+s.ikon+'"></i>'+s.ad+'<span class="n">'+faRows(s.id).length+'</span></button>';
+  }).join('');
+}
+function faSetSub(s){ _faSub=s; faRenderSubs(); faRender(); }
+function faSetDept(d){ _faDept=d; faRenderChips(); faRender(); }
+function faRenderChips(){
+  document.getElementById('faDeptChips').innerHTML=[['','Hamısı']].concat(DEPT_LIST.map(function(d){return [d,d];}))
+    .map(function(c){ return '<button class="emp-chip'+(_faDept===c[0]?' on':'')+'" onclick="faSetDept(\''+c[0]+'\')">'+c[1]+'</button>'; }).join('');
+}
+
+function faBadge(txt,tip){ return '<span class="badge '+tip+'">'+txt+'</span>'; }
+function faEmpCell(ad,dept){
+  return '<div class="emp-cell"><div class="avatar">'+getInitials(ad)+'</div>'+
+    '<div style="min-width:0;"><div class="emp-nm">'+esc(ad)+'</div><div class="emp-sub">'+esc(dept)+'</div></div></div>';
+}
+
+function faRender(){
+  var body=document.getElementById('faBody');
+  if(!_faFines||!_faAppr){ return; }
+  var rows=faFiltered(_faSub), hamisi=faRows(_faSub).length;
+  document.getElementById('faCount').textContent=rows.length+' / '+hamisi;
+  faRenderStats(rows);
+  if(!hamisi){ body.innerHTML=faBos('Bu bölmədə qeyd yoxdur.'); return; }
+  if(!rows.length){ body.innerHTML=faBos('Filtrə uyğun qeyd tapılmadı.'); return; }
+  body.innerHTML='<div style="overflow-x:auto;"><table class="emp-tbl">'+faBaslq()+'<tbody>'+
+    rows.map(faSetir).join('')+'</tbody></table></div>';
+}
+function faBos(t){
+  return '<div style="text-align:center;color:var(--text-muted);padding:2.5rem 1rem;">'+
+    '<i class="fa-solid fa-inbox" style="opacity:0.25;display:block;font-size:1.8rem;margin-bottom:0.6rem;"></i>'+t+'</div>';
+}
+function faBaslq(){
+  if(_faSub==='fines') return '<thead><tr><th>İşçi</th><th style="text-align:right;">Məbləğ</th><th>Tarix</th><th>Yazan</th><th>İmza</th><th></th></tr></thead>';
+  if(_faSub==='avans') return '<thead><tr><th>İşçi</th><th style="text-align:right;">Məbləğ</th><th>Tarix</th><th>Qeyd</th><th>Status</th></tr></thead>';
+  return '<thead><tr><th>İşçi</th><th>Tarix</th><th>İcazə saatı</th><th>Status</th></tr></thead>';
+}
+function faSetir(r,i){
+  var d=r.d;
+  if(_faSub==='fines'){
+    var imzali=d.status==='acknowledged';
+    return '<tr class="fa-exp" onclick="faToggle(this)">'+
+        '<td data-l="İşçi">'+faEmpCell(d.empName,r.dept)+'</td>'+
+        '<td data-l="Məbləğ" style="text-align:right;"><span class="fa-money" style="color:var(--danger);">'+Number(d.amount)+' ₼</span></td>'+
+        '<td data-l="Tarix">'+esc(fmtFineDateAdmin(d.createdAt))+'</td>'+
+        '<td data-l="Yazan">'+esc(d.createdBy||'Menecer')+'</td>'+
+        '<td data-l="İmza">'+faBadge(imzali?'İmzalandı':'İmzalanmayıb',imzali?'approved':'pending')+'</td>'+
+        '<td style="text-align:right;"><i class="fa-solid fa-chevron-down fa-chev"></i></td>'+
+      '</tr>'+
+      '<tr class="fa-detay" style="display:none;"><td colspan="6" style="padding-top:0;">'+
+        '<div class="fa-reason"><b>İzahat / səbəb</b>'+esc(d.reason||'—')+
+        (imzali&&d.ackedAt?'<div style="margin-top:6px;color:var(--success);font-weight:700;font-size:0.78rem;">✍️ '+esc(fmtFineDateAdmin(d.ackedAt))+' tarixində imzalanıb</div>':'')+
+        '</div></td></tr>';
+  }
+  if(_faSub==='avans'){
+    var st=d.status==='paid'?['Ödənildi','approved']:d.status==='approved'?['Təsdiqləndi','approved']:['Gözləyir','pending'];
+    return '<tr>'+
+      '<td data-l="İşçi">'+faEmpCell(d.empName,r.dept)+'</td>'+
+      '<td data-l="Məbləğ" style="text-align:right;"><span class="fa-money" style="color:var(--primary);">'+Number(d.amount)+' ₼</span></td>'+
+      '<td data-l="Tarix">'+esc(fmtDMY(d.dateStr))+'</td>'+
+      '<td data-l="Qeyd" style="color:var(--text-muted);font-size:0.83rem;">'+esc(d.note||'—')+'</td>'+
+      '<td data-l="Status">'+faBadge(st[0],st[1])+'</td>'+
+    '</tr>';
+  }
+  return '<tr>'+
+    '<td data-l="İşçi">'+faEmpCell(d.empName,r.dept)+'</td>'+
+    '<td data-l="Tarix">'+esc(fmtDMY(d.dateStr))+'</td>'+
+    '<td data-l="Saat"><b style="font-variant-numeric:tabular-nums;">'+esc(d.requestedTime||'—')+'</b></td>'+
+    '<td data-l="Status">'+faBadge('Təsdiqləndi','approved')+'</td>'+
+  '</tr>';
+}
+function faToggle(tr){
+  tr.classList.toggle('open');
+  var d=tr.nextElementSibling;
+  if(d&&d.classList.contains('fa-detay')) d.style.display=(d.style.display==='none'?'':'none');
+}
+function faRenderStats(rows){
+  var el=document.getElementById('faStats');
+  var cem=rows.reduce(function(s,r){return s+(Number(r.d.amount)||0);},0);
+  if(_faSub==='fines'){
+    var imzasiz=rows.filter(function(r){return r.d.status!=='acknowledged';}).length;
+    el.innerHTML=
+      faStat(rows.length,'Cərimə sayı','')+
+      faStat(cem+' ₼','Ümumi məbləğ','var(--danger)')+
+      faStat(imzasiz,'İmzalanmayıb',imzasiz?'var(--warning)':'');
+  } else if(_faSub==='avans'){
+    var odenilen=rows.filter(function(r){return r.d.status==='paid';}).length;
+    el.innerHTML=
+      faStat(rows.length,'Avans sayı','')+
+      faStat(cem+' ₼','Ümumi məbləğ','var(--primary)')+
+      faStat(odenilen,'Ödənilib','var(--success)');
+  } else {
+    el.innerHTML=faStat(rows.length,'Təsdiqlənmiş icazə','');
+  }
+}
+function faStat(v,l,reng){
+  return '<div class="fa-stat"><div class="v"'+(reng?' style="color:'+reng+'"':'')+'>'+v+'</div><div class="l">'+l+'</div></div>';
 }
 
 function fmtFineDateAdmin(s){ if(!s) return ''; var d=new Date(s); if(isNaN(d.getTime())) return s;
   return ('0'+d.getDate()).slice(-2)+'.'+('0'+(d.getMonth()+1)).slice(-2)+'.'+d.getFullYear()+' '+('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2); }
-function fineStatusAdmin(f){
-  return f.status==='acknowledged'
-    ? {badge:'<span class="badge approved">İmzalandı</span>'}
-    : {badge:'<span class="badge pending">İmzalanmayıb</span>'};
-}
-function loadFinesAdmin(){
-  var body=document.getElementById('finesAdminBody');
-  if(!body) return;
-  body.innerHTML='<div style="text-align:center;padding:1.5rem;color:var(--text-muted)"><i class="fa-solid fa-circle-notch fa-spin"></i></div>';
-  google.script.run
-    .withSuccessHandler(function(data){
-      data=data||{};
-      var depts=Object.keys(data);
-      var hasAny=depts.some(function(d){return (data[d]||[]).length;});
-      if(!hasAny){body.innerHTML='<div class="card" style="text-align:center;color:var(--text-muted);padding:1.5rem;"><i class="fa-solid fa-gavel" style="opacity:0.25;display:block;font-size:1.6rem;margin-bottom:0.5rem;"></i>Cərimə yoxdur.</div>';return;}
-      body.innerHTML=depts.map(function(dept){
-        var list=data[dept]||[];
-        if(!list.length) return '';
-        var rows=list.map(function(f){
-          var st=fineStatusAdmin(f);
-          var imza=(f.status==='acknowledged')
-            ?'<div class="afdoc-row"><span>İmza</span><b style="color:var(--success);">✍️ '+fmtFineDateAdmin(f.ackedAt)+'</b></div>'
-            :'<div class="afdoc-row"><span>İmza</span><b style="color:var(--warning);">İmzalanmayıb</b></div>';
-          return '<div class="afdoc">'+
-            '<div class="afdoc-head" onclick="this.parentNode.classList.toggle(\'open\')">'+
-              '<div class="afdoc-sum"><b>'+f.empName+'</b> · '+Number(f.amount)+' ₼</div>'+
-              '<div style="display:flex;align-items:center;gap:8px;">'+st.badge+'<i class="fa-solid fa-chevron-down afdoc-chev"></i></div>'+
-            '</div>'+
-            '<div class="afdoc-body">'+
-              '<div class="afdoc-row"><span>İşçi</span><b>'+f.empName+'</b></div>'+
-              '<div class="afdoc-row"><span>Filial</span><b>'+dept+'</b></div>'+
-              '<div class="afdoc-row"><span>Tarix</span><b>'+fmtFineDateAdmin(f.createdAt)+'</b></div>'+
-              '<div class="afdoc-row"><span>Məbləğ</span><b>'+Number(f.amount)+' AZN</b></div>'+
-              '<div class="afdoc-row"><span>Yazan</span><b>'+(f.createdBy||'Menecer')+'</b></div>'+
-              imza+
-              '<div class="afdoc-reason"><span>İzahat / səbəb</span><div>'+f.reason+'</div></div>'+
-            '</div>'+
-          '</div>';
-        }).join('');
-        return '<div class="card"><div style="font-size:0.95rem;font-weight:700;margin-bottom:0.8rem;"><i class="fa-solid fa-store" style="color:var(--primary);margin-right:6px;"></i>'+dept+' <span style="color:var(--text-muted);font-weight:600;">('+list.length+')</span></div>'+rows+'</div>';
-      }).join('');
-    })
-    .withFailureHandler(function(e){ body.innerHTML='<div class="card" style="color:var(--danger);font-weight:600;"><i class="fa-solid fa-triangle-exclamation"></i> Xəta: '+(e&&e.message?e.message:'Server xətası')+'</div>'; })
-    .getMgrFinesForAdmin();
-}
 
 // ── SCAN CİHAZLAR ────────────────────────────────────────────────
 function loadDevices(){
