@@ -1426,7 +1426,7 @@ function maasRender(){
     '<thead><tr><th>İşçi</th><th>Vəzifə</th><th style="text-align:center;">Gün</th><th style="text-align:center;">Smen</th>'+
     '<th style="text-align:right;">Maaş</th><th style="text-align:right;">Taksi</th>'+
     '<th style="text-align:right;">Cərimə</th><th style="text-align:right;">Avans</th>'+
-    '<th style="text-align:right;">Ələ veriləcək</th><th></th></tr></thead><tbody>'+
+    '<th style="text-align:right;">Veriləcək</th><th></th></tr></thead><tbody>'+
     rows.map(maasSetir).join('')+'</tbody></table></div>';
 }
 function maasSetir(r){
@@ -1447,7 +1447,7 @@ function maasSetir(r){
         (r.taksiGunu?'<div class="emp-sub" style="text-align:right;'+(r.taksiLimitAsan?'color:var(--danger);font-weight:700;':'')+'">'+r.taksiGunu+'/'+r.taksiLimit+' gün'+(r.taksiLimitAsan?' · '+r.taksiLimitAsan+' limitdən kənar':'')+'</div>':'')+'</td>'+
       '<td data-l="Cərimə" style="text-align:right;"><span class="fa-money" style="color:'+(r.cerime?'var(--danger)':'var(--text-soft)')+';">'+(r.cerime?'−'+r.cerime+' ₼':'—')+'</span></td>'+
       '<td data-l="Avans" style="text-align:right;"><span class="fa-money" style="color:'+(r.avans?'var(--primary)':'var(--text-soft)')+';">'+(r.avans?'−'+r.avans+' ₼':'—')+'</span></td>'+
-      '<td data-l="Ələ veriləcək" style="text-align:right;"><span class="fa-money" style="color:'+(r.cemi<0?'var(--danger)':'var(--success)')+';font-size:0.95rem;">'+r.cemi+' ₼</span></td>'+
+      '<td data-l="Veriləcək" style="text-align:right;"><span class="fa-money" style="color:'+(r.cemi<0?'var(--danger)':'var(--success)')+';font-size:0.95rem;">'+r.cemi+' ₼</span></td>'+
       '<td style="text-align:right;"><i class="fa-solid fa-chevron-down fa-chev"></i></td>'+
     '</tr>'+
     '<tr class="fa-detay" style="display:none;"><td colspan="10" style="padding-top:0;">'+
