@@ -1096,6 +1096,105 @@ API.getMonthlyReport = async (year, month) => {
   return result;
 };
 
+// ── MAAŞ ──────────────────────────────────────────────────────────
+// Qayda: gün YALNIZ işçi həqiqətən gəlibsə (GƏLİŞ qeydi varsa) ödənilir.
+// Həmin günün cədvəldəki smeni 1 yoxsa 2 smen (tam gün) olduğunu və taksi
+// hüququnu müəyyən edir. Taksi tam gündə də sabit qalır (iki qat DEYİL).
+
+API.getSalaryConfig = async () => ({
+  config:    U.getSalaryConfig(),
+  defaults:  U.DEFAULT_SALARY,
+  positions: U.POSITIONS,
+  depts:     U.DEPTS,
+  shiftNames: U.SHIFT_NAMES,
+  taxiShiftOptions: U.ALL_SHIFT_TYPES,
+});
+
+API.saveSalaryConfig = async (cfg) => {
+  if (!cfg || typeof cfg !== 'object') return { success: false, reason: 'Yanlış format.' };
+  const base = U.DEFAULT_SALARY;
+  const num = (v, fb) => { const n = Number(v); return (Number.isFinite(n) && n >= 0 && n <= 10000) ? U.round2(n) : fb; };
+  const clean = {
+    rates: {},
+    taxi: num(cfg.taxi, base.taxi),
+    taxiDepts: Array.isArray(cfg.taxiDepts) ? cfg.taxiDepts.filter(d => U.DEPTS.includes(d)) : base.taxiDepts,
+    taxiShifts: Array.isArray(cfg.taxiShifts) ? cfg.taxiShifts.filter(s => U.ALL_SHIFT_TYPES.includes(s)) : base.taxiShifts,
+  };
+  for (const p of U.POSITIONS) clean.rates[p] = num(cfg.rates && cfg.rates[p], base.rates[p]);
+  await U.setSetting('SALARY_CONFIG', JSON.stringify(clean));
+  return { success: true, config: U.getSalaryConfig() };
+};
+
+API.resetSalaryConfig = async () => {
+  await U.setSetting('SALARY_CONFIG', '');
+  return { success: true, config: U.getSalaryConfig() };
+};
+
+API.getSalaryReport = async (year, month) => {
+  const y = Number(year), mo = Number(month);
+  if (!y || !mo || mo < 1 || mo > 12) return { rows: [], totals: {} };
+  const cfg = U.getSalaryConfig();
+  const m = String(mo).padStart(2, '0');
+  const startStr = `${y}-${m}-01`;
+  const endStr   = mo === 12 ? `${y + 1}-01-01` : `${y}-${String(mo + 1).padStart(2, '0')}-01`;
+
+  const [{ data: emps }, { data: logs }, { data: cedvelRows }] = await Promise.all([
+    sb.from('employees').select('id,name,dept,position,is_test'),
+    sb.from('attendance').select('emp_id,timestamp,type,shift_type').gte('timestamp', startStr).lt('timestamp', endStr),
+    sb.from('cedvel').select('emp_id,date_str,shift_type').gte('date_str', startStr).lt('date_str', endStr),
+  ]);
+
+  // Cədvəl: emp|gün → smen
+  const cedvelMap = {};
+  for (const c of cedvelRows || []) cedvelMap[String(c.emp_id) + '|' + c.date_str] = c.shift_type || '';
+
+  // Gəlişlər: emp → { məntiqi gün → gəlişdəki smen }  (eyni gündə təkrar gəliş bir gün sayılır)
+  const gelisMap = {};
+  for (const r of logs || []) {
+    if (r.type !== 'GƏLİŞ') continue;
+    const d = new Date(r.timestamp);
+    if (isNaN(d.getTime())) continue;
+    const id = String(r.emp_id);
+    if (!gelisMap[id]) gelisMap[id] = {};
+    const ds = U.getLogicalYMD(d);
+    if (!(ds in gelisMap[id])) gelisMap[id][ds] = r.shift_type || '';
+  }
+
+  const rows = (emps || [])
+    .filter(e => !e.is_test && !String(e.id).startsWith('MGR-'))
+    .map(e => {
+      const gunler = gelisMap[String(e.id)] || {};
+      const detay = [];
+      let maas = 0, taksi = 0, smenSayi = 0, tamGunSayi = 0;
+      for (const ds of Object.keys(gunler).sort()) {
+        // Cədvəldəki smen əsasdır; yoxdursa gəliş anında qeyd olunan smen
+        const shift = cedvelMap[String(e.id) + '|' + ds] || gunler[ds] || '';
+        const g = U.computeDayPay(e.position || '', e.dept, shift, cfg);
+        maas += g.pay; taksi += g.taxi; smenSayi += g.shifts;
+        if (shift === 'tamgun') tamGunSayi++;
+        detay.push({ date: ds, shift, shiftName: U.SHIFT_NAMES[shift] || '—', pay: g.pay, taxi: g.taxi });
+      }
+      return {
+        empId: e.id, empName: e.name, dept: e.dept, position: e.position || '',
+        rate: cfg.rates[e.position] || 0,
+        gunSayi: detay.length, smenSayi, tamGunSayi,
+        maas: U.round2(maas), taksi: U.round2(taksi), cemi: U.round2(maas + taksi),
+        detay,
+      };
+    })
+    .sort((a, b) => a.dept.localeCompare(b.dept) || b.cemi - a.cemi);
+
+  const totals = rows.reduce((t, r) => {
+    t.maas += r.maas; t.taksi += r.taksi; t.cemi += r.cemi; t.gun += r.gunSayi; t.smen += r.smenSayi;
+    return t;
+  }, { maas: 0, taksi: 0, cemi: 0, gun: 0, smen: 0 });
+  ['maas', 'taksi', 'cemi'].forEach(k => { totals[k] = U.round2(totals[k]); });
+
+  // Vəzifəsi təyin edilməyənlər 0 maaş alır — admin xəbərdar olsun
+  totals.vezifesiz = rows.filter(r => !r.position && r.gunSayi > 0).length;
+  return { rows, totals, config: cfg, year: y, month: mo };
+};
+
 API.getWarnings = async () => {
   const { data: emps } = await sb.from('employees').select('*');
   const now    = new Date();

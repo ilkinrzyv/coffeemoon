@@ -57,6 +57,9 @@ const API_POLICY = {
 
   // ── Hesabat
   getMonthlyReport: 'staff', getWarnings: 'staff',
+  // Maaş — hesabatı panellər görür, dərəcələri yalnız admin dəyişir
+  getSalaryReport: 'staff', getSalaryConfig: 'staff',
+  saveSalaryConfig: 'admin', resetSalaryConfig: 'admin',
   getOnlineEmployees: 'staff', getManagersLiveStatus: 'staff',
 
   // ── Davamiyyət

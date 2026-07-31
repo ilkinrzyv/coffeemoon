@@ -73,8 +73,15 @@ const SHIFT_TABLE = {
   },
 };
 
+// Saatları admin panelindən tənzimlənən smenlər
 const SHIFT_TYPES = ['sehersm', 'axsamsm', 'fullsm', 'seherfullsm'];
-const SHIFT_NAMES = { sehersm:'Səhər', axsamsm:'Axşam', fullsm:'Axşam Full', seherfullsm:'Səhər Full' };
+// `tamgun` bu siyahıda YOXDUR — onun saatları ayrıca saxlanmır, səhər başlanğıcı +
+// axşam bitişindən HESABLANIR. Belədə admin səhər/axşamı dəyişəndə tam gün özü uyğunlaşır.
+const SHIFT_NAMES = {
+  sehersm:'Səhər', axsamsm:'Axşam', fullsm:'Axşam Full', seherfullsm:'Səhər Full',
+  tamgun:'Tam gün',
+};
+const ALL_SHIFT_TYPES = SHIFT_TYPES.concat(['tamgun']);
 
 // Gəlişin "səhər" yoxsa "axşam" hissəsinə aid olduğunu ayıran sərhəd (cədvəlsiz günlər üçün).
 // Bu iş saatı deyil, daxili bölgü həddidir — ona görə konfiqurasiyaya çıxarılmayıb.
@@ -132,7 +139,21 @@ function shiftLabel(type, s) {
 function getShiftInfo(dept, shiftType) {
   if (!shiftType || shiftType === 'istirahetsm' || shiftType === '') return null;
   const d = getShiftConfig()[dept];
-  const s = d && d[shiftType];
+  if (!d) return null;
+
+  // TAM GÜN = səhər başlanğıcından axşamın bitişinə qədər (iki smen).
+  // Saatları ayrıca saxlanmır — səhər/axşam dəyişəndə özü uyğunlaşsın deyə hesablanır.
+  if (shiftType === 'tamgun') {
+    const s = d.sehersm, a = d.axsamsm;
+    if (!s || !a) return null;
+    const start = s.startH * 60 + s.startM;
+    let end = a.startH * 60 + a.startM + a.durH * 60;
+    if (end <= start) end += 24 * 60;                 // gecə yarısını keçirsə
+    const info = { startH: s.startH, startM: s.startM, durH: (end - start) / 60, lateH: s.lateH, lateM: s.lateM };
+    return { ...info, label: shiftLabel('tamgun', info) };
+  }
+
+  const s = d[shiftType];
   if (!s) return null;
   return { ...s, label: shiftLabel(shiftType, s) };
 }
@@ -248,6 +269,56 @@ const DEPTS     = Object.keys(DEPT_SLUG);
 // artıq imtahan suallarında (kassir/barista/umumi) və auth rollarında işlənir.
 const POSITIONS = ['Barista', 'Cashier', 'Team Leader', 'Cleaner'];
 function isValidPosition(p) { return POSITIONS.includes(p); }
+
+// ── Maaş qaydaları ────────────────────────────────────────────────
+// Bir SMEN üçün günlük məbləğ (AZN). Tam gün = 2 smen → 2 qat.
+// Bunlar yalnız İLKİN dəyərdir — admin panelindən dəyişilir (settings.SALARY_CONFIG).
+const DEFAULT_SALARY = {
+  rates: { 'Team Leader': 23.33, 'Barista': 20, 'Cashier': 20, 'Cleaner': 18.33 },
+  taxi: 7,                                        // günlük sabit məbləğ (tam gündə DƏ 7, iki qat deyil)
+  taxiDepts: ['Ağ Şəhər', 'Gənclik'],             // taksi yalnız bu filiallarda
+  taxiShifts: ['axsamsm', 'fullsm', 'tamgun'],    // axşam tərəfli smenlər
+};
+
+// Bir günə neçə smen maaşı düşür
+function shiftMultiplier(shiftType) {
+  return shiftType === 'tamgun' ? 2 : 1;
+}
+
+let _salCfgRaw = null, _salCfgParsed = null;
+function getSalaryConfig() {
+  const raw = getSetting('SALARY_CONFIG');
+  if (!raw) return JSON.parse(JSON.stringify(DEFAULT_SALARY));
+  if (raw === _salCfgRaw && _salCfgParsed) return _salCfgParsed;
+  try {
+    const p = JSON.parse(raw);
+    const base = JSON.parse(JSON.stringify(DEFAULT_SALARY));
+    const cfg = {
+      rates: Object.assign({}, base.rates, (p && p.rates) || {}),
+      taxi: typeof (p && p.taxi) === 'number' ? p.taxi : base.taxi,
+      taxiDepts: Array.isArray(p && p.taxiDepts) ? p.taxiDepts : base.taxiDepts,
+      taxiShifts: Array.isArray(p && p.taxiShifts) ? p.taxiShifts : base.taxiShifts,
+    };
+    // Vəzifə siyahısında olmayan açarları at, çatışmayanı ilkin dəyərlə tamamla
+    for (const pos of POSITIONS) if (typeof cfg.rates[pos] !== 'number') cfg.rates[pos] = base.rates[pos];
+    _salCfgRaw = raw; _salCfgParsed = cfg;
+    return cfg;
+  } catch (e) {
+    console.error('[SALARY_CONFIG] parse xətası — ilkin dəyərlər işlədilir:', e.message);
+    return JSON.parse(JSON.stringify(DEFAULT_SALARY));
+  }
+}
+
+// Bir iş gününün ödənişi: { pay, taxi, shifts }
+// shiftType — həmin günün cədvəldəki smeni (yoxdursa gəliş anındakı smen).
+function computeDayPay(position, dept, shiftType, cfg) {
+  const c = cfg || getSalaryConfig();
+  const rate = c.rates[position] || 0;
+  const mult = shiftMultiplier(shiftType);
+  const taxi = (c.taxiDepts.indexOf(dept) >= 0 && c.taxiShifts.indexOf(shiftType) >= 0) ? c.taxi : 0;
+  return { pay: round2(rate * mult), taxi: round2(taxi), shifts: mult };
+}
+function round2(n) { return Math.round((Number(n) || 0) * 100) / 100; }
 
 function deptToSlug(dept)  { return DEPT_SLUG[dept] || ''; }
 function slugToDept(slug)  { return SLUG_DEPT[slug] || ''; }
@@ -412,7 +483,8 @@ module.exports = {
   getXPMultiplier, computeEmployeeXP, MS_BONUSES,
   toYMD, fmtTime, getLogicalYMD, getLogicalDateStr,
   generateDynamicPin, TIME_STEP,
-  getShiftInfo, isLate, SHIFT_TABLE, SHIFT_TYPES, SHIFT_NAMES,
+  getShiftInfo, isLate, SHIFT_TABLE, SHIFT_TYPES, SHIFT_NAMES, ALL_SHIFT_TYPES,
+  DEFAULT_SALARY, getSalaryConfig, shiftMultiplier, computeDayPay, round2,
   getShiftConfig, defaultShiftConfig, getLateLimit, shiftLabel,
   getEmployeeShift, hasApprovedLeave, getApprovedLatePerm,
   deptToSlug, slugToDept, SLUGS, DEPTS,

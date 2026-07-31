@@ -152,6 +152,8 @@ header {
 .shift-btn.axsamsm     { background:#ede9fe; color:#5b21b6; border-color:#ddd6fe; }
 .shift-btn.fullsm      { background:#ffedd5; color:#9a3412; border-color:#fed7aa; }
 .shift-btn.seherfullsm { background:#d1fae5; color:#065f46; border-color:#6ee7b7; }
+.shift-btn.tamgun { background:#fae8ff; color:#86198f; border-color:#f0abfc; font-weight:800; }
+.sp-tg .sp-badge { background:#fae8ff; color:#86198f; }
 .shift-btn.istirahetsm { background:#fee2e2; color:#991b1b; border-color:#fecaca; }
 .today-mark { background:rgba(91,94,244,0.05); border-radius:8px; }
 
@@ -859,6 +861,7 @@ textarea.fine-doc-input { resize:vertical; }
   <button class="sp-btn sp-a" onclick="selectShift('axsamsm')"><span class="sp-badge">A</span> Axşam smeni</button>
   <button class="sp-btn sp-f" onclick="selectShift('fullsm')"><span class="sp-badge">AF</span> Axşam Full smen</button>
   <button class="sp-btn sp-sf" onclick="selectShift('seherfullsm')"><span class="sp-badge">SF</span> Səhər Full smen</button>
+  <button class="sp-btn sp-tg" onclick="selectShift('tamgun')"><span class="sp-badge">TG</span> Tam gün (2 smen)</button>
   <button class="sp-btn sp-i" onclick="selectShift('istirahetsm')"><span class="sp-badge">İ</span> İstirahət</button>
   <div class="sp-divider"></div>
   <button class="sp-btn sp-x" onclick="selectShift('')"><span class="sp-badge">✕</span> Sil</button>
@@ -913,8 +916,8 @@ function switchTab(name) {
 }
 
 // ── Smen saatları ────────────────────────────────────────────────
-var SHIFT_CYCLE  = ['sehersm','axsamsm','fullsm','seherfullsm','istirahetsm',''];
-var SHIFT_LABELS = {sehersm:'S', axsamsm:'A', fullsm:'AF', seherfullsm:'SF', istirahetsm:'İ', '':'-'};
+var SHIFT_CYCLE  = ['sehersm','axsamsm','fullsm','seherfullsm','tamgun','istirahetsm',''];
+var SHIFT_LABELS = {sehersm:'S', axsamsm:'A', fullsm:'AF', seherfullsm:'SF', tamgun:'TG', istirahetsm:'İ', '':'-'};
 
 var SHIFTS_A = {
   sehersm:     { time:'07:30 — 16:30', dur:'9 saat' },
