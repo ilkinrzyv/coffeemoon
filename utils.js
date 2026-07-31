@@ -278,6 +278,9 @@ const DEFAULT_SALARY = {
   taxi: 7,                                        // günlük sabit məbləğ (tam gündə DƏ 7, iki qat deyil)
   taxiDepts: ['Ağ Şəhər', 'Gənclik'],             // taksi yalnız bu filiallarda
   taxiShifts: ['axsamsm', 'fullsm', 'tamgun'],    // axşam tərəfli smenlər
+  // Bir işçiyə ayda ən çoxu neçə taksili gün yazıla bilər (taksi büdcəsi limiti).
+  // İşçi bazasında `taxi_limit` varsa o üstündür (admin fərdi artıra bilər).
+  taxiMonthlyLimit: 13,
 
   // ── Tutulmalar ──
   // Sistem cərimələrinin statusu: unpaid | paid | waived.
@@ -308,6 +311,7 @@ function getSalaryConfig() {
       taxi: typeof (p && p.taxi) === 'number' ? p.taxi : base.taxi,
       taxiDepts: Array.isArray(p && p.taxiDepts) ? p.taxiDepts : base.taxiDepts,
       taxiShifts: Array.isArray(p && p.taxiShifts) ? p.taxiShifts : base.taxiShifts,
+      taxiMonthlyLimit: (Number.isFinite(p && p.taxiMonthlyLimit) && p.taxiMonthlyLimit >= 0) ? p.taxiMonthlyLimit : base.taxiMonthlyLimit,
       fineStatuses: Array.isArray(p && p.fineStatuses) ? p.fineStatuses : base.fineStatuses,
       mgrFinesOnlyAcked: typeof (p && p.mgrFinesOnlyAcked) === 'boolean' ? p.mgrFinesOnlyAcked : base.mgrFinesOnlyAcked,
       avansStatuses: Array.isArray(p && p.avansStatuses) ? p.avansStatuses : base.avansStatuses,
@@ -320,6 +324,32 @@ function getSalaryConfig() {
     console.error('[SALARY_CONFIG] parse xətası — ilkin dəyərlər işlədilir:', e.message);
     return JSON.parse(JSON.stringify(DEFAULT_SALARY));
   }
+}
+
+// Həmin gün taksi qazandırırmı? (filial + smen şərti)
+function isTaxiDay(dept, shiftType, cfg) {
+  const c = cfg || getSalaryConfig();
+  return c.taxiDepts.indexOf(dept) >= 0 && c.taxiShifts.indexOf(shiftType) >= 0;
+}
+
+// İşçinin aylıq taksi limiti: fərdi dəyər varsa o, yoxsa ümumi limit.
+// `raw` — employees.taxi_limit (null/undefined ola bilər).
+function taxiLimitFor(raw, cfg) {
+  const c = cfg || getSalaryConfig();
+  // DİQQƏT: Number(null) və Number('') → 0. Bunları əvvəlcə kəsməsək, fərdi limiti
+  // OLMAYAN işçinin limiti 0 çıxır və heç vaxt taksi almır (test bunu tutdu).
+  if (raw === null || raw === undefined || raw === '') return c.taxiMonthlyLimit;
+  const n = Number(raw);
+  return (Number.isFinite(n) && n >= 0) ? n : c.taxiMonthlyLimit;
+}
+
+// Verilmiş tarixin həftə başlanğıcı (bazar ertəsi) — YYYY-MM-DD
+function weekStartYMD(dateObj) {
+  const d = new Date(dateObj || new Date());
+  d.setHours(0, 0, 0, 0);
+  const g = d.getDay() === 0 ? 6 : d.getDay() - 1;   // bazar = 6
+  d.setDate(d.getDate() - g);
+  return toYMD(d);
 }
 
 // Bir iş gününün ödənişi: { pay, taxi, shifts }
@@ -498,6 +528,7 @@ module.exports = {
   generateDynamicPin, TIME_STEP,
   getShiftInfo, isLate, SHIFT_TABLE, SHIFT_TYPES, SHIFT_NAMES, ALL_SHIFT_TYPES,
   DEFAULT_SALARY, getSalaryConfig, shiftMultiplier, computeDayPay, round2,
+  isTaxiDay, taxiLimitFor, weekStartYMD,
   getShiftConfig, defaultShiftConfig, getLateLimit, shiftLabel,
   getEmployeeShift, hasApprovedLeave, getApprovedLatePerm,
   deptToSlug, slugToDept, SLUGS, DEPTS,

@@ -1359,8 +1359,16 @@ function saveSched() {
   google.script.run
     .withSuccessHandler(function(r){
       rb.className = r && r.success ? 'result-box ok' : 'result-box err';
-      rb.innerHTML = r && r.success ? '<i class="fa-solid fa-check"></i> Cədvəl uğurla saxlandı!' : '<i class="fa-solid fa-xmark"></i> Xəta: '+(r?r.reason:'Bilinməyən xəta');
-      setTimeout(function(){ rb.style.display='none'; }, 3500);
+      if (r && r.success) {
+        rb.innerHTML = '<i class="fa-solid fa-check"></i> Cədvəl uğurla saxlandı!';
+        setTimeout(function(){ rb.style.display='none'; }, 3500);
+      } else {
+        // Limit / kilid xəbərdarlığı uzun olur — oxumağa vaxt qalsın, cədvəl də serverdəki halına qayıtsın
+        var qadaga = r && (r.limitExceeded || r.locked);
+        rb.innerHTML = '<i class="fa-solid fa-'+(qadaga?'ban':'xmark')+'"></i> '+(r?r.reason:'Bilinməyən xəta');
+        setTimeout(function(){ rb.style.display='none'; }, qadaga ? 12000 : 5000);
+        if (qadaga) loadSched();   // saxlanmayan dəyişikliklər ekranda qalmasın
+      }
     })
     .withFailureHandler(function(err){
       rb.className='result-box err';

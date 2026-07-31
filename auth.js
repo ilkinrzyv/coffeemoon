@@ -31,6 +31,7 @@ const API_POLICY = {
   updateEmployeeMessage: 'admin', getEmployeesByDept: 'admin',
   updateEmployeeDept: 'admin',      // filial dəyişmək — yalnız admin
   updateEmployeePosition: 'admin',  // vəzifə dəyişmək — yalnız admin
+  updateEmployeeTaxiLimit: 'admin', // aylıq taksi limiti — yalnız admin
   getPositions: 'public',           // yalnız vəzifə adlarının siyahısı
   // Filial iş saatları: oxumaq panellərə lazımdır, dəyişmək yalnız admin
   getShiftConfig: 'staff', saveShiftConfig: 'admin', resetShiftConfig: 'admin',

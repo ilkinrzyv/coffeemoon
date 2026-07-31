@@ -483,6 +483,7 @@ API.getEmployees = async () => {
     name:     emp.name,
     dept:     emp.dept,
     position: emp.position || '',
+    taxiLimit: (emp.taxi_limit === null || emp.taxi_limit === undefined) ? '' : emp.taxi_limit,
     secret:   emp.secret,
     message:  emp.message || '',
     is_test:  !!emp.is_test,
@@ -720,6 +721,23 @@ API.updateEmployeeMessage = async (id, msg) => {
   return { success: !error };
 };
 
+// İşçinin aylıq taksi limiti (boş/null → ümumi limit işlədilir)
+API.updateEmployeeTaxiLimit = async (id, limit) => {
+  if (!id) return { success: false, reason: 'İşçi ID tapılmadı.' };
+  let val = null;
+  if (limit !== '' && limit !== null && limit !== undefined) {
+    const n = Math.round(Number(limit));
+    if (!Number.isFinite(n) || n < 0 || n > 62) return { success: false, reason: 'Limit 0–62 aralığında olmalıdır.' };
+    val = n;
+  }
+  const { error } = await sb.from('employees').update({ taxi_limit: val }).eq('id', id);
+  if (error && /taxi_limit/i.test(error.message || '')) {
+    return { success: false, reason: 'Limit sütunu hələ yaradılmayıb — taxi-limit-migration.sql işlədilməlidir.' };
+  }
+  sbErr('updateEmployeeTaxiLimit', error);
+  return { success: !error, taxiLimit: val };
+};
+
 // İşçinin vəzifəsini dəyiş (Barista / Cashier / Team Leader / Cleaner)
 API.updateEmployeePosition = async (id, position) => {
   if (!id) return { success: false, reason: 'İşçi ID tapılmadı.' };
@@ -905,10 +923,72 @@ API.getCedvel = async (dept, weekStart) => {
   }));
 };
 
-API.saveCedvel = async (entries) => {
+// Cədvəl saxlama — iki qorunma ilə:
+//  1) TAKSİ LİMİTİ: bir işçiyə ayda limitdən çox taksili gün yazıla bilməz (admin də daxil;
+//     admin limiti İşçilər tabından artıra bilər).
+//  2) KEÇMİŞ HƏFTƏ KİLİDİ: menecer bitmiş həftənin cədvəlini dəyişə bilməz (manipulyasiya).
+//     Admin üçün kilid yoxdur — səhvləri düzəltmək lazım ola bilər.
+async function saveCedvelCore(entries, opts) {
+  const o = opts || {};
   if (!entries?.length) return { success: true };
+
+  // ── 1) Keçmiş həftə kilidi (yalnız menecer) ──
+  if (o.isManager) {
+    const buHefte = U.weekStartYMD(new Date());
+    const kohne = [...new Set(entries.map(e => e.dateStr).filter(d => d && d < buHefte))].sort();
+    if (kohne.length) {
+      return {
+        success: false,
+        reason: `Bitmiş həftənin cədvəli dəyişdirilə bilməz (${kohne[0].split('-').reverse().join('.')}${kohne.length > 1 ? ' və b.' : ''}). Düzəliş üçün admin ilə əlaqə saxlayın.`,
+        locked: true,
+      };
+    }
+  }
+
   const empIds = [...new Set(entries.map(e => String(e.empId)).filter(Boolean))];
   const dates  = [...new Set(entries.map(e => e.dateStr).filter(Boolean))];
+
+  // ── 2) Aylıq taksi limiti ──
+  if (empIds.length && dates.length) {
+    const cfg = U.getSalaryConfig();
+    let empRows = null;
+    ({ data: empRows } = await sb.from('employees').select('id,name,dept,taxi_limit').in('id', empIds));
+    if (!empRows) ({ data: empRows } = await sb.from('employees').select('id,name,dept').in('id', empIds));
+    const empMap = {};
+    for (const e of empRows || []) empMap[String(e.id)] = e;
+
+    const aylar = [...new Set(dates.map(d => String(d).slice(0, 7)))];
+    for (const ay of aylar) {
+      const ayBasi = ay + '-01';
+      const [yy, mm] = ay.split('-').map(Number);
+      const aySonu = mm === 12 ? `${yy + 1}-01-01` : `${yy}-${String(mm + 1).padStart(2, '0')}-01`;
+      const { data: mevcud } = await sb.from('cedvel')
+        .select('emp_id,date_str,shift_type').in('emp_id', empIds).gte('date_str', ayBasi).lt('date_str', aySonu);
+
+      for (const empId of empIds) {
+        const emp = empMap[empId];
+        if (!emp) continue;
+        const limit = U.taxiLimitFor(emp.taxi_limit, cfg);
+        // Bu batch-də həmin işçinin toxunduğu tarixlər (onlar əvəz olunacaq)
+        const toxunulan = new Set(entries.filter(e => String(e.empId) === empId && e.dateStr).map(e => e.dateStr));
+        // Bazada qalan (toxunulmayan) taksili günlər
+        let say = (mevcud || []).filter(r =>
+          String(r.emp_id) === empId && !toxunulan.has(r.date_str) && U.isTaxiDay(emp.dept, r.shift_type, cfg)
+        ).length;
+        // Batch-də yazılan taksili günlər
+        const yeni = entries.filter(e => String(e.empId) === empId && String(e.dateStr).slice(0, 7) === ay && U.isTaxiDay(emp.dept, e.shiftType, cfg));
+        if (say + yeni.length > limit) {
+          return {
+            success: false,
+            limitExceeded: true,
+            reason: `${emp.name}: ${ay} ayında taksili smen limiti ${limit}-dir. Hazırda ${say}, əlavə edilən ${yeni.length} → cəmi ${say + yeni.length}. ` +
+                    `Limiti artırmaq üçün admin panel → İşçilər.`,
+          };
+        }
+      }
+    }
+  }
+
   if (empIds.length && dates.length) {
     await sb.from('cedvel').delete().in('emp_id', empIds).in('date_str', dates);
   }
@@ -930,7 +1010,9 @@ API.saveCedvel = async (entries) => {
     if (error) return { success: false, reason: 'Saxlama xətası: ' + error.message };
   }
   return { success: true };
-};
+}
+
+API.saveCedvel = async (entries) => saveCedvelCore(entries, { isManager: false });
 
 API.getDeptList = () => U.DEPTS;
 API.getBranchScheduleKeys = async () => U.getBranchScheduleKeys();
@@ -952,7 +1034,7 @@ API.getCedvelForManager = async (key, weekStart) => {
 API.saveCedvelForManager = async (key, entries) => {
   const c = U.validateBranchScheduleKey(key);
   if (!c.valid) return { success: false, reason: 'İcazəsiz.' };
-  return API.saveCedvel(entries);
+  return saveCedvelCore(entries, { isManager: true, dept: c.dept });
 };
 
 // ── İZİN ─────────────────────────────────────────────────────────
@@ -1145,7 +1227,7 @@ API.getSalaryReport = async (year, month) => {
   const endStr   = mo === 12 ? `${y + 1}-01-01` : `${y}-${String(mo + 1).padStart(2, '0')}-01`;
 
   const [{ data: emps }, { data: logs }, { data: cedvelRows }, { data: sysFines }, { data: mgrFines }, { data: avansRows }] = await Promise.all([
-    sb.from('employees').select('id,name,dept,position,is_test'),
+    sb.from('employees').select('*'),
     sb.from('attendance').select('emp_id,timestamp,type,shift_type').gte('timestamp', startStr).lt('timestamp', endStr),
     sb.from('cedvel').select('emp_id,date_str,shift_type').gte('date_str', startStr).lt('date_str', endStr),
     // Tutulmalar — hamısı həmin aya aiddir
@@ -1197,14 +1279,21 @@ API.getSalaryReport = async (year, month) => {
     .map(e => {
       const gunler = gelisMap[String(e.id)] || {};
       const detay = [];
-      let maas = 0, taksi = 0, smenSayi = 0, tamGunSayi = 0;
+      const limit = U.taxiLimitFor(e.taxi_limit, cfg);
+      let maas = 0, taksi = 0, smenSayi = 0, tamGunSayi = 0, taksiGunu = 0, limitAsan = 0;
       for (const ds of Object.keys(gunler).sort()) {
         // Cədvəldəki smen əsasdır; yoxdursa gəliş anında qeyd olunan smen
         const shift = cedvelMap[String(e.id) + '|' + ds] || gunler[ds] || '';
         const g = U.computeDayPay(e.position || '', e.dept, shift, cfg);
-        maas += g.pay; taksi += g.taxi; smenSayi += g.shifts;
+        // Aylıq taksi limiti: limitdən sonrakı günlər taksi qazanmır (tarix sırası ilə)
+        let gunTaksi = g.taxi;
+        if (gunTaksi > 0) {
+          if (taksiGunu >= limit) { gunTaksi = 0; limitAsan++; }
+          else taksiGunu++;
+        }
+        maas += g.pay; taksi += gunTaksi; smenSayi += g.shifts;
         if (shift === 'tamgun') tamGunSayi++;
-        detay.push({ date: ds, shift, shiftName: U.SHIFT_NAMES[shift] || '—', pay: g.pay, taxi: g.taxi });
+        detay.push({ date: ds, shift, shiftName: U.SHIFT_NAMES[shift] || '—', pay: g.pay, taxi: gunTaksi, taxiLimitli: g.taxi > 0 && gunTaksi === 0 });
       }
       const t = tutulma[String(e.id)] || { cerime: 0, avans: 0, siyahi: [] };
       const brut = U.round2(maas + taksi);
@@ -1212,6 +1301,7 @@ API.getSalaryReport = async (year, month) => {
         empId: e.id, empName: e.name, dept: e.dept, position: e.position || '',
         rate: cfg.rates[e.position] || 0,
         gunSayi: detay.length, smenSayi, tamGunSayi,
+        taksiGunu, taksiLimit: limit, taksiLimitAsan: limitAsan,
         maas: U.round2(maas), taksi: U.round2(taksi), brut,
         cerime: U.round2(t.cerime), avans: U.round2(t.avans),
         cemi: U.round2(brut - t.cerime - t.avans),     // ƏLƏ VERİLƏCƏK məbləğ

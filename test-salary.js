@@ -133,5 +133,55 @@ check(brut === 53.66, `brüt 53.66 olmalıdır, alınan ${brut}`);
 check(U.round2(brut - 30 - 150) === -126.34, 'tutulma brütdən çox olsa MƏNFİ çıxmalıdır (borc)');
 check(U.round2(brut - 30) === 23.66, 'cərimə çıxılması səhvdir');
 
+// ── 14) Taksi limiti ──
+console.log('\n14) Aylıq taksi limiti');
+U.setSetting('SALARY_CONFIG', '').catch(() => {});
+const c0 = U.getSalaryConfig();
+check(c0.taxiMonthlyLimit === 13, `ümumi limit 13 olmalıdır, alınan ${c0.taxiMonthlyLimit}`);
+check(U.taxiLimitFor(null, c0) === 13, 'fərdi limit yoxdursa ümumi limit işləməlidir');
+check(U.taxiLimitFor(undefined, c0) === 13, 'undefined → ümumi limit');
+check(U.taxiLimitFor('', c0) === 13, 'boş sətir → ümumi limit');
+check(U.taxiLimitFor(20, c0) === 20, 'fərdi limit üstün olmalıdır');
+check(U.taxiLimitFor(0, c0) === 0, 'fərdi limit 0 olsa taksi ümumiyyətlə verilməməlidir');
+
+// Hansı günlər limitə sayılır
+console.log('\n15) Limitə hansı günlər sayılır');
+check(U.isTaxiDay('Gənclik', 'axsamsm', c0) === true, 'Gənclik axşam taksili gündür');
+check(U.isTaxiDay('Gənclik', 'tamgun', c0) === true, 'Gənclik tam gün taksili gündür');
+check(U.isTaxiDay('Gənclik', 'fullsm', c0) === true, 'Gənclik Axşam Full taksili gündür');
+check(U.isTaxiDay('Gənclik', 'sehersm', c0) === false, 'səhər smeni limitə sayılmamalıdır');
+check(U.isTaxiDay('Sahil', 'axsamsm', c0) === false, 'taksisiz filialda limit tətbiq olunmamalıdır');
+check(U.isTaxiDay('Elmlər', 'tamgun', c0) === false, 'Elmlərdə tam gün də taksisizdir');
+
+// Limit aşımı simulyasiyası (hesabatdakı məntiqin eynisi)
+console.log('\n16) Limitdən sonrakı günlər taksi qazanmır');
+function ayHesabla(gunSayi, limit) {
+  let taksi = 0, verildi = 0, kesildi = 0;
+  for (let i = 0; i < gunSayi; i++) {
+    const g = U.computeDayPay('Barista', 'Gənclik', 'axsamsm', c0);
+    if (g.taxi > 0) { if (verildi >= limit) kesildi++; else { verildi++; taksi += g.taxi; } }
+  }
+  return { taksi: U.round2(taksi), verildi, kesildi };
+}
+const a13 = ayHesabla(13, 13);
+check(a13.taksi === 91 && a13.kesildi === 0, `13 gün → 91 ₼, kəsilmə yox (alınan ${a13.taksi}, ${a13.kesildi})`);
+const a16 = ayHesabla(16, 13);
+check(a16.taksi === 91, `16 gün → yenə 91 ₼ olmalıdır, alınan ${a16.taksi}`);
+check(a16.verildi === 13 && a16.kesildi === 3, `16 gündə 13 ödənməli, 3 kəsilməli (alınan ${a16.verildi}/${a16.kesildi})`);
+const a20 = ayHesabla(20, 20);
+check(a20.taksi === 140, `fərdi limit 20 olsa 140 ₼ olmalıdır, alınan ${a20.taksi}`);
+
+// ── 17) Həftə kilidi ──
+console.log('\n17) Keçmiş həftə kilidi');
+check(U.weekStartYMD(new Date(2026, 6, 30)) === '2026-07-27', `30 İyul 2026 (cümə axşamı) həftə başı 27 İyul olmalıdır, alınan ${U.weekStartYMD(new Date(2026, 6, 30))}`);
+check(U.weekStartYMD(new Date(2026, 6, 27)) === '2026-07-27', 'bazar ertəsinin özü həftə başıdır');
+check(U.weekStartYMD(new Date(2026, 7, 2)) === '2026-07-27', 'bazar günü (2 Avqust) hələ həmin həftəyə aiddir');
+check(U.weekStartYMD(new Date(2026, 7, 3)) === '2026-08-03', 'növbəti bazar ertəsi yeni həftədir');
+// Kilid şərti: tarix < həftə başı → menecerə qadağa
+const hb = U.weekStartYMD(new Date(2026, 6, 30));
+check('2026-07-26' < hb, 'ötən həftənin günü kilidlənməlidir');
+check(!('2026-07-27' < hb), 'cari həftənin ilk günü açıq olmalıdır');
+check(!('2026-08-05' < hb), 'gələcək tarixlər açıq olmalıdır');
+
 console.log(`\n${'═'.repeat(50)}\nNƏTİCƏ: ${pass} keçdi, ${fail} uğursuz`);
 process.exit(fail ? 1 : 0);

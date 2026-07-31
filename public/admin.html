@@ -100,6 +100,9 @@ tr.open .fa-chev{transform:rotate(180deg);}
 .emp-pin{font-family:monospace;font-size:1.05rem;font-weight:700;letter-spacing:2.5px;color:var(--text-main);background:rgba(15,23,42,0.04);padding:5px 10px;border-radius:8px;display:inline-block;}
 .emp-num{font-size:0.85rem;font-weight:700;font-variant-numeric:tabular-nums;}
 .emp-dept-sel{padding:5px 7px;border:1.5px solid rgba(15,23,42,0.1);border-radius:9px;background:#fff;font-size:0.78rem;font-weight:600;color:var(--text-muted);cursor:pointer;font-family:inherit;}
+.emp-lim{width:62px;padding:5px 6px;border:1.5px solid rgba(15,23,42,0.1);border-radius:9px;background:#fff;font-size:0.8rem;font-weight:700;text-align:center;font-family:inherit;color:var(--text-main);font-variant-numeric:tabular-nums;}
+.emp-lim:focus{outline:none;border-color:var(--primary);}
+.emp-lim::placeholder{color:var(--text-soft);font-weight:600;}
 .emp-acts{display:flex;gap:4px;justify-content:flex-end;}
 .emp-acts .action-btn{padding:6px 9px;}
 .emp-tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
@@ -1220,6 +1223,10 @@ var DEPT_LIST=['Elmlər','Sahil','Gənclik','Ağ Şəhər'];
 // Vəzifə siyahısı serverdən gəlir (tək mənbə — utils.js POSITIONS)
 var POS_LIST=[];
 function loadPositions(){
+  // Ümumi taksi limiti — işçi cədvəlində "boş = ümumi limit" göstərilsin deyə
+  google.script.run.withSuccessHandler(function(r){
+    if(r&&r.config&&r.config.taxiMonthlyLimit!=null){ _umumiTaksiLimit=r.config.taxiMonthlyLimit; if(emps.length)renderEmps(); }
+  }).getSalaryConfig();
   google.script.run.withSuccessHandler(function(d){
     POS_LIST=d||[];
     var sel=document.getElementById('iPos');
@@ -1254,7 +1261,7 @@ function renderEmps(){
   list.innerHTML=
     '<div style="overflow-x:auto;"><table class="emp-tbl">'+
       '<thead><tr>'+
-        '<th>İşçi</th><th>Filial</th><th>Vəzifə</th><th style="text-align:center;">Streak</th>'+
+        '<th>İşçi</th><th>Filial</th><th>Vəzifə</th><th style="text-align:center;" title="Ayda ən çoxu neçə taksili (axşam) smen yazıla bilər">Taksi limiti</th><th style="text-align:center;">Streak</th>'+
         '<th style="text-align:center;">XP</th><th style="text-align:center;">Canlı PIN</th><th style="text-align:right;">Əməliyyat</th>'+
       '</tr></thead><tbody>'+
     rows.map(function(e){
@@ -1270,6 +1277,7 @@ function renderEmps(){
           '<option value=""'+(!e.position?' selected':'')+'>— seçilməyib —</option>'+
           POS_LIST.map(function(p){return '<option value="'+esc(p)+'"'+(p===e.position?' selected':'')+'>'+esc(p)+'</option>';}).join('')+
         '</select></td>'+
+        '<td data-l="Taksi limiti" style="text-align:center;"><input type="number" min="0" max="62" class="emp-lim" value="'+(e.taxiLimit===''||e.taxiLimit==null?'':e.taxiLimit)+'" placeholder="'+(_umumiTaksiLimit||13)+'" title="Boş = ümumi limit ('+(_umumiTaksiLimit||13)+')" onchange="changeTaxiLimit(\''+e.id+'\',this.value,this)"></td>'+
         '<td data-l="Streak" style="text-align:center;"><span class="emp-num" style="color:'+(e.streak>0?'#b45309':'var(--text-muted)')+';">'+(e.streak||0)+'</span></td>'+
         '<td data-l="XP" style="text-align:center;"><span class="emp-num" style="color:'+(e.xp>0?'#4f46e5':'var(--text-muted)')+';">'+(e.xp||0)+'</span></td>'+
         '<td data-l="PIN" style="text-align:center;"><span class="emp-pin js-pin" data-s="'+esc(e.secret)+'">'+generateDynamicPin(e.secret,cW)+'</span></td>'+
@@ -1300,6 +1308,23 @@ function changeDept(id,newDept,sel){
   }).withFailureHandler(function(err){alert('Server xətası: '+((err&&err.message)||'naməlum'));loadEmps();})
     .updateEmployeeDept(id,newDept);
 }
+// Aylıq taksi limiti — boş buraxılsa ümumi limit işləyir
+var _umumiTaksiLimit=13;
+function changeTaxiLimit(id,val,inp){
+  var e=emps.filter(function(x){return x.id===id;})[0]; if(!e)return;
+  var kohne=(e.taxiLimit===''||e.taxiLimit==null)?'':String(e.taxiLimit);
+  if(String(val)===kohne)return;
+  if(inp)inp.disabled=true;
+  google.script.run.withSuccessHandler(function(r){
+    if(inp)inp.disabled=false;
+    if(!r||r.success===false){ alert('Dəyişmədi: '+((r&&r.reason)||'Xəta')); if(inp)inp.value=kohne; return; }
+    e.taxiLimit=(r.taxiLimit==null?'':r.taxiLimit);
+  }).withFailureHandler(function(err){
+    if(inp){inp.disabled=false;inp.value=kohne;}
+    alert('Server xətası: '+((err&&err.message)||'naməlum'));
+  }).updateEmployeeTaxiLimit(id,val);
+}
+
 // Vəzifə dəyişmə — təsdiq pəncərəsi lazım deyil (geri qaytarmaq asandır)
 function changePos(id,yeni,sel){
   var e=emps.filter(function(x){return x.id===id;})[0];
@@ -1387,7 +1412,7 @@ function maasRender(){
     faStat(r2(t.brut)+' ₼','Brüt (maaş+taksi)','')+
     faStat('−'+r2(t.cerime)+' ₼','Cərimə',t.cerime?'var(--danger)':'')+
     faStat('−'+r2(t.avans)+' ₼','Avans',t.avans?'var(--primary)':'')+
-    faStat(r2(t.cemi)+' ₼','ƏLƏ VERİLƏCƏK','var(--success)')+
+    faStat(r2(t.cemi)+' ₼','VERİLƏCƏK','var(--success)')+
     faStat(t.gun+' gün · '+t.smen+' smen','İş həcmi','');
 
   var xeb='';
@@ -1410,7 +1435,7 @@ function maasSetir(r){
     return '<tr><td style="padding:3px 8px 3px 0;white-space:nowrap;color:var(--text-muted);">'+esc(fmtDMY(g.date))+'</td>'+
       '<td style="padding:3px 8px;">'+esc(g.shiftName)+'</td>'+
       '<td style="padding:3px 8px;text-align:right;font-variant-numeric:tabular-nums;">'+g.pay+' ₼</td>'+
-      '<td style="padding:3px 0 3px 8px;text-align:right;font-variant-numeric:tabular-nums;color:'+(g.taxi?'var(--warning)':'var(--text-soft)')+';">'+(g.taxi?'+'+g.taxi+' ₼':'—')+'</td></tr>';
+      '<td style="padding:3px 0 3px 8px;text-align:right;font-variant-numeric:tabular-nums;color:'+(g.taxi?'var(--warning)':(g.taxiLimitli?'var(--danger)':'var(--text-soft)'))+';">'+(g.taxi?'+'+g.taxi+' ₼':(g.taxiLimitli?'limit':'—'))+'</td></tr>';
   }).join('');
   return '<tr class="fa-exp" onclick="faToggle(this)">'+
       '<td data-l="İşçi">'+faEmpCell(r.empName,r.dept)+'</td>'+
@@ -1418,7 +1443,8 @@ function maasSetir(r){
       '<td data-l="Gün" style="text-align:center;"><span class="emp-num">'+r.gunSayi+'</span></td>'+
       '<td data-l="Smen" style="text-align:center;"><span class="emp-num">'+r.smenSayi+'</span>'+tg+'</td>'+
       '<td data-l="Maaş" style="text-align:right;"><span class="fa-money">'+r.maas+' ₼</span></td>'+
-      '<td data-l="Taksi" style="text-align:right;"><span class="fa-money" style="color:'+(r.taksi?'var(--warning)':'var(--text-soft)')+';">'+(r.taksi||'—')+(r.taksi?' ₼':'')+'</span></td>'+
+      '<td data-l="Taksi" style="text-align:right;"><span class="fa-money" style="color:'+(r.taksi?'var(--warning)':'var(--text-soft)')+';">'+(r.taksi||'—')+(r.taksi?' ₼':'')+'</span>'+
+        (r.taksiGunu?'<div class="emp-sub" style="text-align:right;'+(r.taksiLimitAsan?'color:var(--danger);font-weight:700;':'')+'">'+r.taksiGunu+'/'+r.taksiLimit+' gün'+(r.taksiLimitAsan?' · '+r.taksiLimitAsan+' limitdən kənar':'')+'</div>':'')+'</td>'+
       '<td data-l="Cərimə" style="text-align:right;"><span class="fa-money" style="color:'+(r.cerime?'var(--danger)':'var(--text-soft)')+';">'+(r.cerime?'−'+r.cerime+' ₼':'—')+'</span></td>'+
       '<td data-l="Avans" style="text-align:right;"><span class="fa-money" style="color:'+(r.avans?'var(--primary)':'var(--text-soft)')+';">'+(r.avans?'−'+r.avans+' ₼':'—')+'</span></td>'+
       '<td data-l="Ələ veriləcək" style="text-align:right;"><span class="fa-money" style="color:'+(r.cemi<0?'var(--danger)':'var(--success)')+';font-size:0.95rem;">'+r.cemi+' ₼</span></td>'+
@@ -1469,7 +1495,8 @@ function maasRenderCfg(){
     '<div class="sh-shift"><div class="sh-head"><span class="sh-name"><i class="fa-solid fa-taxi"></i> Taksi</span></div>'+
       '<div class="sh-fields">'+
         '<div class="sh-f"><label>Günlük məbləğ</label><input type="number" step="0.01" min="0" value="'+c.taxi+'" oninput="_maasCfg.taxi=parseFloat(this.value)||0" style="width:100px;"></div>'+
-        '<div class="sh-hint">Tam gündə də <b>sabit</b> qalır — iki qat olmur.</div>'+
+        '<div class="sh-f"><label>Aylıq limit (gün)</label><input type="number" min="0" max="62" value="'+(c.taxiMonthlyLimit==null?13:c.taxiMonthlyLimit)+'" oninput="_maasCfg.taxiMonthlyLimit=parseInt(this.value,10)||0" style="width:100px;"></div>'+
+        '<div class="sh-hint">Tam gündə də <b>sabit</b> qalır — iki qat olmur.<br>Limit: menecer ayda bundan çox taksili smen <b>yaza bilmir</b>; artıq günlər taksi qazanmır. Fərdi limit: İşçilər tabı.</div>'+
       '</div>'+
       '<div style="margin-top:0.8rem;"><div style="font-size:0.7rem;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:6px;">Hansı filiallarda</div>'+
         '<div style="display:flex;gap:6px;flex-wrap:wrap;">'+DEPT_LIST.map(function(d){
