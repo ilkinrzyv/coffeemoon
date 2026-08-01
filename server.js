@@ -1209,6 +1209,15 @@ API.saveSalaryConfig = async (cfg) => {
   clean.avansStatuses = Array.isArray(cfg.avansStatuses)
     ? cfg.avansStatuses.filter(s => ['approved', 'paid'].includes(s)) : base.avansStatuses;
   clean.mgrFinesOnlyAcked = typeof cfg.mgrFinesOnlyAcked === 'boolean' ? cfg.mgrFinesOnlyAcked : base.mgrFinesOnlyAcked;
+  clean.taxiMonthlyLimit = (() => {
+    const n = Math.round(Number(cfg.taxiMonthlyLimit));
+    return (Number.isFinite(n) && n >= 0 && n <= 62) ? n : base.taxiMonthlyLimit;
+  })();
+  clean.restDayPaid = typeof cfg.restDayPaid === 'boolean' ? cfg.restDayPaid : base.restDayPaid;
+  clean.restDayMultiplier = (() => {
+    const n = Number(cfg.restDayMultiplier);
+    return (Number.isFinite(n) && n >= 0 && n <= 2) ? U.round2(n) : base.restDayMultiplier;
+  })();
   await U.setSetting('SALARY_CONFIG', JSON.stringify(clean));
   return { success: true, config: U.getSalaryConfig() };
 };
@@ -1258,9 +1267,14 @@ API.getSalaryReport = async (year, month) => {
     t.siyahi.push({ nov: 'avans', date: a.date_str || '', mebleg: m, qeyd: a.note || 'Avans', menbe: a.status === 'paid' ? 'Ödənilib' : 'Təsdiqlənib' });
   }
 
-  // Cədvəl: emp|gün → smen
+  // Cədvəl: emp|gün → smen  (+ işçi üzrə istirahət günləri ayrıca)
   const cedvelMap = {};
-  for (const c of cedvelRows || []) cedvelMap[String(c.emp_id) + '|' + c.date_str] = c.shift_type || '';
+  const istirahetMap = {};      // emp → [gün, ...]
+  for (const c of cedvelRows || []) {
+    const id = String(c.emp_id);
+    cedvelMap[id + '|' + c.date_str] = c.shift_type || '';
+    if (c.shift_type === 'istirahetsm') (istirahetMap[id] = istirahetMap[id] || []).push(c.date_str);
+  }
 
   // Gəlişlər: emp → { məntiqi gün → gəlişdəki smen }  (eyni gündə təkrar gəliş bir gün sayılır)
   const gelisMap = {};
@@ -1295,12 +1309,25 @@ API.getSalaryReport = async (year, month) => {
         if (shift === 'tamgun') tamGunSayi++;
         detay.push({ date: ds, shift, shiftName: U.SHIFT_NAMES[shift] || '—', pay: g.pay, taxi: gunTaksi, taxiLimitli: g.taxi > 0 && gunTaksi === 0 });
       }
+
+      // İSTİRAHƏT günləri — işçi gəlmir, amma günlük maaşı ödənilir (taksi yox).
+      // İşçi həmin gün nədənsə gəlibsə, yuxarıdakı iş günü hesabı üstündür (təkrar ödəmə olmasın).
+      let istirahetGunu = 0, istirahetMaas = 0;
+      for (const ds of (istirahetMap[String(e.id)] || []).sort()) {
+        if (ds in gunler) continue;                       // həmin gün onsuz da işlənib
+        const g = U.computeRestDayPay(e.position || '', cfg);
+        if (g.pay <= 0 && !cfg.restDayPaid) continue;
+        istirahetGunu++; istirahetMaas += g.pay; maas += g.pay;
+        detay.push({ date: ds, shift: 'istirahetsm', shiftName: 'İstirahət', pay: g.pay, taxi: 0, istirahet: true });
+      }
+      detay.sort((a, b) => String(a.date).localeCompare(String(b.date)));
       const t = tutulma[String(e.id)] || { cerime: 0, avans: 0, siyahi: [] };
       const brut = U.round2(maas + taksi);
       return {
         empId: e.id, empName: e.name, dept: e.dept, position: e.position || '',
         rate: cfg.rates[e.position] || 0,
-        gunSayi: detay.length, smenSayi, tamGunSayi,
+        gunSayi: Object.keys(gunler).length, istirahetGunu, istirahetMaas: U.round2(istirahetMaas),
+        smenSayi, tamGunSayi,
         taksiGunu, taksiLimit: limit, taksiLimitAsan: limitAsan,
         maas: U.round2(maas), taksi: U.round2(taksi), brut,
         cerime: U.round2(t.cerime), avans: U.round2(t.avans),
@@ -1308,16 +1335,16 @@ API.getSalaryReport = async (year, month) => {
         detay, tutulmalar: t.siyahi.sort((a, b) => String(a.date).localeCompare(String(b.date))),
       };
     })
-    // Yalnız tutulması olan (amma işləməyən) işçilər də görünsün
-    .filter(r => r.gunSayi > 0 || r.cerime > 0 || r.avans > 0)
+    // Yalnız tutulması və ya ödənilən istirahəti olan (amma işləməyən) işçilər də görünsün
+    .filter(r => r.gunSayi > 0 || r.istirahetGunu > 0 || r.cerime > 0 || r.avans > 0)
     .sort((a, b) => a.dept.localeCompare(b.dept) || b.cemi - a.cemi);
 
   const totals = rows.reduce((t, r) => {
     t.maas += r.maas; t.taksi += r.taksi; t.brut += r.brut;
     t.cerime += r.cerime; t.avans += r.avans; t.cemi += r.cemi;
-    t.gun += r.gunSayi; t.smen += r.smenSayi;
+    t.gun += r.gunSayi; t.smen += r.smenSayi; t.istirahet += r.istirahetGunu;
     return t;
-  }, { maas: 0, taksi: 0, brut: 0, cerime: 0, avans: 0, cemi: 0, gun: 0, smen: 0 });
+  }, { maas: 0, taksi: 0, brut: 0, cerime: 0, avans: 0, cemi: 0, gun: 0, smen: 0, istirahet: 0 });
   ['maas', 'taksi', 'brut', 'cerime', 'avans', 'cemi'].forEach(k => { totals[k] = U.round2(totals[k]); });
 
   // Vəzifəsi təyin edilməyənlər 0 maaş alır — admin xəbərdar olsun

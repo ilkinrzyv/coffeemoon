@@ -1405,15 +1405,15 @@ function maasRender(){
   if(!_maasData)return;
   var body=document.getElementById('maasBody'), rows=maasFiltered();
   document.getElementById('maasCount').textContent=rows.length+' / '+(_maasData.rows||[]).length+' işçi';
-  var t=rows.reduce(function(s,r){s.maas+=r.maas;s.taksi+=r.taksi;s.brut+=r.brut;s.cerime+=r.cerime;s.avans+=r.avans;s.cemi+=r.cemi;s.gun+=r.gunSayi;s.smen+=r.smenSayi;return s;},
-    {maas:0,taksi:0,brut:0,cerime:0,avans:0,cemi:0,gun:0,smen:0});
+  var t=rows.reduce(function(s,r){s.maas+=r.maas;s.taksi+=r.taksi;s.brut+=r.brut;s.cerime+=r.cerime;s.avans+=r.avans;s.cemi+=r.cemi;s.gun+=r.gunSayi;s.smen+=r.smenSayi;s.istirahet+=(r.istirahetGunu||0);return s;},
+    {maas:0,taksi:0,brut:0,cerime:0,avans:0,cemi:0,gun:0,smen:0,istirahet:0});
   var r2=function(n){return Math.round(n*100)/100;};
   document.getElementById('maasStats').innerHTML=
     faStat(r2(t.brut)+' ₼','Brüt (maaş+taksi)','')+
     faStat('−'+r2(t.cerime)+' ₼','Cərimə',t.cerime?'var(--danger)':'')+
     faStat('−'+r2(t.avans)+' ₼','Avans',t.avans?'var(--primary)':'')+
     faStat(r2(t.cemi)+' ₼','VERİLƏCƏK','var(--success)')+
-    faStat(t.gun+' gün · '+t.smen+' smen','İş həcmi','');
+    faStat(t.gun+' gün · '+t.smen+' smen'+(t.istirahet?' · '+t.istirahet+' istirahət':''),'İş həcmi','');
 
   var xeb='';
   var vezifesiz=(_maasData.rows||[]).filter(function(r){return !r.position&&r.gunSayi>0;});
@@ -1432,15 +1432,16 @@ function maasRender(){
 function maasSetir(r){
   var tg=r.tamGunSayi?'<span style="background:#fae8ff;color:#86198f;border-radius:6px;padding:1px 6px;font-size:0.68rem;font-weight:800;margin-left:5px;">'+r.tamGunSayi+' TG</span>':'';
   var detay=(r.detay||[]).map(function(g){
-    return '<tr><td style="padding:3px 8px 3px 0;white-space:nowrap;color:var(--text-muted);">'+esc(fmtDMY(g.date))+'</td>'+
-      '<td style="padding:3px 8px;">'+esc(g.shiftName)+'</td>'+
+    return '<tr'+(g.istirahet?' style="opacity:0.82;"':'')+'><td style="padding:3px 8px 3px 0;white-space:nowrap;color:var(--text-muted);">'+esc(fmtDMY(g.date))+'</td>'+
+      '<td style="padding:3px 8px;'+(g.istirahet?'color:var(--primary);font-weight:600;':'')+'">'+(g.istirahet?'<i class="fa-solid fa-mug-saucer" style="font-size:0.7rem;opacity:.7;"></i> ':'')+esc(g.shiftName)+'</td>'+
       '<td style="padding:3px 8px;text-align:right;font-variant-numeric:tabular-nums;">'+g.pay+' ₼</td>'+
       '<td style="padding:3px 0 3px 8px;text-align:right;font-variant-numeric:tabular-nums;color:'+(g.taxi?'var(--warning)':(g.taxiLimitli?'var(--danger)':'var(--text-soft)'))+';">'+(g.taxi?'+'+g.taxi+' ₼':(g.taxiLimitli?'limit':'—'))+'</td></tr>';
   }).join('');
   return '<tr class="fa-exp" onclick="faToggle(this)">'+
       '<td data-l="İşçi">'+faEmpCell(r.empName,r.dept)+'</td>'+
       '<td data-l="Vəzifə">'+(r.position?esc(r.position)+'<div class="emp-sub">'+r.rate+' ₼/smen</div>':'<span style="color:var(--warning);font-weight:700;">təyin edilməyib</span>')+'</td>'+
-      '<td data-l="Gün" style="text-align:center;"><span class="emp-num">'+r.gunSayi+'</span></td>'+
+      '<td data-l="Gün" style="text-align:center;"><span class="emp-num">'+r.gunSayi+'</span>'+
+        (r.istirahetGunu?'<div class="emp-sub" style="text-align:center;color:var(--primary);">+'+r.istirahetGunu+' istirahət</div>':'')+'</td>'+
       '<td data-l="Smen" style="text-align:center;"><span class="emp-num">'+r.smenSayi+'</span>'+tg+'</td>'+
       '<td data-l="Maaş" style="text-align:right;"><span class="fa-money">'+r.maas+' ₼</span></td>'+
       '<td data-l="Taksi" style="text-align:right;"><span class="fa-money" style="color:'+(r.taksi?'var(--warning)':'var(--text-soft)')+';">'+(r.taksi||'—')+(r.taksi?' ₼':'')+'</span>'+
@@ -1491,6 +1492,15 @@ function maasRenderCfg(){
         }).join('')+
       '</div>'+
       '<div class="sh-hint" style="padding-top:8px;">Tam gün seçilən gündə bu məbləğ <b>2 qat</b> hesablanır.</div>'+
+      '<div style="margin-top:0.9rem;padding-top:0.8rem;border-top:1px dashed rgba(15,23,42,0.12);">'+
+        '<div style="font-size:0.7rem;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:6px;">İstirahət günü</div>'+
+        '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:flex-end;">'+
+          '<button class="emp-chip'+(c.restDayPaid?' on':'')+'" onclick="maasSetRest(true)">Ödənilir</button>'+
+          '<button class="emp-chip'+(!c.restDayPaid?' on':'')+'" onclick="maasSetRest(false)">Ödənilmir</button>'+
+          (c.restDayPaid?'<div class="sh-f" style="margin-left:8px;"><label>Əmsal</label><input type="number" step="0.05" min="0" max="2" value="'+(c.restDayMultiplier==null?1:c.restDayMultiplier)+'" oninput="_maasCfg.restDayMultiplier=parseFloat(this.value)||0" style="width:84px;"></div>':'')+
+        '</div>'+
+        '<div class="sh-hint" style="padding-top:6px;">Cədvəldə <b>İstirahət</b> yazılan gün üçün maaş. Əmsal 1 = tam smen maaşı, 0.5 = yarısı. Taksi verilmir. <b>Boş xanalar ödənilmir</b> — yalnız açıq şəkildə istirahət təyin edilən günlər.</div>'+
+      '</div>'+
     '</div>'+
     '<div class="sh-shift"><div class="sh-head"><span class="sh-name"><i class="fa-solid fa-taxi"></i> Taksi</span></div>'+
       '<div class="sh-fields">'+
@@ -1538,6 +1548,7 @@ function maasToggle(sahe,val){
   maasRenderCfg();
 }
 function maasSetMgrAck(v){ _maasCfg.mgrFinesOnlyAcked=v; maasRenderCfg(); }
+function maasSetRest(v){ _maasCfg.restDayPaid=v; if(v&&_maasCfg.restDayMultiplier==null)_maasCfg.restDayMultiplier=1; maasRenderCfg(); }
 function maasSaveCfg(){
   var st=document.getElementById('maasCfgState');
   st.innerHTML='<i class="fa-solid fa-circle-notch fa-spin"></i> Saxlanılır...';

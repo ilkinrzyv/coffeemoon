@@ -183,5 +183,36 @@ check('2026-07-26' < hb, 'ötən həftənin günü kilidlənməlidir');
 check(!('2026-07-27' < hb), 'cari həftənin ilk günü açıq olmalıdır');
 check(!('2026-08-05' < hb), 'gələcək tarixlər açıq olmalıdır');
 
+// ── 18) İstirahət günü ödənişi ──
+console.log('\n18) İstirahət günü ödənilir');
+U.setSetting('SALARY_CONFIG', '').catch(() => {});
+const cr = U.getSalaryConfig();
+check(cr.restDayPaid === true, 'istirahət günü defolt ÖDƏNİLMƏLİDİR');
+check(cr.restDayMultiplier === 1, 'defolt əmsal 1 (tam smen maaşı) olmalıdır');
+for (const [pos, mebleg] of Object.entries(GOZLENILEN)) {
+  const r = U.computeRestDayPay(pos, cr);
+  check(r.pay === mebleg, `${pos} istirahət: gözlənilən ${mebleg}, alınan ${r.pay}`);
+  check(r.taxi === 0, `${pos} istirahət günü TAKSİ ALMAMALIDIR`);
+  check(r.shifts === 0, `${pos} istirahət günü işlənmiş smen sayılmamalıdır`);
+}
+check(U.computeRestDayPay('', cr).pay === 0, 'vəzifəsiz işçi istirahətdə də 0 alır');
+
+// Əmsal
+console.log('\n19) İstirahət əmsalı');
+U.setSetting('SALARY_CONFIG', JSON.stringify({ restDayMultiplier: 0.5 })).catch(() => {});
+check(U.computeRestDayPay('Barista').pay === 10, `əmsal 0.5 → 10 ₼ olmalıdır, alınan ${U.computeRestDayPay('Barista').pay}`);
+check(U.computeRestDayPay('Team Leader').pay === 11.67, `Team Leader yarım → 11.67, alınan ${U.computeRestDayPay('Team Leader').pay}`);
+U.setSetting('SALARY_CONFIG', JSON.stringify({ restDayPaid: false })).catch(() => {});
+check(U.computeRestDayPay('Barista').pay === 0, 'söndürüləndə istirahət ödənilməməlidir');
+U.setSetting('SALARY_CONFIG', JSON.stringify({ restDayMultiplier: 5 })).catch(() => {});
+check(U.computeRestDayPay('Barista').pay === 20, 'həddi aşan əmsal (5) ilkin dəyərə (1) qayıtmalıdır');
+
+// İş günü ilə istirahət qarışmamalıdır
+console.log('\n20) İş günü / istirahət ayrılığı');
+U.setSetting('SALARY_CONFIG', '').catch(() => {});
+check(U.computeDayPay('Barista', 'Gənclik', 'istirahetsm').pay === 20,
+  'computeDayPay istirahət tipini ADİ gün kimi hesablayır — hesabatda computeRestDayPay işlədilməlidir');
+check(U.computeDayPay('Barista', 'Gənclik', 'istirahetsm').taxi === 0, 'istirahət günü heç bir halda taksi almamalıdır');
+
 console.log(`\n${'═'.repeat(50)}\nNƏTİCƏ: ${pass} keçdi, ${fail} uğursuz`);
 process.exit(fail ? 1 : 0);

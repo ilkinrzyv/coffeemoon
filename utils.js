@@ -282,6 +282,12 @@ const DEFAULT_SALARY = {
   // İşçi bazasında `taxi_limit` varsa o üstündür (admin fərdi artıra bilər).
   taxiMonthlyLimit: 13,
 
+  // Cədvəldə İSTİRAHƏT (istirahetsm) yazılan gün də ödənilir — işçi gəlmir, amma
+  // günlük maaşını alır. Taksi verilmir (yola çıxmır). Boş xanalar ödənilmir —
+  // yalnız menecerin açıq şəkildə istirahət təyin etdiyi günlər.
+  restDayPaid: true,
+  restDayMultiplier: 1,     // 1 = tam smen maaşı; 0.5 desən yarısı ödənilər
+
   // ── Tutulmalar ──
   // Sistem cərimələrinin statusu: unpaid | paid | waived.
   // 'waived' (bağışlanıb) heç vaxt tutulmur; 'paid' isə nağd alınıbsa təkrar tutulmasın deyə defolt xaricdədir.
@@ -312,6 +318,9 @@ function getSalaryConfig() {
       taxiDepts: Array.isArray(p && p.taxiDepts) ? p.taxiDepts : base.taxiDepts,
       taxiShifts: Array.isArray(p && p.taxiShifts) ? p.taxiShifts : base.taxiShifts,
       taxiMonthlyLimit: (Number.isFinite(p && p.taxiMonthlyLimit) && p.taxiMonthlyLimit >= 0) ? p.taxiMonthlyLimit : base.taxiMonthlyLimit,
+      restDayPaid: typeof (p && p.restDayPaid) === 'boolean' ? p.restDayPaid : base.restDayPaid,
+      restDayMultiplier: (Number.isFinite(p && p.restDayMultiplier) && p.restDayMultiplier >= 0 && p.restDayMultiplier <= 2)
+        ? p.restDayMultiplier : base.restDayMultiplier,
       fineStatuses: Array.isArray(p && p.fineStatuses) ? p.fineStatuses : base.fineStatuses,
       mgrFinesOnlyAcked: typeof (p && p.mgrFinesOnlyAcked) === 'boolean' ? p.mgrFinesOnlyAcked : base.mgrFinesOnlyAcked,
       avansStatuses: Array.isArray(p && p.avansStatuses) ? p.avansStatuses : base.avansStatuses,
@@ -350,6 +359,15 @@ function weekStartYMD(dateObj) {
   const g = d.getDay() === 0 ? 6 : d.getDay() - 1;   // bazar = 6
   d.setDate(d.getDate() - g);
   return toYMD(d);
+}
+
+// İSTİRAHƏT gününün ödənişi. İşçi gəlmir, amma günlük maaşını alır; taksi verilmir.
+// Yalnız cədvəldə açıq şəkildə `istirahetsm` yazılan günlər — boş xanalar ödənilmir.
+function computeRestDayPay(position, cfg) {
+  const c = cfg || getSalaryConfig();
+  if (!c.restDayPaid) return { pay: 0, taxi: 0, shifts: 0 };
+  const rate = c.rates[position] || 0;
+  return { pay: round2(rate * c.restDayMultiplier), taxi: 0, shifts: 0 };
 }
 
 // Bir iş gününün ödənişi: { pay, taxi, shifts }
@@ -528,7 +546,7 @@ module.exports = {
   generateDynamicPin, TIME_STEP,
   getShiftInfo, isLate, SHIFT_TABLE, SHIFT_TYPES, SHIFT_NAMES, ALL_SHIFT_TYPES,
   DEFAULT_SALARY, getSalaryConfig, shiftMultiplier, computeDayPay, round2,
-  isTaxiDay, taxiLimitFor, weekStartYMD,
+  isTaxiDay, taxiLimitFor, weekStartYMD, computeRestDayPay,
   getShiftConfig, defaultShiftConfig, getLateLimit, shiftLabel,
   getEmployeeShift, hasApprovedLeave, getApprovedLatePerm,
   deptToSlug, slugToDept, SLUGS, DEPTS,
