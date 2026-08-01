@@ -445,7 +445,9 @@ tr.open .fa-chev{transform:rotate(180deg);}
         <div style="font-weight:700;font-size:0.95rem;">Cərimələr və Avanslar</div>
         <div style="font-size:0.82rem;color:var(--text-muted);">Menecerlərin yazdığı cərimələr, avans və gec gəliş icazələri</div>
       </div>
-      <button class="btn" onclick="faReload()"><i class="fa-solid fa-rotate"></i> Yenilə</button>
+      <select id="faYear" onchange="faReload()" style="min-width:96px;flex:unset;"></select>
+      <select id="faMonth" onchange="faReload()" style="min-width:132px;flex:unset;"></select>
+      <button class="btn" onclick="faReload()"><i class="fa-solid fa-rotate"></i></button>
     </div>
 
     <!-- Alt bölmələr -->
@@ -2091,17 +2093,31 @@ var FA_SUBS=[
   {id:'perms', ad:'Gec gəliş icazələri',  ikon:'fa-clock'},
 ];
 
+var _faInited=false;
 function loadApprovals(){
+  if(!_faInited){
+    _faInited=true;
+    var n=new Date(), ys=document.getElementById('faYear'), ms=document.getElementById('faMonth');
+    ys.innerHTML='<option value="">Bütün illər</option>';
+    for(var y=n.getFullYear()-2;y<=n.getFullYear()+1;y++) ys.innerHTML+='<option value="'+y+'"'+(y===n.getFullYear()?' selected':'')+'>'+y+'</option>';
+    ms.innerHTML='<option value="">Bütün aylar</option>';
+    for(var i=0;i<12;i++) ms.innerHTML+='<option value="'+(i+1)+'"'+(i===n.getMonth()?' selected':'')+'>'+AY_ADLARI[i]+'</option>';
+    faReload();
+    return;
+  }
   if(_faFines&&_faAppr){ faRenderAll(); return; }
   faReload();
 }
 function faReload(){
   _faFines=null;_faAppr=null;
+  // İl VƏ ay birlikdə seçiləndə süzgəc işləyir; biri boşdursa hamısı gətirilir
+  var y=document.getElementById('faYear').value, m=document.getElementById('faMonth').value;
+  var yy=(y&&m)?+y:null, mm=(y&&m)?+m:null;
   document.getElementById('faBody').innerHTML='<div style="text-align:center;padding:2rem;color:var(--text-muted)"><i class="fa-solid fa-circle-notch fa-spin"></i></div>';
   google.script.run.withSuccessHandler(function(d){ _faFines=d||{}; if(_faAppr)faRenderAll(); })
-    .withFailureHandler(function(e){ _faFines={}; faErr(e); }).getMgrFinesForAdmin();
+    .withFailureHandler(function(e){ _faFines={}; faErr(e); }).getMgrFinesForAdmin(yy,mm);
   google.script.run.withSuccessHandler(function(d){ _faAppr=d||{}; if(_faFines)faRenderAll(); })
-    .withFailureHandler(function(e){ _faAppr={}; faErr(e); }).getApprovedByBranch();
+    .withFailureHandler(function(e){ _faAppr={}; faErr(e); }).getApprovedByBranch(yy,mm);
 }
 function faErr(e){
   document.getElementById('faBody').innerHTML='<div style="color:var(--danger);font-weight:600;padding:1rem;"><i class="fa-solid fa-triangle-exclamation"></i> Xəta: '+((e&&e.message)||'Server xətası')+'</div>';

@@ -2441,13 +2441,30 @@ API.getAvansList = async () => {
 };
 
 // Admin: menecerlərin təsdiqlədiyi gec gəliş icazələri + avanslar, filial üzrə
-API.getApprovedByBranch = async () => {
+// Ay aralığı: (2026, 7) → { start:'2026-07-01', end:'2026-08-01' }. Ay verilməyibsə null.
+function ayAraligi(year, month) {
+  const y = Number(year), m = Number(month);
+  if (!y || !m || m < 1 || m > 12) return null;
+  const mm = String(m).padStart(2, '0');
+  return {
+    start: `${y}-${mm}-01`,
+    end:   m === 12 ? `${y + 1}-01-01` : `${y}-${String(m + 1).padStart(2, '0')}-01`,
+  };
+}
+
+// year/month verilməsə HAMISI qaytarılır (köhnə davranış — icraçı paneli belə çağırır)
+API.getApprovedByBranch = async (year, month) => {
+  const ay = ayAraligi(year, month);
+  let permQ = sb.from('late_perms').select('*').eq('status', 'approved');
+  let avansQ = sb.from('avans').select('*').in('status', ['approved', 'paid']);
+  if (ay) {
+    permQ  = permQ.gte('date_str', ay.start).lt('date_str', ay.end);
+    avansQ = avansQ.gte('date_str', ay.start).lt('date_str', ay.end);
+  }
   const [{ data: emps }, { data: perms }, { data: avans }] = await Promise.all([
     sb.from('employees').select('id,dept'),
-    sb.from('late_perms').select('*').eq('status', 'approved')
-      .order('date_str', { ascending: false }).limit(500),
-    sb.from('avans').select('*').in('status', ['approved', 'paid'])
-      .order('created_at', { ascending: false }).limit(500),
+    permQ.order('date_str', { ascending: false }).limit(1000),
+    avansQ.order('created_at', { ascending: false }).limit(1000),
   ]);
   const empDept = {};
   for (const e of emps || []) empDept[String(e.id)] = e.dept;
@@ -2475,11 +2492,19 @@ API.getApprovedByBranch = async () => {
 };
 
 // Admin/İcraçı: menecer cərimələri filial üzrə (bütün statuslar, pending önə)
-API.getMgrFinesForAdmin = async () => {
+// year/month verilməsə HAMISI qaytarılır (köhnə davranış — icraçı paneli belə çağırır)
+API.getMgrFinesForAdmin = async (year, month) => {
+  const ay = ayAraligi(year, month);
+  let mgrQ = sb.from('mgr_fines').select('*');
+  let sysQ = sb.from('fines').select('*');
+  if (ay) {
+    mgrQ = mgrQ.gte('created_at', ay.start).lt('created_at', ay.end);   // menecer cəriməsində tarix = yazılma vaxtı
+    sysQ = sysQ.gte('date_str', ay.start).lt('date_str', ay.end);       // sistem cəriməsində gecikmə günü
+  }
   const [{ data: emps }, { data: mfines }, { data: sfines }] = await Promise.all([
     sb.from('employees').select('id,dept'),
-    sb.from('mgr_fines').select('*').order('created_at', { ascending: false }).limit(500),
-    sb.from('fines').select('*').order('created_at', { ascending: false }).limit(500),
+    mgrQ.order('created_at', { ascending: false }).limit(1000),
+    sysQ.order('created_at', { ascending: false }).limit(1000),
   ]);
   const empDept = {};
   for (const e of emps || []) empDept[String(e.id)] = e.dept;
