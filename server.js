@@ -1231,6 +1231,27 @@ API.resetSalaryConfig = async () => {
   return { success: true, config: U.getSalaryConfig() };
 };
 
+// Avans hansı aya aiddir? — TƏSDİQ/ÖDƏNİŞ günü (`decided_ymd`), o yoxdursa tələb günü.
+// İki sorğu lazımdır: tələbi keçən ay, qərarı bu ay olan avans tək pəncərəyə düşmür.
+// Əvvəl yalnız tələb tarixi işlədilirdi → iyulda istənib avqustda təsdiqlənən avans
+// artıq ödənilmiş iyula yazılır və tutulma itirdi.
+async function fetchAvansForMonth(startStr, endStr) {
+  const cols = 'avans_id,emp_id,amount,note,status,date_str,decided_ymd';
+  const byReq = await sb.from('avans').select(cols).gte('date_str', startStr).lt('date_str', endStr);
+  // Sütun hələ yaradılmayıbsa (avans-decided-migration.sql işlədilməyib) köhnə davranış
+  if (byReq.error) {
+    if (!/decided_ymd/i.test(byReq.error.message || '')) sbErr('fetchAvansForMonth', byReq.error);
+    const { data } = await sb.from('avans').select('emp_id,amount,note,status,date_str')
+      .gte('date_str', startStr).lt('date_str', endStr);
+    return { data: data || [] };
+  }
+  // NULL decided_ymd bu sorğuya düşmür (SQL-də NULL müqayisəsi false-dur) — istənilən budur
+  const byDec = await sb.from('avans').select(cols).gte('decided_ymd', startStr).lt('decided_ymd', endStr);
+  sbErr('fetchAvansForMonth(qerar)', byDec.error);   // sınsa köhnə davranışa enirik, hesabat çökmür
+
+  return { data: U.pickAvansForMonth([...(byReq.data || []), ...(byDec.data || [])], startStr, endStr) };
+}
+
 API.getSalaryReport = async (year, month) => {
   const y = Number(year), mo = Number(month);
   if (!y || !mo || mo < 1 || mo > 12) return { rows: [], totals: {} };
@@ -1246,7 +1267,7 @@ API.getSalaryReport = async (year, month) => {
     // Tutulmalar — hamısı həmin aya aiddir
     sb.from('fines').select('emp_id,date_str,amount,reason,status').gte('date_str', startStr).lt('date_str', endStr),
     sb.from('mgr_fines').select('emp_id,amount,reason,status,created_at,created_by').gte('created_at', startStr).lt('created_at', endStr),
-    sb.from('avans').select('emp_id,amount,note,status,date_str').gte('date_str', startStr).lt('date_str', endStr),
+    fetchAvansForMonth(startStr, endStr),
   ]);
 
   // Tutulmaları işçi üzrə yığ (konfiqurasiyadakı status qaydalarına görə)
@@ -1268,7 +1289,14 @@ API.getSalaryReport = async (year, month) => {
     if (!cfg.avansStatuses.includes(a.status)) continue;
     const t = tut(String(a.emp_id)); const m = Number(a.amount) || 0;
     t.avans += m;
-    t.siyahi.push({ nov: 'avans', date: a.date_str || '', mebleg: m, qeyd: a.note || 'Avans', menbe: a.status === 'paid' ? 'Ödənilib' : 'Təsdiqlənib' });
+    // Tarix kimi qərar günü göstərilir (tutulma həmin aya yazılır); tələb ayrı aydırsa qeyd edilir
+    const qerarGunu = a.decided_ymd || a.date_str || '';
+    const gecTeleb  = a.decided_ymd && a.date_str && a.date_str.slice(0, 7) !== a.decided_ymd.slice(0, 7);
+    t.siyahi.push({
+      nov: 'avans', date: qerarGunu, mebleg: m,
+      qeyd: (a.note || 'Avans') + (gecTeleb ? ` (tələb: ${a.date_str})` : ''),
+      menbe: a.status === 'paid' ? 'Ödənilib' : 'Təsdiqlənib',
+    });
   }
 
   // Cədvəl: emp|gün → smen  (+ işçi üzrə istirahət günləri ayrıca)
@@ -2556,7 +2584,15 @@ API.updateAvansStatus = async (avansId, status) => {
   if (!['approved', 'rejected', 'paid'].includes(status))
     return { success: false, reason: 'Yanlış status.' };
   const { data: av } = await sb.from('avans').select('emp_id,emp_name,amount').eq('avans_id', avansId).single();
-  const { error } = await sb.from('avans').update({ status }).eq('avans_id', avansId);
+  // Qərar günü: maaş hesabatı tutulmanı TƏLƏB ayına yox, TƏSDİQ/ÖDƏNİŞ ayına yazsın deyə.
+  // (Rədd edilən avans tutulmur — ona qərar günü lazım deyil.)
+  const patch = { status };
+  if (status === 'approved' || status === 'paid') patch.decided_ymd = U.toYMD(new Date());
+  let { error } = await sb.from('avans').update(patch).eq('avans_id', avansId);
+  // Sütun hələ yaradılmayıbsa (avans-decided-migration.sql işlədilməyib) köhnə davranışa qayıt
+  if (error && /decided_ymd/i.test(error.message || '')) {
+    ({ error } = await sb.from('avans').update({ status }).eq('avans_id', avansId));
+  }
   if (!error && av) {
     const map = {
       approved: { emoji: '✅', az: 'təsdiqləndi' },

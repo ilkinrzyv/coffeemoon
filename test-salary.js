@@ -268,5 +268,42 @@ const i0 = istirahetHesabla(5, U.getSalaryConfig());
 check(i0.odenildi === 0 && i0.maas === 0, 'tavan 0-da heç bir istirahət günü ödənilməməlidir');
 U.setSetting('SALARY_CONFIG', '').catch(() => {});
 
+// ── 23) Avans hansı aya tutulur ──
+// Pul qərar anında verilir. Tələb tarixi ilə bağlasaq, iyulda istənib avqustda
+// təsdiqlənən avans artıq ödənilmiş iyula düşür və tutulma İTİR.
+console.log('\n23) Avans qərar ayına tutulur');
+const IYUL = ['2026-07-01', '2026-08-01'], AVQ = ['2026-08-01', '2026-09-01'];
+const av = (id, teleb, qerar) => ({ avans_id: id, emp_id: 'E1', amount: 50, status: 'approved', date_str: teleb, decided_ymd: qerar });
+
+check(U.avansAitYMD(av('A', '2026-07-31', '2026-08-02')) === '2026-08-02', 'qərar günü varsa o üstün olmalıdır');
+check(U.avansAitYMD(av('A', '2026-07-31', null)) === '2026-07-31', 'qərar günü yoxdursa tələb günü işlədilməlidir');
+check(U.avansAitYMD(null) === '', 'boş sətir çökdürməməlidir');
+
+// Əsas ssenari: 31 iyulda istənib 2 avqustda təsdiqlənən avans
+const gec = av('AV-GEC', '2026-07-31', '2026-08-02');
+check(U.pickAvansForMonth([gec], ...IYUL).length === 0, 'gec təsdiqlənən avans hələ İYULA tutulur — pul itir');
+check(U.pickAvansForMonth([gec], ...AVQ).length === 1, 'gec təsdiqlənən avans AVQUSTA düşmür');
+
+// Köhnə sətirlər (miqrasiyadan əvvəl) — davranış DƏYİŞMƏMƏLİDİR
+const kohne = { avans_id: 'AV-KOHNE', emp_id: 'E1', amount: 40, status: 'approved', date_str: '2026-07-15' };
+check(U.pickAvansForMonth([kohne], ...IYUL).length === 1, 'qərar günü olmayan köhnə avans öz ayında qalmalıdır');
+check(U.pickAvansForMonth([kohne], ...AVQ).length === 0, 'köhnə avans başqa aya sürüşməməlidir');
+
+// İki sorğunun birləşməsi: eyni sətir hər ikisindən gəlsə də BİR dəfə sayılmalıdır
+const ikiqat = U.pickAvansForMonth([gec, gec, { ...gec }], ...AVQ);
+check(ikiqat.length === 1, `təkrar sətir ikiqat tutulur — alınan ${ikiqat.length}`);
+
+// Eyni ay içində qərar verilən adi avans
+const adi = av('AV-ADI', '2026-08-05', '2026-08-06');
+check(U.pickAvansForMonth([adi], ...AVQ).length === 1, 'adi avans öz ayında tutulmalıdır');
+check(U.pickAvansForMonth([adi], ...IYUL).length === 0, 'adi avans keçmiş aya düşməməlidir');
+
+// Qarışıq dəst — heç nə itməsin, heç nə ikiqat olmasın
+const hamisi = [gec, kohne, adi];
+const cem = U.pickAvansForMonth(hamisi, ...IYUL).length + U.pickAvansForMonth(hamisi, ...AVQ).length;
+check(cem === 3, `hər avans dəqiq bir aya düşməlidir — alınan ${cem}/3`);
+check(U.pickAvansForMonth([], ...AVQ).length === 0, 'boş siyahı çökdürməməlidir');
+check(U.pickAvansForMonth(null, ...AVQ).length === 0, 'null siyahı çökdürməməlidir');
+
 console.log(`\n${'═'.repeat(50)}\nNƏTİCƏ: ${pass} keçdi, ${fail} uğursuz`);
 process.exit(fail ? 1 : 0);

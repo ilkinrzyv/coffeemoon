@@ -363,6 +363,29 @@ function taxiLimitFor(raw, cfg) {
   return (Number.isFinite(n) && n >= 0) ? n : c.taxiMonthlyLimit;
 }
 
+// Avansın hansı aya AİD olduğu: təsdiq/ödəniş günü (`decided_ymd`), o yoxdursa tələb günü.
+// Səbəb: pul qərar anında verilir. Tələb tarixi ilə bağlasaq, iyulda istənib avqustda
+// təsdiqlənən avans artıq ödənilmiş iyula düşür və tutulma itir.
+function avansAitYMD(row) {
+  if (!row) return '';
+  return row.decided_ymd || row.date_str || '';
+}
+
+// İki ayrı sorğudan (tələb tarixi üzrə + qərar tarixi üzrə) gələn avans sətirlərini
+// birləşdirir, `avans_id` üzrə təkrarı atır və yalnız AİD OLDUĞU ay [start, end)
+// aralığına düşənləri saxlayır. Belədə sətir nə itir, nə də iki ayda ikiqat tutulur.
+function pickAvansForMonth(rows, startStr, endStr) {
+  const uniq = new Map();
+  for (const r of rows || []) {
+    if (!r) continue;
+    uniq.set(r.avans_id != null ? String(r.avans_id) : JSON.stringify(r), r);
+  }
+  return [...uniq.values()].filter(r => {
+    const aid = avansAitYMD(r);
+    return aid >= startStr && aid < endStr;
+  });
+}
+
 // Verilmiş tarixin həftə başlanğıcı (bazar ertəsi) — YYYY-MM-DD
 function weekStartYMD(dateObj) {
   const d = new Date(dateObj || new Date());
@@ -558,6 +581,7 @@ module.exports = {
   getShiftInfo, isLate, SHIFT_TABLE, SHIFT_TYPES, SHIFT_NAMES, ALL_SHIFT_TYPES,
   DEFAULT_SALARY, getSalaryConfig, shiftMultiplier, computeDayPay, round2,
   isTaxiDay, taxiLimitFor, weekStartYMD, computeRestDayPay,
+  avansAitYMD, pickAvansForMonth,
   getShiftConfig, defaultShiftConfig, getLateLimit, shiftLabel,
   getEmployeeShift, hasApprovedLeave, getApprovedLatePerm,
   deptToSlug, slugToDept, SLUGS, DEPTS,
