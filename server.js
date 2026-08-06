@@ -1252,7 +1252,8 @@ async function fetchAvansForMonth(startStr, endStr) {
   return { data: U.pickAvansForMonth([...(byReq.data || []), ...(byDec.data || [])], startStr, endStr) };
 }
 
-API.getSalaryReport = async (year, month) => {
+// Ayı CANLI hesablayır (bağlanma/snapshot məntiqi API.getSalaryReport-dadır).
+async function computeSalaryReport(year, month) {
   const y = Number(year), mo = Number(month);
   if (!y || !mo || mo < 1 || mo > 12) return { rows: [], totals: {} };
   const cfg = U.getSalaryConfig();
@@ -1396,6 +1397,79 @@ API.getSalaryReport = async (year, month) => {
   // İstirahət tavanına dəyən işçilər — cədvəldə anormal çox istirahət ola bilər
   totals.istirahetLimitli = rows.filter(r => r.istirahetLimitAsan > 0).length;
   return { rows, totals, config: cfg, year: y, month: mo };
+}
+
+// ── AYIN BAĞLANMASI ───────────────────────────────────────────────
+// Bağlanmış ay bir daha yenidən hesablanmır: dərəcə dəyişikliyi, sonradan yazılan
+// cərimə/avans, cədvəl düzəlişi və `recalcAllFines` artıq ödənilmiş ayın rəqəmlərini
+// dəyişməsin. Səhv olsa admin ayı yenidən aça bilər.
+const periodStr = (y, mo) => `${y}-${String(mo).padStart(2, '0')}`;
+
+async function getSalaryPeriod(period) {
+  const { data, error } = await sb.from('salary_periods').select('*').eq('period', period).maybeSingle();
+  // Cədvəl hələ yaradılmayıbsa (salary-period-migration.sql işlədilməyib) sistem
+  // sadəcə həmişə canlı hesablayır — heç nə sınmır.
+  if (error) { if (!/salary_periods/i.test(error.message || '')) sbErr('getSalaryPeriod', error); return null; }
+  return data || null;
+}
+
+// live=true → bağlı olsa da canlı hesabla (admin fərqi görmək istəyəndə)
+API.getSalaryReport = async (year, month, live) => {
+  const y = Number(year), mo = Number(month);
+  if (!y || !mo || mo < 1 || mo > 12) return { rows: [], totals: {} };
+  const period = periodStr(y, mo);
+  const snap = await getSalaryPeriod(period);
+
+  if (snap && !live) {
+    return {
+      rows: snap.rows || [], totals: snap.totals || {}, config: snap.config || U.getSalaryConfig(),
+      year: y, month: mo, closed: true, closedAt: snap.closed_at, closedBy: snap.closed_by,
+    };
+  }
+  const rep = await computeSalaryReport(y, mo);
+  // Bağlı ayın canlı baxışı: admin snapshot ilə fərqi görsün
+  if (snap) {
+    rep.closed = true; rep.closedAt = snap.closed_at; rep.closedBy = snap.closed_by; rep.liveView = true;
+    rep.snapshotCemi = (snap.totals && snap.totals.cemi) != null ? snap.totals.cemi : null;
+  }
+  return rep;
+};
+
+API.closeSalaryMonth = async (year, month) => {
+  const y = Number(year), mo = Number(month);
+  if (!y || !mo || mo < 1 || mo > 12) return { success: false, reason: 'Yanlış ay.' };
+  const period = periodStr(y, mo);
+  if (await getSalaryPeriod(period)) return { success: false, reason: 'Bu ay artıq bağlanıb.' };
+
+  const rep = await computeSalaryReport(y, mo);
+  if (!rep.rows || !rep.rows.length) return { success: false, reason: 'Bu ayda ödəniləcək heç nə yoxdur — bağlamağa ehtiyac yoxdur.' };
+
+  const { error } = await sb.from('salary_periods').insert({
+    period, closed_by: 'admin', config: rep.config, rows: rep.rows, totals: rep.totals,
+  });
+  if (error) {
+    if (/salary_periods/i.test(error.message || ''))
+      return { success: false, reason: 'Cədvəl hələ yaradılmayıb — salary-period-migration.sql işlədilməlidir.' };
+    sbErr('closeSalaryMonth', error);
+    return { success: false, reason: error.message };
+  }
+  return { success: true, period, cemi: rep.totals.cemi, isciSayi: rep.rows.length };
+};
+
+API.reopenSalaryMonth = async (year, month) => {
+  const y = Number(year), mo = Number(month);
+  if (!y || !mo || mo < 1 || mo > 12) return { success: false, reason: 'Yanlış ay.' };
+  const period = periodStr(y, mo);
+  const { error } = await sb.from('salary_periods').delete().eq('period', period);
+  sbErr('reopenSalaryMonth', error);
+  return { success: !error, period };
+};
+
+// Hansı aylar bağlıdır (panel düymənin vəziyyətini bilsin)
+API.getClosedSalaryMonths = async () => {
+  const { data, error } = await sb.from('salary_periods').select('period,closed_at,closed_by').order('period', { ascending: false });
+  if (error) return [];
+  return (data || []).map(r => ({ period: r.period, closedAt: r.closed_at, closedBy: r.closed_by }));
 };
 
 API.getWarnings = async () => {

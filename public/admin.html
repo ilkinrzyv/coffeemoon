@@ -941,6 +941,7 @@ tr.open .fa-chev{transform:rotate(180deg);}
         <div id="maasDeptChips" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
         <span class="emp-count" id="maasCount"></span>
       </div>
+      <div id="maasKilid"></div>
       <div class="fa-stats" id="maasStats"></div>
       <div id="maasBody">Yüklənir...</div>
     </div>
@@ -1387,14 +1388,73 @@ function maasRenderChips(){
   document.getElementById('maasDeptChips').innerHTML=[['','Hamısı']].concat(DEPT_LIST.map(function(d){return [d,d];}))
     .map(function(c){return '<button class="emp-chip'+(_maasDept===c[0]?' on':'')+'" onclick="maasSetDept(\''+c[0]+'\')">'+c[1]+'</button>';}).join('');
 }
-function loadMaas(){
+var _maasLive=false;   // bağlı ayı canlı hesablayıb snapshot ilə müqayisə rejimi
+function loadMaas(live){
+  _maasLive=!!live;
   var y=+document.getElementById('maasYear').value, m=+document.getElementById('maasMonth').value;
   document.getElementById('maasBody').innerHTML='<div style="text-align:center;padding:2rem;color:var(--text-muted)"><i class="fa-solid fa-circle-notch fa-spin"></i></div>';
   google.script.run.withSuccessHandler(function(d){
-    _maasData=d||{rows:[],totals:{}}; _maasCfg=_maasData.config||_maasCfg; maasRender();
+    _maasData=d||{rows:[],totals:{}};
+    // DİQQƏT: bağlı ayın konfiqurasiyası SNAPSHOT-dur (o vaxtkı dərəcələr).
+    // Onu _maasCfg-ə yazsaq, admin "Dərəcələr"i saxlayanda cari dərəcələr köhnəyə qayıdar.
+    if(!_maasData.closed&&_maasData.config) _maasCfg=_maasData.config;
+    maasRender();
   }).withFailureHandler(function(e){
     document.getElementById('maasBody').innerHTML='<div style="color:var(--danger);font-weight:600;padding:1rem;"><i class="fa-solid fa-triangle-exclamation"></i> Xəta: '+((e&&e.message)||'server')+'</div>';
-  }).getSalaryReport(y,m);
+  }).getSalaryReport(y,m,_maasLive);
+}
+
+// ── Ayın bağlanması ──
+// Bağlı ayın rəqəmləri dondurulur: dərəcə dəyişikliyi, sonradan yazılan cərimə/avans
+// və cədvəl düzəlişi artıq ödənilmiş ayı DƏYİŞMİR.
+function maasAyAdi(){
+  var ys=document.getElementById('maasYear'), ms=document.getElementById('maasMonth');
+  return (ms.options[ms.selectedIndex]||{}).text+' '+ys.value;
+}
+function maasKilidHTML(){
+  var d=_maasData||{};
+  if(!d.closed){
+    if(!(d.rows||[]).length) return '';
+    return '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:rgba(15,23,42,0.03);border:1px solid rgba(15,23,42,0.08);border-radius:11px;padding:0.6rem 0.9rem;margin-bottom:0.9rem;font-size:0.82rem;">'+
+      '<i class="fa-solid fa-lock-open" style="color:var(--text-muted);"></i>'+
+      '<span style="flex:1;min-width:180px;color:var(--text-muted);">Bu ay <b>açıqdır</b> — rəqəmlər hər açılışda yenidən hesablanır. Maaş veriləndən sonra bağlasanız, sonrakı dəyişikliklər bu ayı təsir etməyəcək.</span>'+
+      '<button class="btn" onclick="maasBagla()"><i class="fa-solid fa-lock"></i> Ayı bağla</button></div>';
+  }
+  var tarix=d.closedAt?fmtDMY(String(d.closedAt).slice(0,10)):'';
+  if(d.liveView){
+    var fark=(d.snapshotCemi==null)?null:Math.round(((d.totals&&d.totals.cemi||0)-d.snapshotCemi)*100)/100;
+    return '<div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.28);border-radius:11px;padding:0.7rem 0.95rem;margin-bottom:0.9rem;font-size:0.82rem;">'+
+      '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">'+
+      '<i class="fa-solid fa-flask" style="color:#b45309;"></i>'+
+      '<span style="flex:1;min-width:180px;"><b>Canlı hesablama</b> — bu, ayın <b>saxlanmış</b> rəqəmləri DEYİL, indiki data ilə yenidən hesablanmış nəticədir.</span>'+
+      '<button class="btn" onclick="loadMaas(false)"><i class="fa-solid fa-lock"></i> Saxlanmış rəqəmlərə qayıt</button></div>'+
+      (fark===null?'':'<div style="margin-top:7px;padding-top:7px;border-top:1px dashed rgba(245,158,11,0.35);">Bağlananda veriləcək məbləğ: <b>'+d.snapshotCemi+' ₼</b> · indi hesablansa: <b>'+(d.totals&&d.totals.cemi)+' ₼</b> · fərq: <b style="color:'+(fark?'var(--danger)':'var(--success)')+';">'+(fark>0?'+':'')+fark+' ₼</b>'+
+        (fark?' — bağlandıqdan sonra data dəyişib.':' — dəyişiklik yoxdur.')+'</div>')+
+      '</div>';
+  }
+  return '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:rgba(16,185,129,0.07);border:1px solid rgba(16,185,129,0.22);border-radius:11px;padding:0.6rem 0.9rem;margin-bottom:0.9rem;font-size:0.82rem;">'+
+    '<i class="fa-solid fa-lock" style="color:var(--success);"></i>'+
+    '<span style="flex:1;min-width:180px;"><b>Ay bağlanıb</b>'+(tarix?' — '+esc(tarix):'')+esc(d.closedBy?' · '+d.closedBy:'')+'. Göstərilən rəqəmlər həmin andakı saxlanmış rəqəmlərdir; sonrakı dəyişikliklər onları pozmur.</span>'+
+    '<button class="btn" onclick="loadMaas(true)"><i class="fa-solid fa-flask"></i> Canlı hesabla</button>'+
+    '<button class="btn" onclick="maasAc()"><i class="fa-solid fa-lock-open"></i> Ayı aç</button></div>';
+}
+function maasBagla(){
+  var ay=maasAyAdi();
+  if(!confirm(ay+' ayını bağlamaq istəyirsiniz?\n\nHazırkı rəqəmlər olduğu kimi saxlanılacaq. Bundan sonra dərəcə dəyişikliyi, yeni cərimə/avans və cədvəl düzəlişi bu ayı DƏYİŞMƏYƏCƏK.\n\n(Lazım olsa ayı yenidən aça bilərsiniz.)'))return;
+  var y=+document.getElementById('maasYear').value, m=+document.getElementById('maasMonth').value;
+  google.script.run.withSuccessHandler(function(r){
+    if(r&&r.success){ alert(ay+' bağlandı.\n\n'+r.isciSayi+' işçi · veriləcək cəmi '+r.cemi+' ₼'); loadMaas(false); }
+    else alert('Bağlanmadı: '+((r&&r.reason)||'naməlum xəta'));
+  }).withFailureHandler(function(e){ alert('Xəta: '+((e&&e.message)||'server')); }).closeSalaryMonth(y,m);
+}
+function maasAc(){
+  var ay=maasAyAdi();
+  if(!confirm(ay+' ayını yenidən AÇMAQ istəyirsiniz?\n\nSaxlanmış rəqəmlər SİLİNƏCƏK və hesabat yenidən canlı hesablanacaq. Bu ay üçün artıq maaş verilibsə, rəqəmlər indiki data ilə fərqlənə bilər.'))return;
+  var y=+document.getElementById('maasYear').value, m=+document.getElementById('maasMonth').value;
+  google.script.run.withSuccessHandler(function(r){
+    if(r&&r.success){ alert(ay+' yenidən açıldı — hesabat canlı hesablanır.'); loadMaas(false); }
+    else alert('Açılmadı: '+((r&&r.reason)||'naməlum xəta'));
+  }).withFailureHandler(function(e){ alert('Xəta: '+((e&&e.message)||'server')); }).reopenSalaryMonth(y,m);
 }
 function maasFiltered(){
   var q=((document.getElementById('maasSearch')||{}).value||'').trim().toLowerCase();
@@ -1407,6 +1467,7 @@ function maasRender(){
   if(!_maasData)return;
   var body=document.getElementById('maasBody'), rows=maasFiltered();
   document.getElementById('maasCount').textContent=rows.length+' / '+(_maasData.rows||[]).length+' işçi';
+  document.getElementById('maasKilid').innerHTML=maasKilidHTML();
   var t=rows.reduce(function(s,r){s.maas+=r.maas;s.taksi+=r.taksi;s.brut+=r.brut;s.cerime+=r.cerime;s.avans+=r.avans;s.cemi+=r.cemi;s.gun+=r.gunSayi;s.smen+=r.smenSayi;s.istirahet+=(r.istirahetGunu||0);return s;},
     {maas:0,taksi:0,brut:0,cerime:0,avans:0,cemi:0,gun:0,smen:0,istirahet:0});
   var r2=function(n){return Math.round(n*100)/100;};
@@ -1491,11 +1552,22 @@ function maasTutulmaHTML(r){
 
 // ── Dərəcələr (admin dəyişir) ──
 function maasRenderCfg(){
-  if(!_maasCfg){ document.getElementById('maasCfg').innerHTML='<div class="empty">Yüklənir...</div>'; return; }
+  // Bağlı ayın snapshot konfiqurasiyası _maasCfg-ə yazılmır (köhnə dərəcələri
+  // canlıya qaytarmasın deyə) — ona görə burada CANLI konfiqurasiyanı özümüz çəkirik.
+  if(!_maasCfg){
+    document.getElementById('maasCfg').innerHTML='<div class="empty">Yüklənir...</div>';
+    google.script.run.withSuccessHandler(function(r){
+      if(r&&r.config){ _maasCfg=r.config; maasRenderCfg(); }
+      else document.getElementById('maasCfg').innerHTML='<div class="empty">Dərəcələr yüklənmədi.</div>';
+    }).withFailureHandler(function(e){
+      document.getElementById('maasCfg').innerHTML='<div style="color:var(--danger);font-weight:600;padding:1rem;">Xəta: '+((e&&e.message)||'server')+'</div>';
+    }).getSalaryConfig();
+    return;
+  }
   var c=_maasCfg;
   document.getElementById('maasCfg').innerHTML=
     '<div style="background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.2);border-radius:11px;padding:0.7rem 0.95rem;margin-bottom:1.1rem;font-size:0.8rem;color:var(--text-muted);">'+
-      '<b style="color:#b45309;"><i class="fa-solid fa-triangle-exclamation"></i> Dəyişiklik keçmiş aylara da təsir edir</b> — hesabat hər dəfə cari dərəcələrlə yenidən hesablanır.</div>'+
+      '<b style="color:#b45309;"><i class="fa-solid fa-triangle-exclamation"></i> Dəyişiklik yalnız AÇIQ aylara təsir edir</b> — açıq ay hər dəfə cari dərəcələrlə yenidən hesablanır. <b>Bağlanmış aylar</b> öz saxlanmış rəqəmlərini qoruyur.</div>'+
     '<div class="sh-shift"><div class="sh-head"><span class="sh-name"><i class="fa-solid fa-money-bill"></i> Bir smen üçün maaş</span></div>'+
       '<div class="sh-fields">'+
         POS_LIST.map(function(p){

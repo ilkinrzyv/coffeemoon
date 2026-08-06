@@ -63,6 +63,8 @@ const API_POLICY = {
   // çəkmək olardı. Yeganə çağıran admin.html-dir (açarı ADMIN_KEY-dir) → panel eyni işləyir.
   getSalaryReport: 'admin', getSalaryConfig: 'admin',
   saveSalaryConfig: 'admin', resetSalaryConfig: 'admin',
+  // Ayın bağlanması — ödənilmiş ayın rəqəmlərini dondurur/açır
+  closeSalaryMonth: 'admin', reopenSalaryMonth: 'admin', getClosedSalaryMonths: 'admin',
   getOnlineEmployees: 'staff', getManagersLiveStatus: 'staff',
 
   // ── Davamiyyət
