@@ -1218,6 +1218,10 @@ API.saveSalaryConfig = async (cfg) => {
     const n = Number(cfg.restDayMultiplier);
     return (Number.isFinite(n) && n >= 0 && n <= 2) ? U.round2(n) : base.restDayMultiplier;
   })();
+  clean.restDayMonthlyLimit = (() => {
+    const n = Math.round(Number(cfg.restDayMonthlyLimit));
+    return (Number.isFinite(n) && n >= 0 && n <= 31) ? n : base.restDayMonthlyLimit;
+  })();
   await U.setSetting('SALARY_CONFIG', JSON.stringify(clean));
   return { success: true, config: U.getSalaryConfig() };
 };
@@ -1312,11 +1316,20 @@ API.getSalaryReport = async (year, month) => {
 
       // İSTİRAHƏT günləri — işçi gəlmir, amma günlük maaşı ödənilir (taksi yox).
       // İşçi həmin gün nədənsə gəlibsə, yuxarıdakı iş günü hesabı üstündür (təkrar ödəmə olmasın).
-      let istirahetGunu = 0, istirahetMaas = 0;
+      // Aylıq tavan: istirahət günü gəliş tələb etmir və cədvəli menecer yazır — tavan
+      // olmasa bütün ay istirahət yazılıb işləmədən tam maaş almaq olardı. Cədvəlin
+      // saxlanması bloklanmır; limitdən sonrakı günlər sadəcə ödənilmir və admin-ə görünür.
+      const istirahetLimit = cfg.restDayMonthlyLimit;
+      let istirahetGunu = 0, istirahetMaas = 0, istirahetLimitAsan = 0;
       for (const ds of (istirahetMap[String(e.id)] || []).sort()) {
         if (ds in gunler) continue;                       // həmin gün onsuz da işlənib
         const g = U.computeRestDayPay(e.position || '', cfg);
         if (g.pay <= 0 && !cfg.restDayPaid) continue;
+        if (istirahetGunu >= istirahetLimit) {            // tavan doldu → bu gün ödənilmir
+          istirahetLimitAsan++;
+          detay.push({ date: ds, shift: 'istirahetsm', shiftName: 'İstirahət', pay: 0, taxi: 0, istirahet: true, istirahetLimitli: true });
+          continue;
+        }
         istirahetGunu++; istirahetMaas += g.pay; maas += g.pay;
         detay.push({ date: ds, shift: 'istirahetsm', shiftName: 'İstirahət', pay: g.pay, taxi: 0, istirahet: true });
       }
@@ -1327,6 +1340,7 @@ API.getSalaryReport = async (year, month) => {
         empId: e.id, empName: e.name, dept: e.dept, position: e.position || '',
         rate: cfg.rates[e.position] || 0,
         gunSayi: Object.keys(gunler).length, istirahetGunu, istirahetMaas: U.round2(istirahetMaas),
+        istirahetLimit, istirahetLimitAsan,
         smenSayi, tamGunSayi,
         taksiGunu, taksiLimit: limit, taksiLimitAsan: limitAsan,
         maas: U.round2(maas), taksi: U.round2(taksi), brut,
@@ -1335,8 +1349,10 @@ API.getSalaryReport = async (year, month) => {
         detay, tutulmalar: t.siyahi.sort((a, b) => String(a.date).localeCompare(String(b.date))),
       };
     })
-    // Yalnız tutulması və ya ödənilən istirahəti olan (amma işləməyən) işçilər də görünsün
-    .filter(r => r.gunSayi > 0 || r.istirahetGunu > 0 || r.cerime > 0 || r.avans > 0)
+    // Yalnız tutulması və ya ödənilən istirahəti olan (amma işləməyən) işçilər də görünsün.
+    // `istirahetLimitAsan` da şərtdədir: yoxsa BÜTÜN istirahəti tavandan kənar qalan işçi
+    // siyahıdan tamam düşər və admin problemi görməz.
+    .filter(r => r.gunSayi > 0 || r.istirahetGunu > 0 || r.istirahetLimitAsan > 0 || r.cerime > 0 || r.avans > 0)
     .sort((a, b) => a.dept.localeCompare(b.dept) || b.cemi - a.cemi);
 
   const totals = rows.reduce((t, r) => {
@@ -1349,6 +1365,8 @@ API.getSalaryReport = async (year, month) => {
 
   // Vəzifəsi təyin edilməyənlər 0 maaş alır — admin xəbərdar olsun
   totals.vezifesiz = rows.filter(r => !r.position && r.gunSayi > 0).length;
+  // İstirahət tavanına dəyən işçilər — cədvəldə anormal çox istirahət ola bilər
+  totals.istirahetLimitli = rows.filter(r => r.istirahetLimitAsan > 0).length;
   return { rows, totals, config: cfg, year: y, month: mo };
 };
 

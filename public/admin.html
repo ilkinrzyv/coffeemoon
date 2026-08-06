@@ -1423,6 +1423,14 @@ function maasRender(){
     '<b style="color:#b45309;"><i class="fa-solid fa-triangle-exclamation"></i> Diqqət:</b> '+vezifesiz.length+' işçinin vəzifəsi təyin edilməyib — onların maaşı <b>0</b> hesablanır. '+
     '(İşçilər tabından vəzifə seçin: '+vezifesiz.slice(0,3).map(function(r){return esc(r.empName);}).join(', ')+(vezifesiz.length>3?' və b.':'')+')</div>';
 
+  // İstirahət tavanına dəyənlər — cədvəldə anormal çox istirahət ola bilər, admin baxsın
+  var istLim=(_maasData.rows||[]).filter(function(r){return r.istirahetLimitAsan>0;});
+  if(istLim.length) xeb+='<div style="background:rgba(239,68,68,0.07);border:1px solid rgba(239,68,68,0.22);border-radius:11px;padding:0.7rem 0.95rem;margin-bottom:0.9rem;font-size:0.83rem;">'+
+    '<b style="color:var(--danger);"><i class="fa-solid fa-mug-saucer"></i> İstirahət limiti:</b> '+istLim.length+' işçidə aylıq istirahət tavanı ('+
+    ((_maasData.config&&_maasData.config.restDayMonthlyLimit!=null)?_maasData.config.restDayMonthlyLimit:12)+' gün) aşılıb — artıq günlər <b>ödənilmir</b>. '+
+    'Cədvəli yoxlayın: '+istLim.slice(0,3).map(function(r){return esc(r.empName)+' ('+r.istirahetLimitAsan+')';}).join(', ')+(istLim.length>3?' və b.':'')+
+    ' &nbsp;·&nbsp; Tavanı dəyişmək: <b>Dərəcələr</b> tabı.</div>';
+
   if(!rows.length){ body.innerHTML=xeb+faBos('Bu ay üçün ödəniləcək gün tapılmadı.'); return; }
   body.innerHTML=xeb+'<div style="overflow-x:auto;"><table class="emp-tbl">'+
     '<thead><tr><th>İşçi</th><th>Vəzifə</th><th style="text-align:center;">Gün</th><th style="text-align:center;">Smen</th>'+
@@ -1436,14 +1444,15 @@ function maasSetir(r){
   var detay=(r.detay||[]).map(function(g){
     return '<tr'+(g.istirahet?' style="opacity:0.82;"':'')+'><td style="padding:3px 8px 3px 0;white-space:nowrap;color:var(--text-muted);">'+esc(fmtDMY(g.date))+'</td>'+
       '<td style="padding:3px 8px;'+(g.istirahet?'color:var(--primary);font-weight:600;':'')+'">'+(g.istirahet?'<i class="fa-solid fa-mug-saucer" style="font-size:0.7rem;opacity:.7;"></i> ':'')+esc(g.shiftName)+'</td>'+
-      '<td style="padding:3px 8px;text-align:right;font-variant-numeric:tabular-nums;">'+g.pay+' ₼</td>'+
+      '<td style="padding:3px 8px;text-align:right;font-variant-numeric:tabular-nums;'+(g.istirahetLimitli?'color:var(--danger);font-weight:700;':'')+'">'+(g.istirahetLimitli?'limitdən kənar':g.pay+' ₼')+'</td>'+
       '<td style="padding:3px 0 3px 8px;text-align:right;font-variant-numeric:tabular-nums;color:'+(g.taxi?'var(--warning)':(g.taxiLimitli?'var(--danger)':'var(--text-soft)'))+';">'+(g.taxi?'+'+g.taxi+' ₼':(g.taxiLimitli?'limit':'—'))+'</td></tr>';
   }).join('');
   return '<tr class="fa-exp" onclick="faToggle(this)">'+
       '<td data-l="İşçi">'+faEmpCell(r.empName,r.dept)+'</td>'+
       '<td data-l="Vəzifə">'+(r.position?esc(r.position)+'<div class="emp-sub">'+r.rate+' ₼/smen</div>':'<span style="color:var(--warning);font-weight:700;">təyin edilməyib</span>')+'</td>'+
       '<td data-l="Gün" style="text-align:center;"><span class="emp-num">'+r.gunSayi+'</span>'+
-        (r.istirahetGunu?'<div class="emp-sub" style="text-align:center;color:var(--primary);">+'+r.istirahetGunu+' istirahət</div>':'')+'</td>'+
+        (r.istirahetGunu?'<div class="emp-sub" style="text-align:center;color:var(--primary);">+'+r.istirahetGunu+' istirahət</div>':'')+
+        (r.istirahetLimitAsan?'<div class="emp-sub" style="text-align:center;color:var(--danger);font-weight:700;">'+r.istirahetLimitAsan+' limitdən kənar</div>':'')+'</td>'+
       '<td data-l="Smen" style="text-align:center;"><span class="emp-num">'+r.smenSayi+'</span>'+tg+'</td>'+
       '<td data-l="Maaş" style="text-align:right;"><span class="fa-money">'+r.maas+' ₼</span></td>'+
       '<td data-l="Taksi" style="text-align:right;"><span class="fa-money" style="color:'+(r.taksi?'var(--warning)':'var(--text-soft)')+';">'+(r.taksi||'—')+(r.taksi?' ₼':'')+'</span>'+
@@ -1500,8 +1509,9 @@ function maasRenderCfg(){
           '<button class="emp-chip'+(c.restDayPaid?' on':'')+'" onclick="maasSetRest(true)">Ödənilir</button>'+
           '<button class="emp-chip'+(!c.restDayPaid?' on':'')+'" onclick="maasSetRest(false)">Ödənilmir</button>'+
           (c.restDayPaid?'<div class="sh-f" style="margin-left:8px;"><label>Əmsal</label><input type="number" step="0.05" min="0" max="2" value="'+(c.restDayMultiplier==null?1:c.restDayMultiplier)+'" oninput="_maasCfg.restDayMultiplier=parseFloat(this.value)||0" style="width:84px;"></div>':'')+
+          (c.restDayPaid?'<div class="sh-f"><label>Aylıq limit (gün)</label><input type="number" min="0" max="31" value="'+(c.restDayMonthlyLimit==null?12:c.restDayMonthlyLimit)+'" oninput="_maasCfg.restDayMonthlyLimit=parseInt(this.value,10)||0" style="width:110px;"></div>':'')+
         '</div>'+
-        '<div class="sh-hint" style="padding-top:6px;">Cədvəldə <b>İstirahət</b> yazılan gün üçün maaş. Əmsal 1 = tam smen maaşı, 0.5 = yarısı. Taksi verilmir. <b>Boş xanalar ödənilmir</b> — yalnız açıq şəkildə istirahət təyin edilən günlər.</div>'+
+        '<div class="sh-hint" style="padding-top:6px;">Cədvəldə <b>İstirahət</b> yazılan gün üçün maaş. Əmsal 1 = tam smen maaşı, 0.5 = yarısı. Taksi verilmir. <b>Boş xanalar ödənilmir</b> — yalnız açıq şəkildə istirahət təyin edilən günlər.<br>Limit: bir işçiyə ayda ən çoxu bu qədər istirahət günü ödənilir (tarix sırası ilə). Cədvəlin saxlanması <b>bloklanmır</b> — artıq günlər sadəcə ödənilmir və hesabatda göstərilir. 31 = limitsiz.</div>'+
       '</div>'+
     '</div>'+
     '<div class="sh-shift"><div class="sh-head"><span class="sh-name"><i class="fa-solid fa-taxi"></i> Taksi</span></div>'+

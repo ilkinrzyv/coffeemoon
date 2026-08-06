@@ -287,6 +287,12 @@ const DEFAULT_SALARY = {
   // yalnız menecerin açıq şəkildə istirahət təyin etdiyi günlər.
   restDayPaid: true,
   restDayMultiplier: 1,     // 1 = tam smen maaşı; 0.5 desən yarısı ödənilər
+  // Bir işçiyə ayda ən çoxu neçə istirahət günü ÖDƏNİLİR. Cədvəli menecer yazır və
+  // istirahət günü gəliş tələb etmir — tavan olmasa bütün ay istirahət yazılıb işləmədən
+  // tam maaş almaq mümkündür. Cədvəl saxlanması bloklanmır (iş axını sınmasın),
+  // yalnız hesabatda limitdən sonrakı günlər ödənilmir və admin-ə göstərilir.
+  // 31 = praktiki olaraq limitsiz.
+  restDayMonthlyLimit: 12,
 
   // ── Tutulmalar ──
   // Sistem cərimələrinin statusu: unpaid | paid | waived.
@@ -324,6 +330,8 @@ function getSalaryConfig() {
       restDayPaid: typeof (p && p.restDayPaid) === 'boolean' ? p.restDayPaid : base.restDayPaid,
       restDayMultiplier: (Number.isFinite(p && p.restDayMultiplier) && p.restDayMultiplier >= 0 && p.restDayMultiplier <= 2)
         ? p.restDayMultiplier : base.restDayMultiplier,
+      restDayMonthlyLimit: (Number.isFinite(p && p.restDayMonthlyLimit) && p.restDayMonthlyLimit >= 0 && p.restDayMonthlyLimit <= 31)
+        ? Math.round(p.restDayMonthlyLimit) : base.restDayMonthlyLimit,
       fineStatuses: Array.isArray(p && p.fineStatuses) ? p.fineStatuses : base.fineStatuses,
       mgrFinesOnlyAcked: typeof (p && p.mgrFinesOnlyAcked) === 'boolean' ? p.mgrFinesOnlyAcked : base.mgrFinesOnlyAcked,
       avansStatuses: Array.isArray(p && p.avansStatuses) ? p.avansStatuses : base.avansStatuses,

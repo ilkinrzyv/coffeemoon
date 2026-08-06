@@ -226,5 +226,47 @@ check(c2.taxiDepts.indexOf('ZIBIL') < 0, 'keş zəhərləndi — massivə əlav�
 check(U.computeDayPay('Barista', 'Sahil', 'sehersm').pay === 20, 'zəhərlənmiş keş maaş hesabına sızdı');
 U.setSetting('SALARY_CONFIG', '').catch(() => {});
 
+// ── 22) İstirahət gününün aylıq tavanı ──
+// İstirahət günü GƏLİŞ tələb etmir və cədvəli menecer yazır → tavan olmasa bütün ay
+// istirahət yazılıb işləmədən tam maaş almaq olardı.
+console.log('\n22) İstirahət günü aylıq tavanı');
+U.setSetting('SALARY_CONFIG', '').catch(() => {});
+const ci = U.getSalaryConfig();
+check(ci.restDayMonthlyLimit === 12, `defolt tavan 12 olmalıdır, alınan ${ci.restDayMonthlyLimit}`);
+
+// getSalaryReport-dakı istirahət döngüsünün eynisi (tarix sırası ilə, tavana qədər ödənilir)
+function istirahetHesabla(gunSayi, cfg) {
+  let odenildi = 0, kesildi = 0, maas = 0;
+  for (let i = 0; i < gunSayi; i++) {
+    const g = U.computeRestDayPay('Barista', cfg);
+    if (g.pay <= 0 && !cfg.restDayPaid) continue;
+    if (odenildi >= cfg.restDayMonthlyLimit) { kesildi++; continue; }
+    odenildi++; maas += g.pay;
+  }
+  return { odenildi, kesildi, maas: U.round2(maas) };
+}
+const i8 = istirahetHesabla(8, ci);
+check(i8.odenildi === 8 && i8.kesildi === 0, `normal ay (8 istirahət) tam ödənilməlidir, alınan ${i8.odenildi}/${i8.kesildi}`);
+check(i8.maas === 160, `8 gün × 20 ₼ = 160 ₼ olmalıdır, alınan ${i8.maas}`);
+const i12 = istirahetHesabla(12, ci);
+check(i12.kesildi === 0, 'tavanın tam özü (12) hələ kəsilməməlidir');
+const i30 = istirahetHesabla(30, ci);
+check(i30.odenildi === 12 && i30.kesildi === 18, `bütün ay istirahətdə 12 ödənməli, 18 kəsilməli, alınan ${i30.odenildi}/${i30.kesildi}`);
+check(i30.maas === 240, `bütün ay istirahət yazılsa da yalnız 240 ₼ ödənilməlidir, alınan ${i30.maas}`);
+
+// Tavanın konfiqurasiyası
+U.setSetting('SALARY_CONFIG', JSON.stringify({ restDayMonthlyLimit: 5 })).catch(() => {});
+check(U.getSalaryConfig().restDayMonthlyLimit === 5, 'verilən tavan tətbiq olunmur');
+U.setSetting('SALARY_CONFIG', JSON.stringify({ restDayMonthlyLimit: 99 })).catch(() => {});
+check(U.getSalaryConfig().restDayMonthlyLimit === 12, 'həddi aşan tavan (99) ilkin dəyərə qayıtmalıdır');
+U.setSetting('SALARY_CONFIG', JSON.stringify({ restDayMonthlyLimit: -1 })).catch(() => {});
+check(U.getSalaryConfig().restDayMonthlyLimit === 12, 'mənfi tavan ilkin dəyərə qayıtmalıdır');
+U.setSetting('SALARY_CONFIG', JSON.stringify({ restDayMonthlyLimit: 31 })).catch(() => {});
+check(istirahetHesabla(31, U.getSalaryConfig()).kesildi === 0, 'tavan 31 = limitsiz olmalıdır');
+U.setSetting('SALARY_CONFIG', JSON.stringify({ restDayMonthlyLimit: 0 })).catch(() => {});
+const i0 = istirahetHesabla(5, U.getSalaryConfig());
+check(i0.odenildi === 0 && i0.maas === 0, 'tavan 0-da heç bir istirahət günü ödənilməməlidir');
+U.setSetting('SALARY_CONFIG', '').catch(() => {});
+
 console.log(`\n${'═'.repeat(50)}\nNƏTİCƏ: ${pass} keçdi, ${fail} uğursuz`);
 process.exit(fail ? 1 : 0);
