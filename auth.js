@@ -58,8 +58,10 @@ const API_POLICY = {
 
   // ── Hesabat
   getMonthlyReport: 'staff', getWarnings: 'staff',
-  // Maaş — hesabatı panellər görür, dərəcələri yalnız admin dəyişir
-  getSalaryReport: 'staff', getSalaryConfig: 'staff',
+  // Maaş — HAMISI admin. Hesabat bütün filialların maaşını, cərimə səbəblərini və
+  // avanslarını qaytarır; 'staff' olsaydı bir filialın menecer açarı ilə hamısını
+  // çəkmək olardı. Yeganə çağıran admin.html-dir (açarı ADMIN_KEY-dir) → panel eyni işləyir.
+  getSalaryReport: 'admin', getSalaryConfig: 'admin',
   saveSalaryConfig: 'admin', resetSalaryConfig: 'admin',
   getOnlineEmployees: 'staff', getManagersLiveStatus: 'staff',
 

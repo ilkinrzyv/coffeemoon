@@ -72,6 +72,8 @@ const MUST_DENY = [
   'getExecKey', 'getTrainerKey', 'getOpsKey',
   'regenerateExecKey', 'regenerateTrainerKey', 'regenerateOpsKey',
   'recalcAllXP', 'saveAnnouncement', 'getXPAuditLog',
+  'getSalaryReport',         // bütün filialların maaşı + cərimə səbəbləri + avans
+  'getSalaryConfig',         // dərəcələr (kimin nə aldığı)
 ];
 for (const fn of MUST_DENY) {
   check(!auth.apiAccess(fn, '').ok,            `${fn} açarsız keçdi!`);

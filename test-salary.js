@@ -214,5 +214,17 @@ check(U.computeDayPay('Barista', 'Gənclik', 'istirahetsm').pay === 20,
   'computeDayPay istirahət tipini ADİ gün kimi hesablayır — hesabatda computeRestDayPay işlədilməlidir');
 check(U.computeDayPay('Barista', 'Gənclik', 'istirahetsm').taxi === 0, 'istirahət günü heç bir halda taksi almamalıdır');
 
+// Keş zəhərlənməsi — qaytarılan konfiqurasiya dəyişdirilsə sonrakı çağırışlar təmiz qalmalıdır
+console.log('\n21) Konfiqurasiya keşi referans paylaşmır');
+U.setSetting('SALARY_CONFIG', JSON.stringify({ rates: { 'Barista': 20 }, taxi: 7 })).catch(() => {});
+const c1 = U.getSalaryConfig();
+c1.rates.Barista = 999; c1.taxi = 999; c1.taxiDepts.push('ZIBIL');
+const c2 = U.getSalaryConfig();
+check(c2.rates.Barista === 20, `keş zəhərləndi — dərəcə 20 olmalıdır, alınan ${c2.rates.Barista}`);
+check(c2.taxi === 7, `keş zəhərləndi — taksi 7 olmalıdır, alınan ${c2.taxi}`);
+check(c2.taxiDepts.indexOf('ZIBIL') < 0, 'keş zəhərləndi — massivə əlavə edilən filial qaldı');
+check(U.computeDayPay('Barista', 'Sahil', 'sehersm').pay === 20, 'zəhərlənmiş keş maaş hesabına sızdı');
+U.setSetting('SALARY_CONFIG', '').catch(() => {});
+
 console.log(`\n${'═'.repeat(50)}\nNƏTİCƏ: ${pass} keçdi, ${fail} uğursuz`);
 process.exit(fail ? 1 : 0);

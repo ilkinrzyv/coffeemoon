@@ -304,11 +304,14 @@ function shiftMultiplier(shiftType) {
   return shiftType === 'tamgun' ? 2 : 1;
 }
 
+// Keşlənən yalnız PARSE+VALIDASIYA nəticəsidir. Hər çağırışa təzə kopya qaytarılır —
+// çağıran obyekti dəyişsə (məs. cfg.rates.Barista = 0) keş zəhərlənib bütün prosesə
+// yayılmasın deyə. Kopyanın qiyməti ~mikrosaniyədir, `!raw` yolu onsuz da belə edir.
 let _salCfgRaw = null, _salCfgParsed = null;
 function getSalaryConfig() {
   const raw = getSetting('SALARY_CONFIG');
   if (!raw) return JSON.parse(JSON.stringify(DEFAULT_SALARY));
-  if (raw === _salCfgRaw && _salCfgParsed) return _salCfgParsed;
+  if (raw === _salCfgRaw && _salCfgParsed) return JSON.parse(JSON.stringify(_salCfgParsed));
   try {
     const p = JSON.parse(raw);
     const base = JSON.parse(JSON.stringify(DEFAULT_SALARY));
@@ -328,7 +331,7 @@ function getSalaryConfig() {
     // Vəzifə siyahısında olmayan açarları at, çatışmayanı ilkin dəyərlə tamamla
     for (const pos of POSITIONS) if (typeof cfg.rates[pos] !== 'number') cfg.rates[pos] = base.rates[pos];
     _salCfgRaw = raw; _salCfgParsed = cfg;
-    return cfg;
+    return JSON.parse(JSON.stringify(cfg));
   } catch (e) {
     console.error('[SALARY_CONFIG] parse xətası — ilkin dəyərlər işlədilir:', e.message);
     return JSON.parse(JSON.stringify(DEFAULT_SALARY));
