@@ -17,7 +17,7 @@ body{background:var(--bg);color:var(--text-main);min-height:100vh;padding:1.5rem
 header{background:var(--surface);backdrop-filter:blur(30px);border:1px solid var(--border);border-radius:20px;padding:1.2rem 1.5rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:1rem;box-shadow:var(--card-shadow);}
 .logo{font-size:1rem;font-weight:800;display:flex;align-items:center;gap:8px;text-transform:uppercase;letter-spacing:3px;}
 .logo i{color:#854d0e;}
-.dept-badge{background:rgba(99,102,241,0.08);color:var(--primary);border:1px solid rgba(99,102,241,0.15);padding:6px 14px;border-radius:100px;font-size:0.85rem;font-weight:700;display:flex;align-items:center;gap:6px;}
+.dept-badge{background:rgba(var(--primary-rgb),0.08);color:var(--primary);border:1px solid rgba(var(--primary-rgb),0.15);padding:6px 14px;border-radius:100px;font-size:0.85rem;font-weight:700;display:flex;align-items:center;gap:6px;}
 
 .cl-progress-card{background:var(--surface);backdrop-filter:blur(30px);border:1px solid var(--border);border-radius:20px;padding:1.2rem 1.4rem;margin-bottom:1.1rem;box-shadow:var(--card-shadow);}
 .prog-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem;}
@@ -46,7 +46,7 @@ header{background:var(--surface);backdrop-filter:blur(30px);border:1px solid var
 .note-toggle{padding:0 1.1rem;padding-bottom:0;overflow:hidden;max-height:0;transition:max-height 0.3s ease,padding 0.3s ease;}
 .note-toggle.open{max-height:120px;padding-bottom:0.9rem;}
 .note-input{width:100%;border:1px solid rgba(15,23,42,0.08);border-radius:11px;padding:0.65rem 0.9rem;font-size:0.85rem;font-weight:500;color:var(--text-main);resize:none;outline:none;background:#fff;font-family:'Inter',sans-serif;transition:border-color 0.2s;}
-.note-input:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(99,102,241,0.07);}
+.note-input:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(var(--primary-rgb),0.07);}
 .note-input::placeholder{color:#94a3b8;}
 .note-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
 .note-lbl{font-size:0.72rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;}
@@ -61,6 +61,12 @@ header{background:var(--surface);backdrop-filter:blur(30px);border:1px solid var
 
 #clToast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:#0f172a;color:#fff;padding:11px 20px;border-radius:14px;font-size:0.86rem;font-weight:600;z-index:200;opacity:0;transition:all 0.35s cubic-bezier(0.16,1,0.3,1);white-space:nowrap;box-shadow:0 8px 24px rgba(15,23,42,0.2);}
 #clToast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+/* Ehtiyat defoltlar — brend rəngi yoxdursa panelin öz rəngi qalır */
+:root{--primary-rgb:99,102,241;--primary-dark:#4d50bc;--primary-light:rgba(99,102,241,0.08);}
+
+/* Brend rəngi — müştərinin öz rəngi (tenants.brand.themeColor). Sonda durur ki, yuxarıdakı defoltları üstələsin. */
+:root{<?= brandCss ?>}
 </style>
 </head>
 <body>
@@ -248,5 +254,9 @@ function escHtml(s) {
 loadChecklist();
 </script>
 <footer style="text-align:center;padding:18px 0 14px;font-family:Inter,sans-serif;"><div style="font-size:0.72rem;font-weight:600;color:rgba(15,23,42,0.3);letter-spacing:0.01em;">created by <?= brandFooter ?></div><div style="font-size:0.65rem;color:rgba(15,23,42,0.2);margin-top:2px;">version 1.0.1</div></footer>
+
+<!-- Terminologiya: müştərinin dəyişdirdiyi sözlər (yoxdursa skript heç nə etmir) -->
+<script>window.TERMS = JSON.parse(<?= brandTerms_js ?>);</script>
+<script src="/terms.js"></script>
 </body>
 </html>

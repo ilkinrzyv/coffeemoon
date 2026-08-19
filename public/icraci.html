@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
 <title><?= brandName ?> · İcraçı</title>
 <link rel="manifest" href="/icraci-manifest?key=<?= execKey ?>">
-<meta name="theme-color" content="#0d9488">
+<meta name="theme-color" content="var(--primary)">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="İcraçı">
@@ -28,11 +28,11 @@ body{font-family:'Inter',system-ui,sans-serif;background:#f1f5f9;color:var(--tex
 .brand .who{font-size:0.72rem;font-weight:700;color:var(--text-muted);background:#fff;padding:3px 9px;border-radius:100px;border:1px solid var(--border);margin-left:auto;}
 .tabbar{display:flex;flex-wrap:wrap;gap:5px;}
 .tab-btn{flex:1 1 auto;min-width:84px;padding:0.5rem 0.4rem;border:1.5px solid var(--border);border-radius:11px;background:#fff;cursor:pointer;font-size:0.74rem;font-weight:700;color:var(--text-muted);display:flex;align-items:center;justify-content:center;gap:5px;transition:all 0.16s;font-family:inherit;}
-.tab-btn.active{border-color:var(--primary);background:rgba(13,148,136,0.08);color:var(--primary);}
+.tab-btn.active{border-color:var(--primary);background:rgba(var(--primary-rgb),0.08);color:var(--primary);}
 .tab-btn i{font-size:0.82rem;}
 .subtabbar{display:flex;flex-wrap:wrap;gap:5px;margin-top:12px;}
 .subtab{flex:1 1 auto;min-width:78px;padding:0.45rem 0.5rem;border:1.5px solid var(--border);border-radius:10px;background:#fff;cursor:pointer;font-size:0.74rem;font-weight:700;color:var(--text-muted);font-family:inherit;display:flex;align-items:center;justify-content:center;gap:5px;}
-.subtab.active{border-color:var(--primary);background:rgba(13,148,136,0.08);color:var(--primary);}
+.subtab.active{border-color:var(--primary);background:rgba(var(--primary-rgb),0.08);color:var(--primary);}
 .sbadge{background:#fef9c3;color:#854d0e;font-size:0.64rem;font-weight:800;padding:0 6px;border-radius:7px;}
 .iz-row{display:flex;align-items:center;gap:10px;padding:0.6rem 0;border-bottom:1px solid var(--border);}
 .iz-row:last-child{border-bottom:none;}
@@ -50,7 +50,7 @@ select,input[type=date]{border:1.5px solid var(--border);border-radius:11px;padd
 .wklbl{font-weight:800;font-size:0.84rem;flex:1;text-align:center;}
 .pill-bar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;}
 .pill{padding:0.42rem 0.85rem;border:1.5px solid var(--border);border-radius:100px;background:#fff;cursor:pointer;font-size:0.77rem;font-weight:700;color:var(--text-muted);font-family:inherit;}
-.pill.active{border-color:var(--primary);background:rgba(13,148,136,0.08);color:var(--primary);}
+.pill.active{border-color:var(--primary);background:rgba(var(--primary-rgb),0.08);color:var(--primary);}
 
 /* Live */
 .live-emp{display:flex;align-items:center;gap:10px;padding:0.55rem 0;border-bottom:1px solid rgba(15,23,42,0.05);}
@@ -128,7 +128,7 @@ select,input[type=date]{border:1.5px solid var(--border);border-radius:11px;padd
 .sb-s{background:rgba(16,185,129,0.12);color:#059669;}
 .sb-a{background:rgba(99,102,241,0.1);color:#4f46e5;}
 .sb-f{background:rgba(245,158,11,0.13);color:#d97706;}
-.sb-sf{background:rgba(20,184,166,0.1);color:#0d9488;}
+.sb-sf{background:rgba(20,184,166,0.1);color:var(--primary);}
 .sb-tg{background:rgba(192,38,211,0.12);color:#86198f;font-weight:800;}
 .sb-i{background:rgba(239,68,68,0.08);color:#dc2626;}
 .sb-x{color:var(--text-soft);}
@@ -191,7 +191,7 @@ select,input[type=date]{border:1.5px solid var(--border);border-radius:11px;padd
 .yx-sec{display:flex;align-items:center;gap:7px;font-size:0.8rem;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:0.7rem;}
 .yx-chips{display:flex;flex-wrap:wrap;gap:6px;}
 .yx-chip{padding:0.45rem 0.85rem;border:1.5px solid var(--border);border-radius:100px;background:#fff;cursor:pointer;font-size:0.8rem;font-weight:700;color:var(--text-muted);font-family:inherit;}
-.yx-chip.on{border-color:var(--primary);background:rgba(13,148,136,0.09);color:var(--primary);}
+.yx-chip.on{border-color:var(--primary);background:rgba(var(--primary-rgb),0.09);color:var(--primary);}
 .yx-cat{border:1px solid var(--border);border-radius:12px;padding:0.6rem 0.7rem;margin-bottom:8px;}
 .yx-cat-head{display:flex;align-items:center;gap:8px;justify-content:space-between;flex-wrap:wrap;}
 .yx-cat-name{display:flex;align-items:center;gap:7px;font-size:0.85rem;font-weight:700;cursor:pointer;flex:1 1 auto;min-width:120px;}
@@ -228,13 +228,19 @@ select,input[type=date]{border:1.5px solid var(--border);border-radius:11px;padd
 .yx-status.on{display:block;}
 .yx-status.ok{background:rgba(16,185,129,0.1);color:#047857;}
 .yx-status.err{background:rgba(239,68,68,0.1);color:#b91c1c;}
-.yx-status.info{background:rgba(13,148,136,0.09);color:var(--primary);}
+.yx-status.info{background:rgba(var(--primary-rgb),0.09);color:var(--primary);}
 .yx-ov{background:rgba(255,255,255,0.22);padding:2px 9px;border-radius:100px;font-size:0.8rem;}
 .yx-overlay{position:fixed;inset:0;background:rgba(15,23,42,0.45);z-index:200;display:none;align-items:flex-end;justify-content:center;}
 .yx-overlay.on{display:flex;}
 .yx-sheet{background:#fff;width:100%;max-width:520px;border-radius:18px 18px 0 0;padding:1rem 1.1rem 1.4rem;max-height:72vh;overflow-y:auto;}
 .yx-pick{padding:0.62rem 0.7rem;border-bottom:1px solid var(--border);cursor:pointer;font-size:0.87rem;font-weight:600;}
-.yx-pick:active{background:rgba(13,148,136,0.06);}
+.yx-pick:active{background:rgba(var(--primary-rgb),0.06);}
+
+/* Ehtiyat defoltlar — brend rəngi yoxdursa panelin öz rəngi qalır */
+:root{--primary-rgb:13,148,136;--primary-dark:#0a736a;--primary-light:rgba(13,148,136,0.08);}
+
+/* Brend rəngi — müştərinin öz rəngi (tenants.brand.themeColor). Sonda durur ki, yuxarıdakı defoltları üstələsin. */
+:root{<?= brandCss ?>}
 </style>
 </head>
 <body>
@@ -1039,5 +1045,9 @@ setInterval(function(){ if(liveVisible()) loadLive(); }, 60000);            // y
 })();
 </script>
 <div id="toast"></div>
+
+<!-- Terminologiya: müştərinin dəyişdirdiyi sözlər (yoxdursa skript heç nə etmir) -->
+<script>window.TERMS = JSON.parse(<?= brandTerms_js ?>);</script>
+<script src="/terms.js"></script>
 </body>
 </html>

@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Platforma</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+/* Bu panel MÜŞTƏRİ paneli deyil — platformanın sahibinindir.
+   Qəsdən tünd/fərqli görünür ki, səhvən müştəri paneli ilə qarışmasın. */
+:root{
+  --bg:#0f172a; --panel:#1e293b; --panel-2:#273449;
+  --line:rgba(255,255,255,0.08);
+  --txt:#e2e8f0; --muted:#94a3b8; --soft:#64748b;
+  --acc:#38bdf8; --ok:#34d399; --warn:#fbbf24; --bad:#f87171;
+}
+*{box-sizing:border-box;margin:0;padding:0;font-family:'Inter',sans-serif;-webkit-font-smoothing:antialiased;}
+body{background:var(--bg);color:var(--txt);min-height:100vh;padding:1.5rem 1rem 4rem;}
+.wrap{max-width:1080px;margin:0 auto;}
+a{color:var(--acc);}
+
+.head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:1.6rem;}
+.head h1{font-size:1.3rem;font-weight:800;letter-spacing:-0.3px;}
+.head .sub{font-size:0.82rem;color:var(--muted);}
+.logo{width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,var(--acc),#818cf8);display:flex;align-items:center;justify-content:center;font-size:1.1rem;color:#0f172a;flex-shrink:0;}
+
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:1.6rem;}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:0.9rem 1rem;}
+.stat .n{font-size:1.5rem;font-weight:800;line-height:1.1;}
+.stat .l{font-size:0.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-top:3px;}
+
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:1.2rem 1.3rem;margin-bottom:1rem;}
+.card h2{font-size:0.78rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1.4px;margin-bottom:1rem;display:flex;align-items:center;gap:8px;}
+
+/* Müştəri sətri */
+.t-row{background:var(--panel-2);border:1px solid var(--line);border-radius:14px;padding:1rem 1.1rem;margin-bottom:10px;}
+.t-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.t-name{font-weight:700;font-size:1rem;flex:1;min-width:140px;}
+.t-id{font-family:monospace;font-size:0.72rem;color:var(--soft);}
+.badge{font-size:0.68rem;font-weight:700;padding:3px 9px;border-radius:20px;text-transform:uppercase;letter-spacing:0.5px;}
+.b-ok{background:rgba(52,211,153,0.15);color:var(--ok);}
+.b-warn{background:rgba(251,191,36,0.15);color:var(--warn);}
+.b-bad{background:rgba(248,113,113,0.15);color:var(--bad);}
+.b-plan{background:rgba(56,189,248,0.13);color:var(--acc);}
+.t-meta{display:flex;gap:16px;flex-wrap:wrap;font-size:0.8rem;color:var(--muted);margin-top:8px;}
+.t-acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px;padding-top:11px;border-top:1px solid var(--line);}
+
+.btn{border:1px solid var(--line);background:var(--panel);color:var(--txt);padding:0.5rem 0.85rem;border-radius:10px;font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:6px;transition:0.15s;}
+.btn:hover{background:#334155;}
+.btn.primary{background:var(--acc);border-color:var(--acc);color:#0b1120;}
+.btn.primary:hover{filter:brightness(1.1);}
+.btn.danger{color:var(--bad);}
+.btn.danger:hover{background:rgba(248,113,113,0.12);}
+.btn:disabled{opacity:0.5;cursor:not-allowed;}
+
+label{display:block;font-size:0.74rem;font-weight:600;color:var(--muted);margin-bottom:5px;}
+input,select,textarea{width:100%;background:var(--panel-2);border:1px solid var(--line);color:var(--txt);padding:0.65rem 0.8rem;border-radius:10px;font-size:0.88rem;font-family:inherit;outline:none;}
+input:focus,select:focus{border-color:var(--acc);}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-bottom:1rem;}
+.hint{font-size:0.74rem;color:var(--soft);margin-top:4px;}
+
+/* Linklər */
+.lnk{display:flex;align-items:center;gap:8px;background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:0.55rem 0.75rem;margin-bottom:6px;}
+.lnk .r{font-size:0.75rem;font-weight:700;min-width:92px;color:var(--acc);}
+.lnk .u{flex:1;font-family:monospace;font-size:0.72rem;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
+/* Modal */
+.ov{position:fixed;inset:0;background:rgba(2,6,23,0.75);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;padding:1rem;z-index:50;}
+.ov.on{display:flex;}
+.modal{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:1.4rem;max-width:640px;width:100%;max-height:86vh;overflow-y:auto;}
+.modal h3{font-size:1.05rem;font-weight:700;margin-bottom:1rem;}
+
+.msg{padding:0.7rem 0.9rem;border-radius:10px;font-size:0.83rem;font-weight:600;margin-top:0.9rem;display:none;}
+.msg.on{display:block;}
+.msg.ok{background:rgba(52,211,153,0.12);color:var(--ok);}
+.msg.err{background:rgba(248,113,113,0.12);color:var(--bad);}
+.empty{text-align:center;padding:2rem;color:var(--soft);font-size:0.88rem;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="head">
+    <div class="logo"><i class="fa-solid fa-layer-group"></i></div>
+    <div style="flex:1">
+      <h1>Platforma</h1>
+      <div class="sub">Müştəri hesablarının idarəsi</div>
+    </div>
+    <button class="btn" onclick="loadAll()"><i class="fa-solid fa-rotate"></i> Yenilə</button>
+  </div>
+
+  <div class="stats" id="stats"></div>
+
+  <!-- Yeni müştəri -->
+  <div class="card">
+    <h2><i class="fa-solid fa-plus"></i> Yeni müştəri</h2>
+    <div class="grid">
+      <div>
+        <label>Şirkətin adı *</label>
+        <input id="nName" placeholder="Pizza Land">
+      </div>
+      <div>
+        <label>Filiallar (vergüllə)</label>
+        <input id="nBranches" placeholder="Nizami, 28 May">
+        <div class="hint">Boş qalsa: "Əsas filial"</div>
+      </div>
+      <div>
+        <label>Vəzifələr (vergüllə)</label>
+        <input id="nPositions" placeholder="Menecer, Ofisiant, Aşpaz">
+        <div class="hint">Boş qalsa standart dəst</div>
+      </div>
+      <div>
+        <label>Plan</label>
+        <select id="nPlan">
+          <option value="trial">Sınaq</option>
+          <option value="basic">Basic</option>
+          <option value="pro">Pro</option>
+        </select>
+      </div>
+      <div>
+        <label>Sınaq müddəti (gün)</label>
+        <input id="nTrial" type="number" value="30" min="0">
+      </div>
+      <div>
+        <label>İşçi limiti</label>
+        <input id="nMaxEmp" type="number" value="0" min="0">
+        <div class="hint">0 = limitsiz</div>
+      </div>
+    </div>
+    <button class="btn primary" id="createBtn" onclick="createTenant()">
+      <i class="fa-solid fa-building-circle-check"></i> Müştəri yarat
+    </button>
+    <div class="msg" id="createMsg"></div>
+  </div>
+
+  <!-- Müştərilər -->
+  <div class="card">
+    <h2><i class="fa-solid fa-building"></i> Müştərilər <span id="tCount" style="color:var(--soft);font-weight:600;"></span></h2>
+    <div id="tList"><div class="empty"><i class="fa-solid fa-circle-notch fa-spin"></i> Yüklənir...</div></div>
+  </div>
+</div>
+
+<!-- Linklər modalı -->
+<div class="ov" id="linkOv" onclick="if(event.target===this)closeLinks()">
+  <div class="modal">
+    <h3 id="linkTitle">Giriş linkləri</h3>
+    <div id="linkBody"></div>
+    <div style="display:flex;gap:8px;margin-top:1rem;">
+      <button class="btn primary" onclick="copyAllLinks()"><i class="fa-solid fa-copy"></i> Hamısını kopyala</button>
+      <button class="btn" onclick="closeLinks()">Bağla</button>
+    </div>
+    <div class="msg" id="linkMsg"></div>
+  </div>
+</div>
+
+<script src="/gsr-shim.js"></script>
+<script>
+var PLATFORM_KEY = <?= platformKey_js ?>;
+var SCRIPT_URL   = <?= scriptUrl_js ?>;
+
+var tenants = [], lastLinks = null;
+
+function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function msg(id, ok, text){
+  var el = document.getElementById(id);
+  el.className = 'msg on ' + (ok ? 'ok' : 'err');
+  el.innerHTML = text;
+  if (ok) setTimeout(function(){ el.className = 'msg'; }, 6000);
+}
+
+// ── Yükləmə ──────────────────────────────────────────────────────
+function loadAll(){
+  google.script.run.withSuccessHandler(function(r){
+    var s = r || {};
+    document.getElementById('stats').innerHTML =
+      stat(s.tenants, 'Müştəri') + stat(s.active, 'Aktiv') +
+      stat(s.suspended, 'Dayandırılmış') + stat(s.employees, 'İşçi (cəmi)') +
+      stat(s.branches, 'Filial (cəmi)');
+  }).platformStats();
+
+  google.script.run.withSuccessHandler(function(r){
+    tenants = (r && r.tenants) || [];
+    render();
+  }).withFailureHandler(function(){
+    document.getElementById('tList').innerHTML = '<div class="empty">Siyahı yüklənmədi.</div>';
+  }).platformListTenants();
+}
+function stat(n, l){ return '<div class="stat"><div class="n">'+(n||0)+'</div><div class="l">'+l+'</div></div>'; }
+
+function render(){
+  document.getElementById('tCount').textContent = tenants.length ? '· ' + tenants.length : '';
+  if (!tenants.length){
+    document.getElementById('tList').innerHTML = '<div class="empty">Hələ müştəri yoxdur. Yuxarıdan birini yarat.</div>';
+    return;
+  }
+  document.getElementById('tList').innerHTML = tenants.map(function(t){
+    var st = t.status === 'active'
+      ? '<span class="badge b-ok">aktiv</span>'
+      : '<span class="badge b-bad">' + esc(t.status) + '</span>';
+    var trial = '';
+    if (t.plan === 'trial' && t.trialEndsAt){
+      var left = Math.ceil((new Date(t.trialEndsAt) - new Date()) / 86400000);
+      trial = left >= 0
+        ? '<span class="badge b-warn">sınaq · ' + left + ' gün</span>'
+        : '<span class="badge b-bad">sınaq bitib</span>';
+    }
+    return '<div class="t-row">' +
+      '<div class="t-top">' +
+        '<span class="t-name">' + esc(t.name) + ' <span class="t-id">' + esc(t.tenantId) + '</span></span>' +
+        st + '<span class="badge b-plan">' + esc(t.plan) + '</span>' + trial +
+      '</div>' +
+      '<div class="t-meta">' +
+        '<span><i class="fa-solid fa-users"></i> ' + t.employees + ' işçi' + (t.maxEmployees ? ' / ' + t.maxEmployees : '') + '</span>' +
+        '<span><i class="fa-solid fa-store"></i> ' + t.branches + ' filial' + (t.maxBranches ? ' / ' + t.maxBranches : '') + '</span>' +
+        '<span><i class="fa-solid fa-calendar"></i> ' + String(t.createdAt || '').slice(0,10) + '</span>' +
+      '</div>' +
+      '<div class="t-acts">' +
+        '<button class="btn" onclick="showLinks(\'' + t.tenantId + '\')"><i class="fa-solid fa-link"></i> Linklər</button>' +
+        (t.status === 'active'
+          ? '<button class="btn" onclick="setStatus(\'' + t.tenantId + '\',\'suspended\')"><i class="fa-solid fa-pause"></i> Dayandır</button>'
+          : '<button class="btn" onclick="setStatus(\'' + t.tenantId + '\',\'active\')"><i class="fa-solid fa-play"></i> Aktivləşdir</button>') +
+        '<button class="btn" onclick="changePlan(\'' + t.tenantId + '\')"><i class="fa-solid fa-tag"></i> Plan</button>' +
+        '<button class="btn danger" onclick="removeTenant(\'' + t.tenantId + '\')"><i class="fa-solid fa-trash"></i> Sil</button>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+// ── Yeni müştəri ─────────────────────────────────────────────────
+function list(id){
+  return document.getElementById(id).value.split(',').map(function(s){return s.trim();}).filter(Boolean);
+}
+function createTenant(){
+  var name = document.getElementById('nName').value.trim();
+  if (!name) return msg('createMsg', false, 'Şirkətin adını yaz.');
+  var btn = document.getElementById('createBtn');
+  btn.disabled = true;
+  msg('createMsg', true, '<i class="fa-solid fa-circle-notch fa-spin"></i> Yaradılır...');
+
+  google.script.run.withSuccessHandler(function(r){
+    btn.disabled = false;
+    if (!r || !r.success) return msg('createMsg', false, (r && r.reason) || 'Alınmadı.');
+    document.getElementById('nName').value = '';
+    document.getElementById('nBranches').value = '';
+    document.getElementById('nPositions').value = '';
+    msg('createMsg', true, '✅ "' + esc(name) + '" yaradıldı. Linkləri aşağıdan götür.');
+    loadAll();
+    setTimeout(function(){ showLinks(r.tenantId); }, 600);
+  }).withFailureHandler(function(){
+    btn.disabled = false; msg('createMsg', false, 'Server xətası.');
+  }).platformCreateTenant({
+    name: name,
+    branches:  list('nBranches'),
+    positions: list('nPositions'),
+    plan:      document.getElementById('nPlan').value,
+    trialDays: Number(document.getElementById('nTrial').value) || 0,
+    maxEmployees: Number(document.getElementById('nMaxEmp').value) || 0,
+  });
+}
+
+// ── Linklər ──────────────────────────────────────────────────────
+var ROLE_AD = { admin:'Admin', exec:'İcraçı', trainer:'Treninq', ops:'Əməliyyat', manager:'Filial' };
+function showLinks(tid){
+  document.getElementById('linkOv').classList.add('on');
+  document.getElementById('linkBody').innerHTML = '<div class="empty"><i class="fa-solid fa-circle-notch fa-spin"></i></div>';
+  google.script.run.withSuccessHandler(function(r){
+    if (!r) { document.getElementById('linkBody').innerHTML = '<div class="empty">Tapılmadı.</div>'; return; }
+    document.getElementById('linkTitle').textContent = r.name + ' — giriş linkləri';
+    var rows = (r.keys || []).map(function(k){
+      return { label: (ROLE_AD[k.role] || k.role) + (k.branch ? ' · ' + k.branch : ''), url: SCRIPT_URL + k.path + '?key=' + k.key };
+    });
+    rows.push({ label: 'Kiosk (QR)', url: SCRIPT_URL + '/scan?t=' + r.tenantId });
+    rows.push({ label: 'İmtahan',    url: SCRIPT_URL + '/exam?t=' + r.tenantId });
+    lastLinks = r.name + '\n' + rows.map(function(x){ return x.label + ': ' + x.url; }).join('\n');
+    document.getElementById('linkBody').innerHTML = rows.map(function(x){
+      return '<div class="lnk"><span class="r">' + esc(x.label) + '</span>' +
+             '<span class="u">' + esc(x.url) + '</span>' +
+             '<button class="btn" onclick="copyOne(this,\'' + esc(x.url) + '\')"><i class="fa-solid fa-copy"></i></button></div>';
+    }).join('');
+  }).platformTenantKeys(tid);
+}
+function copyOne(btn, url){
+  navigator.clipboard.writeText(url);
+  var old = btn.innerHTML; btn.innerHTML = '<i class="fa-solid fa-check"></i>';
+  setTimeout(function(){ btn.innerHTML = old; }, 1200);
+}
+function copyAllLinks(){
+  if (!lastLinks) return;
+  navigator.clipboard.writeText(lastLinks);
+  msg('linkMsg', true, 'Bütün linklər kopyalandı.');
+}
+function closeLinks(){ document.getElementById('linkOv').classList.remove('on'); }
+
+// ── Statuslar ────────────────────────────────────────────────────
+function setStatus(tid, status){
+  var t = tenants.filter(function(x){return x.tenantId===tid;})[0];
+  if (status === 'suspended' && !confirm('"' + t.name + '" dayandırılsın?\n\nBütün panelləri bağlanacaq. Data silinmir — istənilən vaxt geri açıla bilər.')) return;
+  google.script.run.withSuccessHandler(function(r){
+    if (!r || !r.success) return alert((r && r.reason) || 'Alınmadı.');
+    loadAll();
+  }).platformUpdateTenant(tid, { status: status });
+}
+
+function changePlan(tid){
+  var t = tenants.filter(function(x){return x.tenantId===tid;})[0];
+  var p = prompt('Plan (trial / basic / pro):', t.plan);
+  if (p === null) return;
+  p = p.trim().toLowerCase();
+  if (['trial','basic','pro'].indexOf(p) < 0) return alert('Yalnız: trial, basic, pro');
+  var patch = { plan: p };
+  if (p !== 'trial') patch.trialEndsAt = null;     // ödənişli plana keçəndə sınaq həddi silinir
+  google.script.run.withSuccessHandler(function(r){
+    if (!r || !r.success) return alert((r && r.reason) || 'Alınmadı.');
+    loadAll();
+  }).platformUpdateTenant(tid, patch);
+}
+
+function removeTenant(tid){
+  var t = tenants.filter(function(x){return x.tenantId===tid;})[0];
+  if (!t) return;
+  if (!confirm('⚠️ DİQQƏT\n\n"' + t.name + '" və onun BÜTÜN datası (işçilər, davamiyyət, cədvəl, maaş, hesabatlar) həmişəlik silinəcək.\n\nBu geri qaytarıla bilməz. Davam edilsin?')) return;
+  var typed = prompt('Təsdiq üçün müştərinin adını dəqiq yaz:\n\n' + t.name);
+  if (typed === null) return;
+  google.script.run.withSuccessHandler(function(r){
+    if (!r || !r.success) return alert((r && r.reason) || 'Silinmədi.');
+    loadAll();
+  }).platformDeleteTenant(tid, typed);
+}
+
+loadAll();
+</script>
+</body>
+</html>

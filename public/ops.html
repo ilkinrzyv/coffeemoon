@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
 <title><?= brandName ?> · Əməliyyat</title>
 <link rel="manifest" href="/ops-manifest?key=<?= opsKey ?>">
-<meta name="theme-color" content="#6366f1">
+<meta name="theme-color" content="var(--primary)">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Əməliyyat">
@@ -124,6 +124,12 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
 .ce-row{display:flex;align-items:center;gap:6px;margin-bottom:7px;}
 .ce-row input{flex:1;border:1.5px solid var(--border);border-radius:9px;padding:0.5rem 0.6rem;font-family:inherit;font-size:0.85rem;color:var(--text);min-width:0;}
 .ce-ar{background:#fff;border:1.5px solid var(--border);border-radius:8px;width:32px;height:36px;cursor:pointer;color:var(--muted);flex:none;}
+
+/* Ehtiyat defoltlar — brend rəngi yoxdursa panelin öz rəngi qalır */
+:root{--primary-rgb:99,102,241;--primary-dark:#4d50bc;--primary-light:rgba(99,102,241,0.08);}
+
+/* Brend rəngi — müştərinin öz rəngi (tenants.brand.themeColor). Sonda durur ki, yuxarıdakı defoltları üstələsin. */
+:root{<?= brandCss ?>}
 </style>
 </head>
 <body>
@@ -579,5 +585,9 @@ function updIssue(id,patch){
 }
 
 </script>
+
+<!-- Terminologiya: müştərinin dəyişdirdiyi sözlər (yoxdursa skript heç nə etmir) -->
+<script>window.TERMS = JSON.parse(<?= brandTerms_js ?>);</script>
+<script src="/terms.js"></script>
 </body>
 </html>

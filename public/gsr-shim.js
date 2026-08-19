@@ -20,7 +20,7 @@
     // 1) Qlobal dəyişən (var ilə elan olunanlar window-a düşür)
     //    DEVICE_KEY — filial kiosku: onun "açarı" cihaz ID-sidir. Server bu
     //    ID-dən həm cihazı, həm də hansı müştəriyə aid olduğunu tanıyır.
-    var names = ['ADMIN_KEY', 'BRANCH_KEY', 'TRAINER_KEY', 'EXEC_KEY', 'OPS_KEY', 'SECRET', 'DEVICE_KEY'];
+    var names = ['PLATFORM_KEY', 'ADMIN_KEY', 'BRANCH_KEY', 'TRAINER_KEY', 'EXEC_KEY', 'OPS_KEY', 'SECRET', 'DEVICE_KEY'];
     for (var i = 0; i < names.length; i++) {
       if (window[names[i]]) return String(window[names[i]]);
     }

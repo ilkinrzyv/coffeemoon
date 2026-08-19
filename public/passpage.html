@@ -8,7 +8,7 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
-  :root{--bg:#f8fafc;--card-bg:rgba(255,255,255,0.75);--primary:#6366f1;--primary-light:rgba(99,102,241,0.08);--success:#10b981;--success-light:rgba(16,185,129,0.08);--danger:#ef4444;--danger-light:rgba(239,68,68,0.08);--warning:#f59e0b;--warning-light:rgba(245,158,11,0.08);--text-main:#0f172a;--text-muted:#64748b;--border:rgba(255,255,255,0.6);--card-shadow:0 30px 60px -15px rgba(15,23,42,0.08),0 0 0 1px rgba(15,23,42,0.04);}
+  :root{--bg:#f8fafc;--card-bg:rgba(255,255,255,0.75);--primary:#6366f1;--primary-light:rgba(var(--primary-rgb),0.08);--success:#10b981;--success-light:rgba(16,185,129,0.08);--danger:#ef4444;--danger-light:rgba(239,68,68,0.08);--warning:#f59e0b;--warning-light:rgba(245,158,11,0.08);--text-main:#0f172a;--text-muted:#64748b;--border:rgba(255,255,255,0.6);--card-shadow:0 30px 60px -15px rgba(15,23,42,0.08),0 0 0 1px rgba(15,23,42,0.04);}
   *{box-sizing:border-box;margin:0;padding:0;touch-action:manipulation;font-family:'Inter',sans-serif;-webkit-font-smoothing:antialiased;}
   body{background:var(--bg);color:var(--text-main);display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:20px;overflow:hidden;position:relative;}
   .glow-1{position:fixed;top:-15%;left:-10%;width:60vw;height:60vw;background:#e0e7ff;border-radius:50%;filter:blur(120px);opacity:0.7;z-index:0;}
@@ -25,7 +25,7 @@
   .num-btn.action{font-size:1.3rem;}
   .num-btn.clear{color:var(--text-muted);}
   .num-btn.clear:active{color:var(--danger);background:var(--danger-light);}
-  .num-btn.ok{background:var(--primary);color:#fff;font-weight:600;border:none;box-shadow:0 8px 20px rgba(99,102,241,0.2);}
+  .num-btn.ok{background:var(--primary);color:#fff;font-weight:600;border:none;box-shadow:0 8px 20px rgba(var(--primary-rgb),0.2);}
   .num-btn.ok:active{background:#4f46e5;}
   /* Device screens */
   .loader-screen{text-align:center;padding:2rem 0;}
@@ -40,7 +40,7 @@
   .device-id-box{margin-top:1.5rem;background:rgba(15,23,42,0.03);border:1px solid rgba(15,23,42,0.06);border-radius:14px;padding:1rem 1.2rem;text-align:left;}
   .device-id-lbl{font-size:0.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-bottom:6px;}
   .device-id-val{font-family:monospace;font-size:0.9rem;font-weight:600;color:var(--text-main);word-break:break-all;}
-  .btn-check{margin-top:1.5rem;width:100%;padding:14px;background:var(--primary);color:#fff;border:none;border-radius:16px;font-size:0.95rem;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 8px 20px rgba(99,102,241,0.2);transition:all 0.2s;}
+  .btn-check{margin-top:1.5rem;width:100%;padding:14px;background:var(--primary);color:#fff;border:none;border-radius:16px;font-size:0.95rem;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 8px 20px rgba(var(--primary-rgb),0.2);transition:all 0.2s;}
   .btn-check:hover{background:#4f46e5;}
   .pin-pad{display:none;}
   /* Result overlay */
@@ -61,6 +61,12 @@
   .pin-toggle-btn{margin-top:8px;padding:9px 20px;border:1.5px solid rgba(15,23,42,0.1);border-radius:12px;font-size:0.8rem;font-weight:700;cursor:pointer;background:transparent;color:var(--text-muted);font-family:'Inter',sans-serif;transition:all 0.2s;}
   .pin-toggle-btn:hover{border-color:var(--primary);color:var(--primary);}
   .pin-mode-area{display:none;}
+
+/* Ehtiyat defoltlar — brend rəngi yoxdursa panelin öz rəngi qalır */
+:root{--primary-rgb:99,102,241;--primary-dark:#4d50bc;--primary-light:rgba(99,102,241,0.08);}
+
+/* Brend rəngi — müştərinin öz rəngi (tenants.brand.themeColor). Sonda durur ki, yuxarıdakı defoltları üstələsin. */
+:root{<?= brandCss ?>}
 </style>
 </head>
 <body>
@@ -248,7 +254,7 @@ var BTN_DISMISS =
   '<button onclick="dismissWarning()" '+
   'style="width:100%;padding:14px;border:none;background:var(--primary);color:#fff;'+
   'border-radius:14px;font-size:0.95rem;font-weight:700;cursor:pointer;'+
-  'font-family:\'Inter\',sans-serif;box-shadow:0 6px 14px rgba(99,102,241,0.25);">'+
+  'font-family:\'Inter\',sans-serif;box-shadow:0 6px 14px rgba(var(--primary-rgb),0.25);">'+
   'Anladım</button>';
 
 function showWarning(res){
@@ -331,5 +337,9 @@ function togglePinMode() {
 }
 </script>
 <footer style="text-align:center;padding:18px 0 14px;font-family:Inter,sans-serif;"><div style="font-size:0.72rem;font-weight:600;color:rgba(15,23,42,0.3);letter-spacing:0.01em;">created by <?= brandFooter ?></div><div style="font-size:0.65rem;color:rgba(15,23,42,0.2);margin-top:2px;">version 1.0.1</div></footer>
+
+<!-- Terminologiya: müştərinin dəyişdirdiyi sözlər (yoxdursa skript heç nə etmir) -->
+<script>window.TERMS = JSON.parse(<?= brandTerms_js ?>);</script>
+<script src="/terms.js"></script>
 </body>
 </html>

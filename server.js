@@ -223,6 +223,67 @@ function readTemplate(name) {
 // Şablon dəyərləri təhlükəsiz yerləşdirilir — izahı və qaçış qaydaları tpl.js-də.
 const { htmlEscape, replaceVars } = require('./tpl');
 
+// ── Brend rəngi ──────────────────────────────────────────────────
+//  Panellərin hamısı `--primary` CSS dəyişənindən istifadə edir. Müştərinin
+//  rəngini hər faylda əl ilə dəyişmək əvəzinə `:root` blokunun SONUNA
+//  elan siyahısı yeridirik — sonrakı elan əvvəlkini üstələyir.
+//
+//  Nə üçün <style> teqi yox, elan siyahısı? Çünki şablon dəyərləri HTML-escape
+//  olunur (apostrof tələsinə qarşı). `--primary:#e11d48;` sətrində escape
+//  olunası simvol yoxdur, ona görə təhlükəsiz keçir və ayrıca "xam yerləşdirmə"
+//  mexanizmi açmağa ehtiyaq qalmır.
+function hexToRgb(hex) {
+  let h = String(hex || '').trim().replace('#', '');
+  if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+  if (!/^[0-9a-fA-F]{6}$/.test(h)) return null;
+  return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
+}
+const clamp255 = (n) => Math.max(0, Math.min(255, Math.round(n)));
+const toHex = (rgb) => '#' + rgb.map(n => clamp255(n).toString(16).padStart(2, '0')).join('');
+
+// Rəngdən törəmə çalarlar: tünd (hover/gradient) və şəffaf (fon).
+function brandCssVars(color) {
+  const rgb = hexToRgb(color);
+  if (!rgb) return '';                       // yanlış dəyər → panelin öz rəngi qalır
+  const dark = rgb.map(n => n * 0.78);
+  return [
+    `--primary:${toHex(rgb)}`,
+    `--primary-dark:${toHex(dark)}`,
+    `--primary-light:rgba(${rgb[0]},${rgb[1]},${rgb[2]},0.08)`,
+    `--primary-rgb:${rgb[0]},${rgb[1]},${rgb[2]}`,
+  ].join(';') + ';';
+}
+
+// ── Terminologiya ────────────────────────────────────────────────
+//  Sistem kofeşop lüğəti ilə yazılıb. Mağaza/ofis/restoran üçün bəzi sözlər
+//  uyğun gəlmir, ona görə müştəri onları dəyişə bilir.
+//  Dəyişdirilməyən sözlər GÖNDƏRİLMİR — belədə brauzerdəki `terms.js` boş
+//  siyahı görüb heç nə etmir (defolt müştərilər üçün sıfır risk).
+const DEFAULT_TERMS = {
+  'Filial':  'Filial',
+  'Nahar':   'Nahar',
+  'Avans':   'Avans',
+  'Smen':    'Smen',
+  'İşçi':    'İşçi',
+  'İdarəçi': 'İdarəçi',
+  'İzin':    'İzin',
+  'Cərimə':  'Cərimə',
+  'Çeklist': 'Çeklist',
+  'Maaş':    'Maaş',
+};
+
+// Yalnız HƏQİQƏTƏN dəyişdirilmiş sözləri qaytarır.
+function termOverrides() {
+  const t = T.currentTenant();
+  const custom = (t && t.brand && t.brand.terms) || {};
+  const out = {};
+  for (const key of Object.keys(DEFAULT_TERMS)) {
+    const v = String(custom[key] || '').trim();
+    if (v && v.toLowerCase() !== key.toLowerCase()) out[key] = v;
+  }
+  return out;
+}
+
 // Hər panel şablonuna müştərinin brendi əlavə olunur (başlıq, rəng, ikon, footer).
 function brandVars() {
   const b = T.brand();
@@ -233,6 +294,8 @@ function brandVars() {
     brandColor: b.themeColor,
     brandBg:    b.bgColor,
     brandFooter: b.footer,
+    brandCss:   brandCssVars(b.themeColor),
+    brandTerms: JSON.stringify(termOverrides()),
     tenantId:   (t && t.tenant_id) || '',
   };
 }
@@ -434,6 +497,22 @@ app.get('/ops-manifest', tenantPage(['ops'], (req, res) => {
     bg: '#0b1020', theme: '#6366f1',
   });
 }));
+
+// ── PLATFORMA PANELİ ──────────────────────────────────────────────
+//  Bu, MÜŞTƏRİ paneli deyil — platformanın sahibinindir (sən).
+//  Müştəri kontekstindən KƏNARDA işləyir: bütün müştəriləri görür.
+//  Ona görə `tenantPage()` işlədilmir — orada tenant konteksti qurulur.
+app.get('/platform', (req, res) => {
+  const key = String(req.query.key || '');
+  if (!T.PLATFORM_KEY) {
+    return denied(res, 'Platforma paneli bağlıdır — serverdə PLATFORM_KEY təyin edilməyib.');
+  }
+  if (key !== T.PLATFORM_KEY) return denied(res, 'İcazəsiz giriş.');
+  res.send(replaceVars(readTemplate('platform.html'), {
+    platformKey: key,
+    scriptUrl:   scriptUrlOf(req),
+  }));
+});
 
 // ── KÖK ───────────────────────────────────────────────────────────
 //  ƏVVƏL: `/` → `/admin?key=${ADMIN_KEY}` yönləndirirdi, yəni saytı açan
@@ -1353,13 +1432,31 @@ API.getTenantInfo = async () => {
 API.saveTenantBrand = async (brand) => {
   const tid = T.tenantId();
   const cur = (T.currentTenant() || {}).brand || {};
+
+  // Rəng yalnız #rrggbb formatında qəbul olunur — CSS-ə yeridiləcəyi üçün
+  // ixtiyari mətn buraxsaq stil qaydası pozula bilər.
+  const color = String(brand?.themeColor ?? cur.themeColor ?? '').trim();
+  const safeColor = /^#[0-9a-fA-F]{6}$/.test(color) ? color : (cur.themeColor || '#5b5ef4');
+
+  // Terminologiya: yalnız tanınan açarlar, hər biri qısa mətn.
+  // Göndərilməyibsə mövcud dəst saxlanılır (brend formu ilə ayrıca saxlanılır).
+  let terms = cur.terms || {};
+  if (brand && brand.terms && typeof brand.terms === 'object') {
+    terms = {};
+    for (const key of Object.keys(DEFAULT_TERMS)) {
+      const v = String(brand.terms[key] || '').trim().slice(0, 30);
+      if (v) terms[key] = v;
+    }
+  }
+
   const next = {
     ...cur,
     displayName: String(brand?.displayName ?? cur.displayName ?? '').slice(0, 60),
     icon:        String(brand?.icon        ?? cur.icon        ?? '').slice(0, 60),
-    themeColor:  String(brand?.themeColor  ?? cur.themeColor  ?? '').slice(0, 20),
+    themeColor:  safeColor,
     bgColor:     String(brand?.bgColor     ?? cur.bgColor     ?? '').slice(0, 20),
     footer:      String(brand?.footer      ?? cur.footer      ?? '').slice(0, 80),
+    terms,
   };
   const { error } = await sb.from('tenants').update({ brand: next }).eq('tenant_id', tid);
   if (error) return { success: false, reason: error.message };
