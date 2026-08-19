@@ -6,15 +6,21 @@ require('dotenv').config();
 const express  = require('express');
 const path     = require('path');
 const fs       = require('fs');
-const sb       = require('./db');
 const U        = require('./utils');
 const webpush  = require('web-push');
 
-const app       = express();
-const PORT      = process.env.PORT || 3000;
-const ADMIN_KEY = process.env.ADMIN_KEY || 'coffeemoon';
+// ── Çox-müştərili qat ─────────────────────────────────────────────
+//  T   — müştəri konteksti, parametrlər, filiallar, açarlar (tenant.js)
+//  db  — avto-scope edən DB klienti (tdb.js). Xam `sb` BURADA İŞLƏDİLMİR:
+//        hər sorğuya tenant filtri özü qoşulur, kontekst yoxdursa xəta atır.
+//  raw — yalnız `tenants`/`auth_keys` üçün (platforma əməliyyatları).
+const T = require('./tenant');
+const { db, raw: sb } = require('./tdb');
 
-// API təhlükəsizlik qatı — icazə cədvəli və rol həlli auth.js-dədir.
+const app  = express();
+const PORT = process.env.PORT || 3000;
+
+// API təhlükəsizlik qatı — icazə cədvəli auth.js-dədir.
 const auth = require('./auth');
 
 // Nahar limiti (dəqiqə): yalnız gec qayıdış bildirişi + nahar jurnalı üçün (XP ilə bağlı deyil — nahar XP-si ləğv edilib)
@@ -58,7 +64,7 @@ async function sendPushToEmployee(empId, title, body, extra = {}) {
       ).catch(async err => {
         // 410 Gone = abunəlik artıq etibarsızdır, sil
         if (err.statusCode === 410) {
-          await sb.from('push_subscriptions').delete().eq('endpoint', sub.endpoint);
+          await db().from('push_subscriptions').delete().eq('endpoint', sub.endpoint);
         }
       }))
     );
@@ -90,7 +96,7 @@ async function sendPushToTrainer(title, body, extra = {}) {
 async function sendPushToAll(title, body, extra = {}) {
   if (!process.env.VAPID_PUBLIC_KEY) { console.warn('[Push-all] VAPID açarı yoxdur — göndərilmədi'); return { sent: 0, total: 0 }; }
   try {
-    const { data: subs, error } = await sb.from('push_subscriptions').select('*');
+    const { data: subs, error } = await db().from('push_subscriptions').select('*');
     if (error) { console.error('[Push-all] abunəlik sorğusu xətası:', error.message); return { sent: 0, total: 0 }; }
     if (!subs?.length) { console.warn('[Push-all] heç bir abunəlik tapılmadı — push göndərilmədi'); return { sent: 0, total: 0 }; }
     const payload = JSON.stringify({
@@ -108,7 +114,7 @@ async function sendPushToAll(title, body, extra = {}) {
         } catch (err) {
           // 410 Gone = abunəlik etibarsızdır, sil
           if (err.statusCode === 410) {
-            await sb.from('push_subscriptions').delete().eq('endpoint', sub.endpoint);
+            await db().from('push_subscriptions').delete().eq('endpoint', sub.endpoint);
           }
           console.warn(`[Push-all] abunəlik xətası (status ${err.statusCode || '?'}): ${String(err.body || err.message || '').slice(0, 120)}`);
           return false;
@@ -124,14 +130,29 @@ async function sendPushToAll(title, body, extra = {}) {
   }
 }
 
+// Cədvəldə smen yazılmayıbsa smenin neçə saat olduğunu təxmin edir.
+// ƏVVƏL: `(dept === 'Ağ Şəhər' || dept === 'Gənclik') ? 9 : 8` — filial adları
+// koda mıxlanmışdı. İNDİ: filialın öz konfiqurasiyasındakı səhər smeninin
+// müddəti götürülür (o da yoxdursa 8 saat).
+function fallbackShiftHours(dept) {
+  const si = U.getShiftInfo(dept, 'sehersm');
+  return (si && si.durH) || 8;
+}
+
 // ── Gecəlik avtomatik smen bağlama ───────────────────────────────
+//  Fon işidir — sorğu konteksti yoxdur, ona görə hər müştərini bir-bir
+//  öz kontekstində gəzirik. Birində xəta olsa qalanları dayanmır.
 async function autoCloseShifts() {
+  await T.forEachTenant(() => autoCloseShiftsForTenant());
+}
+
+async function autoCloseShiftsForTenant() {
   const now      = new Date();
   const todayStr = U.getLogicalDateStr(now);
 
   // Yalnız son 3 günün qeydləri lazımdır (əvvəlki gecənin açıq smenləri)
   const cutoff = new Date(now.getTime() - 3 * 86400000).toISOString();
-  const { data: logs } = await sb.from('attendance').select('*').gte('timestamp', cutoff).order('timestamp');
+  const { data: logs } = await db().from('attendance').select('*').gte('timestamp', cutoff).order('timestamp');
   if (!logs?.length) return;
 
   const byEmpDay = {};
@@ -151,9 +172,9 @@ async function autoCloseShifts() {
   for (const entry of Object.values(byEmpDay)) {
     if (entry.dayStr === todayStr || !entry.gelis || entry.cixis) continue;
     const si   = entry.gelisRow?.shift_type ? U.getShiftInfo(entry.dept, entry.gelisRow.shift_type) : null;
-    const reqH = si ? si.durH : ((entry.dept === 'Ağ Şəhər' || entry.dept === 'Gənclik') ? 9 : 8);
+    const reqH = si ? si.durH : fallbackShiftHours(entry.dept);
     const expectedEnd = new Date(entry.gelis.getTime() + reqH * 3600000);
-    await sb.from('attendance').insert({
+    await db().from('attendance').insert({
       emp_id:     entry.empId,
       emp_name:   entry.empName,
       dept:       entry.dept,
@@ -198,10 +219,55 @@ app.use(express.static(path.join(__dirname, 'public')));
 function readTemplate(name) {
   return fs.readFileSync(path.join(__dirname, 'public', name), 'utf8');
 }
-function replaceVars(html, vars) {
-  return Object.entries(vars).reduce(
-    (h, [k, v]) => h.replace(new RegExp(`<\\?= ${k} \\?>`, 'g'), v), html
+
+// Şablon dəyərləri təhlükəsiz yerləşdirilir — izahı və qaçış qaydaları tpl.js-də.
+const { htmlEscape, replaceVars } = require('./tpl');
+
+// Hər panel şablonuna müştərinin brendi əlavə olunur (başlıq, rəng, ikon, footer).
+function brandVars() {
+  const b = T.brand();
+  const t = T.currentTenant();
+  return {
+    brandName:  b.name,
+    brandIcon:  b.icon,
+    brandColor: b.themeColor,
+    brandBg:    b.bgColor,
+    brandFooter: b.footer,
+    tenantId:   (t && t.tenant_id) || '',
+  };
+}
+
+// ── Səhifə marşrutları üçün müştəri konteksti ─────────────────────
+//  Panel URL-i açarı daşıyır (?key= / ?secret=). Açar həm KİM olduğunu, həm də
+//  HANSI MÜŞTƏRİ olduğunu bildirir — ona görə subdomain məcburi deyil, mövcud
+//  linklər və quraşdırılmış PWA-lar olduğu kimi işləyir.
+//
+//  `roles` — bu səhifəyə hansı rollar buraxılır.
+//  `fn(req, res, rec)` yalnız açar etibarlı olduqda və müştəri aktivdirsə işləyir.
+function denied(res, msg) {
+  res.status(403).send(
+    `<h2 style="color:#b91c1c;font-family:system-ui,sans-serif;padding:2rem">${htmlEscape(msg)}</h2>`
   );
+}
+
+function tenantPage(roles, fn) {
+  return async (req, res) => {
+    const key = String(req.query.key || req.query.secret || '');
+    if (!key) return denied(res, 'İcazəsiz giriş.');
+    let rec;
+    try { rec = await T.resolveKey(key); }
+    catch (e) { console.error('[Page] açar həlli:', e.message); return denied(res, 'Sistem xətası.'); }
+
+    if (!rec || !roles.includes(rec.role)) return denied(res, 'İcazəsiz giriş.');
+
+    const usable = T.tenantUsable(rec.tenantId);
+    if (!usable.ok) return denied(res, usable.reason);
+
+    return T.run({ tenantId: rec.tenantId, role: rec.role, branchId: rec.branchId }, async () => {
+      try { await fn(req, res, rec); }
+      catch (e) { console.error('[Page]', e.message); if (!res.headersSent) denied(res, 'Sistem xətası.'); }
+    });
+  };
 }
 
 // VAPID açıq açarı — frontend abunəlik üçün istifadə edir
@@ -209,190 +275,191 @@ app.get('/vapid-public-key', (_, res) =>
   res.json({ publicKey: process.env.VAPID_PUBLIC_KEY || '' })
 );
 
-app.get('/scan',  (_, res) => res.send(readTemplate('passpage.html')));
-
-app.get('/mycode', (req, res) => {
-  const { secret = '', name = 'İşçi' } = req.query;
-  res.send(replaceVars(readTemplate('mycode.html'), { secret, empName: name }));
-});
-
-app.get('/mycode-manifest', (req, res) => {
-  const { secret = '', name = 'İşçi' } = req.query;
-  const startUrl = `/mycode?secret=${encodeURIComponent(secret)}&name=${encodeURIComponent(name)}`;
+// PWA manifesti — brend müştəridən gəlir (əvvəl "Coffeemoon" hardcode idi).
+function sendManifest(res, { title, short, desc, startUrl, bg, theme }) {
+  const b = T.brand();
   res.setHeader('Content-Type', 'application/manifest+json');
   res.json({
-    name: `Coffeemoon · ${name}`,
-    short_name: name,
-    description: 'Coffeemoon işçi qeydiyyat kartı',
+    name: `${b.name} · ${title}`,
+    short_name: short,
+    description: desc,
     start_url: startUrl,
     display: 'standalone',
-    background_color: '#f0f2f8',
-    theme_color: '#5b5ef4',
+    background_color: bg || b.bgColor,
+    theme_color: theme || b.themeColor,
     orientation: 'portrait',
     icons: [
       { src: '/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
       { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
     ],
   });
-});
+}
 
-app.get('/checklist', (req, res) => {
-  const { key = '' } = req.query;
-  const check = U.validateBranchScheduleKey(key);
-  if (!check.valid) return res.send('<h2 style="color:red;font-family:sans-serif;padding:2rem">İcazəsiz giriş.</h2>');
+const scriptUrlOf = (req) => `${req.protocol}://${req.get('host')}`;
+
+// ── AÇARSIZ SƏHIFƏLƏR ─────────────────────────────────────────────
+//  `/scan` (kiosk) və `/exam` (işçi imtahanı) açar daşımır. Onlar hansı
+//  müştəriyə aid olduğunu `?t=<slug>` ilə bildirir; səhifə bunu yadda saxlayır
+//  və sonrakı API çağırışlarında `X-CM-Tenant` başlığı kimi göndərir.
+//  DİQQƏT: bu göstərici YALNIZ 'public' səviyyəli funksiyalarda qəbul olunur —
+//  açardan gələn müştərini heç vaxt üstələyə bilmir (aşağıda dispatcher-ə bax).
+function tenantFromHint(req) {
+  const hint = String(req.get('X-CM-Tenant') || req.query.t || '').trim();
+  if (!hint) return null;
+  if (T.getTenant(hint)) return hint;                 // birbaşa tenant_id
+  const bySlug = T.allTenants().find(x => x.slug === hint);
+  return bySlug ? bySlug.tenant_id : null;
+}
+
+// Açarsız səhifəni müştəri kontekstində göstərir (brend üçün).
+function hintedPage(file, extraVars) {
+  return (req, res) => {
+    const tid = tenantFromHint(req);
+    if (!tid) return denied(res, 'Ünvan natamamdır — hesab göstərilməyib.');
+    const usable = T.tenantUsable(tid);
+    if (!usable.ok) return denied(res, usable.reason);
+    T.run({ tenantId: tid, role: 'public', branchId: null }, () => {
+      res.send(replaceVars(readTemplate(file), {
+        ...brandVars(),
+        ...(extraVars ? extraVars(req) : {}),
+        tenantHint: tid,
+        scriptUrl: scriptUrlOf(req),
+      }));
+    });
+  };
+}
+
+app.get('/scan', hintedPage('passpage.html'));
+app.get('/exam', hintedPage('exam.html'));
+
+// ── İŞÇİ KARTI ────────────────────────────────────────────────────
+app.get('/mycode', tenantPage(['employee'], (req, res) => {
+  const { secret = '', name = 'İşçi' } = req.query;
+  res.send(replaceVars(readTemplate('mycode.html'), {
+    ...brandVars(), secret, empName: name, scriptUrl: scriptUrlOf(req),
+  }));
+}));
+
+app.get('/mycode-manifest', tenantPage(['employee'], (req, res) => {
+  const { secret = '', name = 'İşçi' } = req.query;
+  sendManifest(res, {
+    title: name, short: name, desc: 'İşçi qeydiyyat kartı',
+    startUrl: `/mycode?secret=${encodeURIComponent(secret)}&name=${encodeURIComponent(name)}`,
+  });
+}));
+
+// ── MENECER ───────────────────────────────────────────────────────
+app.get('/checklist', tenantPage(['manager'], (req, res, rec) => {
+  const b = T.branchBySlug(rec.branchId);
   res.send(replaceVars(readTemplate('checklist.html'), {
-    branchKey: key, dept: check.dept,
-    scriptUrl: `${req.protocol}://${req.get('host')}`,
+    ...brandVars(), branchKey: req.query.key, dept: (b && b.name) || '',
+    scriptUrl: scriptUrlOf(req),
   }));
-});
+}));
 
-app.get('/manager-manifest', (req, res) => {
-  const { key = '' } = req.query;
-  const check = U.validateBranchScheduleKey(key);
-  const dept = check.valid ? check.dept : 'Menecer';
-  const startUrl = `/manager?key=${encodeURIComponent(key)}`;
-  res.setHeader('Content-Type', 'application/manifest+json');
-  res.json({
-    name: `Coffeemoon · ${dept}`,
-    short_name: dept,
-    description: 'Coffeemoon menecer paneli',
-    start_url: startUrl,
-    display: 'standalone',
-    background_color: '#f0f2f8',
-    theme_color: '#5b5ef4',
-    orientation: 'portrait',
-    icons: [
-      { src: '/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
-      { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
-    ],
-  });
-});
-
-app.get('/manager', (req, res) => {
-  const { key = '' } = req.query;
-  const check = U.validateBranchScheduleKey(key);
-  if (!check.valid) return res.send('<h2 style="color:red;font-family:sans-serif;padding:2rem">İcazəsiz giriş.</h2>');
+app.get('/manager', tenantPage(['manager'], (req, res, rec) => {
+  const b = T.branchBySlug(rec.branchId);
   res.send(replaceVars(readTemplate('manager.html'), {
-    branchKey: key, dept: check.dept,
-    scriptUrl: `${req.protocol}://${req.get('host')}`,
+    ...brandVars(), branchKey: req.query.key, dept: (b && b.name) || '',
+    scriptUrl: scriptUrlOf(req),
   }));
-});
+}));
 
-app.get('/admin', (req, res) => {
-  if (req.query.key !== ADMIN_KEY)
-    return res.send('<h2 style="color:red;font-family:sans-serif;padding:2rem">İcazə yoxdur.</h2>');
+app.get('/manager-manifest', tenantPage(['manager'], (req, res, rec) => {
+  const b = T.branchBySlug(rec.branchId);
+  const dept = (b && b.name) || 'Menecer';
+  sendManifest(res, {
+    title: dept, short: dept, desc: 'Menecer paneli',
+    startUrl: `/manager?key=${encodeURIComponent(req.query.key || '')}`,
+  });
+}));
+
+// ── ADMİN ─────────────────────────────────────────────────────────
+app.get('/admin', tenantPage(['admin'], (req, res) => {
   res.send(replaceVars(readTemplate('admin.html'), {
-    adminKey:  ADMIN_KEY,
-    scriptUrl: `${req.protocol}://${req.get('host')}`,
+    ...brandVars(), adminKey: req.query.key, scriptUrl: scriptUrlOf(req),
   }));
-});
+}));
 
-app.get('/trainer-manifest', (req, res) => {
-  const { key = '' } = req.query;
-  const startUrl = `/trainer?key=${encodeURIComponent(key)}`;
-  res.setHeader('Content-Type', 'application/manifest+json');
-  res.json({
-    name: 'Coffeemoon · Training',
-    short_name: 'Training',
-    description: 'Coffeemoon təlim meneceri paneli',
-    start_url: startUrl,
-    display: 'standalone',
-    background_color: '#f0f4f8',
-    theme_color: '#0d9488',
-    orientation: 'portrait',
-    icons: [
-      { src: '/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
-      { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
-    ],
-  });
-});
-
-app.get('/trainer', (req, res) => {
-  const { key = '' } = req.query;
-  const trainerKey = U.getSetting('TRAINER_KEY');
-  if (!trainerKey || trainerKey !== key)
-    return res.send('<h2 style="color:red;font-family:sans-serif;padding:2rem">İcazəsiz giriş.</h2>');
-  const trainerName = U.getSetting('TRAINER_NAME') || 'Treninq Meneceri';
+// ── TRAINER ───────────────────────────────────────────────────────
+app.get('/trainer', tenantPage(['trainer'], (req, res) => {
   res.send(replaceVars(readTemplate('trainer.html'), {
-    trainerKey:  key,
-    trainerName: trainerName,
-    scriptUrl:   `${req.protocol}://${req.get('host')}`,
+    ...brandVars(),
+    trainerKey:  req.query.key,
+    trainerName: U.getSetting('TRAINER_NAME') || 'Treninq Meneceri',
+    scriptUrl:   scriptUrlOf(req),
   }));
-});
+}));
 
-app.get('/icraci-manifest', (req, res) => {
-  const { key = '' } = req.query;
-  const startUrl = `/icraci?key=${encodeURIComponent(key)}`;
-  res.setHeader('Content-Type', 'application/manifest+json');
-  res.json({
-    name: 'Coffeemoon · İcraçı',
-    short_name: 'İcraçı',
-    description: 'Coffeemoon icraçı paneli',
-    start_url: startUrl,
-    display: 'standalone',
-    background_color: '#f1f5f9',
-    theme_color: '#0d9488',
-    orientation: 'portrait',
-    icons: [
-      { src: '/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
-      { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
-    ],
+app.get('/trainer-manifest', tenantPage(['trainer'], (req, res) => {
+  sendManifest(res, {
+    title: 'Training', short: 'Training', desc: 'Təlim meneceri paneli',
+    startUrl: `/trainer?key=${encodeURIComponent(req.query.key || '')}`,
+    bg: '#f0f4f8', theme: '#0d9488',
   });
-});
+}));
 
-app.get('/icraci', (req, res) => {
-  const { key = '' } = req.query;
-  const execKey = U.getSetting('EXEC_KEY');
-  if (!execKey || execKey !== key)
-    return res.send('<h2 style="color:red;font-family:sans-serif;padding:2rem">İcazəsiz giriş.</h2>');
-  const execName = U.getSetting('EXEC_NAME') || 'İcraçı';
+// ── İCRAÇI ────────────────────────────────────────────────────────
+app.get('/icraci', tenantPage(['exec'], (req, res) => {
   res.send(replaceVars(readTemplate('icraci.html'), {
-    execKey:   key,
-    execName:  execName,
-    scriptUrl: `${req.protocol}://${req.get('host')}`,
+    ...brandVars(),
+    execKey:   req.query.key,
+    execName:  U.getSetting('EXEC_NAME') || 'İcraçı',
+    scriptUrl: scriptUrlOf(req),
   }));
-});
+}));
 
-app.get('/ops-manifest', (req, res) => {
-  const { key = '' } = req.query;
-  const startUrl = `/ops?key=${encodeURIComponent(key)}`;
-  res.setHeader('Content-Type', 'application/manifest+json');
-  res.json({
-    name: 'Coffeemoon · Əməliyyat',
-    short_name: 'Əməliyyat',
-    description: 'Coffeemoon əməliyyat meneceri paneli',
-    start_url: startUrl,
-    display: 'standalone',
-    background_color: '#0b1020',
-    theme_color: '#6366f1',
-    orientation: 'portrait',
-    icons: [
-      { src: '/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
-      { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
-    ],
+app.get('/icraci-manifest', tenantPage(['exec'], (req, res) => {
+  sendManifest(res, {
+    title: 'İcraçı', short: 'İcraçı', desc: 'İcraçı paneli',
+    startUrl: `/icraci?key=${encodeURIComponent(req.query.key || '')}`,
+    bg: '#f1f5f9', theme: '#0d9488',
   });
-});
+}));
 
-app.get('/ops', (req, res) => {
-  const { key = '' } = req.query;
-  const opsKey = U.getSetting('OPS_KEY');
-  if (!opsKey || opsKey !== key)
-    return res.send('<h2 style="color:red;font-family:sans-serif;padding:2rem">İcazəsiz giriş.</h2>');
-  const opsName = U.getSetting('OPS_NAME') || 'Əməliyyat meneceri';
+// ── ƏMƏLİYYAT (OPS) ───────────────────────────────────────────────
+app.get('/ops', tenantPage(['ops'], (req, res) => {
   res.send(replaceVars(readTemplate('ops.html'), {
-    opsKey:    key,
-    opsName:   opsName,
-    scriptUrl: `${req.protocol}://${req.get('host')}`,
+    ...brandVars(),
+    opsKey:    req.query.key,
+    opsName:   U.getSetting('OPS_NAME') || 'Əməliyyat meneceri',
+    scriptUrl: scriptUrlOf(req),
   }));
+}));
+
+app.get('/ops-manifest', tenantPage(['ops'], (req, res) => {
+  sendManifest(res, {
+    title: 'Əməliyyat', short: 'Əməliyyat', desc: 'Əməliyyat meneceri paneli',
+    startUrl: `/ops?key=${encodeURIComponent(req.query.key || '')}`,
+    bg: '#0b1020', theme: '#6366f1',
+  });
+}));
+
+// ── KÖK ───────────────────────────────────────────────────────────
+//  ƏVVƏL: `/` → `/admin?key=${ADMIN_KEY}` yönləndirirdi, yəni saytı açan
+//  HƏR KƏS admin açarını URL-də görürdü. Çox-müştərili sistemdə bu ölümcül
+//  olardı. İndi kök sadəcə neytral səhifədir.
+app.get('/', (_req, res) => {
+  res.type('html').send(
+    `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+     <title>Workforce</title>
+     <div style="font-family:system-ui,sans-serif;display:flex;height:90vh;align-items:center;justify-content:center;text-align:center;color:#334155">
+       <div><div style="font-size:2rem;margin-bottom:.4rem">👋</div>
+       <div style="font-weight:600">Panelinizə giriş linki ilə daxil olun.</div>
+       <div style="font-size:.85rem;color:#94a3b8;margin-top:.3rem">Linkiniz yoxdursa idarəçinizlə əlaqə saxlayın.</div></div>
+     </div>`
+  );
 });
-
-app.get('/exam', (req, res) => res.send(readTemplate('exam.html')));
-
-app.get('/', (req, res) => res.redirect(`/admin?key=${ADMIN_KEY}`));
 
 // ══════════════════════════════════════════════════════════════════
 //  API MARŞRUTU
 // ══════════════════════════════════════════════════════════════════
+//  Hər sorğuda ardıcıllıq:
+//    1. Açarı həll et → { tenantId, role }
+//    2. Müştəri aktivdirmi? (dayandırılıbsa buraxma)
+//    3. Rol bu funksiyanı çağıra bilirmi?
+//    4. Funksiyanı MÜŞTƏRİ KONTEKSTİNDƏ işlət → bütün DB sorğuları avtomatik
+//       həmin müştəri ilə məhdudlaşır (tdb.js)
 
 app.post('/api/:fn', async (req, res) => {
   const fn   = req.params.fn;
@@ -401,14 +468,37 @@ app.post('/api/:fn', async (req, res) => {
     const handler = API[fn];
     if (!handler) return res.status(404).json({ error: 'Funksiya tapılmadı: ' + fn });
 
-    const acc = auth.apiAccess(fn, req.get('X-CM-Key') || '');
+    const rec   = await T.resolveKey(req.get('X-CM-Key') || '');
+    const level = auth.API_POLICY[fn];
+
+    // Müştərini tap: əvvəl açardan, yoxdursa yalnız 'public' funksiyalar üçün
+    // səhifənin göstəricisindən. Göstərici açarı ÜSTƏLƏYƏ BİLMİR.
+    let tenantId = rec && rec.tenantId;
+    if (!tenantId && level === 'public') tenantId = tenantFromHint(req);
+
+    if (rec && rec.role === 'platform') {
+      // Platforma açarı müştəri kontekstindən kənardır — yalnız platform API-ləri.
+      const acc = auth.apiAccess(fn, rec);
+      if (!acc.ok) return res.status(403).json({ error: 'İcazəsiz.' });
+      const result = await handler(...args);
+      return res.json(result ?? null);
+    }
+
+    if (!tenantId) return res.status(401).json({ error: 'Hesab təyin edilmədi. Linki yenidən açın.' });
+
+    const usable = T.tenantUsable(tenantId);
+    if (!usable.ok) return res.status(402).json({ error: usable.reason });
+
+    const acc = auth.apiAccess(fn, rec);
     if (!acc.ok) {
       if (auth.AUTH_ENFORCE) return res.status(403).json({ error: 'İcazəsiz.' });
-      // Log-only rejim: bloklamırıq, yalnız qeyd edirik ki, təsnifat səhvləri zərərsiz görünsün.
       console.warn(`[AUTH] ${fn} — tələb: ${acc.level}, gələn rol: ${acc.role || 'yox'} (log-only)`);
     }
 
-    const result = await handler(...args);
+    const result = await T.run(
+      { tenantId, role: (rec && rec.role) || 'public', branchId: (rec && rec.branchId) || null },
+      () => handler(...args)
+    );
     res.json(result ?? null);
   } catch (e) {
     console.error(`[API] ${fn}:`, e.message);
@@ -422,6 +512,24 @@ app.post('/api/:fn', async (req, res) => {
 
 function sbErr(label, error) {
   if (error) console.error(`[SB] ${label}:`, error.message);
+}
+
+// ── Rol açarları ─────────────────────────────────────────────────
+//  ƏVVƏL açarlar `settings`-də saxlanılırdı (TRAINER_KEY, EXEC_KEY, OPS_KEY) —
+//  yəni bir sistem = bir açar. İNDİ `auth_keys` cədvəlindədir və hər müştərinin
+//  öz dəsti var. `roleKey()` cari müştərinin həmin rol üçün aktiv açarını verir.
+//  'self' funksiyalar öz açarlarını bununla yoxlayır.
+function roleKey(r) {
+  const tid = T.tenantIdOrNull();
+  return (tid && T.findKey(tid, r, null)) || '';
+}
+const execAuth    = (k) => !!k && roleKey('exec')    === k;
+const trainerAuth = (k) => !!k && roleKey('trainer') === k;
+
+// Filial idarəçisinin adı — `branches.mgr_name` (əvvəl `MGR_NAME_<slug>` parametri)
+function mgrNameOf(dept) {
+  const b = T.branchByName(dept);
+  return (b && b.mgr_name) || '';
 }
 
 // Sistem (avtomatik gecikmə) cəriməsini menecer cəriməsi ilə ortaq formata gətirir:
@@ -453,9 +561,9 @@ function fineIsOpen(f) {
 
 async function awardXP(empId, baseAmount, streak) {
   const gained = Math.round(baseAmount * U.getXPMultiplier(streak || 0));
-  const { data: emp } = await sb.from('employees').select('xp').eq('id', empId).single();
+  const { data: emp } = await db().from('employees').select('xp').eq('id', empId).single();
   const current = emp?.xp || 0;
-  await sb.from('employees').update({ xp: current + gained }).eq('id', empId);
+  await db().from('employees').update({ xp: current + gained }).eq('id', empId);
   return gained;
 }
 
@@ -475,7 +583,7 @@ function positionColMissing(err) {
 }
 
 API.getEmployees = async () => {
-  const { data, error } = await sb.from('employees').select('*').order('name');
+  const { data, error } = await db().from('employees').select('*').order('name');
   sbErr('getEmployees', error);
   const emps = data || [];
   const result = emps.map(emp => ({
@@ -499,9 +607,9 @@ API.getPositions = async () => U.POSITIONS;
 // secret-siz işçi siyahısı — açarı olmayan səhifələr üçün (/exam) və trainer paneli.
 // getEmployees admin-ə məxsusdur, çünki login açarını (secret) qaytarır.
 API.getEmployeesLite = async () => {
-  let { data, error } = await sb.from('employees').select('id,name,dept,position,is_test').order('name');
+  let { data, error } = await db().from('employees').select('id,name,dept,position,is_test').order('name');
   if (error && positionColMissing(error)) {
-    ({ data, error } = await sb.from('employees').select('id,name,dept,is_test').order('name'));
+    ({ data, error } = await db().from('employees').select('id,name,dept,is_test').order('name'));
   }
   sbErr('getEmployeesLite', error);
   return (data || []).map(emp => ({
@@ -515,14 +623,30 @@ API.getEmployeesLite = async () => {
 
 API.addEmployee = async (name, dept, position) => {
   if (!name || !dept) return { success: false, reason: 'Ad və Filial tələb olunur.' };
+  if (!U.DEPTS.includes(dept)) return { success: false, reason: 'Belə filial yoxdur: ' + dept };
   if (position && !U.isValidPosition(position)) return { success: false, reason: 'Belə vəzifə yoxdur: ' + position };
-  const id     = 'E' + Date.now().toString(36).toUpperCase().slice(-5);
-  const secret = Math.random().toString(36).substring(2, 10).toUpperCase();
-  let { error } = await sb.from('employees').insert({ id, name, dept, secret, position: position || '' });
+
+  // İşçi limiti (abunəlik planı) — 0 = limitsiz
+  const t = T.currentTenant();
+  if (t && t.max_employees > 0) {
+    const { count } = await db().from('employees').select('id', { count: 'exact', head: true });
+    if ((count || 0) >= t.max_employees) {
+      return { success: false, reason: `Planınızda ən çox ${t.max_employees} işçi ola bilər.` };
+    }
+  }
+
+  const id = 'E' + Date.now().toString(36).toUpperCase().slice(-5);
+  // Secret BÜTÜN platforma üzrə unikal olmalıdır — işçi /mycode?secret=… ilə
+  // girəndə hansı müştəriyə aid olduğu yalnız bu dəyərdən tapılır. Ona görə
+  // əvvəlki 8 simvol 16-ya qaldırıldı (toqquşma və təxmin riski).
+  const secret = T.randomKey('E').slice(0, 18);
+
+  let { error } = await db().from('employees').insert({ id, name, dept, secret, position: position || '' });
   if (error && positionColMissing(error)) {
-    ({ error } = await sb.from('employees').insert({ id, name, dept, secret }));
+    ({ error } = await db().from('employees').insert({ id, name, dept, secret }));
   }
   sbErr('addEmployee', error);
+  if (!error) T.cacheEmployeeSecret(secret, T.tenantId());
   return { success: !error };
 };
 
@@ -532,7 +656,7 @@ API.removeEmployee = async (id) => {
   if (!id) return { success: false, reason: 'İşçi ID tapılmadı.' };
 
   // İşçi həqiqətən varmı? (boş/yanlış id ilə səhvən silinmə olmasın)
-  const { data: emp } = await sb.from('employees').select('id,name').eq('id', id).single();
+  const { data: emp } = await db().from('employees').select('id,name,secret').eq('id', id).single();
   if (!emp) return { success: false, reason: 'İşçi tapılmadı.' };
 
   // emp_id sütunu ilə işçiyə bağlı bütün cədvəllər
@@ -544,14 +668,14 @@ API.removeEmployee = async (id) => {
 
   const failed = [];
   await Promise.all(empTables.map(async (t) => {
-    const { error } = await sb.from(t).delete().eq('emp_id', id);
+    const { error } = await db().from(t).delete().eq('emp_id', id);
     if (error) { sbErr('removeEmployee:' + t, error); failed.push(t); }
   }));
 
   // Reaksiyalar — həm göndərən, həm alan tərəf
-  const { error: rFrom } = await sb.from('reactions').delete().eq('from_emp_id', id);
+  const { error: rFrom } = await db().from('reactions').delete().eq('from_emp_id', id);
   if (rFrom) { sbErr('removeEmployee:reactions_from', rFrom); failed.push('reactions'); }
-  const { error: rTo } = await sb.from('reactions').delete().eq('to_emp_id', id);
+  const { error: rTo } = await db().from('reactions').delete().eq('to_emp_id', id);
   if (rTo) { sbErr('removeEmployee:reactions_to', rTo); failed.push('reactions'); }
 
   // Bir hissə silinmədisə — işçini SAXLA, orphan yaratma, xəta qaytar (yenidən cəhd təmiz olsun).
@@ -560,20 +684,21 @@ API.removeEmployee = async (id) => {
   }
 
   // Ən sonda işçinin özünü sil
-  const { error } = await sb.from('employees').delete().eq('id', id);
+  const { error } = await db().from('employees').delete().eq('id', id);
   if (error) { sbErr('removeEmployee:employees', error); return { success: false, reason: 'İşçi qeydi silinmədi.' }; }
+  T.forgetEmployeeSecret(emp.secret);   // açar keşindən də çıxsın (girişi dərhal bağlansın)
   return { success: true };
 };
 
 // Bütün işçilərin streakını yenidən hesabla (admin funksiyası)
 API.recalcAllStreaks = async () => {
-  const { data: emps } = await sb.from('employees').select('id,dept,is_test');
+  const { data: emps } = await db().from('employees').select('id,dept,is_test');
   if (!emps) return { success: false, updated: 0 };
   let updated = 0;
   for (const emp of emps) {
     if (emp.is_test) continue;
     const streak = await U.calcStreak(emp.id, emp.dept);
-    await sb.from('employees').update({ streak }).eq('id', emp.id);
+    await db().from('employees').update({ streak }).eq('id', emp.id);
     updated++;
   }
   return { success: true, updated };
@@ -583,20 +708,20 @@ API.recalcAllStreaks = async () => {
 // Manual düzəlişlərdən (saat redaktəsi, gec gəliş icazəsi və s.) sonra XP-ni reallıqla uyğunlaşdırır.
 // dryRun=true → heç nə yazmır, yalnız köhnə/yeni müqayisəsini qaytarır.
 API.recalcAllXP = async (dryRun) => {
-  const { data: emps } = await sb.from('employees').select('id,name,dept,is_test,xp,streak');
+  const { data: emps } = await db().from('employees').select('id,name,dept,is_test,xp,streak');
   const results = [];
   let updated = 0;
   for (const emp of emps || []) {
     if (emp.is_test) continue;
     const empId = String(emp.id);
     const [attendance, nahar, izinRows, perms, cedvelRows, audit, exams] = await Promise.all([
-      sb.from('attendance').select('timestamp,type,shift_type,overtime').eq('emp_id', empId),
-      sb.from('nahar').select('timestamp,type').eq('emp_id', empId),
-      sb.from('izin').select('start_date,end_date').eq('emp_id', empId).eq('status', 'approved'),
-      sb.from('late_perms').select('date_str,requested_time').eq('emp_id', empId).eq('status', 'approved'),
-      sb.from('cedvel').select('date_str,shift_type').eq('emp_id', empId),
-      sb.from('xp_audit_log').select('amount').eq('emp_id', empId),
-      sb.from('trainer_exams').select('trainer_name,answers,date_str').eq('emp_id', empId),
+      db().from('attendance').select('timestamp,type,shift_type,overtime').eq('emp_id', empId),
+      db().from('nahar').select('timestamp,type').eq('emp_id', empId),
+      db().from('izin').select('start_date,end_date').eq('emp_id', empId).eq('status', 'approved'),
+      db().from('late_perms').select('date_str,requested_time').eq('emp_id', empId).eq('status', 'approved'),
+      db().from('cedvel').select('date_str,shift_type').eq('emp_id', empId),
+      db().from('xp_audit_log').select('amount').eq('emp_id', empId),
+      db().from('trainer_exams').select('trainer_name,answers,date_str').eq('emp_id', empId),
     ]);
     const permMap = {};
     for (const p of perms.data || []) { const [h, m] = (p.requested_time || '23:59').split(':').map(Number); permMap[p.date_str] = h * 60 + m; }
@@ -617,7 +742,7 @@ API.recalcAllXP = async (dryRun) => {
       oldStreak: emp.streak || 0, newStreak: res.streak,
     });
     if (!dryRun) {
-      await sb.from('employees')
+      await db().from('employees')
         .update({ xp: res.xp, streak: res.streak, milestones_claimed: res.milestones })
         .eq('id', emp.id);
       updated++;
@@ -629,7 +754,7 @@ API.recalcAllXP = async (dryRun) => {
 
 // ── CƏRİMƏLƏR (admin) ────────────────────────────────────────────
 API.getFines = async () => {
-  const { data } = await sb.from('fines').select('*').order('created_at', { ascending: false }).limit(300);
+  const { data } = await db().from('fines').select('*').order('created_at', { ascending: false }).limit(300);
   return (data || []).map(r => ({
     fineId: r.fine_id, empId: r.emp_id, empName: r.emp_name, dept: r.dept,
     dateStr: r.date_str, amount: r.amount, lateNum: r.late_num, lateMins: r.late_mins,
@@ -639,12 +764,12 @@ API.getFines = async () => {
 
 API.updateFineStatus = async (fineId, status) => {
   if (!['unpaid', 'paid', 'waived'].includes(status)) return { success: false, reason: 'Yanlış status.' };
-  const { error } = await sb.from('fines').update({ status }).eq('fine_id', fineId);
+  const { error } = await db().from('fines').update({ status }).eq('fine_id', fineId);
   return { success: !error };
 };
 
 API.deleteFine = async (fineId) => {
-  const { error } = await sb.from('fines').delete().eq('fine_id', fineId);
+  const { error } = await db().from('fines').delete().eq('fine_id', fineId);
   return { success: !error };
 };
 
@@ -652,16 +777,16 @@ API.deleteFine = async (fineId) => {
 // İcazəli günlər (izin / gec gəliş icazəsi) çıxarılır; ayda 3+ gecikmə → 30 AZN.
 // Hələ mövcud cərimələrin paid/waived statusu qorunur; aradan qalxanlar silinir.
 API.recalcAllFines = async () => {
-  const { data: emps } = await sb.from('employees').select('id,name,dept,is_test');
+  const { data: emps } = await db().from('employees').select('id,name,dept,is_test');
   let added = 0, removed = 0, kept = 0;
   for (const emp of emps || []) {
     if (emp.is_test) continue;
     const empId = String(emp.id);
     const [att, izinRows, perms, fines] = await Promise.all([
-      sb.from('attendance').select('timestamp,shift_type').eq('emp_id', empId).eq('type', 'GƏLİŞ'),
-      sb.from('izin').select('start_date,end_date').eq('emp_id', empId).eq('status', 'approved'),
-      sb.from('late_perms').select('date_str,requested_time').eq('emp_id', empId).eq('status', 'approved'),
-      sb.from('fines').select('*').eq('emp_id', empId),
+      db().from('attendance').select('timestamp,shift_type').eq('emp_id', empId).eq('type', 'GƏLİŞ'),
+      db().from('izin').select('start_date,end_date').eq('emp_id', empId).eq('status', 'approved'),
+      db().from('late_perms').select('date_str,requested_time').eq('emp_id', empId).eq('status', 'approved'),
+      db().from('fines').select('*').eq('emp_id', empId),
     ]);
     const permMap = {};
     for (const p of perms.data || []) { const [h, m] = (p.requested_time || '23:59').split(':').map(Number); permMap[p.date_str] = h * 60 + m; }
@@ -692,10 +817,10 @@ API.recalcAllFines = async () => {
     // Aradan qalxan cərimələri sil, qalanları yenilə (statusu saxla)
     for (const f of existing) {
       if (!(f.date_str in expected)) {
-        await sb.from('fines').delete().eq('fine_id', f.fine_id); removed++;
+        await db().from('fines').delete().eq('fine_id', f.fine_id); removed++;
       } else {
         const ex = expected[f.date_str];
-        await sb.from('fines').update({ late_num: ex.late_num, late_mins: ex.late_mins,
+        await db().from('fines').update({ late_num: ex.late_num, late_mins: ex.late_mins,
           reason: `Bu ay ${ex.late_num}-ci gecikmə (${ex.late_mins} dəq)` }).eq('fine_id', f.fine_id);
         kept++;
       }
@@ -704,7 +829,7 @@ API.recalcAllFines = async () => {
     for (const ds of Object.keys(expected)) {
       if (existByDate[ds]) continue;
       const ex = expected[ds];
-      await sb.from('fines').insert({
+      await db().from('fines').insert({
         fine_id: 'FN-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substring(2, 8).toUpperCase(),
         emp_id: empId, emp_name: emp.name, dept: emp.dept, date_str: ds,
         amount: 30, late_num: ex.late_num, late_mins: ex.late_mins,
@@ -717,7 +842,7 @@ API.recalcAllFines = async () => {
 };
 
 API.updateEmployeeMessage = async (id, msg) => {
-  const { error } = await sb.from('employees').update({ message: msg || '' }).eq('id', id);
+  const { error } = await db().from('employees').update({ message: msg || '' }).eq('id', id);
   return { success: !error };
 };
 
@@ -730,7 +855,7 @@ API.updateEmployeeTaxiLimit = async (id, limit) => {
     if (!Number.isFinite(n) || n < 0 || n > 62) return { success: false, reason: 'Limit 0–62 aralığında olmalıdır.' };
     val = n;
   }
-  const { error } = await sb.from('employees').update({ taxi_limit: val }).eq('id', id);
+  const { error } = await db().from('employees').update({ taxi_limit: val }).eq('id', id);
   if (error && /taxi_limit/i.test(error.message || '')) {
     return { success: false, reason: 'Limit sütunu hələ yaradılmayıb — taxi-limit-migration.sql işlədilməlidir.' };
   }
@@ -743,7 +868,7 @@ API.updateEmployeePosition = async (id, position) => {
   if (!id) return { success: false, reason: 'İşçi ID tapılmadı.' };
   const pos = position || '';
   if (pos && !U.isValidPosition(pos)) return { success: false, reason: 'Belə vəzifə yoxdur: ' + pos };
-  let { error } = await sb.from('employees').update({ position: pos }).eq('id', id);
+  let { error } = await db().from('employees').update({ position: pos }).eq('id', id);
   if (error && positionColMissing(error)) {
     return { success: false, reason: 'Vəzifə sütunu hələ yaradılmayıb — positions-migration.sql işlədilməlidir.' };
   }
@@ -758,16 +883,16 @@ API.updateEmployeeDept = async (id, dept) => {
   if (!id || !dept) return { success: false, reason: 'İşçi və filial tələb olunur.' };
   if (!U.DEPTS.includes(dept)) return { success: false, reason: 'Belə filial yoxdur: ' + dept };
 
-  const { data: emp } = await sb.from('employees').select('id,name,dept').eq('id', id).single();
+  const { data: emp } = await db().from('employees').select('id,name,dept').eq('id', id).single();
   if (!emp) return { success: false, reason: 'İşçi tapılmadı.' };
   if (emp.dept === dept) return { success: false, reason: 'İşçi onsuz da bu filialdadır.' };
 
-  const { error } = await sb.from('employees').update({ dept }).eq('id', id);
+  const { error } = await db().from('employees').update({ dept }).eq('id', id);
   if (error) { sbErr('updateEmployeeDept', error); return { success: false, reason: error.message }; }
 
   // Gələcək cədvəl sətirlərini yeni filiala köçür
   const todayYMD = U.toYMD(new Date());
-  const { error: cErr, count } = await sb.from('cedvel')
+  const { error: cErr, count } = await db().from('cedvel')
     .update({ dept }, { count: 'exact' })
     .eq('emp_id', String(id)).gte('date_str', todayYMD);
   sbErr('updateEmployeeDept:cedvel', cErr);
@@ -776,7 +901,7 @@ API.updateEmployeeDept = async (id, dept) => {
   let newStreak = null;
   try {
     newStreak = await U.calcStreak(id, dept);
-    await sb.from('employees').update({ streak: newStreak }).eq('id', id);
+    await db().from('employees').update({ streak: newStreak }).eq('id', id);
   } catch (e) { console.error('[updateEmployeeDept] streak:', e.message); }
 
   await U.sendTelegramMsg(`<b>${emp.name}</b> filialı dəyişdi: ${emp.dept} → <b>${dept}</b>`, dept);
@@ -836,11 +961,11 @@ API.resetShiftConfig = async () => {
 
 API.bindDevice = async (secret, deviceId) => {
   if (!secret) return { success: false, reason: 'Xətalı link!' };
-  const { data: emp } = await sb.from('employees').select('*').eq('secret', secret).single();
+  const { data: emp } = await db().from('employees').select('*').eq('secret', secret).single();
   if (!emp) return { success: false, reason: 'İşçi tapılmadı.' };
 
   if (!emp.device_id) {
-    await sb.from('employees').update({ device_id: deviceId }).eq('secret', secret);
+    await db().from('employees').update({ device_id: deviceId }).eq('secret', secret);
     return { success: true, message: emp.message || '' };
   }
 
@@ -856,7 +981,7 @@ API.bindDevice = async (secret, deviceId) => {
 };
 
 API.resetDevice = async (id) => {
-  const { error } = await sb.from('employees').update({ device_id: '' }).eq('id', id);
+  const { error } = await db().from('employees').update({ device_id: '' }).eq('id', id);
   return { success: !error };
 };
 
@@ -864,19 +989,22 @@ API.resetDevice = async (id) => {
 
 API.checkScanDevice = async (deviceId) => {
   if (!deviceId) return { allowed: false, pending: false, reason: 'Cihaz ID tapılmadı.' };
-  const { data: dev } = await sb.from('scan_devices').select('*').eq('device_id', deviceId).single();
+  const { data: dev } = await db().from('scan_devices').select('*').eq('device_id', deviceId).single();
   if (dev) {
     if (dev.status === 'active')  return { allowed: true, branch: dev.branch, label: dev.label };
     if (dev.status === 'pending') return { allowed: false, pending: true, reason: 'Cihazınız admin tərəfindən hələ təsdiqlənməyib.' };
     if (dev.status === 'blocked') return { allowed: false, pending: false, reason: 'Bu cihaz admin tərəfindən bloklanıb.' };
   }
-  await sb.from('scan_devices').upsert({ device_id: deviceId, status: 'pending' }, { onConflict: 'device_id' });
-  await U.sendTelegramMsg(`☕ <b>Coffeemoon</b>\n\n📱 <b>Yeni Scan Cihazı qeydə alındı</b>\n\n🔑 <code>${deviceId}</code>`, null);
+  await db().from('scan_devices').upsert({ device_id: deviceId, status: 'pending' }, { onConflict: 'device_id' });
+  // Cihaz artıq bu müştəriyə bağlıdır → bundan sonra öz device_id-si ilə
+  // müştərini özü tanıda bilər (`?t=` göstəricisi bir daha lazım deyil).
+  T.cacheDevice(deviceId, T.tenantId());
+  await U.sendTelegramMsg(`<b>${T.brand().name}</b>\n\n📱 <b>Yeni Scan Cihazı qeydə alındı</b>\n\n🔑 <code>${deviceId}</code>`, null);
   return { allowed: false, pending: true, reason: 'Cihazınız qeydə alındı. Admin təsdiqini gözləyin.' };
 };
 
 API.getScanDevices = async () => {
-  const { data } = await sb.from('scan_devices').select('*').order('created_at', { ascending: false });
+  const { data } = await db().from('scan_devices').select('*').order('created_at', { ascending: false });
   return (data || []).map(d => ({
     id: d.device_id, deviceId: d.device_id, branch: d.branch || '', status: d.status || 'pending',
     createdAt: d.created_at || '', label: d.label || '',
@@ -884,18 +1012,20 @@ API.getScanDevices = async () => {
 };
 
 API.approveScanDevice = async (deviceId, branch, label) => {
-  const { error } = await sb.from('scan_devices')
+  if (!U.DEPTS.includes(branch)) return { success: false, reason: 'Belə filial yoxdur: ' + branch };
+  const { error } = await db().from('scan_devices')
     .upsert({ device_id: deviceId, branch, status: 'active', label: label || branch }, { onConflict: 'device_id' });
+  if (!error) T.cacheDevice(deviceId, T.tenantId());
   return { success: !error };
 };
 
 API.blockScanDevice = async (deviceId) => {
-  const { error } = await sb.from('scan_devices').update({ status: 'blocked' }).eq('device_id', deviceId);
+  const { error } = await db().from('scan_devices').update({ status: 'blocked' }).eq('device_id', deviceId);
   return { success: !error };
 };
 
 API.removeScanDevice = async (deviceId) => {
-  const { error } = await sb.from('scan_devices').delete().eq('device_id', deviceId);
+  const { error } = await db().from('scan_devices').delete().eq('device_id', deviceId);
   return { success: !error };
 };
 
@@ -908,10 +1038,10 @@ API.getCedvel = async (dept, weekStart) => {
     const dd = new Date(start.getTime() + d * 86400000);
     dates.push(U.toYMD(dd));
   }
-  const { data: emps } = await sb.from('employees').select('*').eq('dept', dept).order('name');
+  const { data: emps } = await db().from('employees').select('*').eq('dept', dept).order('name');
   // cedvel_id üzrə artan sırala: təkrar (emp_id,date_str) sətir olarsa, sonuncu (ən yeni) təyin qalib gəlir
   // — getEmployeeShift ilə uyğun ki, menecer və işçi eyni smeni görsün.
-  const { data: rows } = await sb.from('cedvel').select('*').eq('dept', dept).in('date_str', dates).order('cedvel_id', { ascending: true });
+  const { data: rows } = await db().from('cedvel').select('*').eq('dept', dept).in('date_str', dates).order('cedvel_id', { ascending: true });
   const map = {};
   for (const r of rows || []) {
     if (!map[r.emp_id]) map[r.emp_id] = {};
@@ -952,8 +1082,8 @@ async function saveCedvelCore(entries, opts) {
   if (empIds.length && dates.length) {
     const cfg = U.getSalaryConfig();
     let empRows = null;
-    ({ data: empRows } = await sb.from('employees').select('id,name,dept,taxi_limit').in('id', empIds));
-    if (!empRows) ({ data: empRows } = await sb.from('employees').select('id,name,dept').in('id', empIds));
+    ({ data: empRows } = await db().from('employees').select('id,name,dept,taxi_limit').in('id', empIds));
+    if (!empRows) ({ data: empRows } = await db().from('employees').select('id,name,dept').in('id', empIds));
     const empMap = {};
     for (const e of empRows || []) empMap[String(e.id)] = e;
 
@@ -962,7 +1092,7 @@ async function saveCedvelCore(entries, opts) {
       const ayBasi = ay + '-01';
       const [yy, mm] = ay.split('-').map(Number);
       const aySonu = mm === 12 ? `${yy + 1}-01-01` : `${yy}-${String(mm + 1).padStart(2, '0')}-01`;
-      const { data: mevcud } = await sb.from('cedvel')
+      const { data: mevcud } = await db().from('cedvel')
         .select('emp_id,date_str,shift_type').in('emp_id', empIds).gte('date_str', ayBasi).lt('date_str', aySonu);
 
       for (const empId of empIds) {
@@ -990,7 +1120,7 @@ async function saveCedvelCore(entries, opts) {
   }
 
   if (empIds.length && dates.length) {
-    await sb.from('cedvel').delete().in('emp_id', empIds).in('date_str', dates);
+    await db().from('cedvel').delete().in('emp_id', empIds).in('date_str', dates);
   }
   // Eyni (emp_id,date_str) xanə batch-də təkrarlanarsa sonuncunu saxla — uq_cedvel_emp_date
   // unikal indeksi ilə toqquşub BÜTÜN saxlamanın uğursuz olmasının qarşısını alır.
@@ -1006,7 +1136,7 @@ async function saveCedvelCore(entries, opts) {
     date_str:   e.dateStr, shift_type: e.shiftType,
   }));
   if (toInsert.length) {
-    const { error } = await sb.from('cedvel').insert(toInsert);
+    const { error } = await db().from('cedvel').insert(toInsert);
     if (error) return { success: false, reason: 'Saxlama xətası: ' + error.message };
   }
   return { success: true };
@@ -1015,11 +1145,240 @@ async function saveCedvelCore(entries, opts) {
 API.saveCedvel = async (entries) => saveCedvelCore(entries, { isManager: false });
 
 API.getDeptList = () => U.DEPTS;
+
+// ══════════════════════════════════════════════════════════════════
+//  FİLİALLAR — Faza 1: filial artıq DATA-dır, kod deyil
+// ══════════════════════════════════════════════════════════════════
+//  Bu bölmə `utils.DEPT_SLUG` hardcode-unu əvəz edir. Admin panelindən
+//  filial əlavə/redaktə/sil edilə bilər — kod dəyişikliyi lazım deyil.
+
+// Filial adından slug qurur: "Ağ Şəhər" → "agseher"
+const AZ_MAP = { 'ə':'e','ı':'i','ö':'o','ü':'u','ç':'c','ş':'s','ğ':'g',
+                 'Ə':'e','I':'i','Ö':'o','Ü':'u','Ç':'c','Ş':'s','Ğ':'g' };
+function slugify(name) {
+  const base = String(name || '').trim().toLowerCase()
+    .replace(/[əıöüçşğƏIÖÜÇŞĞ]/g, ch => AZ_MAP[ch] || ch)
+    .replace(/[^a-z0-9]+/g, '')
+    .slice(0, 24);
+  return base || ('f' + Date.now().toString(36).slice(-5));
+}
+
+API.getBranches = async () => ({
+  branches: T.branches().map(b => ({
+    id: b.branch_id, name: b.name, color: b.color || '#bfdbfe',
+    wifiIps: b.wifi_ips || '', tgChatId: b.tg_chat_id || '',
+    wasteLimit: Number(b.waste_limit ?? 3), mgrName: b.mgr_name || '',
+    sortOrder: b.sort_order || 0,
+  })),
+  managerKeys: await U.getBranchScheduleKeys(),
+});
+
+API.addBranch = async (name, opts) => {
+  const nm = String(name || '').trim();
+  if (!nm) return { success: false, reason: 'Filial adı boşdur.' };
+  if (T.branchByName(nm)) return { success: false, reason: 'Bu adda filial artıq var.' };
+
+  const t = T.currentTenant();
+  if (t && t.max_branches > 0 && T.branches().length >= t.max_branches) {
+    return { success: false, reason: `Planınızda ən çox ${t.max_branches} filial ola bilər.` };
+  }
+
+  // Slug unikal olmalıdır (ad fərqli, slug eyni çıxa bilər: "Ağ Şəhər" / "Ağşəhər")
+  let slug = slugify(nm), n = 2;
+  while (T.branchBySlug(slug)) slug = slugify(nm) + (n++);
+
+  const tid = T.tenantId();
+  const { error } = await db().from('branches').insert({
+    branch_id: slug,
+    name: nm,
+    color: (opts && opts.color) || '#bfdbfe',
+    wifi_ips: (opts && opts.wifiIps) || '',
+    tg_chat_id: (opts && opts.tgChatId) || '',
+    waste_limit: Number((opts && opts.wasteLimit) ?? 3),
+    sort_order: T.branches().length,
+  });
+  if (error) { sbErr('addBranch', error); return { success: false, reason: error.message }; }
+
+  await T.reload(tid);
+  // Filialın menecer açarı dərhal yaradılsın (panel linki hazır olsun)
+  const key = await T.ensureKey(tid, 'manager', slug, nm);
+
+  // Yeni filial müştərinin defolt smen şablonunu miras alsın ki, cədvəl/gecikmə
+  // məntiqi ilk gündən işləsin (konfiqurasiyada olmasa saatlar naməlum qalardı).
+  const cfg = U.getShiftConfig();
+  if (!cfg[nm]) {
+    cfg[nm] = JSON.parse(JSON.stringify(U.defaultShiftTemplate()));
+    await U.setSetting('SHIFT_CONFIG', JSON.stringify(cfg));
+  }
+  return { success: true, id: slug, managerKey: key };
+};
+
+API.updateBranch = async (branchId, patch) => {
+  const b = T.branchBySlug(branchId);
+  if (!b) return { success: false, reason: 'Filial tapılmadı.' };
+  const p = {};
+  if (patch.color      !== undefined) p.color       = String(patch.color || '');
+  if (patch.wifiIps    !== undefined) p.wifi_ips    = String(patch.wifiIps || '');
+  if (patch.tgChatId   !== undefined) p.tg_chat_id  = String(patch.tgChatId || '');
+  if (patch.wasteLimit !== undefined) p.waste_limit = Number(patch.wasteLimit) || 0;
+  if (patch.mgrName    !== undefined) p.mgr_name    = String(patch.mgrName || '');
+  if (patch.active     !== undefined) p.active      = !!patch.active;
+  if (!Object.keys(p).length) return { success: true };
+
+  const tid = T.tenantId();
+  const { error } = await db().from('branches').update(p).eq('branch_id', branchId);
+  if (error) { sbErr('updateBranch', error); return { success: false, reason: error.message }; }
+  await T.reload(tid);
+  return { success: true };
+};
+
+// Filialın ADINI dəyişmək — ehtiyatlı əməliyyat.
+// Səbəb: `dept` sütunu 12 cədvəldə ADI mətn kimi saxlayır (denormallaşdırılıb).
+// Sadəcə `branches.name`-i dəyişsək bütün tarixçə "sahibsiz" qalar: köhnə
+// davamiyyət, cədvəl, cərimə qeydləri yeni filialla uyğunlaşmaz.
+// Ona görə ad dəyişikliyi bütün həmin sütunlarda kaskad yenilənir.
+const DEPT_TABLES = [
+  'employees', 'attendance', 'nahar', 'cedvel', 'izin', 'late_perms',
+  'mgr_schedule', 'checklist_logs', 'mgr_acks', 'product_logs', 'avans',
+  'fines', 'mgr_fines', 'xp_audit_log', 'trainer_exams', 'trainer_logs',
+  'ops_visits', 'ops_emp_notes', 'ops_issues', 'scan_devices',
+];
+
+API.renameBranch = async (branchId, newName) => {
+  const b  = T.branchBySlug(branchId);
+  const nm = String(newName || '').trim();
+  if (!b)  return { success: false, reason: 'Filial tapılmadı.' };
+  if (!nm) return { success: false, reason: 'Yeni ad boşdur.' };
+  if (nm === b.name) return { success: true, renamed: 0 };
+  if (T.branchByName(nm)) return { success: false, reason: 'Bu adda filial artıq var.' };
+
+  const tid = T.tenantId();
+  const failed = [];
+  for (const tbl of DEPT_TABLES) {
+    // `scan_devices`-də sütunun adı `branch`-dır, qalanlarında `dept`
+    const col = tbl === 'scan_devices' ? 'branch' : 'dept';
+    const { error } = await db().from(tbl).update({ [col]: nm }).eq(col, b.name);
+    if (error) { sbErr('renameBranch:' + tbl, error); failed.push(tbl); }
+  }
+  if (failed.length) {
+    return { success: false, reason: 'Ad dəyişmədi — bu cədvəllərdə xəta oldu: ' + failed.join(', ') };
+  }
+
+  const { error } = await db().from('branches').update({ name: nm }).eq('branch_id', branchId);
+  if (error) { sbErr('renameBranch:branches', error); return { success: false, reason: error.message }; }
+
+  // Smen konfiqurasiyası filial ADI ilə açarlanır → onu da köçür
+  const cfg = U.getShiftConfig();
+  if (cfg[b.name]) { cfg[nm] = cfg[b.name]; delete cfg[b.name]; await U.setSetting('SHIFT_CONFIG', JSON.stringify(cfg)); }
+
+  // Maaş konfiqurasiyasındakı taksili filial siyahısı da adla işləyir
+  const sal = U.getSalaryConfig();
+  if (Array.isArray(sal.taxiDepts) && sal.taxiDepts.includes(b.name)) {
+    sal.taxiDepts = sal.taxiDepts.map(d => (d === b.name ? nm : d));
+    await U.setSetting('SALARY_CONFIG', JSON.stringify(sal));
+  }
+
+  await T.reload(tid);
+  return { success: true };
+};
+
+API.deleteBranch = async (branchId) => {
+  const b = T.branchBySlug(branchId);
+  if (!b) return { success: false, reason: 'Filial tapılmadı.' };
+
+  // İşçisi olan filial silinmir — tarixçəni sahibsiz qoymamaq üçün.
+  const { count } = await db().from('employees')
+    .select('id', { count: 'exact', head: true }).eq('dept', b.name);
+  if (count > 0) {
+    return { success: false, reason: `Bu filialda ${count} işçi var. Əvvəlcə onları köçürün və ya silin.` };
+  }
+
+  const tid = T.tenantId();
+  await T.revokeKeys(tid, 'manager', branchId);
+  const { error } = await db().from('branches').delete().eq('branch_id', branchId);
+  if (error) { sbErr('deleteBranch', error); return { success: false, reason: error.message }; }
+  await T.reload(tid);
+  return { success: true };
+};
+
+API.reorderBranches = async (orderedIds) => {
+  const tid = T.tenantId();
+  const ids = Array.isArray(orderedIds) ? orderedIds : [];
+  for (let i = 0; i < ids.length; i++) {
+    if (T.branchBySlug(ids[i])) {
+      await db().from('branches').update({ sort_order: i }).eq('branch_id', ids[i]);
+    }
+  }
+  await T.reload(tid);
+  return { success: true };
+};
+
+// ── VƏZİFƏLƏR ─────────────────────────────────────────────────────
+//  ƏVVƏL: utils.js-də `POSITIONS = ['Barista','Cashier','Team Leader','Cleaner']`.
+//  İNDİ: hər müştəri özü təyin edir (restoranda "Ofisiant", mağazada "Satıcı"...).
+API.savePositions = async (list) => {
+  const tid   = T.tenantId();
+  const names = [...new Set((Array.isArray(list) ? list : [])
+    .map(s => String(s || '').trim()).filter(Boolean))];
+  if (!names.length) return { success: false, reason: 'Ən azı bir vəzifə olmalıdır.' };
+
+  // İşlədilən vəzifəni silmək maaş hesabatını pozar → xəbərdarlıq et.
+  const { data: emps } = await db().from('employees').select('position');
+  const inUse = [...new Set((emps || []).map(e => e.position).filter(Boolean))];
+  const removed = inUse.filter(p => !names.includes(p));
+  if (removed.length) {
+    return { success: false, reason: 'Bu vəzifələr işçilərdə işlədilir, silinə bilməz: ' + removed.join(', ') };
+  }
+
+  await db().from('positions').delete().neq('name', ' ');
+  await db().from('positions').insert(names.map((name, i) => ({ name, sort_order: i, active: true })));
+  await T.reload(tid);
+  return { success: true, positions: T.positions() };
+};
+
+// ── MÜŞTƏRİ ÖZÜ HAQQINDA ──────────────────────────────────────────
+API.getTenantInfo = async () => {
+  const t = T.currentTenant();
+  if (!t) return null;
+  return {
+    tenantId: t.tenant_id, name: t.name, slug: t.slug || '',
+    plan: t.plan, status: t.status, trialEndsAt: t.trial_ends_at || '',
+    locale: t.locale, currency: t.currency, timezone: t.timezone,
+    maxEmployees: t.max_employees || 0, maxBranches: t.max_branches || 0,
+    brand: T.brand(),
+    positions: T.positions(),
+  };
+};
+
+API.saveTenantBrand = async (brand) => {
+  const tid = T.tenantId();
+  const cur = (T.currentTenant() || {}).brand || {};
+  const next = {
+    ...cur,
+    displayName: String(brand?.displayName ?? cur.displayName ?? '').slice(0, 60),
+    icon:        String(brand?.icon        ?? cur.icon        ?? '').slice(0, 60),
+    themeColor:  String(brand?.themeColor  ?? cur.themeColor  ?? '').slice(0, 20),
+    bgColor:     String(brand?.bgColor     ?? cur.bgColor     ?? '').slice(0, 20),
+    footer:      String(brand?.footer      ?? cur.footer      ?? '').slice(0, 80),
+  };
+  const { error } = await sb.from('tenants').update({ brand: next }).eq('tenant_id', tid);
+  if (error) return { success: false, reason: error.message };
+  await T.reload(tid);
+  return { success: true, brand: T.brand() };
+};
+
+API.getAdminKey = async () => ({
+  key: await T.ensureKey(T.tenantId(), 'admin', null, 'Admin'),
+});
+
+API.regenerateAdminKey = async () => ({
+  key: await T.issueKey(T.tenantId(), 'admin', null, 'Admin'),
+});
 API.getBranchScheduleKeys = async () => U.getBranchScheduleKeys();
 API.validateBranchScheduleKey = (key) => U.validateBranchScheduleKey(key);
 
 API.getCedvelForTrainer = async (trainerKey, weekStart) => {
-  const key = U.getSetting('TRAINER_KEY');
+  const key = roleKey('trainer');
   if (!key || key !== trainerKey) return null;
   const all = await Promise.all(U.DEPTS.map(d => API.getCedvel(d, weekStart)));
   return all.flat();
@@ -1040,7 +1399,7 @@ API.saveCedvelForManager = async (key, entries) => {
 // ── İZİN ─────────────────────────────────────────────────────────
 
 API.getIzinList = async () => {
-  const { data } = await sb.from('izin').select('*').order('created_at', { ascending: false });
+  const { data } = await db().from('izin').select('*').order('created_at', { ascending: false });
   return (data || []).map(r => ({
     id: r.izin_id, empId: r.emp_id, empName: r.emp_name, dept: r.dept,
     startDate: r.start_date, endDate: r.end_date,
@@ -1051,7 +1410,7 @@ API.getIzinList = async () => {
 
 API.addIzin = async (data) => {
   const id = 'I' + Date.now().toString(36).toUpperCase().slice(-6);
-  const { error } = await sb.from('izin').insert({
+  const { error } = await db().from('izin').insert({
     izin_id: id, emp_id: data.empId, emp_name: data.empName, dept: data.dept,
     start_date: data.startDate, end_date: data.endDate,
     type: data.type || 'İzin', note: data.note || '', status: 'pending',
@@ -1060,8 +1419,8 @@ API.addIzin = async (data) => {
 };
 
 API.updateIzinStatus = async (izinId, status) => {
-  const { data: izin } = await sb.from('izin').select('emp_id,emp_name,start_date,end_date').eq('izin_id', izinId).single();
-  const { error } = await sb.from('izin').update({ status }).eq('izin_id', izinId);
+  const { data: izin } = await db().from('izin').select('emp_id,emp_name,start_date,end_date').eq('izin_id', izinId).single();
+  const { error } = await db().from('izin').update({ status }).eq('izin_id', izinId);
   if (!error && izin) {
     const emoji   = status === 'approved' ? '✅' : status === 'rejected' ? '❌' : '🔄';
     const statusAz = status === 'approved' ? 'təsdiqləndi' : status === 'rejected' ? 'rədd edildi' : 'yeniləndi';
@@ -1076,7 +1435,7 @@ API.updateIzinStatus = async (izinId, status) => {
 };
 
 API.removeIzin = async (izinId) => {
-  const { error } = await sb.from('izin').delete().eq('izin_id', izinId);
+  const { error } = await db().from('izin').delete().eq('izin_id', izinId);
   return { success: !error };
 };
 
@@ -1085,7 +1444,7 @@ API.removeIzin = async (izinId) => {
 // İcazə lookup map qurur: { empId → [{start_date, end_date}] }
 // İzin map: { empId → [{s, e}] }  (tam gün izin)
 async function buildLeaveMap() {
-  const { data } = await sb.from('izin').select('emp_id,start_date,end_date').eq('status', 'approved');
+  const { data } = await db().from('izin').select('emp_id,start_date,end_date').eq('status', 'approved');
   const map = {};
   for (const r of data || []) {
     if (!map[r.emp_id]) map[r.emp_id] = [];
@@ -1095,7 +1454,7 @@ async function buildLeaveMap() {
 }
 // Gec gəliş icazəsi map: { "empId|date_str" → permMins (icazə verilən dəqiqə) }
 async function buildLatePermMap() {
-  const { data } = await sb.from('late_perms').select('emp_id,date_str,requested_time').eq('status', 'approved');
+  const { data } = await db().from('late_perms').select('emp_id,date_str,requested_time').eq('status', 'approved');
   const map = {};
   for (const r of data || []) {
     const [h, m] = (r.requested_time || '23:59').split(':').map(Number);
@@ -1121,16 +1480,16 @@ API.getMonthlyReport = async (year, month) => {
   const cached   = _reportCache.get(cacheKey);
   if (cached && Date.now() - cached.ts < REPORT_TTL) return cached.data;
 
-  const { data: emps } = await sb.from('employees').select('*');
+  const { data: emps } = await db().from('employees').select('*');
   const m = String(month).padStart(2, '0');
   const startStr = `${year}-${m}-01`;
   const endStr   = month === 12 ? `${year + 1}-01-01` : `${year}-${String(month + 1).padStart(2, '0')}-01`;
 
   const [{ data: logs }, leaveMap, latePermMap, { data: cedvelData }] = await Promise.all([
-    sb.from('attendance').select('*').gte('timestamp', startStr).lt('timestamp', endStr),
+    db().from('attendance').select('*').gte('timestamp', startStr).lt('timestamp', endStr),
     buildLeaveMap(),
     buildLatePermMap(),
-    sb.from('cedvel').select('emp_id,date_str,shift_type').gte('date_str', startStr).lt('date_str', endStr),
+    db().from('cedvel').select('emp_id,date_str,shift_type').gte('date_str', startStr).lt('date_str', endStr),
   ]);
 
   // calcStreak ilə eyni mənbə: attendance-da shift_type yoxdursa cedveldən al
@@ -1237,16 +1596,16 @@ API.resetSalaryConfig = async () => {
 // artıq ödənilmiş iyula yazılır və tutulma itirdi.
 async function fetchAvansForMonth(startStr, endStr) {
   const cols = 'avans_id,emp_id,amount,note,status,date_str,decided_ymd';
-  const byReq = await sb.from('avans').select(cols).gte('date_str', startStr).lt('date_str', endStr);
+  const byReq = await db().from('avans').select(cols).gte('date_str', startStr).lt('date_str', endStr);
   // Sütun hələ yaradılmayıbsa (avans-decided-migration.sql işlədilməyib) köhnə davranış
   if (byReq.error) {
     if (!/decided_ymd/i.test(byReq.error.message || '')) sbErr('fetchAvansForMonth', byReq.error);
-    const { data } = await sb.from('avans').select('emp_id,amount,note,status,date_str')
+    const { data } = await db().from('avans').select('emp_id,amount,note,status,date_str')
       .gte('date_str', startStr).lt('date_str', endStr);
     return { data: data || [] };
   }
   // NULL decided_ymd bu sorğuya düşmür (SQL-də NULL müqayisəsi false-dur) — istənilən budur
-  const byDec = await sb.from('avans').select(cols).gte('decided_ymd', startStr).lt('decided_ymd', endStr);
+  const byDec = await db().from('avans').select(cols).gte('decided_ymd', startStr).lt('decided_ymd', endStr);
   sbErr('fetchAvansForMonth(qerar)', byDec.error);   // sınsa köhnə davranışa enirik, hesabat çökmür
 
   return { data: U.pickAvansForMonth([...(byReq.data || []), ...(byDec.data || [])], startStr, endStr) };
@@ -1262,12 +1621,12 @@ async function computeSalaryReport(year, month) {
   const endStr   = mo === 12 ? `${y + 1}-01-01` : `${y}-${String(mo + 1).padStart(2, '0')}-01`;
 
   const [{ data: emps }, { data: logs }, { data: cedvelRows }, { data: sysFines }, { data: mgrFines }, { data: avansRows }] = await Promise.all([
-    sb.from('employees').select('*'),
-    sb.from('attendance').select('emp_id,timestamp,type,shift_type').gte('timestamp', startStr).lt('timestamp', endStr),
-    sb.from('cedvel').select('emp_id,date_str,shift_type').gte('date_str', startStr).lt('date_str', endStr),
+    db().from('employees').select('*'),
+    db().from('attendance').select('emp_id,timestamp,type,shift_type').gte('timestamp', startStr).lt('timestamp', endStr),
+    db().from('cedvel').select('emp_id,date_str,shift_type').gte('date_str', startStr).lt('date_str', endStr),
     // Tutulmalar — hamısı həmin aya aiddir
-    sb.from('fines').select('emp_id,date_str,amount,reason,status').gte('date_str', startStr).lt('date_str', endStr),
-    sb.from('mgr_fines').select('emp_id,amount,reason,status,created_at,created_by').gte('created_at', startStr).lt('created_at', endStr),
+    db().from('fines').select('emp_id,date_str,amount,reason,status').gte('date_str', startStr).lt('date_str', endStr),
+    db().from('mgr_fines').select('emp_id,amount,reason,status,created_at,created_by').gte('created_at', startStr).lt('created_at', endStr),
     fetchAvansForMonth(startStr, endStr),
   ]);
 
@@ -1406,7 +1765,7 @@ async function computeSalaryReport(year, month) {
 const periodStr = (y, mo) => `${y}-${String(mo).padStart(2, '0')}`;
 
 async function getSalaryPeriod(period) {
-  const { data, error } = await sb.from('salary_periods').select('*').eq('period', period).maybeSingle();
+  const { data, error } = await db().from('salary_periods').select('*').eq('period', period).maybeSingle();
   // Cədvəl hələ yaradılmayıbsa (salary-period-migration.sql işlədilməyib) sistem
   // sadəcə həmişə canlı hesablayır — heç nə sınmır.
   if (error) { if (!/salary_periods/i.test(error.message || '')) sbErr('getSalaryPeriod', error); return null; }
@@ -1444,7 +1803,7 @@ API.closeSalaryMonth = async (year, month) => {
   const rep = await computeSalaryReport(y, mo);
   if (!rep.rows || !rep.rows.length) return { success: false, reason: 'Bu ayda ödəniləcək heç nə yoxdur — bağlamağa ehtiyac yoxdur.' };
 
-  const { error } = await sb.from('salary_periods').insert({
+  const { error } = await db().from('salary_periods').insert({
     period, closed_by: 'admin', config: rep.config, rows: rep.rows, totals: rep.totals,
   });
   if (error) {
@@ -1460,20 +1819,20 @@ API.reopenSalaryMonth = async (year, month) => {
   const y = Number(year), mo = Number(month);
   if (!y || !mo || mo < 1 || mo > 12) return { success: false, reason: 'Yanlış ay.' };
   const period = periodStr(y, mo);
-  const { error } = await sb.from('salary_periods').delete().eq('period', period);
+  const { error } = await db().from('salary_periods').delete().eq('period', period);
   sbErr('reopenSalaryMonth', error);
   return { success: !error, period };
 };
 
 // Hansı aylar bağlıdır (panel düymənin vəziyyətini bilsin)
 API.getClosedSalaryMonths = async () => {
-  const { data, error } = await sb.from('salary_periods').select('period,closed_at,closed_by').order('period', { ascending: false });
+  const { data, error } = await db().from('salary_periods').select('period,closed_at,closed_by').order('period', { ascending: false });
   if (error) return [];
   return (data || []).map(r => ({ period: r.period, closedAt: r.closed_at, closedBy: r.closed_by }));
 };
 
 API.getWarnings = async () => {
-  const { data: emps } = await sb.from('employees').select('*');
+  const { data: emps } = await db().from('employees').select('*');
   const now    = new Date();
   const dow    = now.getDay();
   const monday = new Date(now.getTime() - (dow === 0 ? 6 : dow - 1) * 86400000);
@@ -1481,10 +1840,10 @@ API.getWarnings = async () => {
 
   const mondayStr = U.toYMD(monday);
   const [{ data: logs }, leaveMap, latePermMap, { data: warnCedvel }] = await Promise.all([
-    sb.from('attendance').select('*').eq('type', 'GƏLİŞ').gte('timestamp', monday.toISOString()),
+    db().from('attendance').select('*').eq('type', 'GƏLİŞ').gte('timestamp', monday.toISOString()),
     buildLeaveMap(),
     buildLatePermMap(),
-    sb.from('cedvel').select('emp_id,date_str,shift_type').gte('date_str', mondayStr),
+    db().from('cedvel').select('emp_id,date_str,shift_type').gte('date_str', mondayStr),
   ]);
 
   const warnCedvelMap = {};
@@ -1517,7 +1876,7 @@ API.getWarnings = async () => {
 
 API.validateAndLog = async (enteredPin, clientIp, forceMode) => {
   if (!enteredPin) return { valid: false, reason: 'Kod daxil edilməyib' };
-  const { data: emps } = await sb.from('employees').select('*');
+  const { data: emps } = await db().from('employees').select('*');
   const cW = Math.floor(Date.now() / U.TIME_STEP);
   const matched = (emps || []).find(emp =>
     enteredPin === U.generateDynamicPin(emp.secret, cW) ||
@@ -1536,7 +1895,7 @@ API.validateAndLog = async (enteredPin, clientIp, forceMode) => {
   if (todayShift === 'istirahetsm') return { valid: false, reason: 'Bu gün sizin istirahət gününüzdür!' };
   if (await U.hasApprovedLeave(matched.id, todayYMD)) return { valid: false, reason: 'Bu gün üçün təsdiq edilmiş izniniz var.' };
 
-  const { data: allLogs } = await sb.from('attendance').select('*').eq('emp_id', String(matched.id));
+  const { data: allLogs } = await db().from('attendance').select('*').eq('emp_id', String(matched.id));
   const todayLogs = (allLogs || []).filter(r => U.getLogicalDateStr(new Date(r.timestamp)) === todayStr);
   const shiftInfo = todayShift ? U.getShiftInfo(matched.dept, todayShift) : null;
 
@@ -1555,13 +1914,13 @@ API.validateAndLog = async (enteredPin, clientIp, forceMode) => {
     }
     const lateStr = late ? 'Gecikib' : 'Vaxtında';
     let lateWarning = late ? '' : ` — ${lateStr}`;
-    await sb.from('attendance').insert({
+    await db().from('attendance').insert({
       emp_id: matched.id, emp_name: matched.name, dept: matched.dept,
       timestamp: ts.toISOString(), type: 'GƏLİŞ', overtime: '', shift_type: todayShift || '',
     });
     if (!matched.is_test) {
       const newStreak = await U.calcStreak(matched.id, matched.dept);
-      await sb.from('employees').update({ streak: newStreak }).eq('id', matched.id);
+      await db().from('employees').update({ streak: newStreak }).eq('id', matched.id);
       if (!late) {
         await awardXP(matched.id, 20, newStreak);
         // Milestone bonusları (Variant 1)
@@ -1570,7 +1929,7 @@ API.validateAndLog = async (enteredPin, clientIp, forceMode) => {
           const claimed = matched.milestones_claimed || [];
           if (!claimed.includes(newStreak)) {
             await awardXP(matched.id, MS_BONUSES[newStreak], 0);
-            await sb.from('employees')
+            await db().from('employees')
               .update({ milestones_claimed: [...claimed, newStreak] })
               .eq('id', matched.id);
           }
@@ -1582,17 +1941,17 @@ API.validateAndLog = async (enteredPin, clientIp, forceMode) => {
         let penalty = lateMins >= 45 ? 50 : lateMins >= 21 ? 30 : 15;
         if (matched.streak >= 60) penalty = Math.round(penalty * 0.25);
         else if (matched.streak >= 30) penalty = Math.round(penalty * 0.5);
-        const { data: empXP } = await sb.from('employees').select('xp').eq('id', matched.id).single();
+        const { data: empXP } = await db().from('employees').select('xp').eq('id', matched.id).single();
         const current = empXP?.xp || 0;
-        await sb.from('employees').update({ xp: Math.max(0, current - penalty) }).eq('id', matched.id);
+        await db().from('employees').update({ xp: Math.max(0, current - penalty) }).eq('id', matched.id);
 
         // Aylıq cərimə sistemi — izin və gec gəliş icazəsi olan günlər SAYILMIR
         const monthStart = new Date(ts.getFullYear(), ts.getMonth(), 1).toISOString();
         const [{ data: monthLogs }, { data: monthIzin }, { data: monthPerms }] = await Promise.all([
-          sb.from('attendance').select('timestamp,shift_type').eq('emp_id', String(matched.id))
+          db().from('attendance').select('timestamp,shift_type').eq('emp_id', String(matched.id))
             .eq('type', 'GƏLİŞ').gte('timestamp', monthStart),
-          sb.from('izin').select('start_date,end_date').eq('emp_id', String(matched.id)).eq('status', 'approved'),
-          sb.from('late_perms').select('date_str,requested_time').eq('emp_id', String(matched.id)).eq('status', 'approved'),
+          db().from('izin').select('start_date,end_date').eq('emp_id', String(matched.id)).eq('status', 'approved'),
+          db().from('late_perms').select('date_str,requested_time').eq('emp_id', String(matched.id)).eq('status', 'approved'),
         ]);
         const finePermMap = {};
         for (const p of monthPerms || []) {
@@ -1621,7 +1980,7 @@ API.validateAndLog = async (enteredPin, clientIp, forceMode) => {
             : `\n Bu ay <b>${thisLateNum}-ci gecikmə</b> — ${lateMins} dəq.\n <b>30 AZN cərimə</b> qeyd edildi.`;
         // Cərimə DB-də saxlanılır (audit izi)
         if (isFined) {
-          const { error: fineErr } = await sb.from('fines').insert({
+          const { error: fineErr } = await db().from('fines').insert({
             fine_id:   'FN-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substring(2, 4).toUpperCase(),
             emp_id:    String(matched.id), emp_name: matched.name, dept: matched.dept,
             date_str:  todayYMD, amount: 30, late_num: thisLateNum, late_mins: lateMins,
@@ -1637,7 +1996,7 @@ API.validateAndLog = async (enteredPin, clientIp, forceMode) => {
   } else if (todayLogs.length === 1) {
     // Nahar açıq qalmışsa xəbərdar et (forceMode keçilmədikdə)
     if (!forceMode) {
-      const { data: naharLogs } = await sb.from('nahar').select('*').eq('emp_id', String(matched.id));
+      const { data: naharLogs } = await db().from('nahar').select('*').eq('emp_id', String(matched.id));
       const naharGet = (naharLogs || []).filter(r => U.getLogicalDateStr(new Date(r.timestamp)) === todayStr && r.type === 'NAHAR_GET');
       const naharQay = (naharLogs || []).filter(r => U.getLogicalDateStr(new Date(r.timestamp)) === todayStr && r.type === 'NAHAR_QAY');
       if (naharGet.length > 0 && naharQay.length === 0) {
@@ -1645,14 +2004,13 @@ API.validateAndLog = async (enteredPin, clientIp, forceMode) => {
       }
     }
 
-    const reqH = shiftInfo ? shiftInfo.durH
-      : ((matched.dept === 'Ağ Şəhər' || matched.dept === 'Gənclik') ? 9 : 8);
+    const reqH = shiftInfo ? shiftInfo.durH : fallbackShiftHours(matched.dept);
     const diffMs = ts.getTime() - new Date(todayLogs[0].timestamp).getTime() - reqH * 3600000;
     const absMs  = Math.abs(diffMs);
     const dh = Math.floor(absMs / 3600000), dm = Math.floor((absMs % 3600000) / 60000);
     const overtimeStr = (dh === 0 && dm === 0) ? 'Tam vaxtında'
       : `${diffMs >= 0 ? '+' : '-'}${dh} saat ${dm} dəq`;
-    await sb.from('attendance').insert({
+    await db().from('attendance').insert({
       emp_id: matched.id, emp_name: matched.name, dept: matched.dept,
       timestamp: ts.toISOString(), type: 'CIXIS', overtime: overtimeStr, shift_type: todayShift || '',
     });
@@ -1667,7 +2025,7 @@ API.getOnlineEmployees = async () => {
   const todayStr = U.getLogicalDateStr(new Date());
   // Yalnız son 2 günün qeydləri bugünkü məntiqi günü əhatə etməyə kifayətdir
   const cutoff = new Date(Date.now() - 2 * 86400000).toISOString();
-  const { data: logs } = await sb.from('attendance').select('*').gte('timestamp', cutoff).order('timestamp');
+  const { data: logs } = await db().from('attendance').select('*').gte('timestamp', cutoff).order('timestamp');
   const empMap = {};
   for (const row of logs || []) {
     if (!row.emp_id || String(row.emp_id).startsWith('MGR-')) continue;
@@ -1692,10 +2050,10 @@ API.registerEmployeeSession = (secret) => {
 
 API.subscribePush = async (secret, subscription) => {
   if (!secret || !subscription?.endpoint) return { ok: false, reason: 'Məlumat çatışmır.' };
-  const { data: emp } = await sb.from('employees').select('id').eq('secret', secret).single();
+  const { data: emp } = await db().from('employees').select('id').eq('secret', secret).single();
   if (!emp) return { ok: false, reason: 'İşçi tapılmadı.' };
 
-  await sb.from('push_subscriptions').upsert({
+  await db().from('push_subscriptions').upsert({
     emp_id:   String(emp.id),
     endpoint: subscription.endpoint,
     p256dh:   subscription.keys?.p256dh || '',
@@ -1707,9 +2065,9 @@ API.subscribePush = async (secret, subscription) => {
 
 API.unsubscribePush = async (secret, endpoint) => {
   if (!secret || !endpoint) return { ok: false };
-  const { data: emp } = await sb.from('employees').select('id').eq('secret', secret).single();
+  const { data: emp } = await db().from('employees').select('id').eq('secret', secret).single();
   if (!emp) return { ok: false };
-  await sb.from('push_subscriptions').delete()
+  await db().from('push_subscriptions').delete()
     .eq('emp_id', String(emp.id)).eq('endpoint', endpoint);
   return { ok: true };
 };
@@ -1720,7 +2078,7 @@ API.subscribePushManager = async (branchKey, subscription) => {
   const check = U.validateBranchScheduleKey(branchKey);
   if (!check.valid) return { ok: false, reason: 'İcazəsiz.' };
   const mgrId = 'MGR-' + check.dept.replace(/\s+/g, '');
-  await sb.from('push_subscriptions').upsert({
+  await db().from('push_subscriptions').upsert({
     emp_id:   mgrId,
     endpoint: subscription.endpoint,
     p256dh:   subscription.keys?.p256dh || '',
@@ -1734,15 +2092,15 @@ API.unsubscribePushManager = async (branchKey, endpoint) => {
   const check = U.validateBranchScheduleKey(branchKey);
   if (!check.valid) return { ok: false };
   const mgrId = 'MGR-' + check.dept.replace(/\s+/g, '');
-  await sb.from('push_subscriptions').delete()
+  await db().from('push_subscriptions').delete()
     .eq('emp_id', mgrId).eq('endpoint', endpoint);
   return { ok: true };
 };
 
 // İcraçı push abunəliyi (emp_id = 'EXEC')
 API.subscribePushExec = async (execKey, subscription) => {
-  if (!execKey || U.getSetting('EXEC_KEY') !== execKey || !subscription?.endpoint) return { ok: false };
-  await sb.from('push_subscriptions').upsert({
+  if (!execKey || roleKey('exec') !== execKey || !subscription?.endpoint) return { ok: false };
+  await db().from('push_subscriptions').upsert({
     emp_id:   'EXEC',
     endpoint: subscription.endpoint,
     p256dh:   subscription.keys?.p256dh || '',
@@ -1752,14 +2110,14 @@ API.subscribePushExec = async (execKey, subscription) => {
 };
 
 API.unsubscribePushExec = async (execKey, endpoint) => {
-  if (!execKey || U.getSetting('EXEC_KEY') !== execKey || !endpoint) return { ok: false };
-  await sb.from('push_subscriptions').delete().eq('emp_id', 'EXEC').eq('endpoint', endpoint);
+  if (!execKey || roleKey('exec') !== execKey || !endpoint) return { ok: false };
+  await db().from('push_subscriptions').delete().eq('emp_id', 'EXEC').eq('endpoint', endpoint);
   return { ok: true };
 };
 
 API.subscribePushTrainer = async (trainerKey, subscription) => {
-  if (!trainerKey || U.getSetting('TRAINER_KEY') !== trainerKey || !subscription?.endpoint) return { ok: false };
-  await sb.from('push_subscriptions').upsert({
+  if (!trainerKey || roleKey('trainer') !== trainerKey || !subscription?.endpoint) return { ok: false };
+  await db().from('push_subscriptions').upsert({
     emp_id:   'TRAINER',
     endpoint: subscription.endpoint,
     p256dh:   subscription.keys?.p256dh || '',
@@ -1769,15 +2127,15 @@ API.subscribePushTrainer = async (trainerKey, subscription) => {
 };
 
 API.unsubscribePushTrainer = async (trainerKey, endpoint) => {
-  if (!trainerKey || U.getSetting('TRAINER_KEY') !== trainerKey || !endpoint) return { ok: false };
-  await sb.from('push_subscriptions').delete().eq('emp_id', 'TRAINER').eq('endpoint', endpoint);
+  if (!trainerKey || roleKey('trainer') !== trainerKey || !endpoint) return { ok: false };
+  await db().from('push_subscriptions').delete().eq('emp_id', 'TRAINER').eq('endpoint', endpoint);
   return { ok: true };
 };
 
 // ── DASHBOARD ─────────────────────────────────────────────────────
 
 API.getDashboardData = async (secret) => {
-  const { data: emp } = await sb.from('employees').select('*').eq('secret', secret).single();
+  const { data: emp } = await db().from('employees').select('*').eq('secret', secret).single();
   if (!emp) return null;
   const now    = new Date();
   const monday = new Date(now.getTime() - ((now.getDay() === 0 ? 6 : now.getDay() - 1) * 86400000));
@@ -1823,7 +2181,7 @@ API.getDashboardData = async (secret) => {
 
   // Nahar (nahar) statusu — səhifə yeniləndikdə timer davam etsin
   const todayStr = U.getLogicalDateStr(now);
-  const { data: naharRows } = await sb.from('nahar').select('*').eq('emp_id', String(emp.id));
+  const { data: naharRows } = await db().from('nahar').select('*').eq('emp_id', String(emp.id));
   const naharGet = (naharRows || []).filter(r => U.getLogicalDateStr(new Date(r.timestamp)) === todayStr && r.type === 'NAHAR_GET');
   const naharQay = (naharRows || []).filter(r => U.getLogicalDateStr(new Date(r.timestamp)) === todayStr && r.type === 'NAHAR_QAY');
   const lunchStatus = (naharGet.length > 0 && naharQay.length === 0)
@@ -1839,6 +2197,14 @@ API.getDashboardData = async (secret) => {
     monthStats:      { days: myR.totalDays, onTime: myR.onTime, late: myR.late, pct: myR.pct },
     announcements:   await API.getAnnouncements(),
     lunchStatus,
+    brand:           T.brand(),
+    // Gecikmə xəbərdarlığının həddi. ƏVVƏL mycode.html-də filial adına görə
+    // hardcode idi (`dept==='Ağ Şəhər' ? 16:05 : 15:05`). İndi filialın öz
+    // konfiqurasiyasından gəlir — cavab serverdəki qayda ilə eyni olur.
+    lateLimits: {
+      morning: U.getLateLimit(emp.dept, 'sehersm', 0) + 5,
+      evening: U.getLateLimit(emp.dept, 'axsamsm', 14 * 60) + 5,
+    },
   };
 };
 
@@ -1848,32 +2214,32 @@ API.logLunch = async (secret, clientIp, lunchType) => {
   if (!secret) return { valid: false, reason: 'Kod daxil edilməyib' };
   if (lunchType !== 'NAHAR_GET' && lunchType !== 'NAHAR_QAY') return { valid: false, reason: 'Yanlış nahar növü' };
   // İşçini birbaşa secret ilə tap (PIN deyil) — eyni dinamik PIN-li işçilərdə nahar başqasına yazılmasın
-  const { data: matched } = await sb.from('employees').select('*').eq('secret', secret).single();
+  const { data: matched } = await db().from('employees').select('*').eq('secret', secret).single();
   if (!matched) return { valid: false, reason: 'Yanlış və ya vaxtı keçmiş kod!' };
   if (clientIp) { const wc = U.checkWifiIp(matched.dept, clientIp); if (!wc.ok) return { valid: false, reason: wc.reason }; }
 
   const ts       = new Date();
   const todayStr = U.getLogicalDateStr(ts);
-  const { data: attLogs } = await sb.from('attendance').select('*').eq('emp_id', String(matched.id));
+  const { data: attLogs } = await db().from('attendance').select('*').eq('emp_id', String(matched.id));
   const hasTodayGelis = (attLogs || []).some(r => U.getLogicalDateStr(new Date(r.timestamp)) === todayStr && r.type === 'GƏLİŞ');
   const hasTodayCixis = (attLogs || []).some(r => U.getLogicalDateStr(new Date(r.timestamp)) === todayStr && r.type === 'CIXIS');
   if (!hasTodayGelis) return { valid: false, reason: 'Əvvəlcə giriş qeydə alınmalıdır!' };
   if (hasTodayCixis)  return { valid: false, reason: 'Artıq smen çıxışı qeydə alınıb!' };
 
-  const { data: naharLogs } = await sb.from('nahar').select('*').eq('emp_id', String(matched.id));
+  const { data: naharLogs } = await db().from('nahar').select('*').eq('emp_id', String(matched.id));
   const naharGet = (naharLogs || []).filter(r => U.getLogicalDateStr(new Date(r.timestamp)) === todayStr && r.type === 'NAHAR_GET');
   const naharQay = (naharLogs || []).filter(r => U.getLogicalDateStr(new Date(r.timestamp)) === todayStr && r.type === 'NAHAR_QAY');
 
   if (lunchType === 'NAHAR_GET') {
     if (naharGet.length > 0) return { valid: false, reason: 'Artıq nahara çıxmısınız!' };
-    await sb.from('nahar').insert({ nahar_id: 'NH-' + Date.now().toString(36).toUpperCase(), emp_id: matched.id, emp_name: matched.name, dept: matched.dept, timestamp: ts.toISOString(), type: 'NAHAR_GET' });
+    await db().from('nahar').insert({ nahar_id: 'NH-' + Date.now().toString(36).toUpperCase(), emp_id: matched.id, emp_name: matched.name, dept: matched.dept, timestamp: ts.toISOString(), type: 'NAHAR_GET' });
     await U.sendTelegramMsg(`<b>${matched.name}</b> naharda.\n${U.fmtTime(ts)}`, matched.dept);
     return { valid: true, empName: matched.name, dept: matched.dept, type: 'NAHAR_GET' };
   }
   if (naharGet.length === 0) return { valid: false, reason: 'Əvvəlcə nahara çıxış qeydə alınmalıdır!' };
   if (naharQay.length > 0)   return { valid: false, reason: 'Nahardan qayıdışınız artıq qeydə alınıb!' };
   const diffMin = Math.round((ts.getTime() - new Date(naharGet[0].timestamp).getTime()) / 60000);
-  await sb.from('nahar').insert({ nahar_id: 'NH-' + Date.now().toString(36).toUpperCase(), emp_id: matched.id, emp_name: matched.name, dept: matched.dept, timestamp: ts.toISOString(), type: 'NAHAR_QAY' });
+  await db().from('nahar').insert({ nahar_id: 'NH-' + Date.now().toString(36).toUpperCase(), emp_id: matched.id, emp_name: matched.name, dept: matched.dept, timestamp: ts.toISOString(), type: 'NAHAR_QAY' });
   const lateLunch = diffMin > LUNCH_MAX;
   await U.sendTelegramMsg(`<b>${matched.name}</b> nahar bitdi.\n${U.fmtTime(ts)} — ${diffMin} dəq`, matched.dept);
   if (lateLunch) {
@@ -1892,7 +2258,7 @@ API.getLunchLogForManager = async (branchKey) => {
   if (!check.valid) return [];
   const todayStr = U.getLogicalDateStr(new Date());
   const cutoff   = new Date(Date.now() - 2 * 86400000).toISOString();
-  const { data: rows } = await sb.from('nahar').select('*')
+  const { data: rows } = await db().from('nahar').select('*')
     .eq('dept', check.dept).gte('timestamp', cutoff);
   const byEmp = {};
   for (const r of rows || []) {
@@ -1934,12 +2300,12 @@ API.logManagerCheckin = async (branchKey, type) => {
   const mgrName = 'Menecer (' + dept + ')';
   const ts      = new Date();
   const todayStr = U.getLogicalDateStr(ts);
-  const { data: all } = await sb.from('attendance').select('*').eq('emp_id', MGR_ID);
+  const { data: all } = await db().from('attendance').select('*').eq('emp_id', MGR_ID);
   const todayLogs = (all || []).filter(r => U.getLogicalDateStr(new Date(r.timestamp)) === todayStr);
 
   if (type === 'GELIS') {
     if (todayLogs.some(r => r.type === 'GELIS' || r.type === 'GƏLİŞ')) return { valid: false, reason: 'Giriş artıq qeydə alınıb!' };
-    await sb.from('attendance').insert({ emp_id: MGR_ID, emp_name: mgrName, dept, timestamp: ts.toISOString(), type: 'GELIS', overtime: '', shift_type: '' });
+    await db().from('attendance').insert({ emp_id: MGR_ID, emp_name: mgrName, dept, timestamp: ts.toISOString(), type: 'GELIS', overtime: '', shift_type: '' });
     await U.sendTelegramMsg(`<b>Manager</b> işdə.\n${U.fmtTime(ts)}`, dept);
     return { valid: true, type: 'GELIS', time: U.fmtTime(ts) };
   }
@@ -1950,7 +2316,7 @@ API.logManagerCheckin = async (branchKey, type) => {
     const diffMs = ts.getTime() - new Date(gelisRow.timestamp).getTime();
     const dh = Math.floor(diffMs / 3600000), dm = Math.floor((diffMs % 3600000) / 60000);
     const dur = `${dh} saat ${dm} dəq`;
-    await sb.from('attendance').insert({ emp_id: MGR_ID, emp_name: mgrName, dept, timestamp: ts.toISOString(), type: 'CIXIS', overtime: dur, shift_type: '' });
+    await db().from('attendance').insert({ emp_id: MGR_ID, emp_name: mgrName, dept, timestamp: ts.toISOString(), type: 'CIXIS', overtime: dur, shift_type: '' });
     await U.sendTelegramMsg(`<b>Manager</b> smendən çıxdı.\n${U.fmtTime(ts)} — ${dur}`, dept);
     return { valid: true, type: 'CIXIS', time: U.fmtTime(ts), duration: dur };
   }
@@ -1961,7 +2327,7 @@ API.getManagersLiveStatus = async () => {
   const todayStr = U.getLogicalDateStr(new Date());
   // Yalnız son 2 günün qeydləri bugünkü məntiqi günü əhatə etməyə kifayətdir
   const cutoff = new Date(Date.now() - 2 * 86400000).toISOString();
-  const { data: logs } = await sb.from('attendance').select('*').gte('timestamp', cutoff).order('timestamp');
+  const { data: logs } = await db().from('attendance').select('*').gte('timestamp', cutoff).order('timestamp');
   const result = {};
   for (const dept of U.DEPTS) {
     const slug    = U.deptToSlug(dept);
@@ -1974,7 +2340,7 @@ API.getManagersLiveStatus = async () => {
       if (r.type === 'CIXIS') cixisDate = rd;
     }
     result[dept] = {
-      mgrName:  U.getSetting('MGR_NAME_' + slug) || `Menecer · ${dept}`,
+      mgrName:  mgrNameOf(dept) || `Menecer · ${dept}`,
       gelis:    gelisDate ? U.fmtTime(gelisDate) : null,
       gelisMs:  gelisDate ? gelisDate.getTime() : null,
       cixis:    cixisDate ? U.fmtTime(cixisDate) : null,
@@ -1986,29 +2352,46 @@ API.getManagersLiveStatus = async () => {
 };
 
 // ── MENECER İNFO ─────────────────────────────────────────────────
+//  ƏVVƏL: idarəçi adı/mesajı `MGR_NAME_<slug>` və `MGR_MSG_<slug>` parametrlərində
+//  idi və `MGR_SLUGS` 4 filialı sabit gəzirdi. İNDİ: hər ikisi `branches`
+//  cədvəlinin sütunudur → filial sayı sərbəstdir.
 
-const MGR_SLUGS = U.SLUGS;
+// Bir və ya bir neçə filialın sütununu yeniləyir və keşi təzələyir.
+async function patchBranches(patchBySlug) {
+  const tid = T.tenantId();
+  const entries = Object.entries(patchBySlug).filter(([slug]) => T.branchBySlug(slug));
+  for (const [slug, patch] of entries) {
+    await db().from('branches').update(patch).eq('branch_id', slug);
+  }
+  if (entries.length) await T.reload(tid);
+  return entries.length;
+}
 
 API.getMgrInfo = () => ({
   globalMsg: U.getSetting('MGR_GLOBAL_MSG'),
-  names: Object.fromEntries(MGR_SLUGS.map(s => [s, U.getSetting('MGR_NAME_' + s)])),
-  msgs:  Object.fromEntries(MGR_SLUGS.map(s => [s, U.getSetting('MGR_MSG_'  + s)])),
+  names: Object.fromEntries(T.branches().map(b => [b.branch_id, b.mgr_name || ''])),
+  msgs:  Object.fromEntries(T.branches().map(b => [b.branch_id, b.mgr_msg  || ''])),
 });
 
 API.saveMgrInfo = async (data) => {
   if (data.globalMsg !== undefined) await U.setSetting('MGR_GLOBAL_MSG', data.globalMsg || '');
-  for (const slug of MGR_SLUGS) {
-    if (data.names?.[slug] !== undefined) await U.setSetting('MGR_NAME_' + slug, data.names[slug] || '');
-    if (data.msgs?.[slug]  !== undefined) await U.setSetting('MGR_MSG_'  + slug, data.msgs[slug]  || '');
+  const patch = {};
+  for (const b of T.branches()) {
+    const p = {};
+    if (data.names?.[b.branch_id] !== undefined) p.mgr_name = data.names[b.branch_id] || '';
+    if (data.msgs?.[b.branch_id]  !== undefined) p.mgr_msg  = data.msgs[b.branch_id]  || '';
+    if (Object.keys(p).length) patch[b.branch_id] = p;
   }
+  await patchBranches(patch);
   return { success: true };
 };
 
 // İcraçı menecerlərə mesaj yazır → saxla + həmin menecer(lər)ə push
 API.saveExecMessages = async (execKey, data) => {
-  if (!execKey || U.getSetting('EXEC_KEY') !== execKey) return { success: false, reason: 'İcazəsiz.' };
+  if (!execAuth(execKey)) return { success: false, reason: 'İcazəsiz.' };
   const execName = U.getSetting('EXEC_NAME') || 'İcraçı';
   const keys = await U.getBranchScheduleKeys();
+
   if (data.globalMsg !== undefined) {
     await U.setSetting('MGR_GLOBAL_MSG', data.globalMsg || '');
     if (data.globalMsg) {
@@ -2018,15 +2401,20 @@ API.saveExecMessages = async (execKey, data) => {
       }
     }
   }
-  for (const slug of MGR_SLUGS) {
-    if (data.msgs?.[slug] !== undefined) {
-      await U.setSetting('MGR_MSG_' + slug, data.msgs[slug] || '');
-      if (data.msgs[slug]) {
-        const dept = U.slugToDept(slug);
-        await sendPushToManager(dept, `📩 ${execName} — mesaj`, String(data.msgs[slug]).slice(0, 140),
-          { tag: 'exec-msg-' + slug, url: '/manager?key=' + (keys[dept] || '') });
-      }
-    }
+
+  const patch = {};
+  for (const b of T.branches()) {
+    const msg = data.msgs?.[b.branch_id];
+    if (msg === undefined) continue;
+    patch[b.branch_id] = { mgr_msg: msg || '' };
+  }
+  await patchBranches(patch);
+
+  for (const b of T.branches()) {
+    const msg = data.msgs?.[b.branch_id];
+    if (!msg) continue;
+    await sendPushToManager(b.name, `📩 ${execName} — mesaj`, String(msg).slice(0, 140),
+      { tag: 'exec-msg-' + b.branch_id, url: '/manager?key=' + (keys[b.name] || '') });
   }
   return { success: true };
 };
@@ -2034,25 +2422,28 @@ API.saveExecMessages = async (execKey, data) => {
 API.getMgrInfoForBranch = (branchKey) => {
   const check = U.validateBranchScheduleKey(branchKey);
   if (!check.valid) return null;
-  const slug = U.deptToSlug(check.dept);
-  return { dept: check.dept, mgrName: U.getSetting('MGR_NAME_' + slug),
-           globalMsg: U.getSetting('MGR_GLOBAL_MSG'), branchMsg: U.getSetting('MGR_MSG_' + slug) };
+  const b = T.branchByName(check.dept);
+  return { dept: check.dept, mgrName: (b && b.mgr_name) || '',
+           globalMsg: U.getSetting('MGR_GLOBAL_MSG'), branchMsg: (b && b.mgr_msg) || '' };
 };
 
 // ── TELEGRAM ─────────────────────────────────────────────────────
+//  Filial chat ID-ləri `branches.tg_chat_id`-dədir (əvvəl `TG_CHAT_<Ad>`).
 
 API.getTelegramSettings = () => U.getTelegramSettings();
 
 API.saveTelegramSettings = async (data) => {
   await Promise.all([
-    U.setSetting('TG_TOKEN',        data.token       || ''),
-    U.setSetting('TG_ADMIN_CHAT',   data.adminChat   || ''),
-    U.setSetting('TG_ENABLED',      data.enabled ? 'true' : 'false'),
-    U.setSetting('TG_CHAT_Elmler',  data.chatElmler  || ''),
-    U.setSetting('TG_CHAT_Sahil',   data.chatSahil   || ''),
-    U.setSetting('TG_CHAT_Genclik', data.chatGenclik || ''),
-    U.setSetting('TG_CHAT_AgSeher', data.chatAgSeher || ''),
+    U.setSetting('TG_TOKEN',      data.token     || ''),
+    U.setSetting('TG_ADMIN_CHAT', data.adminChat || ''),
+    U.setSetting('TG_ENABLED',    data.enabled ? 'true' : 'false'),
   ]);
+  // data.chats = { <branch_id>: '<chatId>' }
+  const patch = {};
+  for (const [slug, chatId] of Object.entries(data.chats || {})) {
+    patch[slug] = { tg_chat_id: chatId || '' };
+  }
+  await patchBranches(patch);
   return { success: true };
 };
 
@@ -2063,7 +2454,11 @@ API.testTelegram = async () => {
   try {
     const r = await fetch(`https://api.telegram.org/bot${cfg.token}/sendMessage`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: cfg.adminChat, text: '☕ <b>Coffeemoon</b>\n\n✅ Telegram bağlantısı uğurla quruldu!', parse_mode: 'HTML' }),
+      body: JSON.stringify({
+        chat_id: cfg.adminChat,
+        text: `<b>${T.brand().name}</b>\n\n✅ Telegram bağlantısı uğurla quruldu!`,
+        parse_mode: 'HTML',
+      }),
     });
     const d = await r.json();
     return d.ok ? { success: true } : { success: false, reason: d.description };
@@ -2071,32 +2466,30 @@ API.testTelegram = async () => {
 };
 
 // ── WiFi IP ──────────────────────────────────────────────────────
+//  `branches.wifi_ips` (əvvəl `IP_<slug>` parametrləri).
 
-API.getBranchIPs = () => ({
-  elmler: U.getSetting('IP_elmler'), sahil: U.getSetting('IP_sahil'),
-  genclik: U.getSetting('IP_genclik'), agseher: U.getSetting('IP_agseher'),
-});
+API.getBranchIPs = () =>
+  Object.fromEntries(T.branches().map(b => [b.branch_id, b.wifi_ips || '']));
 
 API.saveBranchIPs = async (data) => {
-  await Promise.all([
-    U.setSetting('IP_elmler',  data.elmler  || ''),
-    U.setSetting('IP_sahil',   data.sahil   || ''),
-    U.setSetting('IP_genclik', data.genclik || ''),
-    U.setSetting('IP_agseher', data.agseher || ''),
-  ]);
+  const patch = {};
+  for (const [slug, ips] of Object.entries(data || {})) {
+    patch[slug] = { wifi_ips: ips || '' };
+  }
+  await patchBranches(patch);
   return { success: true };
 };
 
 // ── ÇEKLİST ─────────────────────────────────────────────────────
 
 API.getChecklistItems = async () => {
-  const { data } = await sb.from('checklist_items').select('*').order('sort_order');
+  const { data } = await db().from('checklist_items').select('*').order('sort_order');
   return (data || []).map(r => ({ ...r, itemId: r.item_id, active: !!r.active }));
 };
 
 API.saveChecklistItems = async (items) => {
   // Əvvəlcə hamısını sil
-  const { error: delErr } = await sb.from('checklist_items').delete().neq('item_id', 'x');
+  const { error: delErr } = await db().from('checklist_items').delete().neq('item_id', 'x');
   if (delErr) return { success: false, reason: 'Silmə xətası: ' + delErr.message };
 
   if (!items || !items.length) return { success: true };
@@ -2111,7 +2504,7 @@ API.saveChecklistItems = async (items) => {
 
   if (!incoming.length) return { success: true };
 
-  const { error: insErr } = await sb.from('checklist_items').insert(incoming);
+  const { error: insErr } = await db().from('checklist_items').insert(incoming);
   if (insErr) return { success: false, reason: 'Əlavə xətası: ' + insErr.message };
 
   return { success: true };
@@ -2122,8 +2515,8 @@ API.getChecklistForBranch = async (branchKey) => {
   if (!check.valid) return { valid: false, reason: 'İcazəsiz giriş.' };
   const today = U.toYMD(new Date());
   const [{ data: items }, { data: logs }] = await Promise.all([
-    sb.from('checklist_items').select('*').eq('active', true).order('sort_order'),
-    sb.from('checklist_logs').select('*').eq('date', today).eq('dept', check.dept),
+    db().from('checklist_items').select('*').eq('active', true).order('sort_order'),
+    db().from('checklist_logs').select('*').eq('date', today).eq('dept', check.dept),
   ]);
   const logMap = {};
   for (const r of logs || []) logMap[r.item_id] = r;
@@ -2149,12 +2542,12 @@ API.submitChecklistItem = async (branchKey, itemId, checked, mgrNote) => {
   if (!check.valid) return { valid: false, reason: 'İcazəsiz giriş.' };
   const today = U.toYMD(new Date());
   const ts    = new Date();
-  const { data: existing } = await sb.from('checklist_logs').select('log_id').eq('date', today).eq('dept', check.dept).eq('item_id', String(itemId)).single();
+  const { data: existing } = await db().from('checklist_logs').select('log_id').eq('date', today).eq('dept', check.dept).eq('item_id', String(itemId)).single();
   if (existing) {
-    await sb.from('checklist_logs').update({ checked: !!checked, checked_at: checked ? U.fmtTime(ts) : '', mgr_note: mgrNote || '' }).eq('log_id', existing.log_id);
+    await db().from('checklist_logs').update({ checked: !!checked, checked_at: checked ? U.fmtTime(ts) : '', mgr_note: mgrNote || '' }).eq('log_id', existing.log_id);
   } else {
-    const { data: itemRow } = await sb.from('checklist_items').select('text').eq('item_id', String(itemId)).single();
-    await sb.from('checklist_logs').insert({ log_id: 'CL-' + Date.now().toString(36).toUpperCase(), date: today, dept: check.dept, item_id: itemId, item_text: itemRow?.text || '', checked: !!checked, checked_at: checked ? U.fmtTime(ts) : '', mgr_note: mgrNote || '', admin_note: '' });
+    const { data: itemRow } = await db().from('checklist_items').select('text').eq('item_id', String(itemId)).single();
+    await db().from('checklist_logs').insert({ log_id: 'CL-' + Date.now().toString(36).toUpperCase(), date: today, dept: check.dept, item_id: itemId, item_text: itemRow?.text || '', checked: !!checked, checked_at: checked ? U.fmtTime(ts) : '', mgr_note: mgrNote || '', admin_note: '' });
   }
   return { valid: true, checkedAt: checked ? U.fmtTime(ts) : '', checked_at: checked ? U.fmtTime(ts) : '' };
 };
@@ -2163,8 +2556,8 @@ API.getChecklistReport = async (dateStr) => {
   const date  = dateStr || U.toYMD(new Date());
   
   const [{ data: items }, { data: logs }] = await Promise.all([
-    sb.from('checklist_items').select('*').eq('active', true).order('sort_order'),
-    sb.from('checklist_logs').select('*').eq('date', date),
+    db().from('checklist_items').select('*').eq('active', true).order('sort_order'),
+    db().from('checklist_logs').select('*').eq('date', date),
   ]);
   const report = {};
   for (const dept of U.DEPTS) {
@@ -2186,12 +2579,12 @@ API.getChecklistReport = async (dateStr) => {
 
 API.saveAdminNote = async (dateStr, dept, itemId, adminNote) => {
   const date = dateStr || U.toYMD(new Date());
-  const { data: existing } = await sb.from('checklist_logs').select('log_id').eq('date', date).eq('dept', dept).eq('item_id', String(itemId)).single();
+  const { data: existing } = await db().from('checklist_logs').select('log_id').eq('date', date).eq('dept', dept).eq('item_id', String(itemId)).single();
   if (existing) {
-    await sb.from('checklist_logs').update({ admin_note: adminNote || '' }).eq('log_id', existing.log_id);
+    await db().from('checklist_logs').update({ admin_note: adminNote || '' }).eq('log_id', existing.log_id);
   } else {
-    const { data: itemRow } = await sb.from('checklist_items').select('text').eq('item_id', String(itemId)).single();
-    await sb.from('checklist_logs').insert({ log_id: 'CL-' + Date.now().toString(36).toUpperCase(), date, dept, item_id: itemId, item_text: itemRow?.text || '', checked: false, checked_at: '', mgr_note: '', admin_note: adminNote || '' });
+    const { data: itemRow } = await db().from('checklist_items').select('text').eq('item_id', String(itemId)).single();
+    await db().from('checklist_logs').insert({ log_id: 'CL-' + Date.now().toString(36).toUpperCase(), date, dept, item_id: itemId, item_text: itemRow?.text || '', checked: false, checked_at: '', mgr_note: '', admin_note: adminNote || '' });
   }
   return { success: true };
 };
@@ -2201,7 +2594,7 @@ API.saveAdminNote = async (dateStr, dept, itemId, adminNote) => {
 API.getMgrAckStatus = async (branchKey) => {
   const check = U.validateBranchScheduleKey(branchKey);
   if (!check.valid) return null;
-  const { data } = await sb.from('mgr_acks').select('*').eq('date', U.toYMD(new Date())).eq('dept', check.dept).single();
+  const { data } = await db().from('mgr_acks').select('*').eq('date', U.toYMD(new Date())).eq('dept', check.dept).single();
   if (!data) return { globalAcked: false, globalAckedAt: '', branchAcked: false, branchAckedAt: '' };
   return { globalAcked: !!data.global_acked, globalAckedAt: data.global_acked_at || '', branchAcked: !!data.branch_acked, branchAckedAt: data.branch_acked_at || '' };
 };
@@ -2210,25 +2603,25 @@ API.ackMgrMessage = async (branchKey, msgType) => {
   const check = U.validateBranchScheduleKey(branchKey);
   if (!check.valid) return { success: false };
   const today = U.toYMD(new Date()), ts = U.fmtTime(new Date());
-  const { data: existing } = await sb.from('mgr_acks').select('ack_id').eq('date', today).eq('dept', check.dept).single();
+  const { data: existing } = await db().from('mgr_acks').select('ack_id').eq('date', today).eq('dept', check.dept).single();
   const upd = msgType === 'global' ? { global_acked: true, global_acked_at: ts } : { branch_acked: true, branch_acked_at: ts };
   if (existing) {
-    await sb.from('mgr_acks').update(upd).eq('ack_id', existing.ack_id);
+    await db().from('mgr_acks').update(upd).eq('ack_id', existing.ack_id);
   } else {
-    await sb.from('mgr_acks').insert({ ack_id: 'ACK-' + Date.now().toString(36).toUpperCase(), date: today, dept: check.dept, ...upd });
+    await db().from('mgr_acks').insert({ ack_id: 'ACK-' + Date.now().toString(36).toUpperCase(), date: today, dept: check.dept, ...upd });
   }
   // İcraçıya təsdiq bildirişi
   const typeAz = msgType === 'global' ? 'ümumi mesajı' : 'filial mesajını';
   await sendPushToExec('✅ Mesaj təsdiqləndi',
     `${check.dept} meneceri ${typeAz} təsdiqlədi (${ts}).`,
-    { tag: 'exec-ack-' + check.dept + '-' + msgType, url: '/icraci?key=' + U.getSetting('EXEC_KEY') });
+    { tag: 'exec-ack-' + check.dept + '-' + msgType, url: '/icraci?key=' + roleKey('exec') });
   return { success: true, time: ts };
 };
 
 API.getMgrAcksForAdmin = async (dateStr) => {
   const date  = dateStr || U.toYMD(new Date());
   
-  const { data } = await sb.from('mgr_acks').select('*').eq('date', date);
+  const { data } = await db().from('mgr_acks').select('*').eq('date', date);
   const result = {};
   for (const d of U.DEPTS) result[d] = { globalAcked: false, globalAckedAt: '', branchAcked: false, branchAckedAt: '' };
   for (const r of data || []) {
@@ -2239,31 +2632,36 @@ API.getMgrAcksForAdmin = async (dateStr) => {
 
 // ── MƏHSULLAR ────────────────────────────────────────────────────
 
-const WASTE_LIMITS = { 'Gənclik':2.5,'Ağ Şəhər':3.0,'Elmlər':3.5,'Sahil':4.0 };
-function getWasteLimit(dept) { return WASTE_LIMITS[dept] ?? 3.0; }
+// İcazə verilən itki faizi. ƏVVƏL filial adları ilə hardcode obyekt idi
+// (`{'Gənclik':2.5, 'Ağ Şəhər':3.0, ...}`), İNDİ `branches.waste_limit` sütunu.
+function getWasteLimit(dept) {
+  const b = T.branchByName(dept);
+  const v = b && b.waste_limit;
+  return Number.isFinite(Number(v)) ? Number(v) : 3.0;
+}
 
 API.getProducts = async () => {
-  const { data } = await sb.from('products').select('*').eq('active', true).order('name');
+  const { data } = await db().from('products').select('*').eq('active', true).order('name');
   return (data || []).map(p => ({ productId: p.product_id, product_id: p.product_id, name: p.name, unit: p.unit }));
 };
 
 API.addProduct = async (name, unit) => {
   if (!name?.trim()) return { success: false, reason: 'Ad boş ola bilməz.' };
   const id = 'PRD-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substring(2,4).toUpperCase();
-  const { error } = await sb.from('products').insert({ product_id: id, name: name.trim(), unit: unit || 'ədəd', active: true });
+  const { error } = await db().from('products').insert({ product_id: id, name: name.trim(), unit: unit || 'ədəd', active: true });
   return { success: !error, productId: id, product_id: id };
 };
 
 API.deleteProduct = async (productId) => {
-  const { error } = await sb.from('products').update({ active: false }).eq('product_id', productId);
+  const { error } = await db().from('products').update({ active: false }).eq('product_id', productId);
   return error ? { success: false, reason: 'Tapılmadı.' } : { success: true };
 };
 
 API.getProductLogsForBranch = async (branchKey, monthStr) => {
   const check = U.validateBranchScheduleKey(branchKey);
   if (!check.valid) return { valid: false };
-  const { data: products } = await sb.from('products').select('*').eq('active', true);
-  const { data: logs } = await sb.from('product_logs').select('*').eq('dept', check.dept).like('date_str', monthStr + '%');
+  const { data: products } = await db().from('products').select('*').eq('active', true);
+  const { data: logs } = await db().from('product_logs').select('*').eq('dept', check.dept).like('date_str', monthStr + '%');
   const totals = {};
   for (const r of logs || []) {
     if (!totals[r.product_id]) totals[r.product_id] = { incoming: 0, wasted: 0 };
@@ -2290,8 +2688,8 @@ API.saveProductLogs = async (branchKey, monthStr, logs) => {
     date_str: todayYMD, dept: check.dept, product_id: l.product_id||l.productId, product_name: l.name||l.productName||'',
     incoming: Number(l.incoming) || 0, wasted: Number(l.wasted) || 0,
   }));
-  if (toInsert.length) await sb.from('product_logs').insert(toInsert);
-  const { data: allLogs } = await sb.from('product_logs').select('*').eq('dept', check.dept).like('date_str', monthStr + '%');
+  if (toInsert.length) await db().from('product_logs').insert(toInsert);
+  const { data: allLogs } = await db().from('product_logs').select('*').eq('dept', check.dept).like('date_str', monthStr + '%');
   let totalIn = 0, totalWasted = 0;
   for (const r of allLogs || []) { totalIn += Number(r.incoming)||0; totalWasted += Number(r.wasted)||0; }
   const limit = getWasteLimit(check.dept);
@@ -2301,7 +2699,7 @@ API.saveProductLogs = async (branchKey, monthStr, logs) => {
 
 API.getWasteStatsForAdmin = async (dateStr) => {
   
-  const { data: logs } = await sb.from('product_logs').select('*').like('date_str', dateStr + '%');
+  const { data: logs } = await db().from('product_logs').select('*').like('date_str', dateStr + '%');
   const deptMap = {};
   for (const d of U.DEPTS) deptMap[d] = { dept: d, totalIn:0, totalWasted:0, products:[], limit: getWasteLimit(d) };
   for (const r of logs || []) {
@@ -2323,7 +2721,7 @@ API.getMgrWeekSchedule = async (branchKey, weekStart) => {
   if (!check.valid) return null;
   const start = new Date(weekStart);
   const dates = Array.from({length:7}, (_, d) => U.toYMD(new Date(start.getTime()+d*86400000)));
-  const { data } = await sb.from('mgr_schedule').select('*').eq('dept', check.dept).in('date_str', dates);
+  const { data } = await db().from('mgr_schedule').select('*').eq('dept', check.dept).in('date_str', dates);
   const map = {};
   for (const r of data || []) map[r.date_str] = r.shift_type;
   return { dept: check.dept, schedule: dates.map(ds => ({ date: ds, shiftType: map[ds] || '' })) };
@@ -2333,12 +2731,12 @@ API.saveMgrWeekSchedule = async (branchKey, entries) => {
   const check = U.validateBranchScheduleKey(branchKey);
   if (!check.valid) return { success: false, reason: 'İcazəsiz.' };
   const dates = entries.map(e => e.dateStr).filter(Boolean);
-  if (dates.length) await sb.from('mgr_schedule').delete().eq('dept', check.dept).in('date_str', dates);
+  if (dates.length) await db().from('mgr_schedule').delete().eq('dept', check.dept).in('date_str', dates);
   const toInsert = entries.filter(e => e.dateStr && e.shiftType).map(e => ({
     sched_id: 'MS-' + Date.now().toString(36).toUpperCase() + Math.floor(Math.random()*1000).toString(36).toUpperCase(),
     dept: check.dept, date_str: e.dateStr, shift_type: e.shiftType,
   }));
-  if (toInsert.length) await sb.from('mgr_schedule').insert(toInsert);
+  if (toInsert.length) await db().from('mgr_schedule').insert(toInsert);
   return { success: true };
 };
 
@@ -2346,14 +2744,14 @@ API.getMgrScheduleForAdmin = async (weekStart) => {
   
   const start = new Date(weekStart);
   const dates = Array.from({length:7}, (_, d) => U.toYMD(new Date(start.getTime()+d*86400000)));
-  const { data } = await sb.from('mgr_schedule').select('*').in('date_str', dates);
+  const { data } = await db().from('mgr_schedule').select('*').in('date_str', dates);
   const map = {};
   for (const dept of U.DEPTS) map[dept] = {};
   for (const r of data || []) { if (map[r.dept]) map[r.dept][r.date_str] = r.shift_type; }
   const DAY_NAMES = ['B.e.','Ç.a.','Çər.','C.a.','Cüm.','Şən.','Baz.'];
   return {
     dates: dates.map(ds => { const dd=new Date(ds); return {date:ds,dayName:DAY_NAMES[dd.getDay()===0?6:dd.getDay()-1]}; }),
-    managers: U.DEPTS.map(dept => ({ dept, mgrName: U.getSetting('MGR_NAME_'+U.deptToSlug(dept))||dept, schedule: dates.map(ds=>map[dept][ds]||'') })),
+    managers: U.DEPTS.map(dept => ({ dept, mgrName: mgrNameOf(dept)||dept, schedule: dates.map(ds=>map[dept][ds]||'') })),
   };
 };
 
@@ -2363,12 +2761,12 @@ API.requestLatePerm = async (secret, dateStr, requestedTime) => {
   if (!secret||!dateStr||!requestedTime) return { success:false, reason:'Məlumatlar natamamdır.' };
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return { success:false, reason:'Tarix formatı yanlışdır.' };
   if (!/^\d{2}:\d{2}$/.test(requestedTime)) return { success:false, reason:'Vaxt formatı yanlışdır.' };
-  const { data: emp } = await sb.from('employees').select('*').eq('secret', secret).single();
+  const { data: emp } = await db().from('employees').select('*').eq('secret', secret).single();
   if (!emp) return { success:false, reason:'İşçi tapılmadı.' };
-  const { data: existing } = await sb.from('late_perms').select('status').eq('emp_id', String(emp.id)).eq('date_str', dateStr).single();
+  const { data: existing } = await db().from('late_perms').select('status').eq('emp_id', String(emp.id)).eq('date_str', dateStr).single();
   if (existing && (existing.status==='pending'||existing.status==='approved')) return { success:false, reason:'Bu tarix üçün artıq icazəniz mövcuddur.' };
   const permId = 'LP-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substring(2,5).toUpperCase();
-  await sb.from('late_perms').insert({ perm_id: permId, emp_id:emp.id, emp_name:emp.name, dept:emp.dept, date_str:dateStr, requested_time:requestedTime, status:'pending' });
+  await db().from('late_perms').insert({ perm_id: permId, emp_id:emp.id, emp_name:emp.name, dept:emp.dept, date_str:dateStr, requested_time:requestedTime, status:'pending' });
 
   // Manager-ə push bildiriş
   await sendPushToManager(
@@ -2386,14 +2784,14 @@ API.getLatePermsForManager = async (branchKey) => {
 
   // İki ayrı sorğu: dept adına görə VƏ filialın işçi ID-lərinə görə
   // (dept string-ində xüsusi hərflər olduğu üçün .or() işlətmirik)
-  const { data: empRows } = await sb.from('employees').select('id').eq('dept', check.dept);
+  const { data: empRows } = await db().from('employees').select('id').eq('dept', check.dept);
   const empIds = (empRows || []).map(e => String(e.id));
 
   const [{ data: byDept }, { data: byEmpId }] = await Promise.all([
-    sb.from('late_perms').select('*').eq('dept', check.dept)
+    db().from('late_perms').select('*').eq('dept', check.dept)
       .order('created_at', { ascending: false }).limit(50),
     empIds.length
-      ? sb.from('late_perms').select('*').in('emp_id', empIds)
+      ? db().from('late_perms').select('*').in('emp_id', empIds)
           .order('created_at', { ascending: false }).limit(50)
       : Promise.resolve({ data: [] }),
   ]);
@@ -2424,8 +2822,8 @@ API.getLatePermsForManager = async (branchKey) => {
 
 // İcraçı: bütün filiallar üzrə gecikmə icazələri (filial → siyahı)
 API.getLatePermsForExec = async (execKey) => {
-  if (!execKey || U.getSetting('EXEC_KEY') !== execKey) return null;
-  const { data } = await sb.from('late_perms').select('*')
+  if (!execKey || roleKey('exec') !== execKey) return null;
+  const { data } = await db().from('late_perms').select('*')
     .order('created_at', { ascending: false }).limit(400);
   const result = {};
   for (const d of U.DEPTS) result[d] = [];
@@ -2452,8 +2850,8 @@ API.approveLatePerm = async (branchKey, permId, action) => {
   const check = U.validateBranchScheduleKey(branchKey);
   if (!check.valid) return { success: false, reason: 'İcazəsiz.' };
   if (action !== 'approved' && action !== 'rejected') return { success: false, reason: 'Yanlış əməliyyat.' };
-  const { data: perm } = await sb.from('late_perms').select('emp_id,date_str,requested_time').eq('perm_id', permId).single();
-  const { error, count } = await sb.from('late_perms')
+  const { data: perm } = await db().from('late_perms').select('emp_id,date_str,requested_time').eq('perm_id', permId).single();
+  const { error, count } = await db().from('late_perms')
     .update({ status: action, approved_at: new Date().toISOString() })
     .eq('perm_id', permId);
   if (!error && perm) {
@@ -2471,10 +2869,10 @@ API.approveLatePerm = async (branchKey, permId, action) => {
 
 API.getMyLatePerms = async (secret) => {
   if (!secret) return [];
-  const { data:emp } = await sb.from('employees').select('id').eq('secret',secret).single();
+  const { data:emp } = await db().from('employees').select('id').eq('secret',secret).single();
   if (!emp) return [];
   const today = U.toYMD(new Date());
-  const { data } = await sb.from('late_perms').select('perm_id,date_str,requested_time,status').eq('emp_id',String(emp.id)).gte('date_str',today).order('date_str').limit(5);
+  const { data } = await db().from('late_perms').select('perm_id,date_str,requested_time,status').eq('emp_id',String(emp.id)).gte('date_str',today).order('date_str').limit(5);
   return (data || []).map(r => ({
     permId:        r.perm_id,
     dateStr:       r.date_str,
@@ -2490,19 +2888,19 @@ API.requestAvans = async (secret, amount, note) => {
   const amt = parseFloat(amount);
   if (!amt || amt <= 0 || amt > 1000) return { success: false, reason: 'Məbləğ 1–1000 AZN aralığında olmalıdır.' };
 
-  const { data: emp } = await sb.from('employees').select('id,name,dept').eq('secret', secret).single();
+  const { data: emp } = await db().from('employees').select('id,name,dept').eq('secret', secret).single();
   if (!emp) return { success: false, reason: 'İşçi tapılmadı.' };
 
   // Eyni gün artıq tələb göndərilib?
   const today = U.toYMD(new Date());
-  const { data: existing } = await sb.from('avans')
+  const { data: existing } = await db().from('avans')
     .select('status').eq('emp_id', String(emp.id)).eq('date_str', today).single();
   if (existing && (existing.status === 'pending' || existing.status === 'approved')) {
     return { success: false, reason: 'Bu gün üçün artıq avans tələbiniz mövcuddur.' };
   }
 
   const id = 'AV-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substring(2, 5).toUpperCase();
-  const { error } = await sb.from('avans').insert({
+  const { error } = await db().from('avans').insert({
     avans_id:   id,
     emp_id:     String(emp.id),
     emp_name:   emp.name,
@@ -2526,9 +2924,9 @@ API.requestAvans = async (secret, amount, note) => {
 
 API.getMyAvansList = async (secret) => {
   if (!secret) return [];
-  const { data: emp } = await sb.from('employees').select('id').eq('secret', secret).single();
+  const { data: emp } = await db().from('employees').select('id').eq('secret', secret).single();
   if (!emp) return [];
-  const { data } = await sb.from('avans')
+  const { data } = await db().from('avans')
     .select('avans_id,amount,note,status,date_str,created_at')
     .eq('emp_id', String(emp.id))
     .order('created_at', { ascending: false })
@@ -2545,7 +2943,7 @@ API.getMyAvansList = async (secret) => {
 
 // Admin üçün: bütün avans tələblərini al
 API.getAvansList = async () => {
-  const { data } = await sb.from('avans')
+  const { data } = await db().from('avans')
     .select('*').order('created_at', { ascending: false }).limit(100);
   return (data || []).map(r => ({
     avansId:   r.avans_id,
@@ -2575,14 +2973,14 @@ function ayAraligi(year, month) {
 // year/month verilməsə HAMISI qaytarılır (köhnə davranış — icraçı paneli belə çağırır)
 API.getApprovedByBranch = async (year, month) => {
   const ay = ayAraligi(year, month);
-  let permQ = sb.from('late_perms').select('*').eq('status', 'approved');
-  let avansQ = sb.from('avans').select('*').in('status', ['approved', 'paid']);
+  let permQ = db().from('late_perms').select('*').eq('status', 'approved');
+  let avansQ = db().from('avans').select('*').in('status', ['approved', 'paid']);
   if (ay) {
     permQ  = permQ.gte('date_str', ay.start).lt('date_str', ay.end);
     avansQ = avansQ.gte('date_str', ay.start).lt('date_str', ay.end);
   }
   const [{ data: emps }, { data: perms }, { data: avans }] = await Promise.all([
-    sb.from('employees').select('id,dept'),
+    db().from('employees').select('id,dept'),
     permQ.order('date_str', { ascending: false }).limit(1000),
     avansQ.order('created_at', { ascending: false }).limit(1000),
   ]);
@@ -2615,14 +3013,14 @@ API.getApprovedByBranch = async (year, month) => {
 // year/month verilməsə HAMISI qaytarılır (köhnə davranış — icraçı paneli belə çağırır)
 API.getMgrFinesForAdmin = async (year, month) => {
   const ay = ayAraligi(year, month);
-  let mgrQ = sb.from('mgr_fines').select('*');
-  let sysQ = sb.from('fines').select('*');
+  let mgrQ = db().from('mgr_fines').select('*');
+  let sysQ = db().from('fines').select('*');
   if (ay) {
     mgrQ = mgrQ.gte('created_at', ay.start).lt('created_at', ay.end);   // menecer cəriməsində tarix = yazılma vaxtı
     sysQ = sysQ.gte('date_str', ay.start).lt('date_str', ay.end);       // sistem cəriməsində gecikmə günü
   }
   const [{ data: emps }, { data: mfines }, { data: sfines }] = await Promise.all([
-    sb.from('employees').select('id,dept'),
+    db().from('employees').select('id,dept'),
     mgrQ.order('created_at', { ascending: false }).limit(1000),
     sysQ.order('created_at', { ascending: false }).limit(1000),
   ]);
@@ -2657,15 +3055,15 @@ API.getMgrFinesForAdmin = async (year, month) => {
 API.updateAvansStatus = async (avansId, status) => {
   if (!['approved', 'rejected', 'paid'].includes(status))
     return { success: false, reason: 'Yanlış status.' };
-  const { data: av } = await sb.from('avans').select('emp_id,emp_name,amount').eq('avans_id', avansId).single();
+  const { data: av } = await db().from('avans').select('emp_id,emp_name,amount').eq('avans_id', avansId).single();
   // Qərar günü: maaş hesabatı tutulmanı TƏLƏB ayına yox, TƏSDİQ/ÖDƏNİŞ ayına yazsın deyə.
   // (Rədd edilən avans tutulmur — ona qərar günü lazım deyil.)
   const patch = { status };
   if (status === 'approved' || status === 'paid') patch.decided_ymd = U.toYMD(new Date());
-  let { error } = await sb.from('avans').update(patch).eq('avans_id', avansId);
+  let { error } = await db().from('avans').update(patch).eq('avans_id', avansId);
   // Sütun hələ yaradılmayıbsa (avans-decided-migration.sql işlədilməyib) köhnə davranışa qayıt
   if (error && /decided_ymd/i.test(error.message || '')) {
-    ({ error } = await sb.from('avans').update({ status }).eq('avans_id', avansId));
+    ({ error } = await db().from('avans').update({ status }).eq('avans_id', avansId));
   }
   if (!error && av) {
     const map = {
@@ -2693,12 +3091,12 @@ API.addMgrFine = async (branchKey, empId, amount, reason) => {
   if (!empId || isNaN(amt) || amt <= 0 || amt > 1000)
     return { success: false, reason: 'Məbləğ 1–1000 AZN aralığında olmalıdır.' };
   if (!reason || !reason.trim()) return { success: false, reason: 'Səbəb yazılmalıdır.' };
-  const { data: emp } = await sb.from('employees').select('id,name,dept').eq('id', String(empId)).single();
+  const { data: emp } = await db().from('employees').select('id,name,dept').eq('id', String(empId)).single();
   if (!emp) return { success: false, reason: 'İşçi tapılmadı.' };
   if (emp.dept !== check.dept) return { success: false, reason: 'Bu işçi sizin filialınıza aid deyil.' };
   const id = 'MF-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substring(2, 5).toUpperCase();
-  const mgrName = U.getSetting('MGR_NAME_' + U.deptToSlug(check.dept)) || ('Menecer (' + check.dept + ')');
-  const { error } = await sb.from('mgr_fines').insert({
+  const mgrName = mgrNameOf(check.dept) || ('Menecer (' + check.dept + ')');
+  const { error } = await db().from('mgr_fines').insert({
     fine_id: id, emp_id: String(emp.id), emp_name: emp.name, dept: check.dept,
     amount: amt, reason: reason.trim().slice(0, 300), status: 'pending', created_by: mgrName,
   });
@@ -2714,14 +3112,14 @@ API.addMgrFine = async (branchKey, empId, amount, reason) => {
 API.getMgrFinesForManager = async (branchKey) => {
   const check = U.validateBranchScheduleKey(branchKey);
   if (!check.valid) return [];
-  const { data: empRows } = await sb.from('employees').select('id').eq('dept', check.dept);
+  const { data: empRows } = await db().from('employees').select('id').eq('dept', check.dept);
   const empIds = (empRows || []).map(e => String(e.id));
   const noEmp = Promise.resolve({ data: [] });
   const [{ data: mByDept }, { data: mByEmp }, { data: sByDept }, { data: sByEmp }] = await Promise.all([
-    sb.from('mgr_fines').select('*').eq('dept', check.dept).order('created_at', { ascending: false }).limit(100),
-    empIds.length ? sb.from('mgr_fines').select('*').in('emp_id', empIds).order('created_at', { ascending: false }).limit(100) : noEmp,
-    sb.from('fines').select('*').eq('dept', check.dept).order('created_at', { ascending: false }).limit(100),
-    empIds.length ? sb.from('fines').select('*').in('emp_id', empIds).order('created_at', { ascending: false }).limit(100) : noEmp,
+    db().from('mgr_fines').select('*').eq('dept', check.dept).order('created_at', { ascending: false }).limit(100),
+    empIds.length ? db().from('mgr_fines').select('*').in('emp_id', empIds).order('created_at', { ascending: false }).limit(100) : noEmp,
+    db().from('fines').select('*').eq('dept', check.dept).order('created_at', { ascending: false }).limit(100),
+    empIds.length ? db().from('fines').select('*').in('emp_id', empIds).order('created_at', { ascending: false }).limit(100) : noEmp,
   ]);
   const seen = new Set();
   const out  = [];
@@ -2743,12 +3141,12 @@ API.getMgrFinesForManager = async (branchKey) => {
 
 API.getMyFines = async (secret) => {
   if (!secret) return [];
-  const { data: emp } = await sb.from('employees').select('id').eq('secret', secret).single();
+  const { data: emp } = await db().from('employees').select('id').eq('secret', secret).single();
   if (!emp) return [];
   const eid = String(emp.id);
   const [{ data: mf }, { data: sf }] = await Promise.all([
-    sb.from('mgr_fines').select('*').eq('emp_id', eid).order('created_at', { ascending: false }).limit(20),
-    sb.from('fines').select('*').eq('emp_id', eid).order('created_at', { ascending: false }).limit(20),
+    db().from('mgr_fines').select('*').eq('emp_id', eid).order('created_at', { ascending: false }).limit(20),
+    db().from('fines').select('*').eq('emp_id', eid).order('created_at', { ascending: false }).limit(20),
   ]);
   const out = [];
   for (const r of mf || []) out.push({
@@ -2761,21 +3159,21 @@ API.getMyFines = async (secret) => {
 
 API.acknowledgeFine = async (secret, fineId) => {
   if (!secret || !fineId) return { success: false, reason: 'Məlumat çatışmır.' };
-  const { data: emp } = await sb.from('employees').select('id,name,dept').eq('secret', secret).single();
+  const { data: emp } = await db().from('employees').select('id,name,dept').eq('secret', secret).single();
   if (!emp) return { success: false, reason: 'İşçi tapılmadı.' };
   const isSystem = String(fineId).indexOf('FN-') === 0;   // sistem cəriməsi
   const table    = isSystem ? 'fines' : 'mgr_fines';
-  const { data: fine } = await sb.from(table).select('*').eq('fine_id', fineId).single();
+  const { data: fine } = await db().from(table).select('*').eq('fine_id', fineId).single();
   if (!fine) return { success: false, reason: 'Cərimə tapılmadı.' };
   if (String(fine.emp_id) !== String(emp.id)) return { success: false, reason: 'İcazəsiz.' };
   const now = new Date().toISOString();
   if (isSystem) {
     if (fine.acked) return { success: true, already: true };
-    const { error } = await sb.from('fines').update({ acked: true, acked_at: now }).eq('fine_id', fineId);
+    const { error } = await db().from('fines').update({ acked: true, acked_at: now }).eq('fine_id', fineId);
     if (error) { sbErr('acknowledgeFine(sys)', error); return { success: false, reason: 'Xəta baş verdi.' }; }
   } else {
     if (fine.status === 'acknowledged') return { success: true, already: true };
-    const { error } = await sb.from('mgr_fines').update({ status: 'acknowledged', acked_at: now }).eq('fine_id', fineId);
+    const { error } = await db().from('mgr_fines').update({ status: 'acknowledged', acked_at: now }).eq('fine_id', fineId);
     if (error) { sbErr('acknowledgeFine(mgr)', error); return { success: false, reason: 'Xəta baş verdi.' }; }
   }
   await sendPushToManager(emp.dept, '✍️ Cərimə Təsdiqləndi',
@@ -2786,7 +3184,7 @@ API.acknowledgeFine = async (secret, fineId) => {
 // ── YENİLİKLƏR ───────────────────────────────────────────────────
 
 API.getAnnouncements = async () => {
-  const { data } = await sb.from('announcements').select('*').order('pinned',{ascending:false}).order('date',{ascending:false});
+  const { data } = await db().from('announcements').select('*').order('pinned',{ascending:false}).order('date',{ascending:false});
   return (data||[]).map(r=>({
     id:r.id, title:r.title, body:r.body, type:r.type||'info', pinned:!!r.pinned,
     date: r.date ? r.date.slice(0,10).split('-').reverse().join('.') : '',
@@ -2795,11 +3193,11 @@ API.getAnnouncements = async () => {
 
 API.saveAnnouncement = async (data) => {
   if (data.id) {
-    const { error } = await sb.from('announcements').update({ title:data.title, body:data.body, type:data.type||'info', pinned:!!data.pinned }).eq('id',data.id);
+    const { error } = await db().from('announcements').update({ title:data.title, body:data.body, type:data.type||'info', pinned:!!data.pinned }).eq('id',data.id);
     if (!error) return { ok:true };
   }
   const newId = 'YN-' + Date.now().toString(36).toUpperCase();
-  const { error: insErr } = await sb.from('announcements').insert({ id:newId, title:data.title, body:data.body, type:data.type||'info', pinned:!!data.pinned });
+  const { error: insErr } = await db().from('announcements').insert({ id:newId, title:data.title, body:data.body, type:data.type||'info', pinned:!!data.pinned });
   if (insErr) { sbErr('saveAnnouncement.insert', insErr); return { ok:false, error: insErr.message }; }
   // Yeni elan — bütün işçilərə push göndər
   const typeEmoji = { info:'ℹ️', success:'✅', warning:'⚠️', new:'🆕' };
@@ -2817,10 +3215,10 @@ API.saveAnnouncement = async (data) => {
 
 API.getMyProfile = async (secret) => {
   if (!secret) return null;
-  const { data: emp } = await sb.from('employees').select('id,name,dept,is_test,streak,xp').eq('secret', secret).single();
+  const { data: emp } = await db().from('employees').select('id,name,dept,is_test,streak,xp').eq('secret', secret).single();
   if (!emp) return null;
   const isTest = emp.is_test === true;
-  const { data: p } = await sb.from('profiles').select('*').eq('emp_id', emp.id).single();
+  const { data: p } = await db().from('profiles').select('*').eq('emp_id', emp.id).single();
   return {
     empId: emp.id, empName: emp.name, dept: emp.dept,
     testMode:    isTest,
@@ -2840,9 +3238,9 @@ API.getMyProfile = async (secret) => {
 
 API.saveProfile = async (secret, data) => {
   if (!secret) return { success: false };
-  const { data: emp } = await sb.from('employees').select('id').eq('secret', secret).single();
+  const { data: emp } = await db().from('employees').select('id').eq('secret', secret).single();
   if (!emp) return { success: false };
-  const { error } = await sb.from('profiles').upsert({
+  const { error } = await db().from('profiles').upsert({
     emp_id:       emp.id,
     avatar_type:  data.avatarType  || 'preset',
     avatar_value: data.avatarValue || 'mug-hot',
@@ -2861,10 +3259,10 @@ API.saveProfile = async (secret, data) => {
 
 API.getTeamProfiles = async (secret) => {
   if (!secret) return [];
-  const { data: caller } = await sb.from('employees').select('id').eq('secret', secret).single();
+  const { data: caller } = await db().from('employees').select('id').eq('secret', secret).single();
   if (!caller) return [];
-  const { data: emps } = await sb.from('employees').select('id,name,dept,is_test,streak,xp').order('name');
-  const { data: profiles } = await sb.from('profiles').select('*');
+  const { data: emps } = await db().from('employees').select('id,name,dept,is_test,streak,xp').order('name');
+  const { data: profiles } = await db().from('profiles').select('*');
   const pm = {};
   for (const p of profiles || []) pm[p.emp_id] = p;
   const result = (emps || []).filter(e => !e.is_test).map(e => ({
@@ -2892,9 +3290,9 @@ API.getTeamProfiles = async (secret) => {
 // ── REAKSİYALAR ──────────────────────────────────────────────────
 
 API.getReactions = async (secret) => {
-  const { data: caller } = await sb.from('employees').select('id').eq('secret', secret).single();
+  const { data: caller } = await db().from('employees').select('id').eq('secret', secret).single();
   if (!caller) return {};
-  const { data: rows } = await sb.from('reactions').select('*');
+  const { data: rows } = await db().from('reactions').select('*');
   const result = {};
   for (const r of rows || []) {
     if (!result[r.to_emp_id]) result[r.to_emp_id] = { like:0, love:0, fire:0, angry:0, mine:null };
@@ -2907,29 +3305,29 @@ API.getReactions = async (secret) => {
 API.toggleReaction = async (secret, toEmpId, type) => {
   const VALID = ['like'];
   if (!VALID.includes(type)) return { ok: false };
-  const { data: caller } = await sb.from('employees').select('id').eq('secret', secret).single();
+  const { data: caller } = await db().from('employees').select('id').eq('secret', secret).single();
   if (!caller || caller.id === toEmpId) return { ok: false };
-  const { data: existing } = await sb.from('reactions')
+  const { data: existing } = await db().from('reactions')
     .select('*').eq('from_emp_id', caller.id).eq('to_emp_id', toEmpId).single();
   if (existing) {
     if (existing.type === type) {
-      await sb.from('reactions').delete().eq('from_emp_id', caller.id).eq('to_emp_id', toEmpId);
+      await db().from('reactions').delete().eq('from_emp_id', caller.id).eq('to_emp_id', toEmpId);
     } else {
-      await sb.from('reactions').update({ type }).eq('from_emp_id', caller.id).eq('to_emp_id', toEmpId);
+      await db().from('reactions').update({ type }).eq('from_emp_id', caller.id).eq('to_emp_id', toEmpId);
     }
   } else {
-    await sb.from('reactions').insert({ from_emp_id: caller.id, to_emp_id: toEmpId, type });
+    await db().from('reactions').insert({ from_emp_id: caller.id, to_emp_id: toEmpId, type });
   }
   return { ok: true };
 };
 
 API.getPublicProfile = async (secret, targetEmpId) => {
   if (!secret || !targetEmpId) return null;
-  const { data: caller } = await sb.from('employees').select('id').eq('secret', secret).single();
+  const { data: caller } = await db().from('employees').select('id').eq('secret', secret).single();
   if (!caller) return null;
-  const { data: emp } = await sb.from('employees').select('id,name,dept,is_test,streak,xp').eq('id', targetEmpId).single();
+  const { data: emp } = await db().from('employees').select('id,name,dept,is_test,streak,xp').eq('id', targetEmpId).single();
   if (!emp || emp.is_test) return null;   // test/demo hesabı liderlik/aurada göstərilmir
-  const { data: p } = await sb.from('profiles').select('*').eq('emp_id', emp.id).single();
+  const { data: p } = await db().from('profiles').select('*').eq('emp_id', emp.id).single();
   const streak = emp.streak || 0;
   const now = new Date();
   const report = await API.getMonthlyReport(now.getFullYear(), now.getMonth() + 1);
@@ -2954,7 +3352,7 @@ API.getPublicProfile = async (secret, targetEmpId) => {
 
 API.sendEmergency = async (secret, message) => {
   if (!secret || !message?.trim()) return { success: false, reason: 'Məlumatlar natamamdır.' };
-  const { data: emp } = await sb.from('employees').select('id,name,dept').eq('secret', secret).single();
+  const { data: emp } = await db().from('employees').select('id,name,dept').eq('secret', secret).single();
   if (!emp) return { success: false, reason: 'İşçi tapılmadı.' };
   const text = `🚨 <b>TƏCİLİ BİLDİRİŞ</b>\n\n👤 <b>${emp.name}</b> (${emp.dept})\n\n💬 ${message.trim()}`;
   await U.sendTelegramMsg(text, emp.dept);
@@ -2962,7 +3360,7 @@ API.sendEmergency = async (secret, message) => {
 };
 
 API.deleteAnnouncement = async (id) => {
-  const { error } = await sb.from('announcements').delete().eq('id',id);
+  const { error } = await db().from('announcements').delete().eq('id',id);
   return { ok:!error };
 };
 
@@ -2972,14 +3370,14 @@ API.getAvansForManager = async (branchKey) => {
   const check = U.validateBranchScheduleKey(branchKey);
   if (!check.valid) return [];
 
-  const { data: empRows } = await sb.from('employees').select('id').eq('dept', check.dept);
+  const { data: empRows } = await db().from('employees').select('id').eq('dept', check.dept);
   const empIds = (empRows || []).map(e => String(e.id));
 
   const [{ data: byDept }, { data: byEmpId }] = await Promise.all([
-    sb.from('avans').select('*').eq('dept', check.dept)
+    db().from('avans').select('*').eq('dept', check.dept)
       .order('created_at', { ascending: false }).limit(50),
     empIds.length
-      ? sb.from('avans').select('*').in('emp_id', empIds)
+      ? db().from('avans').select('*').in('emp_id', empIds)
           .order('created_at', { ascending: false }).limit(50)
       : Promise.resolve({ data: [] }),
   ]);
@@ -3033,46 +3431,35 @@ API.getManagerDashboard = async (branchKey, weekStart) => {
 //  TREYNİNQ MANECERİ API
 // ══════════════════════════════════════════════════════════════════
 
-API.getTrainerKey = async () => {
-  let key = U.getSetting('TRAINER_KEY');
-  if (!key) {
-    key = 'TR' + Math.random().toString(36).substring(2, 12).toUpperCase();
-    await U.setSetting('TRAINER_KEY', key);
-  }
-  const name = U.getSetting('TRAINER_NAME') || '';
-  return { key, name };
-};
+//  Açarlar `auth_keys` cədvəlindədir. `ensureKey` yoxdursa yaradır, varsa
+//  mövcudu qaytarır; `issueKey` köhnəni ləğv edib yenisini verir.
+API.getTrainerKey = async () => ({
+  key:  await T.ensureKey(T.tenantId(), 'trainer', null, 'Treninq meneceri'),
+  name: U.getSetting('TRAINER_NAME') || '',
+});
 
-// ── İCRAÇI (executive) PANELİ AÇARI ──────────────────────────────
-API.getExecKey = async () => {
-  let key = U.getSetting('EXEC_KEY');
-  if (!key) {
-    key = 'EX' + Math.random().toString(36).substring(2, 12).toUpperCase();
-    await U.setSetting('EXEC_KEY', key);
-  }
-  return { key, name: U.getSetting('EXEC_NAME') || '' };
-};
-
-API.regenerateExecKey = async () => {
-  const key = 'EX' + Math.random().toString(36).substring(2, 12).toUpperCase();
-  await U.setSetting('EXEC_KEY', key);
-  return { key };
-};
-
-API.setExecName = async (name) => {
-  await U.setSetting('EXEC_NAME', String(name || '').trim());
-  return { success: true };
-};
+API.regenerateTrainerKey = async () => ({
+  key: await T.issueKey(T.tenantId(), 'trainer', null, 'Treninq meneceri'),
+});
 
 API.setTrainerName = async (name) => {
   await U.setSetting('TRAINER_NAME', String(name || '').trim());
   return { success: true };
 };
 
-API.regenerateTrainerKey = async () => {
-  const key = 'TR' + Math.random().toString(36).substring(2, 12).toUpperCase();
-  await U.setSetting('TRAINER_KEY', key);
-  return { key };
+// ── İCRAÇI (executive) PANELİ AÇARI ──────────────────────────────
+API.getExecKey = async () => ({
+  key:  await T.ensureKey(T.tenantId(), 'exec', null, 'İcraçı'),
+  name: U.getSetting('EXEC_NAME') || '',
+});
+
+API.regenerateExecKey = async () => ({
+  key: await T.issueKey(T.tenantId(), 'exec', null, 'İcraçı'),
+});
+
+API.setExecName = async (name) => {
+  await U.setSetting('EXEC_NAME', String(name || '').trim());
+  return { success: true };
 };
 
 // ══════════════════════════════════════════════════════════════════
@@ -3080,7 +3467,7 @@ API.regenerateTrainerKey = async () => {
 // ══════════════════════════════════════════════════════════════════
 
 function opsAuth(key) {
-  const k = U.getSetting('OPS_KEY');
+  const k = roleKey('ops');
   return !!k && k === key;
 }
 
@@ -3089,11 +3476,11 @@ function opsAuth(key) {
 // Yalnız yoxlama ilə bağlı funksiyalarda işlədilir; iclas/təqdimat/problem idarəsi ops-a məxsus qalır.
 function opsFieldAuth(key) {
   if (!key) return { ok: false };
-  const opsKey = U.getSetting('OPS_KEY');
+  const opsKey = roleKey('ops');
   if (opsKey && opsKey === key) {
     return { ok: true, role: 'ops', name: U.getSetting('OPS_NAME') || 'Əməliyyat meneceri' };
   }
-  const execKey = U.getSetting('EXEC_KEY');
+  const execKey = roleKey('exec');
   if (execKey && execKey === key) {
     return { ok: true, role: 'exec', name: U.getSetting('EXEC_NAME') || 'İcraçı' };
   }
@@ -3133,19 +3520,13 @@ function opsCategories() {
   catch (e) { return OPS_DEFAULT_CATS; }
 }
 
-API.getOpsKey = async () => {
-  let key = U.getSetting('OPS_KEY');
-  if (!key) {
-    key = 'OP' + Math.random().toString(36).substring(2, 12).toUpperCase();
-    await U.setSetting('OPS_KEY', key);
-  }
-  return { key, name: U.getSetting('OPS_NAME') || '' };
-};
-API.regenerateOpsKey = async () => {
-  const key = 'OP' + Math.random().toString(36).substring(2, 12).toUpperCase();
-  await U.setSetting('OPS_KEY', key);
-  return { key };
-};
+API.getOpsKey = async () => ({
+  key:  await T.ensureKey(T.tenantId(), 'ops', null, 'Əməliyyat meneceri'),
+  name: U.getSetting('OPS_NAME') || '',
+});
+API.regenerateOpsKey = async () => ({
+  key: await T.issueKey(T.tenantId(), 'ops', null, 'Əməliyyat meneceri'),
+});
 API.setOpsName = async (name) => {
   await U.setSetting('OPS_NAME', String(name || '').trim());
   return { success: true };
@@ -3155,7 +3536,7 @@ API.setOpsName = async (name) => {
 API.getOpsBootstrap = async (key) => {
   const auth = opsFieldAuth(key);           // ops VƏ YA icraçı
   if (!auth.ok) return null;
-  const { data: emps } = await sb.from('employees').select('id,name,dept,is_test').order('name');
+  const { data: emps } = await db().from('employees').select('id,name,dept,is_test').order('name');
   const byDept = {};
   for (const d of U.DEPTS) byDept[d] = [];
   for (const e of (emps || [])) {
@@ -3202,7 +3583,7 @@ API.saveOpsVisit = async (key, payload) => {
   const overall = scored.length
     ? Math.round((scored.reduce((s, r) => s + Number(r.score), 0) / scored.length) * 10) / 10 : 0;
 
-  const { error: vErr } = await sb.from('ops_visits').insert({
+  const { error: vErr } = await db().from('ops_visits').insert({
     visit_id: visitId, dept: p.dept, ops_name: opsName,
     visit_date: dateStr, overall_score: overall, summary: String(p.summary || ''), status: 'done',
   });
@@ -3213,7 +3594,7 @@ API.saveOpsVisit = async (key, payload) => {
       rating_id: opsId('R', i), visit_id: visitId, category: String(r.category),
       score: Number(r.score) || 0, note: String(r.note || ''), photo_url: String(r.photoUrl || ''),
     }));
-    const { error } = await sb.from('ops_ratings').insert(rows);
+    const { error } = await db().from('ops_ratings').insert(rows);
     if (error) return { success: false, reason: 'Qiymət xətası: ' + error.message };
   }
 
@@ -3225,7 +3606,7 @@ API.saveOpsVisit = async (key, payload) => {
     note: String(n.note || ''), photo_url: String(n.photoUrl || ''),
   }));
   if (noteRows.length) {
-    const { error } = await sb.from('ops_emp_notes').insert(noteRows);
+    const { error } = await db().from('ops_emp_notes').insert(noteRows);
     if (error) return { success: false, reason: 'Qeyd xətası: ' + error.message };
   }
 
@@ -3252,7 +3633,7 @@ API.saveOpsVisit = async (key, payload) => {
       title: x.title, detail: x.detail, severity: x.severity, status: 'open',
       assigned_to: '', due_date: '', source_visit_id: visitId, photo_url: x.photo_url,
     }));
-    const { error } = await sb.from('ops_issues').insert(issueRows);
+    const { error } = await db().from('ops_issues').insert(issueRows);
     if (error) return { success: false, reason: 'Problem xətası: ' + error.message };
   }
 
@@ -3263,14 +3644,14 @@ API.saveOpsVisit = async (key, payload) => {
 API.getOpsMeetingData = async (key, weekStart) => {
   if (!opsAuth(key)) return null;
   const dstr = opsWeekDates(weekStart);
-  const { data: visits } = await sb.from('ops_visits').select('dept,overall_score,visit_date').in('visit_date', dstr);
+  const { data: visits } = await db().from('ops_visits').select('dept,overall_score,visit_date').in('visit_date', dstr);
   const agg = {};
   for (const dep of U.DEPTS) agg[dep] = { visits: 0, scoreSum: 0 };
   for (const v of (visits || [])) {
     if (!agg[v.dept]) continue;
     agg[v.dept].visits++; agg[v.dept].scoreSum += Number(v.overall_score) || 0;
   }
-  const { data: openIss } = await sb.from('ops_issues').select('dept,status');
+  const { data: openIss } = await db().from('ops_issues').select('dept,status');
   const openByDept = {};
   for (const dep of U.DEPTS) openByDept[dep] = 0;
   for (const x of (openIss || [])) if (x.status !== 'resolved' && openByDept[x.dept] != null) openByDept[x.dept]++;
@@ -3286,13 +3667,13 @@ API.getOpsMeetingData = async (key, weekStart) => {
 API.getOpsBranchDetail = async (key, dept, weekStart) => {
   if (!opsAuth(key) || !U.DEPTS.includes(dept)) return null;
   const dstr = opsWeekDates(weekStart);
-  const { data: visits } = await sb.from('ops_visits').select('*').eq('dept', dept).in('visit_date', dstr);
+  const { data: visits } = await db().from('ops_visits').select('*').eq('dept', dept).in('visit_date', dstr);
   const visitIds = (visits || []).map(v => v.visit_id);
   let ratings = [], notes = [], empProblems = [];
   if (visitIds.length) {
-    const r = await sb.from('ops_ratings').select('*').in('visit_id', visitIds);
-    const n = await sb.from('ops_emp_notes').select('*').in('visit_id', visitIds);
-    const ip = await sb.from('ops_issues').select('emp_id,emp_name,title,detail,severity').in('source_visit_id', visitIds);
+    const r = await db().from('ops_ratings').select('*').in('visit_id', visitIds);
+    const n = await db().from('ops_emp_notes').select('*').in('visit_id', visitIds);
+    const ip = await db().from('ops_issues').select('emp_id,emp_name,title,detail,severity').in('source_visit_id', visitIds);
     ratings = r.data || []; notes = n.data || [];
     empProblems = (ip.data || []).filter(i => i.emp_id);   // işçiyə bağlı problemlər
   }
@@ -3324,7 +3705,7 @@ API.getOpsBranchDetail = async (key, dept, weekStart) => {
 // İclas — problemlər tabı (saha rejimində işarələnənlər); status filtri: open | progress | resolved | all
 API.getOpsIssues = async (key, status, dept) => {
   if (!opsAuth(key)) return null;
-  let q = sb.from('ops_issues').select('*').order('created_at', { ascending: false });
+  let q = db().from('ops_issues').select('*').order('created_at', { ascending: false });
   if (dept && U.DEPTS.includes(dept)) q = q.eq('dept', dept);
   const { data } = await q;
   let rows = data || [];
@@ -3350,7 +3731,7 @@ API.updateOpsIssue = async (key, issueId, patch) => {
   if (typeof p.assignedTo === 'string') upd.assigned_to = p.assignedTo.trim();
   if (typeof p.dueDate === 'string') upd.due_date = p.dueDate.trim();
   if (!Object.keys(upd).length) return { success: false, reason: 'Dəyişiklik yoxdur.' };
-  const { error } = await sb.from('ops_issues').update(upd).eq('issue_id', issueId);
+  const { error } = await db().from('ops_issues').update(upd).eq('issue_id', issueId);
   if (error) return { success: false, reason: error.message };
   return { success: true };
 };
@@ -3363,7 +3744,8 @@ API.uploadOpsPhoto = async (key, base64, ext) => {
     const clean = String(base64).replace(/^data:image\/\w+;base64,/, '');
     const buf = Buffer.from(clean, 'base64');
     const safeExt = (ext && /^(jpg|jpeg|png|webp)$/i.test(ext)) ? ext.toLowerCase() : 'jpg';
-    const fpath = 'ops/' + Date.now().toString(36) + Math.floor(Math.random() * 1e6).toString(36) + '.' + safeExt;
+    // Yol müştəri ilə başlayır — bucket ortaq olsa da fayl adları qarışmır.
+    const fpath = `${T.tenantId()}/ops/` + Date.now().toString(36) + Math.floor(Math.random() * 1e6).toString(36) + '.' + safeExt;
     const { error } = await sb.storage.from('ops-photos')
       .upload(fpath, buf, { contentType: 'image/' + (safeExt === 'jpg' ? 'jpeg' : safeExt), upsert: false });
     if (error) return { success: false, reason: error.message };
@@ -3375,17 +3757,17 @@ API.uploadOpsPhoto = async (key, base64, ext) => {
 };
 
 API.getAllTrainerItems = async () => {
-  const { data } = await sb.from('trainer_checklist_items').select('*').order('sort_order');
+  const { data } = await db().from('trainer_checklist_items').select('*').order('sort_order');
   return (data || []).map(r => ({ id: r.item_id, text: r.text, category: r.category || '', active: r.active !== false }));
 };
 
 API.getActiveTrainerItems = async () => {
-  const { data } = await sb.from('trainer_checklist_items').select('*').eq('active', true).order('sort_order');
+  const { data } = await db().from('trainer_checklist_items').select('*').eq('active', true).order('sort_order');
   return (data || []).map(r => ({ id: r.item_id, text: r.text, category: r.category || '' }));
 };
 
 API.saveTrainerItems = async (items) => {
-  await sb.from('trainer_checklist_items').delete().neq('item_id', 'x');
+  await db().from('trainer_checklist_items').delete().neq('item_id', 'x');
   if (items && items.length) {
     const rows = items.map((item, i) => ({
       item_id:    item.id || ('TCI-' + Date.now().toString(36).toUpperCase() + i),
@@ -3394,22 +3776,22 @@ API.saveTrainerItems = async (items) => {
       active:     item.active !== false,
       sort_order: i,
     }));
-    await sb.from('trainer_checklist_items').insert(rows);
+    await db().from('trainer_checklist_items').insert(rows);
   }
   return { success: true };
 };
 
 API.getEmployeesByDept = async (dept) => {
-  const { data } = await sb.from('employees').select('id,name,dept').order('name');
+  const { data } = await db().from('employees').select('id,name,dept').order('name');
   return (data || []).filter(r => r.dept === dept).map(r => ({ id: r.id, name: r.name }));
 };
 
 API.submitTrainerLog = async (trainerKey, trainerName, dept, empId, empName, items, note) => {
-  if (!U.getSetting('TRAINER_KEY') || U.getSetting('TRAINER_KEY') !== trainerKey)
+  if (!roleKey('trainer') || roleKey('trainer') !== trainerKey)
     return { success: false, reason: 'İcazəsiz əməliyyat.' };
   const ts    = new Date();
   const logId = 'TL-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substring(2, 4).toUpperCase();
-  await sb.from('trainer_logs').insert({
+  await db().from('trainer_logs').insert({
     log_id:       logId,
     trainer_name: String(trainerName || 'Naməlum').trim(),
     dept,
@@ -3424,27 +3806,27 @@ API.submitTrainerLog = async (trainerKey, trainerName, dept, empId, empName, ite
 };
 
 API.getTodayTrainerLogs = async (trainerKey) => {
-  if (!U.getSetting('TRAINER_KEY') || U.getSetting('TRAINER_KEY') !== trainerKey)
+  if (!roleKey('trainer') || roleKey('trainer') !== trainerKey)
     return { logs: [] };
   const date = U.getLogicalYMD(new Date());
-  const { data } = await sb.from('trainer_logs').select('*').eq('date_str', date).order('created_at', { ascending: false });
+  const { data } = await db().from('trainer_logs').select('*').eq('date_str', date).order('created_at', { ascending: false });
   return { logs: data || [] };
 };
 
 API.getTrainerLogs = async (dateStr) => {
   const date = dateStr || U.getLogicalYMD(new Date());
-  const { data } = await sb.from('trainer_logs').select('*').eq('date_str', date).order('created_at', { ascending: false });
+  const { data } = await db().from('trainer_logs').select('*').eq('date_str', date).order('created_at', { ascending: false });
   return { date, logs: data || [] };
 };
 
 // ── İMTAHAN ──────────────────────────────────────────────────────
 
 API.submitExam = async (trainerKey, trainerName, dept, empId, empName, score, maxScore, answers, note) => {
-  if (!U.getSetting('TRAINER_KEY') || U.getSetting('TRAINER_KEY') !== trainerKey)
+  if (!roleKey('trainer') || roleKey('trainer') !== trainerKey)
     return { success: false, reason: 'İcazəsiz əməliyyat.' };
   const ts     = new Date();
   const examId = 'EX-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substring(2, 4).toUpperCase();
-  const { error } = await sb.from('trainer_exams').insert({
+  const { error } = await db().from('trainer_exams').insert({
     exam_id:      examId,
     trainer_name: String(trainerName || 'Naməlum').trim(),
     dept,
@@ -3462,16 +3844,16 @@ API.submitExam = async (trainerKey, trainerName, dept, empId, empName, score, ma
 };
 
 API.giveManualXP = async (trainerKey, empId, amount) => {
-  if (!U.getSetting('TRAINER_KEY') || U.getSetting('TRAINER_KEY') !== trainerKey)
+  if (!roleKey('trainer') || roleKey('trainer') !== trainerKey)
     return { success: false, reason: 'İcazəsiz.' };
   const amt = parseInt(amount);
   if (!empId || isNaN(amt) || amt < 1 || amt > 500)
     return { success: false, reason: 'Məbləğ 1–500 arasında olmalıdır.' };
-  const { data: emp } = await sb.from('employees').select('name,dept,is_test').eq('id', String(empId)).single();
+  const { data: emp } = await db().from('employees').select('name,dept,is_test').eq('id', String(empId)).single();
   if (!emp || emp.is_test) return { success: false, reason: 'İşçi tapılmadı.' };
   await awardXP(empId, amt, 0);
   const trainerName = U.getSetting('TRAINER_NAME') || 'Trainer';
-  await sb.from('xp_audit_log').insert({
+  await db().from('xp_audit_log').insert({
     trainer_name: trainerName, emp_id: String(empId), emp_name: emp.name,
     dept: emp.dept, amount: amt, type: 'manual', stars: null,
     created_at: new Date().toISOString(),
@@ -3480,16 +3862,16 @@ API.giveManualXP = async (trainerKey, empId, amount) => {
 };
 
 API.rateEmployee = async (trainerKey, empId, stars) => {
-  if (!U.getSetting('TRAINER_KEY') || U.getSetting('TRAINER_KEY') !== trainerKey)
+  if (!roleKey('trainer') || roleKey('trainer') !== trainerKey)
     return { success: false, reason: 'İcazəsiz.' };
   const XP_MAP = { 3: 15, 4: 30, 5: 50 };
   const xp = XP_MAP[parseInt(stars)];
   if (!empId || !xp) return { success: false, reason: 'Yanlış məlumat.' };
-  const { data: emp } = await sb.from('employees').select('name,dept,is_test').eq('id', String(empId)).single();
+  const { data: emp } = await db().from('employees').select('name,dept,is_test').eq('id', String(empId)).single();
   if (!emp || emp.is_test) return { success: false, reason: 'İşçi tapılmadı.' };
   await awardXP(empId, xp, 0);
   const trainerName = U.getSetting('TRAINER_NAME') || 'Trainer';
-  await sb.from('xp_audit_log').insert({
+  await db().from('xp_audit_log').insert({
     trainer_name: trainerName, emp_id: String(empId), emp_name: emp.name,
     dept: emp.dept, amount: xp, type: 'rating', stars: parseInt(stars),
     created_at: new Date().toISOString(),
@@ -3498,18 +3880,18 @@ API.rateEmployee = async (trainerKey, empId, stars) => {
 };
 
 API.getXPAuditLog = async () => {
-  const { data } = await sb.from('xp_audit_log')
+  const { data } = await db().from('xp_audit_log')
     .select('*').order('created_at', { ascending: false }).limit(200);
   return { rows: data || [] };
 };
 
 API.gradeOpenAnswer = async (trainerKey, examId, questionId, passed) => {
-  if (!U.getSetting('TRAINER_KEY') || U.getSetting('TRAINER_KEY') !== trainerKey)
+  if (!roleKey('trainer') || roleKey('trainer') !== trainerKey)
     return { success: false, reason: 'İcazəsiz.' };
   if (!examId || !questionId || typeof passed !== 'boolean')
     return { success: false, reason: 'Məlumatlar natamamdır.' };
 
-  const { data: rows, error: fetchErr } = await sb.from('trainer_exams').select('*').eq('exam_id', examId).limit(1);
+  const { data: rows, error: fetchErr } = await db().from('trainer_exams').select('*').eq('exam_id', examId).limit(1);
   if (fetchErr || !rows?.length) return { success: false, reason: 'İmtahan tapılmadı.' };
 
   const exam = rows[0];
@@ -3518,42 +3900,42 @@ API.gradeOpenAnswer = async (trainerKey, examId, questionId, passed) => {
   );
   const score = answers.filter(a => a.passed === true).length;
 
-  const { error } = await sb.from('trainer_exams').update({ answers, score }).eq('exam_id', examId);
+  const { error } = await db().from('trainer_exams').update({ answers, score }).eq('exam_id', examId);
   sbErr('gradeOpenAnswer', error);
   if (!error && passed) {
-    const { data: empRow } = await sb.from('employees').select('streak,is_test').eq('id', String(exam.emp_id)).single();
+    const { data: empRow } = await db().from('employees').select('streak,is_test').eq('id', String(exam.emp_id)).single();
     if (empRow && !empRow.is_test) await awardXP(exam.emp_id, 15, empRow.streak || 0);
   }
   return { success: !error, score, answers };
 };
 
 API.getTodayExams = async (trainerKey) => {
-  if (!U.getSetting('TRAINER_KEY') || U.getSetting('TRAINER_KEY') !== trainerKey)
+  if (!roleKey('trainer') || roleKey('trainer') !== trainerKey)
     return { exams: [] };
   const date = U.getLogicalYMD(new Date());
-  const { data } = await sb.from('trainer_exams').select('*').eq('date_str', date).order('created_at', { ascending: false });
+  const { data } = await db().from('trainer_exams').select('*').eq('date_str', date).order('created_at', { ascending: false });
   return { exams: data || [] };
 };
 
 // Seçilmiş tarixin imtahan nəticələri (trainer paneli — tarixə görə baxış)
 API.getExamResultsByDate = async (trainerKey, dateStr) => {
-  if (!U.getSetting('TRAINER_KEY') || U.getSetting('TRAINER_KEY') !== trainerKey)
+  if (!roleKey('trainer') || roleKey('trainer') !== trainerKey)
     return { exams: [] };
   const date = dateStr || U.getLogicalYMD(new Date());
-  const { data } = await sb.from('trainer_exams').select('*').eq('date_str', date).order('created_at', { ascending: false });
+  const { data } = await db().from('trainer_exams').select('*').eq('date_str', date).order('created_at', { ascending: false });
   return { date, exams: data || [] };
 };
 
 API.getExamLogs = async (dateStr) => {
   const date = dateStr || U.getLogicalYMD(new Date());
-  const { data } = await sb.from('trainer_exams').select('*').eq('date_str', date).order('created_at', { ascending: false });
+  const { data } = await db().from('trainer_exams').select('*').eq('date_str', date).order('created_at', { ascending: false });
   return { date, exams: data || [] };
 };
 
 // ── TƏLİM MATERİALLARI (Trainer öz materialları) ─────────────────
 
 API.getTrainerMaterials = async () => {
-  const { data } = await sb.from('trainer_materials').select('*').eq('active', true).order('sort_order');
+  const { data } = await db().from('trainer_materials').select('*').eq('active', true).order('sort_order');
   return (data || []).map(m => ({
     materialId: m.material_id,
     title:      m.title,
@@ -3563,14 +3945,14 @@ API.getTrainerMaterials = async () => {
 };
 
 API.saveTrainerMaterial = async (trainerKey, material) => {
-  if (!U.getSetting('TRAINER_KEY') || U.getSetting('TRAINER_KEY') !== trainerKey)
+  if (!roleKey('trainer') || roleKey('trainer') !== trainerKey)
     return { success: false, reason: 'İcazəsiz.' };
   if (!material?.title?.trim()) return { success: false, reason: 'Başlıq boş ola bilməz.' };
-  const { data: last } = await sb.from('trainer_materials')
+  const { data: last } = await db().from('trainer_materials')
     .select('sort_order').eq('active', true).order('sort_order', { ascending: false }).limit(1);
   const sortOrder = (last?.length ? last[0].sort_order : 0) + 1;
   const id = 'TM-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substring(2, 4).toUpperCase();
-  const { error } = await sb.from('trainer_materials').insert({
+  const { error } = await db().from('trainer_materials').insert({
     material_id: id,
     title:       material.title.trim(),
     body:        (material.body     || '').trim(),
@@ -3583,16 +3965,16 @@ API.saveTrainerMaterial = async (trainerKey, material) => {
 };
 
 API.deleteTrainerMaterial = async (trainerKey, materialId) => {
-  if (!U.getSetting('TRAINER_KEY') || U.getSetting('TRAINER_KEY') !== trainerKey)
+  if (!roleKey('trainer') || roleKey('trainer') !== trainerKey)
     return { success: false };
-  const { error } = await sb.from('trainer_materials').update({ active: false }).eq('material_id', materialId);
+  const { error } = await db().from('trainer_materials').update({ active: false }).eq('material_id', materialId);
   return { success: !error };
 };
 
 // ── İMTAHAN SUALLARI (Trainer öz sualları) ───────────────────────
 
 API.getExamQuestions = async () => {
-  const { data } = await sb.from('exam_questions').select('*').eq('active', true).order('sort_order');
+  const { data } = await db().from('exam_questions').select('*').eq('active', true).order('sort_order');
   return (data || []).map(q => ({
     questionId: q.question_id,
     text:       q.text,
@@ -3605,7 +3987,7 @@ API.getExamQuestions = async () => {
 };
 
 API.saveExamQuestion = async (trainerKey, question) => {
-  if (!U.getSetting('TRAINER_KEY') || U.getSetting('TRAINER_KEY') !== trainerKey)
+  if (!roleKey('trainer') || roleKey('trainer') !== trainerKey)
     return { success: false, reason: 'İcazəsiz.' };
   if (!question?.text?.trim()) return { success: false, reason: 'Sual mətni boş ola bilməz.' };
   if (question.type === 'test') {
@@ -3613,11 +3995,11 @@ API.saveExamQuestion = async (trainerKey, question) => {
     if (opts.length < 2) return { success: false, reason: 'Test üçün ən azı 2 variant lazımdır.' };
     if (!question.correct) return { success: false, reason: 'Düzgün cavabı seçin.' };
   }
-  const { data: last } = await sb.from('exam_questions')
+  const { data: last } = await db().from('exam_questions')
     .select('sort_order').eq('active', true).order('sort_order', { ascending: false }).limit(1);
   const sortOrder = (last?.length ? last[0].sort_order : 0) + 1;
   const id = 'EQ-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substring(2, 4).toUpperCase();
-  const { error } = await sb.from('exam_questions').insert({
+  const { error } = await db().from('exam_questions').insert({
     question_id: id,
     text:        question.text.trim(),
     type:        question.type || 'open',
@@ -3633,9 +4015,9 @@ API.saveExamQuestion = async (trainerKey, question) => {
 };
 
 API.deleteExamQuestion = async (trainerKey, questionId) => {
-  if (!U.getSetting('TRAINER_KEY') || U.getSetting('TRAINER_KEY') !== trainerKey)
+  if (!roleKey('trainer') || roleKey('trainer') !== trainerKey)
     return { success: false };
-  const { error } = await sb.from('exam_questions').update({ active: false }).eq('question_id', questionId);
+  const { error } = await db().from('exam_questions').update({ active: false }).eq('question_id', questionId);
   return { success: !error };
 };
 
@@ -3646,7 +4028,7 @@ API.getExamStatus = async () => ({
 });
 
 API.setExamStatus = async (trainerKey, active) => {
-  if (!U.getSetting('TRAINER_KEY') || U.getSetting('TRAINER_KEY') !== trainerKey)
+  if (!roleKey('trainer') || roleKey('trainer') !== trainerKey)
     return { success: false };
   await U.setSetting('EXAM_ACTIVE', active ? 'true' : 'false');
   return { success: true, active };
@@ -3655,7 +4037,7 @@ API.setExamStatus = async (trainerKey, active) => {
 // Düzgün cavablar göndərilmir — test + açıq suallar birlikdə qaytarılır
 API.getExamQuestionsPublic = async (role) => {
   if (!['kassir','barista'].includes(role)) return [];
-  const { data } = await sb.from('exam_questions')
+  const { data } = await db().from('exam_questions')
     .select('question_id,text,type,options,category,role')
     .eq('active', true).order('sort_order');
   return (data || [])
@@ -3678,7 +4060,7 @@ API.submitEmployeeExam = async (empId, empName, dept, role, answers) => {
   const testIds = answers.filter(a => a.type === 'test').map(a => a.questionId).filter(Boolean);
   const cMap = {};
   if (testIds.length) {
-    const { data: qs } = await sb.from('exam_questions')
+    const { data: qs } = await db().from('exam_questions')
       .select('question_id,correct').in('question_id', testIds);
     for (const q of qs || []) cMap[q.question_id] = q.correct;
   }
@@ -3701,7 +4083,7 @@ API.submitEmployeeExam = async (empId, empName, dept, role, answers) => {
 
   const ts     = new Date();
   const examId = 'EX-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substring(2,4).toUpperCase();
-  const { error } = await sb.from('trainer_exams').insert({
+  const { error } = await db().from('trainer_exams').insert({
     exam_id:      examId,
     trainer_name: 'Özü',
     dept,
@@ -3719,7 +4101,7 @@ API.submitEmployeeExam = async (empId, empName, dept, role, answers) => {
     const pct = Math.round(score / testTotal * 100);
     const xpBase = pct >= 90 ? 100 : pct >= 80 ? 75 : pct >= 60 ? 50 : 0;
     if (xpBase > 0) {
-      const { data: empRow } = await sb.from('employees').select('streak,is_test').eq('id', String(empId)).single();
+      const { data: empRow } = await db().from('employees').select('streak,is_test').eq('id', String(empId)).single();
       if (empRow && !empRow.is_test) await awardXP(empId, xpBase, empRow.streak || 0);
     }
   }
@@ -3731,10 +4113,49 @@ API.submitEmployeeExam = async (empId, empName, dept, role, answers) => {
     if (openCount > 0)   parts.push(`${openCount} açıq sual qiymət gözləyir.`);
     await sendPushToTrainer('📝 İmtahan tamamlandı', parts.join(' '), {
       tag: 'exam-' + examId,
-      url: '/trainer?key=' + (U.getSetting('TRAINER_KEY') || ''),
+      url: '/trainer?key=' + (roleKey('trainer') || ''),
     });
   }
   return { success: !error, score, maxScore: testTotal, answers: graded };
+};
+
+// ══════════════════════════════════════════════════════════════════
+//  PLATFORMA API — yalnız PLATFORM_KEY ilə (səndə)
+// ══════════════════════════════════════════════════════════════════
+//  Bunlar müştəri kontekstindən KƏNARDA işləyir: tenant yaradır, abunəlik
+//  vəziyyətini dəyişir. Dispatcher bu funksiyaları ayrıca yolla keçirir
+//  (yuxarıda `role === 'platform'` şaxəsinə bax).
+
+const platform = require('./platform');
+
+API.platformListTenants = async () => ({ tenants: await platform.listTenants() });
+
+API.platformCreateTenant = async (opts) => {
+  try {
+    const r = await platform.createTenant(opts || {});
+    return { success: true, ...r };
+  } catch (e) {
+    console.error('[Platform] createTenant:', e.message);
+    return { success: false, reason: e.message };
+  }
+};
+
+API.platformUpdateTenant = async (tenantId, patch) => platform.updateTenant(tenantId, patch || {});
+
+API.platformDeleteTenant = async (tenantId, confirmName) => platform.deleteTenant(tenantId, confirmName);
+
+API.platformTenantKeys = async (tenantId) => platform.tenantKeys(tenantId);
+
+API.platformStats = async () => {
+  const list = await platform.listTenants();
+  return {
+    tenants:   list.length,
+    active:    list.filter(t => t.status === 'active').length,
+    suspended: list.filter(t => t.status !== 'active').length,
+    employees: list.reduce((s, t) => s + t.employees, 0),
+    branches:  list.reduce((s, t) => s + t.branches, 0),
+    byPlan:    list.reduce((m, t) => ({ ...m, [t.plan]: (m[t.plan] || 0) + 1 }), {}),
+  };
 };
 
 // ══════════════════════════════════════════════════════════════════
@@ -3743,26 +4164,35 @@ API.submitEmployeeExam = async (empId, empName, dept, role, answers) => {
 
 (async () => {
   try {
-    // Settings-i yüklə (Supabase-dən)
-    await U.loadSettings();
-
-    // Filial açarlarını əvvəldən qur (varsa saxla)
-    await U.getBranchScheduleKeys();
-
+    // Müştərilər, açarlar, parametrlər və filiallar — hamısı bir dəfə keşə yüklənir.
+    await T.loadAll();
     console.log('✅  Supabase bağlantısı hazırdır');
 
     app.listen(PORT, async () => {
-      console.log(`☕  Coffeemoon http://localhost:${PORT}`);
+      const base = `http://localhost:${PORT}`;
+      console.log(`🚀  Server ${base}`);
       console.log(`🧩  Node ${process.version} · TZ ${process.env.TZ} · auth ${auth.AUTH_ENFORCE ? 'İCBARİ' : 'log-only'}`);
-      console.log(`🔑  Admin: http://localhost:${PORT}/admin?key=${ADMIN_KEY}`);
-      const keys = await U.getBranchScheduleKeys();
-      for (const [dept, key] of Object.entries(keys)) {
-        console.log(`🏪  ${dept}: http://localhost:${PORT}/manager?key=${key}`);
+      if (!T.PLATFORM_KEY) {
+        console.warn('⚠️  PLATFORM_KEY təyin edilməyib — platforma paneli bağlıdır. ' +
+                     'Yeni müştəri yaratmaq üçün onu env-ə əlavə et.');
       }
-      const trKey = await API.getTrainerKey();
-      console.log(`🎓  Treynər: http://localhost:${PORT}/trainer?key=${trKey.key}`);
-      const exKey = await API.getExecKey();
-      console.log(`📊  İcraçı: http://localhost:${PORT}/icraci?key=${exKey.key}`);
+
+      const tenants = T.allTenants();
+      if (!tenants.length) {
+        console.warn('⚠️  Heç bir müştəri yoxdur. `node seed-tenant.js` ilə birini yarat.');
+      }
+      // Hər müştərinin giriş linklərini konsola yaz (yalnız lokalda faydalıdır).
+      for (const t of tenants) {
+        console.log(`\n🏢  ${t.name}  [${t.tenant_id}] — ${t.status}`);
+        await T.run({ tenantId: t.tenant_id, role: 'system', branchId: null }, async () => {
+          const ak = T.findKey(t.tenant_id, 'admin', null);
+          if (ak) console.log(`   🔑 Admin:   ${base}/admin?key=${ak}`);
+          const keys = await U.getBranchScheduleKeys();
+          for (const [dept, key] of Object.entries(keys)) {
+            console.log(`   🏪 ${dept}: ${base}/manager?key=${key}`);
+          }
+        });
+      }
 
       // Başlarkən əvvəlki gecənin açıq smenlərini bağla, sonra hər gecə 04:00-da işlət
       try { await autoCloseShifts(); } catch (e) { console.error('[AutoClose startup]', e.message); }

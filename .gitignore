@@ -1,5 +1,9 @@
 # Mühit dəyişənləri (Supabase key-ləri burada!)
+# `.env.*` ehtiyat nüsxələri də tutur (.env.backup-…, .env.local və s.) —
+# yoxsa açarlar səhvən commit-ə düşür. `.env.example` istisnadır.
 .env
+.env.*
+!.env.example
 
 # Node.js asılılıqları
 node_modules/
@@ -25,3 +29,4 @@ npm-debug.log*
 MYCODE.md
 ARCHITECTURE.md
 SERVER.md
+MULTITENANT.md

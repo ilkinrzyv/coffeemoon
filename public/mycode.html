@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Coffeemoon İşçi Kartı</title>
+<title><?= brandName ?> İşçi Kartı</title>
 <link rel="manifest" href="/mycode-manifest?secret=<?= secret ?>&name=<?= empName ?>">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="Coffeemoon">
+<meta name="apple-mobile-web-app-title" content="<?= brandName ?>">
 <meta name="theme-color" content="#5b5ef4">
 <link rel="apple-touch-icon" href="/icon-192.png">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -1793,7 +1793,7 @@
 
   <div class="ticket" id="ticket">
     <div class="ticket-header">
-      <div class="brand"><i class="fa-solid fa-mug-hot"></i> COFFEEMOON</div>
+      <div class="brand"><i class="<?= brandIcon ?>"></i> <?= brandName ?></div>
       <div class="avatar" id="avatarDiv">--</div>
       <div class="card-title">RƏQƏMSAL İŞÇİ KARTI</div>
       <div class="name" id="nameDisplay"><?= empName ?></div>
@@ -2232,11 +2232,14 @@
 <script src="/gsr-shim.js"></script>
 <script src="/common.js"></script>
 <script>
-  var SECRET    = "<?= secret ?>";
-  var EMP_NAME  = "<?= empName ?>";
+  var SECRET    = <?= secret_js ?>;
+  var EMP_NAME  = <?= empName_js ?>;
   var TIME_STEP = 10000;
   var isSessionActive = true;
   var userDept  = "";
+  // Gecikmə hədləri serverdən gəlir (filialın smen konfiqurasiyası) — gələnə
+  // qədər xəbərdarlıq göstərilmir ki, yanlış saatla qorxutmasın.
+  var _lateLimits = null;
   var _profileLoaded = false;
 
   document.getElementById('avatarDiv').innerText = EMP_NAME.split(' ').map(function(n){return n[0];}).join('').substring(0,2).toUpperCase() || 'CM';
@@ -2341,6 +2344,7 @@
         google.script.run.withSuccessHandler(function(dash) {
           if (!dash) return;
           userDept = dash.dept || "";
+          if (dash.lateLimits) { _lateLimits = dash.lateLimits; checkLateStatus(); }
           document.getElementById('deptDisplay').innerHTML = '<i class="fa-solid fa-briefcase"></i> ' + (userDept || 'Filial');
           if (dash.streak > 0) {
             _myStreakCount = dash.streak;
@@ -2602,7 +2606,10 @@
     var d = new Date(), h = d.getHours(), m = d.getMinutes();
     if (h < 3) return;
     var tot = h * 60 + m;
-    var lim = (h < 13) ? (7*60+35) : ((userDept==='Ağ Şəhər'||userDept==='Gənclik') ? 16*60+5 : 15*60+5);
+    // Hədd serverdən (filialın smen konfiqurasiyasından) gəlir — əvvəl burada
+    // filial adları ilə hardcode idi və konfiqurasiya dəyişəndə uyğunsuzlaşırdı.
+    if (!_lateLimits) return;
+    var lim = (h < 13) ? _lateLimits.morning : _lateLimits.evening;
     document.getElementById('lateWarningBox').style.display = (tot > lim) ? 'flex' : 'none';
   }
 
@@ -4545,6 +4552,6 @@
   box-shadow:0 -8px 30px rgba(0,0,0,0.4);
 "></div>
 
-<footer style="text-align:center;padding:18px 0 14px;font-family:Inter,sans-serif;"><div style="font-size:0.72rem;font-weight:600;color:rgba(255,255,255,0.25);letter-spacing:0.01em;">created by Coffeemoon</div><div style="font-size:0.65rem;color:rgba(255,255,255,0.15);margin-top:2px;">version 1.0.1</div></footer>
+<footer style="text-align:center;padding:18px 0 14px;font-family:Inter,sans-serif;"><div style="font-size:0.72rem;font-weight:600;color:rgba(255,255,255,0.25);letter-spacing:0.01em;">created by <?= brandFooter ?></div><div style="font-size:0.65rem;color:rgba(255,255,255,0.15);margin-top:2px;">version 1.0.1</div></footer>
 </body>
 </html>

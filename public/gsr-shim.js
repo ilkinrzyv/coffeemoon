@@ -18,7 +18,9 @@
   // Tapılmasa URL-dəki ?key= / ?secret= ehtiyat yol kimi işlədilir.
   function pageKey() {
     // 1) Qlobal dəyişən (var ilə elan olunanlar window-a düşür)
-    var names = ['ADMIN_KEY', 'BRANCH_KEY', 'TRAINER_KEY', 'EXEC_KEY', 'OPS_KEY', 'SECRET'];
+    //    DEVICE_KEY — filial kiosku: onun "açarı" cihaz ID-sidir. Server bu
+    //    ID-dən həm cihazı, həm də hansı müştəriyə aid olduğunu tanıyır.
+    var names = ['ADMIN_KEY', 'BRANCH_KEY', 'TRAINER_KEY', 'EXEC_KEY', 'OPS_KEY', 'SECRET', 'DEVICE_KEY'];
     for (var i = 0; i < names.length; i++) {
       if (window[names[i]]) return String(window[names[i]]);
     }
@@ -26,6 +28,17 @@
     try {
       var q = new URLSearchParams(window.location.search);
       return q.get('key') || q.get('secret') || '';
+    } catch (e) { return ''; }
+  }
+
+  // Açarsız səhifələr (kiosk, imtahan) hansı müştəriyə aid olduğunu bununla
+  // bildirir. Server bunu YALNIZ açarsız ('public') funksiyalarda qəbul edir —
+  // açardan gələn müştərini heç vaxt üstələyə bilmir.
+  function pageTenant() {
+    if (window.TENANT_HINT) return String(window.TENANT_HINT);
+    try {
+      var q = new URLSearchParams(window.location.search);
+      return q.get('t') || '';
     } catch (e) { return ''; }
   }
 
@@ -48,7 +61,9 @@
           var args = Array.prototype.slice.call(arguments);
           var hdrs = { 'Content-Type': 'application/json' };
           var k = pageKey();
-          if (k) hdrs['X-CM-Key'] = k;   // server rolu bu açardan tanıyır
+          if (k) hdrs['X-CM-Key'] = k;   // server rolu VƏ müştərini bu açardan tanıyır
+          var t = pageTenant();
+          if (t) hdrs['X-CM-Tenant'] = t;   // yalnız açarsız səhifələr üçün
           fetch('/api/' + prop, {
             method: 'POST',
             headers: hdrs,

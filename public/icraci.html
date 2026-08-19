@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
-<title>Coffeemoon · İcraçı</title>
+<title><?= brandName ?> · İcraçı</title>
 <link rel="manifest" href="/icraci-manifest?key=<?= execKey ?>">
 <meta name="theme-color" content="#0d9488">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -285,13 +285,15 @@ select,input[type=date]{border:1.5px solid var(--border);border-radius:11px;padd
 <script src="/gsr-shim.js"></script>
 <script src="/common.js"></script>
 <script>
-var EXEC_KEY  = '<?= execKey ?>';
-var EXEC_NAME = '<?= execName ?>';
+var EXEC_KEY  = <?= execKey_js ?>;
+var EXEC_NAME = <?= execName_js ?>;
 document.getElementById('whoName').textContent = EXEC_NAME;
 
 // ── Köməkçilər ────────────────────────────────────────────────────
 var DAY_AZ = ['B.e.','Ç.a.','Çər.','C.a.','Cüm.','Şən.','Baz.'];
-var DEPTS  = ['Elmlər','Sahil','Gənclik','Ağ Şəhər'];
+// Filiallar serverdən gəlir (aşağıda `getBranches` ilə doldurulur).
+// Əvvəl adlar, rənglər və sluqlar bu faylda 4 yerdə sabit yazılmışdı.
+var DEPTS = [], BRANCH_COLORS = {}, DEPT_SLUG = {};
 var SHIFT_MAP = {
   sehersm:{cls:'sb-s',lbl:'S'}, axsamsm:{cls:'sb-a',lbl:'A'}, fullsm:{cls:'sb-f',lbl:'AF'},
   seherfullsm:{cls:'sb-sf',lbl:'SF'}, tamgun:{cls:'sb-tg',lbl:'TG'}, istirahetsm:{cls:'sb-i',lbl:'İst'}, '':{cls:'sb-x',lbl:'–'}
@@ -428,7 +430,7 @@ function loadLive(){
   var p=document.getElementById('panel-live');
   if(!p.querySelector('.dept-grid')) p.innerHTML=spin();
   var online=null, mgrs=null;
-  var bc={'Elmlər':'#bfdbfe','Sahil':'#fbcfe8','Gənclik':'#bbf7d0','Ağ Şəhər':'#fef08a'};
+  var bc=BRANCH_COLORS;
   function done(){
     if(online===null||mgrs===null) return;
     var mgrOn=0; DEPTS.forEach(function(d){ if(mgrs[d]&&mgrs[d].isOnline) mgrOn++; });
@@ -541,7 +543,7 @@ function donut(pct,color){
 }
 
 // ══ 3) CƏDVƏL ═════════════════════════════════════════════════════
-var _cvDept='Elmlər', _cvOff=0;
+var _cvDept='', _cvOff=0;   // ilk filial yüklənəndə seçilir
 function loadCedvel(){
   var p=document.getElementById('panel-cedvel');
   var mon=monday(_cvOff), sun=new Date(mon.getTime()+6*86400000);
@@ -573,7 +575,7 @@ function cvNav(n){ _cvOff+=n; loadCedvel(); }
 
 // ══ 4) İDARƏÇİLƏR ═════════════════════════════════════════════════
 var _idSub='status', _idWeek=0;
-var DEPT_SLUG={'Elmlər':'elmler','Sahil':'sahil','Gənclik':'genclik','Ağ Şəhər':'agseher'};
+// DEPT_SLUG yuxarıda elan olunub — serverdən doldurulur.
 function loadIdareci(){
   var p=document.getElementById('panel-idareci'); p.innerHTML=spin();
   var live=null, sched=null, acks=null, info=null;
@@ -664,7 +666,7 @@ function toast(msg,ok){
 }
 
 // ══ 5) CHECKLIST ══════════════════════════════════════════════════
-var _ckDept='Elmlər', _ckDate=todayYMD();
+var _ckDept='', _ckDate=todayYMD();   // ilk filial yüklənəndə seçilir
 function loadChecklist(){
   var p=document.getElementById('panel-checklist');
   var pills=DEPTS.map(function(d){ return '<button class="pill'+(d===_ckDept?' active':'')+'" onclick="ckDept(\''+d+'\')">'+esc(d)+'</button>'; }).join('');
@@ -988,8 +990,16 @@ function yxSave(){
 }
 
 // ── Başlat ────────────────────────────────────────────────────────
-call('getDeptList',[],function(d){ if(d&&d.length) DEPTS=d; });
-loadLive();
+// Filiallar (ad, rəng, slug) bir sorğu ilə gəlir və panelin bütün siyahılarını
+// qidalandırır. Gələnə qədər görünüşlər boş qalır, sonra yenidən qurulur.
+call('getBranches',[],function(r){
+  var brs=(r&&r.branches)||[];
+  DEPTS = brs.map(function(b){ return b.name; });
+  brs.forEach(function(b){ BRANCH_COLORS[b.name]=b.color; DEPT_SLUG[b.name]=b.id; });
+  if(!_cvDept && DEPTS.length) _cvDept = DEPTS[0];
+  if(!_ckDept && DEPTS.length) _ckDept = DEPTS[0];
+  loadLive();
+});
 function liveVisible(){ return !document.getElementById('panel-live').classList.contains('hidden'); }
 setInterval(function(){ if(liveVisible()) updateExecElapsed(); }, 30000);  // keçən vaxtı tiklə (yüngül)
 setInterval(function(){ if(liveVisible()) loadLive(); }, 60000);            // yeni gəlişləri çək

@@ -10,6 +10,8 @@
 process.env.SUPABASE_URL = process.env.SUPABASE_URL || 'http://test.local';
 process.env.SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || 'test';
 
+const { enterTenant, setLocal } = require('./test-helpers');
+enterTenant();   // müştəri kontekstini qur (filiallar, vəzifələr, parametrlər)
 const U = require('./utils');
 
 let pass = 0, fail = 0;
@@ -95,7 +97,12 @@ console.log(`  ${lateChecked} isLate ssenarisi yoxlanıldı`);
 
 // ── 2) Konfiqurasiya dəyişəndə həqiqətən tətbiq olunur ──
 console.log('\n2) Saat dəyişikliyi tətbiq olunur');
-const cfg = U.defaultShiftConfig();
+// Admin paneli MÖVCUD konfiqurasiyanı yükləyib bir filialı redaktə edir və
+// bütövlükdə geri yazır — test də eyni axını təkrarlayır.
+// (Əvvəl burada `defaultShiftConfig()` işlədilirdi; o vaxt ilkin dəyərlər
+// filial adına görə A/B qrupundan gəlirdi. İndi qrup anlayışı yoxdur —
+// hər filialın saatları konfiqurasiyada saxlanılır.)
+const cfg = JSON.parse(JSON.stringify(U.getShiftConfig()));
 cfg['Sahil'].sehersm.startH = 8;
 cfg['Sahil'].sehersm.startM = 0;
 cfg['Sahil'].sehersm.lateH  = 8;
@@ -103,7 +110,7 @@ cfg['Sahil'].sehersm.lateM  = 10;
 cfg['Sahil'].sehersm.durH   = 9;
 cfg['Sahil'].fbEveningH     = 17;
 cfg['Sahil'].fbEveningM     = 30;
-U.setSetting('SHIFT_CONFIG', JSON.stringify(cfg)).catch(() => {});  // yalnız yaddaş keşi (DB yazısı uğursuz olur — normaldır)
+setLocal('SHIFT_CONFIG', JSON.stringify(cfg));  // yalnız yaddaş keşi (DB yazısı uğursuz olur — normaldır)
 
 check(U.getLateLimit('Sahil', 'sehersm', 8 * 60) === 8 * 60 + 10, 'yeni səhər həddi tətbiq olunmadı');
 check(U.getShiftInfo('Sahil', 'sehersm').label === 'Səhər (08:00-17:00)', 'etiket yeni saatla qurulmadı: ' + U.getShiftInfo('Sahil', 'sehersm').label);
@@ -113,11 +120,11 @@ check(U.getShiftInfo('Gənclik', 'axsamsm').startH === 16, 'Gənclik saatları d
 
 // ── 3) Pozulmuş/yarımçıq konfiqurasiya sistemi sındırmır ──
 console.log('\n3) Pozulmuş konfiqurasiyada təhlükəsiz geri dönüş');
-U.setSetting('SHIFT_CONFIG', '{bu düzgün json deyil').catch(() => {});
+setLocal('SHIFT_CONFIG', '{bu düzgün json deyil');
 check(U.getLateLimit('Sahil', 'sehersm', 8 * 60) === 7 * 60 + 15, 'pozulmuş JSON-da ilkin dəyərə qayıtmır');
 check(U.getShiftInfo('Sahil', 'sehersm') !== null, 'pozulmuş JSON-da smen null olur');
 
-U.setSetting('SHIFT_CONFIG', JSON.stringify({ 'Sahil': { sehersm: { startH: 9, startM: 0, durH: 8, lateH: 9, lateM: 5 } } })).catch(() => {});
+setLocal('SHIFT_CONFIG', JSON.stringify({ 'Sahil': { sehersm: { startH: 9, startM: 0, durH: 8, lateH: 9, lateM: 5 } } }));
 check(U.getLateLimit('Sahil', 'sehersm', 9 * 60) === 9 * 60 + 5, 'yarımçıq konfiqdə mövcud smen işləmir');
 check(U.getLateLimit('Sahil', 'axsamsm', 15 * 60) === 15 * 60, 'yarımçıq konfiqdə çatışmayan smen ilkin dəyərlə tamamlanmır');
 check(U.getLateLimit('Elmlər', 'sehersm', 8 * 60) === 7 * 60 + 15, 'yarımçıq konfiqdə çatışmayan filial ilkin dəyərlə tamamlanmır');

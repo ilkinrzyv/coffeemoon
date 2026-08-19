@@ -6,21 +6,27 @@
 //  Açar frontend-dən `X-CM-Key` başlığında gəlir (public/gsr-shim.js göndərir).
 //
 //  Səviyyələr:
-//    'public' — açar tələb olunmur (PIN/kiosk/imtahan səhifəsi — bunların açarı yoxdur)
-//    'self'   — funksiya ÖZ açarını/secret-ini arqument kimi yoxlayır → dispatcher qarışmır
-//    'staff'  — istənilən etibarlı panel açarı (admin/menecer/trainer/icraçı/ops)
-//    'admin'  — yalnız ADMIN_KEY
+//    'public'   — açar tələb olunmur (PIN/kiosk/imtahan səhifəsi — bunların açarı yoxdur)
+//    'self'     — funksiya ÖZ açarını/secret-ini arqument kimi yoxlayır → dispatcher qarışmır
+//    'staff'    — istənilən etibarlı panel açarı (admin/menecer/trainer/icraçı/ops)
+//    'admin'    — yalnız həmin MÜŞTƏRİNİN admin açarı
+//    'platform' — yalnız platforma sahibi (PLATFORM_KEY) — müştərilərin üstündə
 //
 //  ⚠️ Siyahıda OLMAYAN funksiya avtomatik 'admin' sayılır (fail-closed).
 //     Yeni API funksiyası yazanda bura da əlavə et, yoxsa yalnız admin çağıra biləcək.
+//
+//  ÇOX-MÜŞTƏRİLİ QEYD
+//  ──────────────────
+//  Rol həlli artıq `tenant.js`-dədir: açar `auth_keys` cədvəlindən HƏM rolu,
+//  HƏM də hansı müştəriyə aid olduğunu qaytarır. Bu fayl yalnız "bu rol bu
+//  funksiyanı çağıra bilərmi?" sualına cavab verir. Müştəri izolyasiyası ayrıca
+//  qatdadır (`tdb.js`) — yəni rol yoxlaması səhv olsa belə bir müştəri
+//  başqasının datasını GÖRƏ BİLMİR.
 // ══════════════════════════════════════════════════════════════════
-const U = require('./utils');
 
-const ADMIN_KEY = process.env.ADMIN_KEY || 'coffeemoon';
-
-// AUTH_ENFORCE=true olana qədər dispatcher yalnız LOGLAYIR (davranış dəyişmir).
-// Railway Variables-də açılır; problem çıxsa false-a qaytarmaq kifayətdir (deploy lazım deyil).
-const AUTH_ENFORCE = process.env.AUTH_ENFORCE === 'true';
+// Rol yoxlamasını yumşaltmaq üçün ehtiyat qapı (yalnız rol — izolyasiya YOX).
+// Defolt: icbari. Problem çıxsa Railway Variables-də AUTH_ENFORCE=false et.
+const AUTH_ENFORCE = process.env.AUTH_ENFORCE !== 'false';
 
 const API_POLICY = {
   // ── İşçilər
@@ -154,29 +160,49 @@ const API_POLICY = {
   // ── İşçi özü imtahanı (/exam səhifəsinin açarı yoxdur)
   getExamStatus: 'public', setExamStatus: 'self',
   getExamQuestionsPublic: 'public', submitEmployeeExam: 'public',
+
+  // ── FİLİALLAR (Faza 1) — filial artıq datadır, kod deyil
+  getBranches: 'staff',
+  addBranch: 'admin', updateBranch: 'admin',
+  renameBranch: 'admin', deleteBranch: 'admin', reorderBranches: 'admin',
+
+  // ── VƏZİFƏLƏR — hər müştəri özü təyin edir
+  savePositions: 'admin',
+
+  // ── MÜŞTƏRİ ÖZÜ HAQQINDA (brend, abunəlik vəziyyəti)
+  getTenantInfo: 'staff',
+  saveTenantBrand: 'admin',
+  getAdminKey: 'admin', regenerateAdminKey: 'admin',
+
+  // ── PLATFORMA (yalnız PLATFORM_KEY — bütün müştərilərin üstündə)
+  platformListTenants: 'platform',
+  platformCreateTenant: 'platform',
+  platformUpdateTenant: 'platform',
+  platformDeleteTenant: 'platform',
+  platformTenantKeys: 'platform',
+  platformStats: 'platform',
 };
 
-// Gələn açarı rola çevirir.
-// İşçi secret-i burada TANINMIR — 'self' funksiyalar onu özləri yoxlayır (əlavə DB sorğusu olmasın).
-function resolveRole(key) {
-  if (!key) return null;
-  if (key === ADMIN_KEY)                     return 'admin';
-  if (key === U.getSetting('EXEC_KEY'))      return 'exec';
-  if (key === U.getSetting('TRAINER_KEY'))   return 'trainer';
-  if (key === U.getSetting('OPS_KEY'))       return 'ops';
-  if (U.validateBranchScheduleKey(key).valid) return 'manager';
-  return null;
-}
+// Rollar səviyyələrə görə qruplaşdırılır.
+const STAFF_ROLES = new Set(['admin', 'manager', 'exec', 'trainer', 'ops']);
 
-// { ok, level, role } qaytarır. ok=false → icbari rejimdə 403, log-only rejimdə yalnız xəbərdarlıq.
-function apiAccess(fn, key) {
+// `authRec` — tenant.resolveKey(...) nəticəsi: { tenantId, role, branchId } | null
+// Rol həlli artıq burada EDİLMİR: dispatcher onu bir dəfə edir və həm tenant
+// kontekstini qurmaq, həm də bu yoxlama üçün eyni nəticəni işlədir.
+function apiAccess(fn, authRec) {
   const level = API_POLICY[fn];
-  if (level === 'public' || level === 'self') return { ok: true, level, role: null };
+  const role  = (authRec && authRec.role) || null;
+
+  if (level === 'platform') return { ok: role === 'platform', level, role };
+
+  // Platforma açarı müştəri API-lərini çağıra bilməz — onun tenant konteksti yoxdur.
+  // (Dəstək üçün müştəri adından iş görmək lazım olsa, ayrıca "impersonate" axını yazılmalıdır.)
+  if (level === 'public' || level === 'self') return { ok: true, level, role };
+
   const need = level || 'admin';              // siyahıda yoxdursa → admin (fail-closed)
-  const role = resolveRole(key);
-  if (need === 'admin') return { ok: role === 'admin', level: need, role };
-  if (need === 'staff') return { ok: !!role,           level: need, role };
+  if (need === 'admin') return { ok: role === 'admin',      level: need, role };
+  if (need === 'staff') return { ok: STAFF_ROLES.has(role), level: need, role };
   return { ok: false, level: need, role };
 }
 
-module.exports = { API_POLICY, resolveRole, apiAccess, AUTH_ENFORCE, ADMIN_KEY };
+module.exports = { API_POLICY, apiAccess, AUTH_ENFORCE, STAFF_ROLES };

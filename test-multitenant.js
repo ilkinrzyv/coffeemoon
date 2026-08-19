@@ -1,0 +1,256 @@
+'use strict';
+// ══════════════════════════════════════════════════════════════════════════
+//  ÇOX-MÜŞTƏRİLİ İZOLYASİYA TESTLƏRİ
+// ══════════════════════════════════════════════════════════════════════════
+//  Bu testlərin cavab verdiyi sual: "bir müştəri başqasının datasını görə
+//  bilərmi?" Bazaya qoşulmur — Supabase klienti taxta ilə əvəzlənir və hər
+//  sorğunun HANSI filtrlə getdiyi yoxlanılır.
+//
+//    node test-multitenant.js
+// ══════════════════════════════════════════════════════════════════════════
+
+process.env.TZ = process.env.TZ || 'Asia/Baku';
+
+// ── Supabase klientini taxta ilə əvəzlə (require keşindən əvvəl) ─────────
+const calls = [];
+function builder(table, op) {
+  const rec = { table, op, filters: [], payload: null, opts: null };
+  calls.push(rec);
+  const chain = new Proxy({}, {
+    get(_, prop) {
+      if (prop === 'then') return undefined;               // await edilməsin
+      if (prop === '__rec') return rec;
+      return (...args) => {
+        if (['eq','neq','in','gte','lte','lt','gt','is'].includes(prop)) {
+          rec.filters.push([prop, args[0], args[1]]);
+        }
+        return chain;
+      };
+    },
+  });
+  return chain;
+}
+const fakeSb = {
+  from: (table) => ({
+    select: (...a) => builder(table, 'select'),
+    insert: (rows, o) => { const c = builder(table, 'insert'); c.__rec.payload = rows; c.__rec.opts = o; return c; },
+    upsert: (rows, o) => { const c = builder(table, 'upsert'); c.__rec.payload = rows; c.__rec.opts = o; return c; },
+    update: (row, o)  => { const c = builder(table, 'update'); c.__rec.payload = row;  c.__rec.opts = o; return c; },
+    delete: (o)       => { const c = builder(table, 'delete'); c.__rec.opts = o; return c; },
+  }),
+};
+require.cache[require.resolve('./db')] = { id: require.resolve('./db'), filename: require.resolve('./db'), loaded: true, exports: fakeSb };
+
+const T   = require('./tenant');
+const tdb = require('./tdb');
+const db  = tdb.db;
+
+// ── Test qurğusu ─────────────────────────────────────────────────────────
+let pass = 0, fail = 0;
+function ok(cond, label, detail) {
+  if (cond) { pass++; console.log(`  ✓ ${label}`); }
+  else      { fail++; console.log(`  ✗ ${label}${detail ? '\n      → ' + detail : ''}`); }
+}
+function throws(fn, label) {
+  try { fn(); ok(false, label, 'xəta atılmalı idi, atılmadı'); }
+  catch (_) { ok(true, label); }
+}
+const last = () => calls[calls.length - 1];
+const filterOf = (rec, col) => rec.filters.find(f => f[1] === col);
+const section = (t) => console.log(`\n── ${t} ${'─'.repeat(Math.max(0, 58 - t.length))}`);
+
+// İki uydurma müştəri ilə keşi doldur
+function seedCaches() {
+  const t = (id, name) => ({ tenant_id: id, name, status: 'active', plan: 'pro',
+                             brand: { displayName: name }, locale: 'az', currency: 'AZN' });
+  const store = T.__testSeed;
+  store({
+    tenants: [t('cm', 'Coffeemoon'), t('pl', "Joe's Pizza"), { ...t('sus', 'Bağlı Kafe'), status: 'suspended' }],
+    authKeys: [
+      { key: 'AK-CM', tenant_id: 'cm', role: 'admin',   branch_id: null },
+      { key: 'SK-CM-ELM', tenant_id: 'cm', role: 'manager', branch_id: 'elmler' },
+      { key: 'AK-PL', tenant_id: 'pl', role: 'admin',   branch_id: null },
+    ],
+    branches: [
+      { tenant_id: 'cm', branch_id: 'elmler',  name: 'Elmlər',  active: true, wifi_ips: '10.0.0.', tg_chat_id: '-100111', waste_limit: 3.5, mgr_name: 'Aysel' },
+      { tenant_id: 'cm', branch_id: 'agseher', name: 'Ağ Şəhər', active: true, wifi_ips: '', tg_chat_id: '', waste_limit: 3.0 },
+      { tenant_id: 'pl', branch_id: 'nizami',  name: 'Nizami',  active: true, wifi_ips: '192.168.1.', tg_chat_id: '-100222', waste_limit: 5.0 },
+    ],
+    positions: [
+      { tenant_id: 'cm', name: 'Barista', active: true, sort_order: 0 },
+      { tenant_id: 'cm', name: 'Cashier', active: true, sort_order: 1 },
+      { tenant_id: 'pl', name: 'Ofisiant', active: true, sort_order: 0 },
+    ],
+    settings: [
+      { tenant_id: 'cm', key: 'TG_ENABLED', value: 'true' },
+      { tenant_id: 'cm', key: 'TG_TOKEN',   value: 'cm-token' },
+      { tenant_id: 'pl', key: 'TG_TOKEN',   value: 'pl-token' },
+    ],
+  });
+}
+
+(async () => {
+  console.log('\n══ ÇOX-MÜŞTƏRİLİ İZOLYASİYA TESTLƏRİ ══');
+  seedCaches();
+  const U = require('./utils');   // keşlər dolandan sonra yüklənir
+
+  // ══════════════════════════════════════════════════════════════════════
+  section('1. Kontekstsiz sorğu bloklanır (fail-closed)');
+  throws(() => db().from('employees').select('*'),
+         'kontekst yoxdursa db() xəta atır');
+  throws(() => T.tenantId(), 'tenantId() kontekstsiz xəta atır');
+  ok(T.tenantIdOrNull() === null, 'tenantIdOrNull() kontekstsiz null qaytarır');
+
+  // ══════════════════════════════════════════════════════════════════════
+  section('2. SELECT-ə tenant filtri avtomatik qoşulur');
+  await T.run({ tenantId: 'cm' }, async () => {
+    db().from('employees').select('*');
+    const f = filterOf(last(), 'tenant_id');
+    ok(!!f && f[2] === 'cm', "select-ə .eq('tenant_id','cm') əlavə olundu",
+       f ? `tapıldı: ${JSON.stringify(f)}` : 'tenant_id filtri YOXDUR');
+
+    db().from('attendance').select('*').eq('emp_id', 'E1').gte('timestamp', 'x');
+    const r = last();
+    ok(r.filters.some(x => x[1] === 'tenant_id'), 'uzun zəncirdə də filtr qalır');
+    ok(r.filters.some(x => x[1] === 'emp_id'), 'çağıranın öz filtrləri itmir');
+  });
+
+  // ══════════════════════════════════════════════════════════════════════
+  section('3. INSERT / UPSERT sətrə tenant_id yazır');
+  await T.run({ tenantId: 'cm' }, async () => {
+    db().from('attendance').insert({ emp_id: 'E1', type: 'GƏLİŞ' });
+    ok(last().payload.tenant_id === 'cm', 'insert (tək sətir) tenant_id alır');
+
+    db().from('cedvel').insert([{ emp_id: 'E1' }, { emp_id: 'E2' }]);
+    ok(last().payload.every(r => r.tenant_id === 'cm'), 'insert (massiv) hər sətrə tenant_id yazır');
+
+    // ƏN VACİB: çağıran özü başqa müştəri yazmağa çalışsa üstələnməlidir
+    db().from('attendance').insert({ emp_id: 'X', tenant_id: 'pl' });
+    ok(last().payload.tenant_id === 'cm',
+       'çağıranın verdiyi yad tenant_id ÜSTƏLƏNİR (başqasına yazmaq olmur)',
+       `alındı: ${last().payload.tenant_id}`);
+
+    db().from('scan_devices').upsert({ device_id: 'D1' }, { onConflict: 'device_id' });
+    ok(last().opts.onConflict === 'tenant_id,device_id',
+       'upsert-in onConflict hədəfinə tenant_id əlavə olunur',
+       `alındı: ${last().opts.onConflict}`);
+  });
+
+  // ══════════════════════════════════════════════════════════════════════
+  section('4. UPDATE / DELETE yalnız öz sətirlərinə toxunur');
+  await T.run({ tenantId: 'pl' }, async () => {
+    db().from('employees').update({ name: 'Yeni' }).eq('id', 'E1');
+    const f = filterOf(last(), 'tenant_id');
+    ok(!!f && f[2] === 'pl', 'update tenant filtri ilə məhdudlaşır');
+    ok(!('tenant_id' in last().payload),
+       'update payload-undan tenant_id silinir (sətir başqasına köçürülə bilmir)');
+
+    db().from('checklist_items').delete().neq('item_id', 'x');
+    const fd = filterOf(last(), 'tenant_id');
+    ok(!!fd && fd[2] === 'pl', "kütləvi delete də yalnız öz müştərisini silir");
+  });
+
+  // ══════════════════════════════════════════════════════════════════════
+  section('5. Platforma cədvəlləri db() ilə açılmır');
+  await T.run({ tenantId: 'cm' }, async () => {
+    throws(() => db().from('tenants').select('*'), 'db().from("tenants") xəta atır');
+    throws(() => db().from('auth_keys').select('*'), 'db().from("auth_keys") xəta atır');
+  });
+
+  // ══════════════════════════════════════════════════════════════════════
+  section('6. Paralel sorğular bir-birinin kontekstini oğurlamır');
+  //  Bu, AsyncLocalStorage-ın əsl sınağıdır: iki müştəri eyni anda işləsə
+  //  və aralarında await olsa, hər biri öz tenant-ında qalmalıdır.
+  const results = await Promise.all([
+    T.run({ tenantId: 'cm' }, async () => {
+      await new Promise(r => setTimeout(r, 15));
+      db().from('employees').select('*');
+      const a = filterOf(last(), 'tenant_id')[2];
+      await new Promise(r => setTimeout(r, 5));
+      db().from('avans').select('*');
+      return [a, filterOf(last(), 'tenant_id')[2]];
+    }),
+    T.run({ tenantId: 'pl' }, async () => {
+      await new Promise(r => setTimeout(r, 5));
+      db().from('employees').select('*');
+      const a = filterOf(last(), 'tenant_id')[2];
+      await new Promise(r => setTimeout(r, 15));
+      db().from('avans').select('*');
+      return [a, filterOf(last(), 'tenant_id')[2]];
+    }),
+  ]);
+  ok(JSON.stringify(results[0]) === '["cm","cm"]', 'cm sorğusu await-lardan sonra da cm qalır', JSON.stringify(results[0]));
+  ok(JSON.stringify(results[1]) === '["pl","pl"]', 'pl sorğusu await-lardan sonra da pl qalır', JSON.stringify(results[1]));
+
+  // ══════════════════════════════════════════════════════════════════════
+  section('7. Filiallar/vəzifələr müştəriyə görə dəyişir (hardcode qalmayıb)');
+  await T.run({ tenantId: 'cm' }, async () => {
+    ok(JSON.stringify(U.DEPTS) === '["Elmlər","Ağ Şəhər"]', 'U.DEPTS cm-in filiallarını verir', JSON.stringify(U.DEPTS));
+    ok(JSON.stringify(U.POSITIONS) === '["Barista","Cashier"]', 'U.POSITIONS cm-in vəzifələri', JSON.stringify(U.POSITIONS));
+    ok(U.deptToSlug('Elmlər') === 'elmler', 'deptToSlug bazadan işləyir');
+  });
+  await T.run({ tenantId: 'pl' }, async () => {
+    ok(JSON.stringify(U.DEPTS) === '["Nizami"]', 'U.DEPTS pl-in filiallarını verir', JSON.stringify(U.DEPTS));
+    ok(JSON.stringify(U.POSITIONS) === '["Ofisiant"]', 'U.POSITIONS pl-in vəzifələri', JSON.stringify(U.POSITIONS));
+    ok(U.deptToSlug('Elmlər') === '', 'pl "Elmlər" filialını GÖRMÜR');
+  });
+
+  // ══════════════════════════════════════════════════════════════════════
+  section('8. WiFi IP və Telegram müştəriyə görə ayrılır');
+  await T.run({ tenantId: 'cm' }, async () => {
+    ok(U.checkWifiIp('Elmlər', '10.0.0.5').ok, 'cm: öz IP-si qəbul olunur');
+    ok(!U.checkWifiIp('Elmlər', '192.168.1.9').ok, 'cm: yad şəbəkə rədd olunur');
+    ok(U.getTelegramSettings().token === 'cm-token', 'cm öz Telegram tokenini alır');
+    ok(U.deptChatId(U.getTelegramSettings(), 'Elmlər') === '-100111', 'filial chat id-si branches-dən gəlir');
+  });
+  await T.run({ tenantId: 'pl' }, async () => {
+    ok(U.getTelegramSettings().token === 'pl-token', 'pl öz Telegram tokenini alır');
+    ok(U.checkWifiIp('Nizami', '192.168.1.9').ok, 'pl: öz IP-si qəbul olunur');
+  });
+
+  // ══════════════════════════════════════════════════════════════════════
+  section('9. Açar → müştəri həlli');
+  ok(T.resolveKeySync('AK-CM').tenantId === 'cm', 'admin açarı cm-ə aparır');
+  ok(T.resolveKeySync('AK-PL').tenantId === 'pl', 'admin açarı pl-ə aparır');
+  ok(T.resolveKeySync('YOXDUR') === null, 'tanınmayan açar null qaytarır');
+  const mgr = T.branchByKey('SK-CM-ELM');
+  ok(mgr.valid && mgr.dept === 'Elmlər' && mgr.tenantId === 'cm', 'menecer açarı filialı və müştərini verir');
+  ok(T.branchByKey('AK-CM').valid === false, 'admin açarı menecer açarı kimi keçmir');
+  ok(T.findKey('cm', 'admin', null) === 'AK-CM', 'tərs indeks açarı tapır');
+
+  // ══════════════════════════════════════════════════════════════════════
+  section('10. Abunəlik vəziyyəti');
+  ok(T.tenantUsable('cm').ok, 'aktiv müştəri buraxılır');
+  ok(!T.tenantUsable('sus').ok, 'dayandırılmış müştəri bloklanır');
+  ok(!T.tenantUsable('yoxdur').ok, 'olmayan müştəri bloklanır');
+
+  // ══════════════════════════════════════════════════════════════════════
+  section('11. Şablon injeksiyası (apostroflu ad paneli sındırmır)');
+  //  Produksiyada bir dəfə baş verib: apostroflu dəyər JS sətrinə düşəndə
+  //  skript qırılır və panel tam açılmır. Brend adları artıq müştəridən
+  //  gəldiyi üçün bu, indi daha kritikdir.
+  const srv = require('./tpl');
+  const evil = `Joe's "Diner" </script><script>alert(1)</script>`;
+  const js   = srv.jsLiteral(evil);
+  ok(!js.includes("'") || js.startsWith('"'), 'JS literal dırnaqla bağlanır');
+  ok(!/<\/script/i.test(js), '</script> qaçırılır — skript qırılmır');
+  ok(eval(js) === evil, 'qaçırılmış dəyər eyni ilə geri oxunur');
+
+  const html = srv.htmlEscape(evil);
+  ok(!html.includes('<') && !html.includes('"'), 'HTML kontekstində teq və dırnaq neytrallaşır');
+
+  const tpl = srv.replaceVars(`<div><?= n ?></div><script>var N = <?= n_js ?>;</script>`, { n: evil });
+  ok(!tpl.includes('<script>alert'), 'şablonda injeksiya baş vermir');
+  ok(tpl.includes('var N = "Joe'), 'JS dəyəri düzgün yerləşir');
+
+  // ══════════════════════════════════════════════════════════════════════
+  console.log(`\n${'═'.repeat(62)}`);
+  console.log(fail === 0
+    ? `🎉  BÜTÜN TESTLƏR KEÇDİ  (${pass}/${pass})`
+    : `❌  ${fail} TEST UĞURSUZ  (${pass}/${pass + fail} keçdi)`);
+  console.log(`${'═'.repeat(62)}\n`);
+  process.exit(fail === 0 ? 1 && 0 : 1);
+})().catch(e => {
+  console.error('\n💥  Test çöküb:', e);
+  process.exit(1);
+});

@@ -225,7 +225,7 @@ header{background:linear-gradient(135deg,rgba(255,255,255,0.94) 0%,rgba(240,253,
 <div class="wrap">
 
 <header>
-  <div class="logo"><i class="fa-solid fa-mug-hot"></i> Coffeemoon</div>
+  <div class="logo"><i class="<?= brandIcon ?>"></i> <?= brandName ?></div>
   <div class="trainer-badge"><i class="fa-solid fa-graduation-cap"></i><span><?= trainerName ?></span></div>
 </header>
 
@@ -429,8 +429,8 @@ header{background:linear-gradient(135deg,rgba(255,255,255,0.94) 0%,rgba(240,253,
 <script src="/gsr-shim.js"></script>
 <script>
 // var (const yox) — gsr-shim açarı window üzərindən oxuyur (const window-a düşmür).
-var TRAINER_KEY  = '<?= trainerKey ?>';
-const TRAINER_NAME = '<?= trainerName ?>';
+var TRAINER_KEY  = <?= trainerKey_js ?>;
+const TRAINER_NAME = <?= trainerName_js ?>;
 
 var _tt;
 function toast(msg, type) {
@@ -1081,6 +1081,6 @@ function initDeptList() {
   navigator.serviceWorker.register('/sw.js').then(function(r){ setTimeout(function(){ init(r); },2000); }).catch(function(){});
 })();
 </script>
-<footer style="text-align:center;padding:18px 0 14px;font-family:Inter,sans-serif;"><div style="font-size:0.72rem;font-weight:600;color:rgba(15,23,42,0.3);letter-spacing:0.01em;">created by Coffeemoon</div><div style="font-size:0.65rem;color:rgba(15,23,42,0.2);margin-top:2px;">version 1.0.1</div></footer>
+<footer style="text-align:center;padding:18px 0 14px;font-family:Inter,sans-serif;"><div style="font-size:0.72rem;font-weight:600;color:rgba(15,23,42,0.3);letter-spacing:0.01em;">created by <?= brandFooter ?></div><div style="font-size:0.65rem;color:rgba(15,23,42,0.2);margin-top:2px;">version 1.0.1</div></footer>
 </body>
 </html>

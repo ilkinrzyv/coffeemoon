@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Coffeemoon — İmtahan</title>
+<title><?= brandName ?> — İmtahan</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <style>
@@ -149,18 +149,16 @@ body{background:var(--bg);background-image:radial-gradient(ellipse 80% 60% at 20
 <!-- ══ QURAŞDIRMA ══ -->
 <div id="s-setup" class="hidden">
   <div class="page-header">
-    <div class="page-logo"><i class="fa-solid fa-mug-hot"></i> Coffeemoon</div>
+    <div class="page-logo"><i class="<?= brandIcon ?>"></i> <?= brandName ?></div>
     <div class="page-title">İmtahan</div>
     <div class="page-sub">Filial, ad və vəzifənizi seçib başlayın</div>
   </div>
 
   <div class="card">
     <div class="sec-label"><span class="sec-num">1</span> Filialınız</div>
-    <div class="grid-2">
-      <button class="sel-btn" onclick="pickBranch('Elmlər',this)"><i class="fa-solid fa-store"></i> Elmlər</button>
-      <button class="sel-btn" onclick="pickBranch('Sahil',this)"><i class="fa-solid fa-store"></i> Sahil</button>
-      <button class="sel-btn" onclick="pickBranch('Gənclik',this)"><i class="fa-solid fa-store"></i> Gənclik</button>
-      <button class="sel-btn" onclick="pickBranch('Ağ Şəhər',this)"><i class="fa-solid fa-store"></i> Ağ Şəhər</button>
+    <!-- Filial düymələri serverdən qurulur (əvvəl 4 düymə burada sabit idi) -->
+    <div class="grid-2" id="branchBtns">
+      <div style="grid-column:1/-1;color:var(--text-muted);font-size:0.85rem;padding:0.5rem 0;">Yüklənir...</div>
     </div>
   </div>
 
@@ -225,6 +223,10 @@ body{background:var(--bg);background-image:radial-gradient(ellipse 80% 60% at 20
 </div>
 <script src="/gsr-shim.js"></script>
 <script>
+// İmtahan səhifəsinin açarı yoxdur — hansı müştəriyə aid olduğunu link
+// (`/exam?t=<id>`) bildirir, gsr-shim isə bunu X-CM-Tenant kimi göndərir.
+var TENANT_HINT = <?= tenantHint_js ?>;
+
 // ── State ─────────────────────────────────────────────────────────
 var selBranch=null, selEmpId=null, selEmpName=null, selRole=null;
 var allEmps=[], examQs=[], curIdx=0;
@@ -248,6 +250,29 @@ google.script.run
   .getExamStatus();
 
 // ── Quraşdırma ────────────────────────────────────────────────────
+// Filial düymələri serverdən qurulur — hansı müştəri olduğu linkdəki `?t=`
+// göstəricisindən bilinir (yuxarıdakı TENANT_HINT).
+google.script.run
+  .withSuccessHandler(function(list){
+    var box = document.getElementById('branchBtns');
+    var depts = list || [];
+    if (!depts.length) {
+      box.innerHTML = '<div style="grid-column:1/-1;color:var(--text-muted);font-size:0.85rem;">Filial tapılmadı.</div>';
+      return;
+    }
+    box.innerHTML = depts.map(function(d){
+      return '<button class="sel-btn" data-dept="'+escAttr(d)+'" onclick="pickBranch(this.dataset.dept,this)">'+
+             '<i class="fa-solid fa-store"></i> '+escAttr(d)+'</button>';
+    }).join('');
+  })
+  .withFailureHandler(function(){
+    document.getElementById('branchBtns').innerHTML =
+      '<div style="grid-column:1/-1;color:var(--danger);font-size:0.85rem;">Filiallar yüklənmədi.</div>';
+  })
+  .getDeptList();
+
+function escAttr(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
 function pickBranch(dept, btn) {
   document.querySelectorAll('#s-setup .sel-btn').forEach(function(b){ b.classList.remove('active'); });
   btn.classList.add('active');
@@ -502,6 +527,6 @@ function showScreen(name){
   window.scrollTo({ top:0, behavior:'smooth' });
 }
 </script>
-<footer style="text-align:center;padding:18px 0 14px;font-family:Inter,sans-serif;"><div style="font-size:0.72rem;font-weight:600;color:rgba(15,23,42,0.3);letter-spacing:0.01em;">created by Coffeemoon</div><div style="font-size:0.65rem;color:rgba(15,23,42,0.2);margin-top:2px;">version 1.0.1</div></footer>
+<footer style="text-align:center;padding:18px 0 14px;font-family:Inter,sans-serif;"><div style="font-size:0.72rem;font-weight:600;color:rgba(15,23,42,0.3);letter-spacing:0.01em;">created by <?= brandFooter ?></div><div style="font-size:0.65rem;color:rgba(15,23,42,0.2);margin-top:2px;">version 1.0.1</div></footer>
 </body>
 </html>

@@ -352,7 +352,7 @@ tr.open .fa-chev{transform:rotate(180deg);}
     <div class="sb-logo">
       <div class="sb-logo-ic"><i class="fa-solid fa-mug-hot"></i></div>
       <div>
-        <div class="sb-logo-txt">Coffeemoon</div>
+        <div class="sb-logo-txt"><?= brandName ?></div>
         <div class="sb-logo-sub">Admin Panel</div>
       </div>
     </div>
@@ -398,7 +398,7 @@ tr.open .fa-chev{transform:rotate(180deg);}
 <header>
   <div style="display:flex;align-items:center;gap:12px;">
     <button class="sb-toggle-btn" onclick="sbToggle()"><i class="fa-solid fa-bars"></i> Menü</button>
-    <div class="logo"><i class="fa-solid fa-mug-hot"></i> Coffeemoon Admin</div>
+    <div class="logo"><i class="<?= brandIcon ?>"></i> <?= brandName ?> Admin</div>
   </div>
 </header>
 <!-- Köhnə üfüqi <nav> menyusu SİLİNDİ (2026-07-29). Menyu yalnız yan paneldədir (.sb-item).
@@ -410,7 +410,7 @@ tr.open .fa-chev{transform:rotate(180deg);}
 <div id="tab-emp" class="page">
   <div class="card add-form">
     <input id="iName" placeholder="İşçinin Adı Soyadı">
-    <select id="iDept"><option value="" disabled selected>Filial Seçin</option><option value="Elmlər">Elmlər</option><option value="Sahil">Sahil</option><option value="Gənclik">Gənclik</option><option value="Ağ Şəhər">Ağ Şəhər</option></select>
+    <select id="iDept" data-branch-select="placeholder"><option value="" disabled selected>Filial Seçin</option></select>
     <select id="iPos"><option value="" selected>Vəzifə (istəyə görə)</option></select>
     <button class="btn primary" onclick="addEmp()"><i class="fa-solid fa-user-plus"></i> Əlavə et</button>
   </div>
@@ -485,10 +485,7 @@ tr.open .fa-chev{transform:rotate(180deg);}
   <div class="card">
     <div class="sched-header">
       <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-        <select id="schedDept" onchange="loadSched()" style="min-width:160px;flex:unset;">
-          <option value="Elmlər">Elmlər</option><option value="Sahil">Sahil</option>
-          <option value="Gənclik">Gənclik</option><option value="Ağ Şəhər">Ağ Şəhər</option>
-        </select>
+        <select id="schedDept" onchange="loadSched()" data-branch-select="plain" style="min-width:160px;flex:unset;"></select>
         <div class="week-nav">
           <button onclick="changeWeek(-1)"><i class="fa-solid fa-chevron-left"></i></button>
           <div class="week-label" id="weekLabel">—</div>
@@ -699,29 +696,31 @@ tr.open .fa-chev{transform:rotate(180deg);}
 <!-- MENECERLƏR -->
 <div id="tab-mgr" class="page">
 
+  <!-- ── FİLİALLAR ────────────────────────────────────────────────
+       Filiallar artıq koda yazılmır — buradan idarə olunur. -->
+  <div class="card" style="margin-bottom:1.1rem;">
+    <div class="tg-section-title" style="margin-bottom:1.1rem;">
+      <i class="fa-solid fa-store"></i> Filiallar
+      <span style="font-size:0.75rem;font-weight:500;color:var(--text-muted);text-transform:none;letter-spacing:0;margin-left:6px;">— əlavə et, adını dəyiş, itki limitini təyin et</span>
+    </div>
+
+    <div id="branchList" style="display:flex;flex-direction:column;gap:8px;margin-bottom:1rem;">Yüklənir...</div>
+
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding-top:0.9rem;border-top:1px solid rgba(15,23,42,0.06);">
+      <input id="newBranchName" placeholder="Yeni filialın adı" style="flex:1;min-width:180px;padding:0.7rem 0.9rem;border-radius:10px;border:1px solid rgba(15,23,42,0.1);font-size:0.9rem;font-family:inherit;outline:none;">
+      <input id="newBranchColor" type="color" value="#bfdbfe" title="Rəng nişanı" style="width:44px;height:40px;padding:2px;border-radius:10px;border:1px solid rgba(15,23,42,0.1);cursor:pointer;">
+      <button class="btn primary" onclick="addBranchUI()"><i class="fa-solid fa-plus"></i> Filial əlavə et</button>
+    </div>
+    <div class="tg-result" id="branchResult"></div>
+  </div>
+
   <!-- Menecer adları -->
   <div class="card">
     <div class="tg-section-title" style="margin-bottom:1.1rem;">
       <i class="fa-solid fa-id-card"></i> Filial İdarəçi Adları
     </div>
-    <div class="tg-grid">
-      <div class="tg-field">
-        <label><span style="width:9px;height:9px;background:#bfdbfe;border-radius:2px;display:inline-block;margin-right:4px;"></span>Elmlər — İdarəçi</label>
-        <input id="mgrNameElmler" placeholder="Ad Soyad">
-      </div>
-      <div class="tg-field">
-        <label><span style="width:9px;height:9px;background:#fbcfe8;border-radius:2px;display:inline-block;margin-right:4px;"></span>Sahil — İdarəçi</label>
-        <input id="mgrNameSahil" placeholder="Ad Soyad">
-      </div>
-      <div class="tg-field">
-        <label><span style="width:9px;height:9px;background:#bbf7d0;border-radius:2px;display:inline-block;margin-right:4px;"></span>Gənclik — İdarəçi</label>
-        <input id="mgrNameGenclik" placeholder="Ad Soyad">
-      </div>
-      <div class="tg-field">
-        <label><span style="width:9px;height:9px;background:#fef08a;border-radius:2px;display:inline-block;margin-right:4px;"></span>Ağ Şəhər — İdarəçi</label>
-        <input id="mgrNameAgseher" placeholder="Ad Soyad">
-      </div>
-    </div>
+    <!-- Filial sayı artıq sabit deyil → sahələr branches siyahısından qurulur -->
+    <div class="tg-grid" id="mgrNameGrid"></div>
   </div>
 
   <!-- Ümumi mesaj -->
@@ -741,40 +740,7 @@ tr.open .fa-chev{transform:rotate(180deg);}
       <i class="fa-solid fa-envelope-open-text"></i> Fərdi Mesajlar
       <span style="font-size:0.75rem;font-weight:500;color:var(--text-muted);text-transform:none;letter-spacing:0;margin-left:6px;">— hər filialın öz idarəçilərinə</span>
     </div>
-    <div style="display:flex;flex-direction:column;gap:1rem;">
-      <div>
-        <div style="font-size:0.8rem;font-weight:700;color:#1e40af;margin-bottom:6px;display:flex;align-items:center;gap:6px;">
-          <span style="background:#dbeafe;padding:2px 10px;border-radius:6px;">Elmlər</span>
-        </div>
-        <textarea id="mgrMsgElmler" rows="3"
-          style="width:100%;padding:0.9rem 1.1rem;border-radius:11px;border:1px solid rgba(15,23,42,0.08);font-size:0.9rem;font-family:inherit;resize:vertical;outline:none;"
-          placeholder="Elmlər filialı idarəçisinə mesaj..."></textarea>
-      </div>
-      <div>
-        <div style="font-size:0.8rem;font-weight:700;color:#9d174d;margin-bottom:6px;display:flex;align-items:center;gap:6px;">
-          <span style="background:#fbcfe8;padding:2px 10px;border-radius:6px;">Sahil</span>
-        </div>
-        <textarea id="mgrMsgSahil" rows="3"
-          style="width:100%;padding:0.9rem 1.1rem;border-radius:11px;border:1px solid rgba(15,23,42,0.08);font-size:0.9rem;font-family:inherit;resize:vertical;outline:none;"
-          placeholder="Sahil filialı idarəçisinə mesaj..."></textarea>
-      </div>
-      <div>
-        <div style="font-size:0.8rem;font-weight:700;color:#065f46;margin-bottom:6px;display:flex;align-items:center;gap:6px;">
-          <span style="background:#bbf7d0;padding:2px 10px;border-radius:6px;">Gənclik</span>
-        </div>
-        <textarea id="mgrMsgGenclik" rows="3"
-          style="width:100%;padding:0.9rem 1.1rem;border-radius:11px;border:1px solid rgba(15,23,42,0.08);font-size:0.9rem;font-family:inherit;resize:vertical;outline:none;"
-          placeholder="Gənclik filialı idarəçisinə mesaj..."></textarea>
-      </div>
-      <div>
-        <div style="font-size:0.8rem;font-weight:700;color:#92400e;margin-bottom:6px;display:flex;align-items:center;gap:6px;">
-          <span style="background:#fef08a;padding:2px 10px;border-radius:6px;">Ağ Şəhər</span>
-        </div>
-        <textarea id="mgrMsgAgseher" rows="3"
-          style="width:100%;padding:0.9rem 1.1rem;border-radius:11px;border:1px solid rgba(15,23,42,0.08);font-size:0.9rem;font-family:inherit;resize:vertical;outline:none;"
-          placeholder="Ağ Şəhər filialı idarəçisinə mesaj..."></textarea>
-      </div>
-    </div>
+    <div style="display:flex;flex-direction:column;gap:1rem;" id="mgrMsgList"></div>
   </div>
 
   <!-- Təsdiq statusu -->
@@ -851,12 +817,7 @@ tr.open .fa-chev{transform:rotate(180deg);}
     </div>
     <div class="tg-section">
       <div class="tg-section-title"><i class="fa-solid fa-briefcase"></i> Filial Chat ID-ləri (istəyə bağlı)</div>
-      <div class="tg-grid">
-        <div class="tg-field"><label><span style="width:9px;height:9px;background:#bfdbfe;border-radius:2px;display:inline-block;margin-right:4px;"></span>Elmlər</label><input id="tgElmler" placeholder="Chat ID"></div>
-        <div class="tg-field"><label><span style="width:9px;height:9px;background:#fbcfe8;border-radius:2px;display:inline-block;margin-right:4px;"></span>Sahil</label><input id="tgSahil" placeholder="Chat ID"></div>
-        <div class="tg-field"><label><span style="width:9px;height:9px;background:#bbf7d0;border-radius:2px;display:inline-block;margin-right:4px;"></span>Gənclik</label><input id="tgGenclik" placeholder="Chat ID"></div>
-        <div class="tg-field"><label><span style="width:9px;height:9px;background:#fef08a;border-radius:2px;display:inline-block;margin-right:4px;"></span>Ağ Şəhər</label><input id="tgAgSeher" placeholder="Chat ID"></div>
-      </div>
+      <div class="tg-grid" id="tgChatGrid"></div>
     </div>
     <div class="tg-actions">
       <button class="btn primary" onclick="saveTg()"><i class="fa-solid fa-floppy-disk"></i> Saxla</button>
@@ -878,12 +839,7 @@ tr.open .fa-chev{transform:rotate(180deg);}
       <div style="flex:1;"><div style="font-size:0.75rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px;">Hal-hazırkı public IP</div><div style="font-family:monospace;font-weight:700;" id="myCurrentIp">Yüklənir...</div></div>
       <button class="btn sm" onclick="copyCurrentIp()"><i class="fa-solid fa-copy"></i> Kopyala</button>
     </div>
-    <div class="tg-grid" style="margin-bottom:1.2rem;">
-      <div class="tg-field"><label><span style="width:9px;height:9px;background:#bfdbfe;border-radius:2px;display:inline-block;margin-right:4px;"></span>Elmlər</label><input id="ipElmler" placeholder="1.2.3.4, 5.6.7.8"></div>
-      <div class="tg-field"><label><span style="width:9px;height:9px;background:#fbcfe8;border-radius:2px;display:inline-block;margin-right:4px;"></span>Sahil</label><input id="ipSahil" placeholder="1.2.3.4"></div>
-      <div class="tg-field"><label><span style="width:9px;height:9px;background:#bbf7d0;border-radius:2px;display:inline-block;margin-right:4px;"></span>Gənclik</label><input id="ipGenclik" placeholder="1.2.3.4"></div>
-      <div class="tg-field"><label><span style="width:9px;height:9px;background:#fef08a;border-radius:2px;display:inline-block;margin-right:4px;"></span>Ağ Şəhər</label><input id="ipAgSeher" placeholder="1.2.3.4"></div>
-    </div>
+    <div class="tg-grid" style="margin-bottom:1.2rem;" id="wifiIpGrid"></div>
     <button class="btn primary" onclick="saveWifi()"><i class="fa-solid fa-floppy-disk"></i> Saxla</button>
     <div class="tg-result" id="wifiResult"></div>
   </div>
@@ -967,10 +923,8 @@ tr.open .fa-chev{transform:rotate(180deg);}
  
     <!-- Filial tab düymələri -->
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:1.2rem;">
-      <button class="cl-btab active" onclick="clSelectBranch('Ağ Şəhər',this)">🏪 Ağ Şəhər</button>
-      <button class="cl-btab" onclick="clSelectBranch('Gənclik',this)">🏪 Gənclik</button>
-      <button class="cl-btab" onclick="clSelectBranch('Elmlər',this)">🏪 Elmlər</button>
-      <button class="cl-btab" onclick="clSelectBranch('Sahil',this)">🏪 Sahil</button>
+      <!-- Filial tabları initChecklist() tərəfindən qurulur -->
+      <span id="clBranchTabs"></span>
     </div>
  
     <div id="cl-report-area">
@@ -1035,13 +989,12 @@ tr.open .fa-chev{transform:rotate(180deg);}
 
   <!-- Faiz limitləri (məlumat üçün) -->
   <div class="card">
-    <div class="tg-section-title" style="margin-bottom:0.9rem;"><i class="fa-solid fa-percent"></i> Filial Tullantı Limitləri</div>
-    <div class="waste-limit-grid">
-      <div class="wl-card"><div class="wl-dept"><span style="background:#bbf7d0;padding:2px 9px;border-radius:6px;font-size:0.82rem;">Gənclik</span></div><div class="wl-pct">2.5%</div></div>
-      <div class="wl-card"><div class="wl-dept"><span style="background:#fef08a;padding:2px 9px;border-radius:6px;font-size:0.82rem;">Ağ Şəhər</span></div><div class="wl-pct">3.0%</div></div>
-      <div class="wl-card"><div class="wl-dept"><span style="background:#bfdbfe;padding:2px 9px;border-radius:6px;font-size:0.82rem;">Elmlər</span></div><div class="wl-pct">3.5%</div></div>
-      <div class="wl-card"><div class="wl-dept"><span style="background:#fbcfe8;padding:2px 9px;border-radius:6px;font-size:0.82rem;">Sahil</span></div><div class="wl-pct">4.0%</div></div>
+    <div class="tg-section-title" style="margin-bottom:0.9rem;">
+      <i class="fa-solid fa-percent"></i> Filial Tullantı Limitləri
+      <span style="font-size:0.75rem;font-weight:500;color:var(--text-muted);text-transform:none;letter-spacing:0;margin-left:6px;">— dəyişmək üçün: İdarəçilər → Filiallar</span>
     </div>
+    <!-- Limitlər `branches.waste_limit`-dən gəlir (əvvəl burada sabit yazılmışdı) -->
+    <div class="waste-limit-grid" id="wasteLimitGrid"></div>
   </div>
  
   <!-- Məhsul əlavə et -->
@@ -1144,7 +1097,7 @@ tr.open .fa-chev{transform:rotate(180deg);}
     <h3><i class="fa-solid fa-mobile-screen" style="color:var(--primary);margin-right:7px;"></i>Cihazı Təsdiqlə</h3>
     <input type="hidden" id="modalDeviceId">
     <label>Filial</label>
-    <select id="modalBranch"><option value="" disabled selected>Filial Seçin</option><option value="Elmlər">Elmlər</option><option value="Sahil">Sahil</option><option value="Gənclik">Gənclik</option><option value="Ağ Şəhər">Ağ Şəhər</option></select>
+    <select id="modalBranch" data-branch-select="placeholder"><option value="" disabled selected>Filial Seçin</option></select>
     <label>Ad / Qeyd</label>
     <input id="modalLabel" placeholder="məs: Elmlər kassa">
     <div class="modal-actions">
@@ -1179,6 +1132,80 @@ const TIME_STEP=10000;
 let emps=[],allLogs=[],scanDevices=[],onlineData=[],elapsedTimer=null;
 let schedData=[],schedWeekStart=getMondayYMD(new Date());
 
+// ══════════════════════════════════════════════════════════════════
+//  FİLİAL REGİSTRİ (frontend)
+// ══════════════════════════════════════════════════════════════════
+//  Filiallar artıq HTML-ə sabit yazılmır — serverdən gəlir. Bütün filial
+//  siyahıları, seçim menyuları və sahələr bu keşdən qurulur.
+var _branchCache = [], _branchKeys = {}, _branchLoaded = false, _branchWaiters = [];
+
+function withBranches(cb) {
+  if (_branchLoaded) return cb(_branchCache);
+  _branchWaiters.push(cb);
+  if (_branchWaiters.length > 1) return;      // yükləmə artıq gedir
+  google.script.run.withSuccessHandler(function(r) {
+    _branchCache  = (r && r.branches) || [];
+    _branchKeys   = (r && r.managerKeys) || {};
+    _branchLoaded = true;
+    var ws = _branchWaiters.slice(); _branchWaiters = [];
+    ws.forEach(function(f) { f(_branchCache); });
+    fillBranchSelects();
+  }).withFailureHandler(function() {
+    _branchLoaded = true;
+    var ws = _branchWaiters.slice(); _branchWaiters = [];
+    ws.forEach(function(f) { f([]); });
+  }).getBranches();
+}
+
+// Filial dəyişikliyindən sonra keşi təzələ və açıq görünüşləri yenidən qur
+function refreshBranches(then) {
+  _branchLoaded = false; _branchCache = []; _branchWaiters = [];
+  withBranches(function(brs) { if (then) then(brs); });
+}
+
+// `data-branch-select` işarəsi olan bütün <select>-ləri doldurur.
+//   placeholder → ilk "Filial Seçin" seçimi saxlanılır
+//   plain       → yalnız filiallar
+function fillBranchSelects() {
+  var sels = document.querySelectorAll('[data-branch-select]');
+  Array.prototype.forEach.call(sels, function(sel) {
+    var keep = sel.getAttribute('data-branch-select') === 'placeholder';
+    var prev = sel.value;
+    var head = keep ? '<option value="" disabled selected>Filial Seçin</option>' : '';
+    sel.innerHTML = head + _branchCache.map(function(b) {
+      return '<option value="' + escHtml(b.name) + '">' + escHtml(b.name) + '</option>';
+    }).join('');
+    if (prev && _branchCache.some(function(b){ return b.name === prev; })) sel.value = prev;
+  });
+}
+
+function branchDot(b) {
+  return '<span style="width:9px;height:9px;background:' + escHtml(b.color || '#e2e8f0') +
+         ';border-radius:2px;display:inline-block;margin-right:4px;"></span>';
+}
+
+// Filialın nişan rəngi. Əvvəl panelin 6 ayrı yerində eyni rəng cədvəli
+// filial adları ilə təkrarlanırdı ({'Elmlər':'#bfdbfe', ...}); indi hamısı
+// buradan gəlir və rəng admin panelindən dəyişilə bilir.
+function branchColor(name) {
+  var b = _branchCache.filter(function(x) { return x.name === name; })[0];
+  return (b && b.color) || '#f1f5f9';
+}
+
+// Nişan üzərindəki mətnin rəngi — fon açıq/tünd olduğuna görə seçilir ki,
+// istifadəçinin təyin etdiyi istənilən rəngdə yazı oxunaqlı qalsın.
+function branchTextColor(name) {
+  var hex = String(branchColor(name)).replace('#', '');
+  if (hex.length === 3) hex = hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];
+  var r = parseInt(hex.substr(0,2),16), g = parseInt(hex.substr(2,2),16), b2 = parseInt(hex.substr(4,2),16);
+  if (isNaN(r)) return '#0f172a';
+  // Standart nisbi parlaqlıq
+  return (0.299*r + 0.587*g + 0.114*b2) > 150 ? '#0f172a' : '#ffffff';
+}
+
+// Filial adlarının siyahısı (keşdən). `DEPT_LIST` sabit massiv idi.
+function deptList() { return _branchCache.map(function(b) { return b.name; }); }
+
 function getInitials(n){return String(n).split(' ').map(function(x){return x[0];}).join('').substring(0,2).toUpperCase();}
 // (ortaq köməkçi common.js-ə köçürüldü)
 function empName(id){var e=emps.filter(function(x){return x.id===id;})[0];return e?e.name:'';}
@@ -1203,7 +1230,7 @@ function sw(name){
   if(name==='dev')  loadDevices();
   if(name==='tg')   loadTgSettings();
   if(name==='wifi') loadWifi();
-  if(name==='mgr')  {loadMgr();loadMgrAcks();}
+  if(name==='mgr')  {loadBranchAdmin();loadMgr();loadMgrAcks();}
   if(name==='cedvel'){loadSched();}
   if(name==='links'){loadBranchLinks();loadExecLink();loadOpsLink();loadTrainerKey();}
   if(name==='hesabat'){loadWarnings();initRepSelects();}
@@ -1222,7 +1249,9 @@ function sbClose(){document.getElementById('adminSb').classList.remove('open');d
 // (ortaq köməkçi common.js-ə köçürüldü)
 
 // ── İŞÇİLƏR ─────────────────────────────────────────────────────
-var DEPT_LIST=['Elmlər','Sahil','Gənclik','Ağ Şəhər'];
+// Filial siyahısı serverdən gəlir (tək mənbə — branches cədvəli).
+// Getter kimi elan olunub: DEPT_LIST yazan mövcud 5 çağırış yeri dəyişmir.
+Object.defineProperty(window, "DEPT_LIST", { get: deptList });
 // Vəzifə siyahısı serverdən gəlir (tək mənbə — utils.js POSITIONS)
 var POS_LIST=[];
 function loadPositions(){
@@ -1921,10 +1950,9 @@ function saveSched(){
 function loadBranchLinks(){
   google.script.run.withSuccessHandler(function(keys){
     if(!keys)return;
-    var bColors={'\u0190\u0259nclik':'#bbf7d0','A\u011F \u015e\u0259h\u0259r':'#fef08a','Elml\u0259r':'#bfdbfe','Sahil':'#fbcfe8'};
     document.getElementById('branchLinks').innerHTML=Object.keys(keys).map(function(dept){
       var url = SCRIPT_URL + '/manager?key=' + keys[dept];
-      return '<div class="link-row"><div class="link-dept"><span style="width:10px;height:10px;border-radius:3px;background:'+(bColors[dept]||'#e2e8f0')+';display:inline-block;"></span>'+dept+'</div>'+
+      return '<div class="link-row"><div class="link-dept"><span style="width:10px;height:10px;border-radius:3px;background:'+branchColor(dept)+';display:inline-block;"></span>'+dept+'</div>'+
         '<div style="font-family:monospace;font-size:0.75rem;color:var(--text-muted);flex:2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+url+'</div>'+
         '<button class="btn sm" onclick="navigator.clipboard.writeText(\''+url+'\');alert(\'Link kopyalandı!\')"><i class="fa-solid fa-copy"></i> Kopyala</button></div>';
     }).join('');
@@ -2001,12 +2029,9 @@ function renderOnline() {
   });
   document.getElementById('onlineTotal').innerText = empOnlineCount + mgrOnlineCount;
  
-  var branches = ['Elmlər', 'Sahil', 'Gənclik', 'Ağ Şəhər'];
-  var bc = { 'Elmlər':'#bfdbfe', 'Sahil':'#fbcfe8', 'Gənclik':'#bbf7d0', 'Ağ Şəhər':'#fef08a' };
- 
   var html = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(265px,1fr));gap:0.9rem;">';
- 
-  branches.forEach(function(branch) {
+
+  deptList().forEach(function(branch) {
     var be  = onlineData.filter(function(e){ return e.dept === branch; });
     var mgr = mgrLiveData[branch] || null;
  
@@ -2014,7 +2039,7 @@ function renderOnline() {
  
     // ── Filial başlığı ──────────────────────────────────────────
     html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:0.85rem;padding-bottom:0.7rem;border-bottom:1px solid rgba(15,23,42,0.05);">';
-    html += '<span style="width:10px;height:10px;border-radius:3px;background:' + (bc[branch]||'#e2e8f0') + ';display:inline-block;flex-shrink:0;"></span>';
+    html += '<span style="width:10px;height:10px;border-radius:3px;background:' + branchColor(branch) + ';display:inline-block;flex-shrink:0;"></span>';
     html += '<span style="font-weight:700;font-size:0.92rem;flex:1;">' + branch + '</span>';
     var totalInBranch = be.length + (mgr && mgr.isOnline ? 1 : 0);
     html += totalInBranch
@@ -2093,12 +2118,12 @@ function loadReport(){
   document.getElementById('repResult').innerHTML='<i class="fa-solid fa-circle-notch fa-spin" style="color:var(--primary);"></i> Hesablanır...';
   google.script.run.withSuccessHandler(function(data){
     if(!data||!data.length){document.getElementById('repResult').innerHTML='<div style="text-align:center;padding:2rem;color:var(--text-muted)">Bu ay üçün məlumat yoxdur.</div>';return;}
-    var bColors={'Elmlər':'#bfdbfe','Sahil':'#fbcfe8','Gənclik':'#bbf7d0','Ağ Şəhər':'#fef08a'};
+    var bColors=null;   // rənglər branchColor()-dan gəlir
     var html='<div style="overflow-x:auto;"><table class="rep-table"><thead><tr><th>İşçi</th><th>Filial</th><th>Gün</th><th>Vaxtında</th><th>Gecikmə</th><th>%</th><th>İş saatı</th></tr></thead><tbody>';
     data.forEach(function(r){
       var pctColor=r.pct>=90?'var(--success)':(r.pct>=70?'var(--warning)':'var(--danger)');
       html+='<tr><td><div style="display:flex;align-items:center;gap:8px;"><div class="avatar" style="width:30px;height:30px;border-radius:8px;font-size:0.73rem;">'+getInitials(r.empName)+'</div>'+r.empName+'</div></td>';
-      html+='<td><span style="background:'+(bColors[r.dept]||'#f1f5f9')+';padding:3px 8px;border-radius:6px;font-size:0.78rem;font-weight:600;">'+r.dept+'</span></td>';
+      html+='<td><span style="background:'+branchColor(r.dept)+';padding:3px 8px;border-radius:6px;font-size:0.78rem;font-weight:600;">'+r.dept+'</span></td>';
       html+='<td style="font-weight:700;">'+r.totalDays+'</td>';
       html+='<td style="color:var(--success);font-weight:600;">'+r.onTime+'</td>';
       html+='<td style="color:var(--danger);font-weight:600;">'+r.late+'</td>';
@@ -2369,42 +2394,165 @@ function doBlock(id){if(confirm('Bloklanacaq.'))google.script.run.withSuccessHan
 function doRemove(id){if(confirm('Silinsin?'))google.script.run.withSuccessHandler(loadDevices).removeScanDevice(id);}
 
 // ── TELEGRAM ─────────────────────────────────────────────────────
-function loadTgSettings(){google.script.run.withSuccessHandler(function(cfg){if(!cfg)return;document.getElementById('tgEnabled').checked=cfg.enabled;document.getElementById('tgToken').value=cfg.token||'';document.getElementById('tgAdminChat').value=cfg.adminChat||'';document.getElementById('tgElmler').value=cfg.chatElmler||'';document.getElementById('tgSahil').value=cfg.chatSahil||'';document.getElementById('tgGenclik').value=cfg.chatGenclik||'';document.getElementById('tgAgSeher').value=cfg.chatAgSeher||'';}).getTelegramSettings();}
-function saveTg(){var d={enabled:document.getElementById('tgEnabled').checked,token:document.getElementById('tgToken').value.trim(),adminChat:document.getElementById('tgAdminChat').value.trim(),chatElmler:document.getElementById('tgElmler').value.trim(),chatSahil:document.getElementById('tgSahil').value.trim(),chatGenclik:document.getElementById('tgGenclik').value.trim(),chatAgSeher:document.getElementById('tgAgSeher').value.trim()};google.script.run.withSuccessHandler(function(){showResult('tgResult',true,'Saxlandı!');}).saveTelegramSettings(d);}
+function loadTgSettings(){
+  withBranches(function(brs){
+    document.getElementById('tgChatGrid').innerHTML = brs.map(function(b){
+      return '<div class="tg-field"><label>' + branchDot(b) + escHtml(b.name) + '</label>' +
+             '<input id="tg_' + b.id + '" placeholder="Chat ID"></div>';
+    }).join('') || '<div style="color:var(--text-muted);font-size:0.85rem;">Hələ filial yoxdur.</div>';
+
+    google.script.run.withSuccessHandler(function(cfg){
+      if(!cfg) return;
+      document.getElementById('tgEnabled').checked = cfg.enabled;
+      document.getElementById('tgToken').value     = cfg.token||'';
+      document.getElementById('tgAdminChat').value = cfg.adminChat||'';
+      // cfg.chats filial ADI ilə açarlanır, sahələr isə id ilə
+      brs.forEach(function(b){
+        var el = document.getElementById('tg_'+b.id);
+        if (el) el.value = (cfg.chats && cfg.chats[b.name]) || '';
+      });
+    }).getTelegramSettings();
+  });
+}
+function saveTg(){
+  var d = {
+    enabled:   document.getElementById('tgEnabled').checked,
+    token:     document.getElementById('tgToken').value.trim(),
+    adminChat: document.getElementById('tgAdminChat').value.trim(),
+    chats: {},
+  };
+  _branchCache.forEach(function(b){
+    var el = document.getElementById('tg_'+b.id);
+    if (el) d.chats[b.id] = el.value.trim();
+  });
+  google.script.run.withSuccessHandler(function(){showResult('tgResult',true,'Saxlandı!');}).saveTelegramSettings(d);
+}
 function testTg(){showResult('tgResult',null,'<i class="fa-solid fa-circle-notch fa-spin"></i> Göndərilir...');google.script.run.withSuccessHandler(function(r){showResult('tgResult',r.success,r.success?'Test uğurlu!':'Xəta: '+r.reason);}).testTelegram();}
 
 // ── MENECERLƏR ────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════
+//  FİLİAL İDARƏETMƏSİ
+// ══════════════════════════════════════════════════════════════════
+function loadBranchAdmin() {
+  var el = document.getElementById('branchList');
+  if (!el) return;
+  if (!_branchCache.length) {
+    el.innerHTML = '<div style="color:var(--text-muted);font-size:0.85rem;">Hələ filial yoxdur — aşağıdan əlavə et.</div>';
+    return;
+  }
+  el.innerHTML = _branchCache.map(function(b) {
+    var link = _branchKeys[b.name] ? (SCRIPT_URL + '/manager?key=' + _branchKeys[b.name]) : '';
+    return '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:#fff;border:1px solid rgba(15,23,42,0.06);border-radius:12px;padding:0.75rem 0.9rem;">' +
+      '<input type="color" value="' + escHtml(b.color || '#bfdbfe') + '" title="Rəng" ' +
+        'onchange="updBranch(\'' + b.id + '\',{color:this.value})" ' +
+        'style="width:34px;height:30px;padding:1px;border-radius:8px;border:1px solid rgba(15,23,42,0.1);cursor:pointer;flex-shrink:0;">' +
+      '<div style="flex:1;min-width:130px;">' +
+        '<div style="font-weight:700;font-size:0.9rem;">' + escHtml(b.name) + '</div>' +
+        '<div style="font-size:0.72rem;color:var(--text-muted);font-family:monospace;">' + escHtml(b.id) + '</div>' +
+      '</div>' +
+      '<label style="font-size:0.75rem;color:var(--text-muted);display:flex;align-items:center;gap:5px;">İtki limiti %' +
+        '<input type="number" step="0.1" min="0" value="' + Number(b.wasteLimit) + '" ' +
+          'onchange="updBranch(\'' + b.id + '\',{wasteLimit:parseFloat(this.value)})" ' +
+          'style="width:66px;padding:0.35rem 0.5rem;border-radius:8px;border:1px solid rgba(15,23,42,0.1);font-size:0.82rem;font-family:inherit;outline:none;">' +
+      '</label>' +
+      (link ? '<button class="btn sm" title="Menecer panelinin linkini kopyala" onclick="copyLink(\'' + link + '\')"><i class="fa-solid fa-link"></i></button>' : '') +
+      '<button class="btn sm" title="Adını dəyiş" onclick="renameBranchUI(\'' + b.id + '\')"><i class="fa-solid fa-pen"></i></button>' +
+      '<button class="btn sm danger" title="Sil" onclick="delBranchUI(\'' + b.id + '\')"><i class="fa-solid fa-trash"></i></button>' +
+    '</div>';
+  }).join('');
+}
+
+function addBranchUI() {
+  var nm = document.getElementById('newBranchName').value.trim();
+  if (!nm) return showResult('branchResult', false, 'Filial adı boşdur.');
+  var color = document.getElementById('newBranchColor').value;
+  showResult('branchResult', null, '<i class="fa-solid fa-circle-notch fa-spin"></i> Yaradılır...');
+  google.script.run.withSuccessHandler(function(r) {
+    if (!r || !r.success) return showResult('branchResult', false, (r && r.reason) || 'Xəta.');
+    document.getElementById('newBranchName').value = '';
+    // Filial siyahısı dəyişdi → seçimlər, IP/Telegram/idarəçi sahələri yenidən qurulmalıdır
+    refreshBranches(function() { loadBranchAdmin(); loadMgr(); loadWifi(); });
+    showResult('branchResult', true, escHtml(nm) + ' əlavə olundu. Menecer linki hazırdır.');
+  }).withFailureHandler(function() { showResult('branchResult', false, 'Server xətası.'); })
+    .addBranch(nm, { color: color });
+}
+
+function updBranch(id, patch) {
+  google.script.run.withSuccessHandler(function(r) {
+    if (!r || !r.success) return showResult('branchResult', false, (r && r.reason) || 'Xəta.');
+    refreshBranches(function() { loadBranchAdmin(); });
+    showResult('branchResult', true, 'Yeniləndi.');
+  }).updateBranch(id, patch);
+}
+
+function renameBranchUI(id) {
+  var b = _branchCache.filter(function(x) { return x.id === id; })[0];
+  if (!b) return;
+  var nm = prompt('Filialın yeni adı:', b.name);
+  if (nm === null) return;
+  nm = nm.trim();
+  if (!nm || nm === b.name) return;
+  if (!confirm('"' + b.name + '" → "' + nm + '"\n\nBu ad bütün keçmiş qeydlərdə (davamiyyət, cədvəl, cərimə, hesabat) yenilənəcək. Davam edilsin?')) return;
+
+  showResult('branchResult', null, '<i class="fa-solid fa-circle-notch fa-spin"></i> Bütün qeydlər yenilənir...');
+  google.script.run.withSuccessHandler(function(r) {
+    if (!r || !r.success) return showResult('branchResult', false, (r && r.reason) || 'Xəta.');
+    refreshBranches(function() { loadBranchAdmin(); loadMgr(); loadWifi(); loadEmps(); });
+    showResult('branchResult', true, 'Ad dəyişdirildi və bütün qeydlər yeniləndi.');
+  }).withFailureHandler(function() { showResult('branchResult', false, 'Server xətası.'); })
+    .renameBranch(id, nm);
+}
+
+function delBranchUI(id) {
+  var b = _branchCache.filter(function(x) { return x.id === id; })[0];
+  if (!b) return;
+  if (!confirm('⚠️ "' + b.name + '" filialı silinsin?\n\nİşçisi olan filial silinmir — əvvəlcə işçiləri köçür.')) return;
+  google.script.run.withSuccessHandler(function(r) {
+    if (!r || !r.success) return showResult('branchResult', false, (r && r.reason) || 'Xəta.');
+    refreshBranches(function() { loadBranchAdmin(); loadMgr(); loadWifi(); });
+    showResult('branchResult', true, 'Filial silindi.');
+  }).deleteBranch(id);
+}
+
 function loadMgr() {
-  google.script.run.withSuccessHandler(function(d) {
-    if (!d) return;
-    document.getElementById('mgrNameElmler').value  = d.names.elmler  || '';
-    document.getElementById('mgrNameSahil').value   = d.names.sahil   || '';
-    document.getElementById('mgrNameGenclik').value = d.names.genclik || '';
-    document.getElementById('mgrNameAgseher').value = d.names.agseher || '';
-    document.getElementById('mgrGlobalMsg').value   = d.globalMsg     || '';
-    document.getElementById('mgrMsgElmler').value   = d.msgs.elmler   || '';
-    document.getElementById('mgrMsgSahil').value    = d.msgs.sahil    || '';
-    document.getElementById('mgrMsgGenclik').value  = d.msgs.genclik  || '';
-    document.getElementById('mgrMsgAgseher').value  = d.msgs.agseher  || '';
-  }).getMgrInfo();
+  // Sahələr filial siyahısından qurulur — əvvəl 4 filial HTML-də sabit yazılmışdı.
+  withBranches(function(brs) {
+    var grid = document.getElementById('mgrNameGrid');
+    var list = document.getElementById('mgrMsgList');
+    grid.innerHTML = brs.map(function(b) {
+      return '<div class="tg-field"><label>' + branchDot(b) + escHtml(b.name) + ' — İdarəçi</label>' +
+             '<input id="mgrName_' + b.id + '" placeholder="Ad Soyad"></div>';
+    }).join('') || '<div style="color:var(--text-muted);font-size:0.85rem;">Hələ filial yoxdur.</div>';
+
+    list.innerHTML = brs.map(function(b) {
+      return '<div><div style="font-size:0.8rem;font-weight:700;margin-bottom:6px;display:flex;align-items:center;gap:6px;">' +
+             '<span style="background:' + escHtml(b.color) + ';padding:2px 10px;border-radius:6px;color:#0f172a;">' + escHtml(b.name) + '</span></div>' +
+             '<textarea id="mgrMsg_' + b.id + '" rows="3" ' +
+             'style="width:100%;padding:0.9rem 1.1rem;border-radius:11px;border:1px solid rgba(15,23,42,0.08);font-size:0.9rem;font-family:inherit;resize:vertical;outline:none;" ' +
+             'placeholder="' + escHtml(b.name) + ' filialı idarəçisinə mesaj..."></textarea></div>';
+    }).join('');
+
+    google.script.run.withSuccessHandler(function(d) {
+      if (!d) return;
+      document.getElementById('mgrGlobalMsg').value = d.globalMsg || '';
+      brs.forEach(function(b) {
+        var n = document.getElementById('mgrName_' + b.id);
+        var m = document.getElementById('mgrMsg_' + b.id);
+        if (n) n.value = (d.names && d.names[b.id]) || '';
+        if (m) m.value = (d.msgs  && d.msgs[b.id])  || '';
+      });
+    }).getMgrInfo();
+  });
 }
 
 function saveMgr() {
-  var data = {
-    globalMsg: document.getElementById('mgrGlobalMsg').value.trim(),
-    names: {
-      elmler:  document.getElementById('mgrNameElmler').value.trim(),
-      sahil:   document.getElementById('mgrNameSahil').value.trim(),
-      genclik: document.getElementById('mgrNameGenclik').value.trim(),
-      agseher: document.getElementById('mgrNameAgseher').value.trim()
-    },
-    msgs: {
-      elmler:  document.getElementById('mgrMsgElmler').value.trim(),
-      sahil:   document.getElementById('mgrMsgSahil').value.trim(),
-      genclik: document.getElementById('mgrMsgGenclik').value.trim(),
-      agseher: document.getElementById('mgrMsgAgseher').value.trim()
-    }
-  };
+  var data = { globalMsg: document.getElementById('mgrGlobalMsg').value.trim(), names: {}, msgs: {} };
+  _branchCache.forEach(function(b) {
+    var n = document.getElementById('mgrName_' + b.id);
+    var m = document.getElementById('mgrMsg_' + b.id);
+    if (n) data.names[b.id] = n.value.trim();
+    if (m) data.msgs[b.id]  = m.value.trim();
+  });
   showResult('mgrResult', null, '<i class="fa-solid fa-circle-notch fa-spin"></i> Saxlanılır...');
   google.script.run
     .withSuccessHandler(function(r) {
@@ -2416,8 +2564,31 @@ function saveMgr() {
 
 // ── WiFi ─────────────────────────────────────────────────────────
 var _cip='';
-function loadWifi(){fetch('https://api.ipify.org?format=json').then(function(r){return r.json();}).then(function(d){_cip=d.ip||'';document.getElementById('myCurrentIp').innerText=_cip||'Tapılmadı';}).catch(function(){document.getElementById('myCurrentIp').innerText='Tapılmadı';});google.script.run.withSuccessHandler(function(d){if(!d)return;document.getElementById('ipElmler').value=d.elmler||'';document.getElementById('ipSahil').value=d.sahil||'';document.getElementById('ipGenclik').value=d.genclik||'';document.getElementById('ipAgSeher').value=d.agseher||'';}).getBranchIPs();}
-function saveWifi(){google.script.run.withSuccessHandler(function(){showResult('wifiResult',true,'IP-lər saxlandı!');}).saveBranchIPs({elmler:document.getElementById('ipElmler').value.trim(),sahil:document.getElementById('ipSahil').value.trim(),genclik:document.getElementById('ipGenclik').value.trim(),agseher:document.getElementById('ipAgSeher').value.trim()});}
+function loadWifi(){
+  fetch('https://api.ipify.org?format=json').then(function(r){return r.json();})
+    .then(function(d){_cip=d.ip||'';document.getElementById('myCurrentIp').innerText=_cip||'Tapılmadı';})
+    .catch(function(){document.getElementById('myCurrentIp').innerText='Tapılmadı';});
+
+  withBranches(function(brs){
+    document.getElementById('wifiIpGrid').innerHTML = brs.map(function(b){
+      return '<div class="tg-field"><label>' + branchDot(b) + escHtml(b.name) + '</label>' +
+             '<input id="ip_' + b.id + '" placeholder="1.2.3.4, 5.6.7.8"></div>';
+    }).join('') || '<div style="color:var(--text-muted);font-size:0.85rem;">Hələ filial yoxdur.</div>';
+
+    google.script.run.withSuccessHandler(function(d){
+      if(!d) return;
+      brs.forEach(function(b){ var el=document.getElementById('ip_'+b.id); if(el) el.value = d[b.id] || ''; });
+    }).getBranchIPs();
+  });
+}
+function saveWifi(){
+  var payload = {};
+  _branchCache.forEach(function(b){
+    var el = document.getElementById('ip_'+b.id);
+    if (el) payload[b.id] = el.value.trim();
+  });
+  google.script.run.withSuccessHandler(function(){showResult('wifiResult',true,'IP-lər saxlandı!');}).saveBranchIPs(payload);
+}
 function copyCurrentIp(){if(!_cip)return;navigator.clipboard.writeText(_cip);alert('Kopyalandı: '+_cip);}
 
 // ── UTILITY ───────────────────────────────────────────────────────
@@ -2432,10 +2603,13 @@ function refreshPins(){
   });
 }
 setInterval(function(){if(document.getElementById('tab-emp').classList.contains('active'))refreshPins();},5000);
+// Filiallar hər şeydən əvvəl yüklənir — seçim menyuları və filial sahələri
+// onlardan qurulur (əvvəl HTML-ə sabit yazılmışdı).
+withBranches(function(){ loadBranchAdmin(); });
 loadPositions(); loadEmps(); loadDevices(); loadAtt(); loadWifi(); loadMgr();
 var clItems  = [];
 var clReport = null;
-var clBranch = 'Ağ Şəhər';
+var clBranch = '';   // initChecklist() ilk filialı seçir
 var clDateStr = '';
  
 function initChecklist() {
@@ -2444,8 +2618,21 @@ function initChecklist() {
     String(today.getMonth()+1).padStart(2,'0') + '-' +
     String(today.getDate()).padStart(2,'0');
   document.getElementById('cl-date-pick').value = clDateStr;
-  loadChecklistReport();
-  loadChecklistItemsMgmt();
+
+  // Filial tabları siyahıdan qurulur (əvvəl 4 düymə HTML-də sabit idi)
+  withBranches(function(brs) {
+    var box = document.getElementById('clBranchTabs');
+    if (box) {
+      box.innerHTML = brs.map(function(b, i) {
+        return '<button class="cl-btab' + (i === 0 ? ' active' : '') + '" ' +
+               'onclick="clSelectBranch(this.dataset.dept,this)" data-dept="' + escHtml(b.name) + '">🏪 ' + escHtml(b.name) + '</button>';
+      }).join('');
+    }
+    // Seçili filial artıq mövcud deyilsə (silinib/adı dəyişib) birinciyə keç
+    if (!brs.some(function(b) { return b.name === clBranch; })) clBranch = brs.length ? brs[0].name : '';
+    loadChecklistReport();
+    loadChecklistItemsMgmt();
+  });
 }
  
 /* ── Hesabat ─────────────────────────────────────────────────── */
@@ -2659,18 +2846,12 @@ function loadMgrAcks() {
 function renderAckStatus(res) {
   var grid = document.getElementById('ack-status-grid');
   if (!res || !grid) return;
-  var depts = [
-    {name:'Ağ Şəhər',bg:'#fef08a',fg:'#92400e'},
-    {name:'Gənclik', bg:'#bbf7d0',fg:'#065f46'},
-    {name:'Elmlər',  bg:'#bfdbfe',fg:'#1e40af'},
-    {name:'Sahil',   bg:'#fbcfe8',fg:'#9d174d'}
-  ];
   var html = '';
-  depts.forEach(function(dept) {
-    var ack = res.acks[dept.name] || {};
+  deptList().forEach(function(name) {
+    var ack = res.acks[name] || {};
     var gOk = !!ack.globalAcked, bOk = !!ack.branchAcked;
     html += '<div style="background:#fff;border:1px solid rgba(15,23,42,0.05);border-radius:14px;padding:1rem;">'+
-      '<div style="background:'+dept.bg+';color:'+dept.fg+';font-size:0.78rem;font-weight:700;padding:3px 10px;border-radius:7px;display:inline-block;margin-bottom:0.75rem;">🏪 '+dept.name+'</div>'+
+      '<div style="background:'+branchColor(name)+';color:'+branchTextColor(name)+';font-size:0.78rem;font-weight:700;padding:3px 10px;border-radius:7px;display:inline-block;margin-bottom:0.75rem;">🏪 '+escHtml(name)+'</div>'+
       '<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(15,23,42,0.04);">'+
         '<span style="font-size:0.8rem;font-weight:600;color:var(--text-muted);"><i class="fa-solid fa-globe"></i> Ümumi</span>'+
         '<span style="font-size:0.8rem;font-weight:700;color:'+(gOk?'#10b981':'#ef4444')+';">'+
@@ -2685,6 +2866,17 @@ function renderAckStatus(res) {
 }
 // ── TULLANTI / MƏHSULLAR ─────────────────────────────────────────
 function loadProductsAdmin() {
+  // Limit kartları filiallardan qurulur — `branches.waste_limit` tək mənbədir
+  withBranches(function(brs) {
+    var g = document.getElementById('wasteLimitGrid');
+    if (!g) return;
+    g.innerHTML = brs.map(function(b) {
+      return '<div class="wl-card"><div class="wl-dept"><span style="background:' + escHtml(b.color || '#e2e8f0') +
+             ';padding:2px 9px;border-radius:6px;font-size:0.82rem;color:' + branchTextColor(b.name) + ';">' +
+             escHtml(b.name) + '</span></div><div class="wl-pct">' + Number(b.wasteLimit).toFixed(1) + '%</div></div>';
+    }).join('') || '<div style="color:var(--text-muted);font-size:0.85rem;">Hələ filial yoxdur.</div>';
+  });
+
   document.getElementById('productList').innerHTML =
     '<div style="text-align:center;padding:2rem;color:var(--text-muted);"><i class="fa-solid fa-circle-notch fa-spin"></i></div>';
   google.script.run
@@ -2784,9 +2976,6 @@ function renderWasteStats(data, dateStr) {
     return;
   }
  
-  var bColors = { 'Elmlər':'#bfdbfe', 'Sahil':'#fbcfe8', 'Gənclik':'#bbf7d0', 'Ağ Şəhər':'#fef08a' };
-  var bText   = { 'Elmlər':'#1e40af', 'Sahil':'#9d174d', 'Gənclik':'#065f46', 'Ağ Şəhər':'#92400e' };
- 
   var hasAnyData = data.some(function(d){ return d.hasData; });
   if (!hasAnyData) {
     box.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--text-muted);">' +
@@ -2799,8 +2988,8 @@ function renderWasteStats(data, dateStr) {
   data.forEach(function(d) {
     var pctColor = d.exceeded ? 'var(--danger)' : (d.pct > d.limit * 0.8 ? 'var(--warning)' : 'var(--success)');
     var fillW    = d.limit > 0 ? Math.min(d.pct / d.limit * 100, 100) : 0;
-    var bg       = bColors[d.dept] || '#e2e8f0';
-    var tc       = bText[d.dept]   || '#1e293b';
+    var bg       = branchColor(d.dept);
+    var tc       = branchTextColor(d.dept);
  
     html += '<div style="background:#fff;border:1px solid var(--border);border-radius:16px;overflow:hidden;">';
  
@@ -3372,6 +3561,6 @@ function loadXPLog() {
   .getXPAuditLog();
 }
 </script>
-<footer style="text-align:center;padding:18px 0 14px;font-family:Inter,sans-serif;"><div style="font-size:0.72rem;font-weight:600;color:rgba(15,23,42,0.3);letter-spacing:0.01em;">created by Coffeemoon</div><div style="font-size:0.65rem;color:rgba(15,23,42,0.2);margin-top:2px;">version 1.0.1</div></footer>
+<footer style="text-align:center;padding:18px 0 14px;font-family:Inter,sans-serif;"><div style="font-size:0.72rem;font-weight:600;color:rgba(15,23,42,0.3);letter-spacing:0.01em;">created by <?= brandFooter ?></div><div style="font-size:0.65rem;color:rgba(15,23,42,0.2);margin-top:2px;">version 1.0.1</div></footer>
 </body>
 </html>

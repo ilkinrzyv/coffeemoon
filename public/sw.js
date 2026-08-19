@@ -1,4 +1,6 @@
-const CACHE = 'coffeemoon-v4';
+// Keş adı brendə bağlı deyil — hər müştərinin səhifələri onsuz da fərqli
+// URL-lərdədir (açar URL-dədir), ona görə keş qeydləri qarışmır.
+const CACHE = 'wf-v5';
 // Şəkillər dəyişmir → keş-əvvəl (sürətli, offline işləyir)
 const STATIC = ['/icon-192.png', '/icon-512.png'];
 // Tətbiq skriptləri → ŞƏBƏKƏ-ƏVVƏL, keş ehtiyat.
@@ -80,7 +82,7 @@ self.addEventListener('push', function(e) {
   let data = {};
   try { data = e.data ? e.data.json() : {}; } catch(_) {}
 
-  const title   = data.title || '☕ Coffeemoon';
+  const title   = data.title || 'Bildiriş';
   const options = {
     body:    data.body    || '',
     icon:    data.icon    || '/icon-192.png',

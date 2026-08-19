@@ -1,24 +1,14 @@
 'use strict';
 require('dotenv').config();
-const sb    = require('./db');
+const { db } = require('./tdb');        // avto-scope edən klient (xam `sb` işlədilmir)
+const T     = require('./tenant');      // müştəri konteksti, parametrlər, filiallar
 const fetch = require('node-fetch');
 
-// ── Settings cache (başlayanda yüklənir) ─────────────────────────
-const _settings = new Map();
-
-async function loadSettings() {
-  const { data } = await sb.from('settings').select('*');
-  if (data) data.forEach(r => _settings.set(r.key, r.value));
-}
-
-function getSetting(key) {
-  return _settings.get(key) || '';
-}
-
-async function setSetting(key, value) {
-  _settings.set(key, String(value));
-  await sb.from('settings').upsert({ key, value: String(value) }, { onConflict: 'key' });
-}
+// ── Parametrlər ──────────────────────────────────────────────────
+// Əvvəl burada qlobal Map vardı. İndi hər müştərinin öz dəsti var və
+// keşi `tenant.js` saxlayır — imzalar dəyişmir, isti döngülər sinxron qalır.
+function getSetting(key)          { return T.getSetting(key); }
+async function setSetting(key, v) { return T.setSetting(key, v); }
 
 // ── Tarix köməkçiləri ────────────────────────────────────────────
 function toYMD(d) {
@@ -52,9 +42,14 @@ function generateDynamicPin(secret, tw) {
 }
 
 // ── Smen məntiqi ─────────────────────────────────────────────────
-// Saatlar artıq HARDCODE DEYİL: admin panelindən dəyişilir və `settings.SHIFT_CONFIG`-də
-// JSON kimi saxlanılır. Aşağıdakı cədvəl yalnız İLKİN DƏYƏRDİR (konfiqurasiya yoxdursa/pozulubsa).
-// Beləliklə mövcud davranış birinci gün eyni qalır.
+// Saatlar `settings.SHIFT_CONFIG`-də (müştəri başına) JSON kimi saxlanılır və
+// admin panelindən dəyişilir. Aşağıdakılar yalnız HAZIR ŞABLONLARDIR:
+// yeni müştəri/filial yaradılanda ilkin dəyər kimi işlədilir.
+//
+// Əvvəl `getShiftGroup(dept)` filial ADINA baxıb A/B qrupu seçirdi
+// ("Ağ Şəhər" və "Gənclik" → A). Bu, sistemi Coffeemoon-a mıxlayan yerlərdən
+// biri idi — silindi. İndi hər filial öz saatlarını konfiqurasiyada daşıyır,
+// yeni filial isə müştərinin defolt şablonunu miras alır.
 const SHIFT_TABLE = {
   A: {
     sehersm:     { startH:7,  startM:30, durH:9,  lateH:7,  lateM:15 },
@@ -87,28 +82,39 @@ const ALL_SHIFT_TYPES = SHIFT_TYPES.concat(['tamgun']);
 // Bu iş saatı deyil, daxili bölgü həddidir — ona görə konfiqurasiyaya çıxarılmayıb.
 const DAYPART_BOUNDARY_MIN = 13 * 60;
 
-function getShiftGroup(dept) {
-  return (dept === 'Ağ Şəhər' || dept === 'Gənclik') ? 'A' : 'B';
+// Müştərinin defolt smen şablonu: hazır şablon adı ('A'/'B') və ya tam JSON.
+// Konfiqurasiyada olmayan filial bunu miras alır.
+function defaultShiftTemplate() {
+  const raw = getSetting('SHIFT_DEFAULT');
+  if (!raw) return SHIFT_TABLE.B;
+  if (SHIFT_TABLE[raw]) return SHIFT_TABLE[raw];
+  try {
+    const p = JSON.parse(raw);
+    return (p && p.sehersm) ? p : SHIFT_TABLE.B;
+  } catch (_) { return SHIFT_TABLE.B; }
 }
 
-// İlkin (hardcode) cədvəldən filial üzrə konfiqurasiya qur
+// Cari müştərinin BÜTÜN filialları üçün ilkin konfiqurasiya qurur.
 function defaultShiftConfig() {
+  const tpl = defaultShiftTemplate();
   const cfg = {};
-  for (const dept of Object.keys(DEPT_SLUG)) {
-    const g = SHIFT_TABLE[getShiftGroup(dept)];
-    cfg[dept] = JSON.parse(JSON.stringify(g));
-  }
+  for (const name of T.branchNames()) cfg[name] = JSON.parse(JSON.stringify(tpl));
   return cfg;
 }
 
 // Konfiqurasiya keşi — `getShiftInfo` sinxron və döngülərdə çağırılır (recalcAllXP),
 // ona görə eyni JSON mətni təkrar parse edilmir.
-let _shiftCfgRaw = null, _shiftCfgParsed = null;
+// DİQQƏT: keş MÜŞTƏRİ ÜZRƏ açarlanır. Yalnız `raw` mətnə baxsaydıq, eyni
+// konfiqurasiyalı iki müştəri bir-birinin filial siyahısı ilə qurulmuş
+// nəticəni götürərdi (defaultShiftConfig filiallara baxır).
+const _shiftCfgCache = new Map();   // tenantId → { raw, parsed }
 
 function getShiftConfig() {
   const raw = getSetting('SHIFT_CONFIG');
   if (!raw) return defaultShiftConfig();
-  if (raw === _shiftCfgRaw && _shiftCfgParsed) return _shiftCfgParsed;
+  const tid = T.tenantIdOrNull();
+  const hit = _shiftCfgCache.get(tid);
+  if (hit && hit.raw === raw) return hit.parsed;
   try {
     const parsed = JSON.parse(raw);
     const base = defaultShiftConfig();
@@ -120,7 +126,7 @@ function getShiftConfig() {
         if (typeof parsed[dept][k] !== 'number') parsed[dept][k] = base[dept][k];
       }
     }
-    _shiftCfgRaw = raw; _shiftCfgParsed = parsed;
+    _shiftCfgCache.set(tid, { raw, parsed });
     return parsed;
   } catch (e) {
     console.error('[SHIFT_CONFIG] parse xətası — ilkin dəyərlər işlədilir:', e.message);
@@ -183,7 +189,7 @@ async function getEmployeeShift(empId, dateStr) {
   // DİQQƏT: cedvel-də (emp_id,date_str) üzrə unikallıq məhdudiyyəti yoxdur → təkrar sətir ola bilər.
   // .single() təkrar sətirdə XƏTA verib null qaytarırdı → işçi cədvəli görmürdü (menecer görürdü).
   // İndi təkrara dözümlü: ən son yazılmış qeyd qalib (getCedvel menecer görünüşü ilə uyğun).
-  const { data } = await sb.from('cedvel')
+  const { data } = await db().from('cedvel')
     .select('shift_type')
     .eq('emp_id', String(empId)).eq('date_str', dateStr)
     .order('cedvel_id', { ascending: false })
@@ -192,26 +198,26 @@ async function getEmployeeShift(empId, dateStr) {
 }
 
 async function hasApprovedLeave(empId, dateStr) {
-  const { data } = await sb.from('izin')
+  const { data } = await db().from('izin')
     .select('start_date,end_date').eq('emp_id', String(empId)).eq('status', 'approved');
   return (data || []).some(r => dateStr >= r.start_date && dateStr <= r.end_date);
 }
 
 async function getApprovedLatePerm(empId, dateStr) {
-  const { data } = await sb.from('late_perms')
+  const { data } = await db().from('late_perms')
     .select('requested_time').eq('emp_id', String(empId)).eq('date_str', dateStr).eq('status', 'approved').single();
   return data ? { requestedTime: data.requested_time } : null;
 }
 
 // ── Streak ───────────────────────────────────────────────────────
 async function calcStreak(empId, dept) {
-  const { data: logs } = await sb.from('attendance')
+  const { data: logs } = await db().from('attendance')
     .select('timestamp,shift_type').eq('emp_id', String(empId)).eq('type', 'GƏLİŞ')
     .order('timestamp', { ascending: false });
   if (!logs) return 0;
 
   // Gec gəliş icazələrini bir dəfə çək (vaxtı ilə birlikdə)
-  const { data: perms } = await sb.from('late_perms')
+  const { data: perms } = await db().from('late_perms')
     .select('date_str,requested_time').eq('emp_id', String(empId)).eq('status', 'approved');
   const permMap = {};
   for (const p of perms || []) {
@@ -220,11 +226,11 @@ async function calcStreak(empId, dept) {
   }
 
   // Tam gün izinlərini bir dəfə çək
-  const { data: izinRows } = await sb.from('izin')
+  const { data: izinRows } = await db().from('izin')
     .select('start_date,end_date').eq('emp_id', String(empId)).eq('status', 'approved');
 
   // Cədvəli (smenləri) bir dəfə çək — döngü içində sorğu atmamaq üçün (N+1 → 1)
-  const { data: cedvelRows } = await sb.from('cedvel')
+  const { data: cedvelRows } = await db().from('cedvel')
     .select('date_str,shift_type').eq('emp_id', String(empId));
   const shiftMap = {};
   for (const c of cedvelRows || []) shiftMap[c.date_str] = c.shift_type || null;
@@ -257,26 +263,29 @@ async function calcStreak(empId, dept) {
   return streak;
 }
 
-// ── Şöbə/slug çevirmələri ────────────────────────────────────────
-// Yeni filial əlavə etmək üçün yalnız bu obyekti yeniləmək kifayətdir:
-const DEPT_SLUG = { 'Elmlər':'elmler','Sahil':'sahil','Gənclik':'genclik','Ağ Şəhər':'agseher' };
-const SLUG_DEPT = Object.fromEntries(Object.entries(DEPT_SLUG).map(([d,s]) => [s,d]));
-const SLUGS     = Object.values(DEPT_SLUG);
-const DEPTS     = Object.keys(DEPT_SLUG);
+// ── Filial / vəzifə çevirmələri ──────────────────────────────────
+// Əvvəl burada `DEPT_SLUG` hardcode 4 filial vardı və yeni filial üçün KOD
+// dəyişməli idi. İndi mənbə `branches` cədvəlidir (müştəri başına).
+//
+// `DEPTS`, `SLUGS`, `POSITIONS` modul ixracında GETTER kimi elan olunub
+// (faylın sonuna bax) — yəni `U.DEPTS` yazan 30-a yaxın çağırış yeri olduğu
+// kimi qalır, sadəcə massivi cari müştərinin filiallarından alır.
+function deptToSlug(dept) { const b = T.branchByName(dept); return b ? b.branch_id : ''; }
+function slugToDept(slug) { const b = T.branchBySlug(slug); return b ? b.name : ''; }
 
-// ── Vəzifələr ─────────────────────────────────────────────────────
-// employees.position sütununda saxlanılır. Adı `role` DEYİL — çünki `role`
-// artıq imtahan suallarında (kassir/barista/umumi) və auth rollarında işlənir.
-const POSITIONS = ['Barista', 'Cashier', 'Team Leader', 'Cleaner'];
-function isValidPosition(p) { return POSITIONS.includes(p); }
+function isValidPosition(p) { return T.positions().includes(p); }
 
 // ── Maaş qaydaları ────────────────────────────────────────────────
 // Bir SMEN üçün günlük məbləğ (AZN). Tam gün = 2 smen → 2 qat.
 // Bunlar yalnız İLKİN dəyərdir — admin panelindən dəyişilir (settings.SALARY_CONFIG).
 const DEFAULT_SALARY = {
-  rates: { 'Team Leader': 23.33, 'Barista': 20, 'Cashier': 20, 'Cleaner': 18.33 },
-  taxi: 7,                                        // günlük sabit məbləğ (tam gündə DƏ 7, iki qat deyil)
-  taxiDepts: ['Ağ Şəhər', 'Gənclik'],             // taksi yalnız bu filiallarda
+  // Dərəcələr və taksili filiallar artıq BOŞ başlayır — bunlar hər müştəridə
+  // fərqlidir və admin panelindən doldurulur. (Əvvəl Coffeemoon-un öz vəzifə
+  // adları və filialları burada hardcode idi.)
+  rates: {},
+  defaultRate: 0,                                 // konfiqurasiyada olmayan vəzifə üçün
+  taxi: 0,                                        // günlük sabit məbləğ (tam gündə DƏ bir dəfə)
+  taxiDepts: [],                                  // taksi yalnız bu filiallarda
   taxiShifts: ['axsamsm', 'fullsm', 'tamgun'],    // axşam tərəfli smenlər
   // Bir işçiyə ayda ən çoxu neçə taksili gün yazıla bilər (taksi büdcəsi limiti).
   // İşçi bazasında `taxi_limit` varsa o üstündür (admin fərdi artıra bilər).
@@ -313,11 +322,15 @@ function shiftMultiplier(shiftType) {
 // Keşlənən yalnız PARSE+VALIDASIYA nəticəsidir. Hər çağırışa təzə kopya qaytarılır —
 // çağıran obyekti dəyişsə (məs. cfg.rates.Barista = 0) keş zəhərlənib bütün prosesə
 // yayılmasın deyə. Kopyanın qiyməti ~mikrosaniyədir, `!raw` yolu onsuz da belə edir.
-let _salCfgRaw = null, _salCfgParsed = null;
+// Keş MÜŞTƏRİ ÜZRƏ açarlanır — `rates` müştərinin vəzifə siyahısı ilə tamamlanır,
+// ona görə eyni JSON mətni iki müştəridə eyni nəticə vermir.
+const _salCfgCache = new Map();   // tenantId → { raw, cfg }
 function getSalaryConfig() {
   const raw = getSetting('SALARY_CONFIG');
   if (!raw) return JSON.parse(JSON.stringify(DEFAULT_SALARY));
-  if (raw === _salCfgRaw && _salCfgParsed) return JSON.parse(JSON.stringify(_salCfgParsed));
+  const tid = T.tenantIdOrNull();
+  const hit = _salCfgCache.get(tid);
+  if (hit && hit.raw === raw) return JSON.parse(JSON.stringify(hit.cfg));
   try {
     const p = JSON.parse(raw);
     const base = JSON.parse(JSON.stringify(DEFAULT_SALARY));
@@ -336,9 +349,12 @@ function getSalaryConfig() {
       mgrFinesOnlyAcked: typeof (p && p.mgrFinesOnlyAcked) === 'boolean' ? p.mgrFinesOnlyAcked : base.mgrFinesOnlyAcked,
       avansStatuses: Array.isArray(p && p.avansStatuses) ? p.avansStatuses : base.avansStatuses,
     };
-    // Vəzifə siyahısında olmayan açarları at, çatışmayanı ilkin dəyərlə tamamla
-    for (const pos of POSITIONS) if (typeof cfg.rates[pos] !== 'number') cfg.rates[pos] = base.rates[pos];
-    _salCfgRaw = raw; _salCfgParsed = cfg;
+    // Müştərinin hər vəzifəsi üçün dərəcə olsun (təyin edilməyibsə 0 → hesabatda görünür)
+    cfg.defaultRate = Number.isFinite(p && p.defaultRate) ? p.defaultRate : base.defaultRate;
+    for (const pos of T.positions()) {
+      if (typeof cfg.rates[pos] !== 'number') cfg.rates[pos] = cfg.defaultRate;
+    }
+    _salCfgCache.set(tid, { raw, cfg });
     return JSON.parse(JSON.stringify(cfg));
   } catch (e) {
     console.error('[SALARY_CONFIG] parse xətası — ilkin dəyərlər işlədilir:', e.message);
@@ -415,35 +431,23 @@ function computeDayPay(position, dept, shiftType, cfg) {
 }
 function round2(n) { return Math.round((Number(n) || 0) * 100) / 100; }
 
-function deptToSlug(dept)  { return DEPT_SLUG[dept] || ''; }
-function slugToDept(slug)  { return SLUG_DEPT[slug] || ''; }
-
 // ── Filial açarları ───────────────────────────────────────────────
+// Əvvəl açarlar `settings.SCHED_KEY_<slug>`-də idi. İndi `auth_keys` cədvəlində —
+// belədə açar həm rolu, həm filialı, həm də MÜŞTƏRİni özü ilə daşıyır.
 async function getBranchScheduleKeys() {
-  const result = {};
-  for (const slug of SLUGS) {
-    let k = getSetting('SCHED_KEY_' + slug);
-    if (!k) {
-      k = 'SK' + Math.random().toString(36).substring(2, 10).toUpperCase();
-      await setSetting('SCHED_KEY_' + slug, k);
-    }
-    result[slugToDept(slug)] = k;
-  }
-  return result;
+  return T.branchKeys();
 }
 
 function validateBranchScheduleKey(key) {
-  for (const slug of SLUGS) {
-    if (getSetting('SCHED_KEY_' + slug) === key) return { valid: true, dept: slugToDept(slug) };
-  }
-  return { valid: false };
+  return T.branchByKey(key);
 }
 
 // ── WiFi IP yoxlaması ─────────────────────────────────────────────
+// IP-lər `branches.wifi_ips` sütunundadır (əvvəl `settings.IP_<slug>`).
 function checkWifiIp(dept, clientIp) {
-  const key = deptToSlug(dept);
-  if (!key) return { ok: true };
-  const reg = getSetting('IP_' + key);
+  const b = T.branchByName(dept);
+  if (!b) return { ok: true };
+  const reg = b.wifi_ips || '';
   if (!reg) return { ok: false, reason: 'Bu filial üçün WiFi IP hələ qeydə alınmayıb.' };
   if (!clientIp) return { ok: true };
   const allowed = reg.split(',').map(s => s.trim());
@@ -452,23 +456,20 @@ function checkWifiIp(dept, clientIp) {
 }
 
 // ── Telegram ─────────────────────────────────────────────────────
+// Filial chat ID-ləri `branches.tg_chat_id`-dədir (əvvəl hər filial üçün
+// ayrıca `TG_CHAT_<Ad>` parametri və `deptChatId`-də if-lər zənciri vardı).
 function getTelegramSettings() {
+  const chats = {};
+  for (const b of T.branches()) chats[b.name] = b.tg_chat_id || '';
   return {
-    enabled:     getSetting('TG_ENABLED') === 'true',
-    token:       getSetting('TG_TOKEN'),
-    adminChat:   getSetting('TG_ADMIN_CHAT'),
-    chatElmler:  getSetting('TG_CHAT_Elmler'),
-    chatSahil:   getSetting('TG_CHAT_Sahil'),
-    chatGenclik: getSetting('TG_CHAT_Genclik'),
-    chatAgSeher: getSetting('TG_CHAT_AgSeher'),
+    enabled:   getSetting('TG_ENABLED') === 'true',
+    token:     getSetting('TG_TOKEN'),
+    adminChat: getSetting('TG_ADMIN_CHAT'),
+    chats,                                 // { filialAdı: chatId }
   };
 }
 function deptChatId(cfg, dept) {
-  if (dept === 'Elmlər')   return cfg.chatElmler;
-  if (dept === 'Sahil')    return cfg.chatSahil;
-  if (dept === 'Gənclik')  return cfg.chatGenclik;
-  if (dept === 'Ağ Şəhər') return cfg.chatAgSeher;
-  return '';
+  return (cfg && cfg.chats && cfg.chats[dept]) || '';
 }
 async function sendTelegramMsg(text, dept) {
   const cfg = getTelegramSettings();
@@ -574,7 +575,7 @@ function computeEmployeeXP(dept, opts) {
 }
 
 module.exports = {
-  loadSettings, getSetting, setSetting,
+  getSetting, setSetting,
   getXPMultiplier, computeEmployeeXP, MS_BONUSES,
   toYMD, fmtTime, getLogicalYMD, getLogicalDateStr,
   generateDynamicPin, TIME_STEP,
@@ -582,12 +583,23 @@ module.exports = {
   DEFAULT_SALARY, getSalaryConfig, shiftMultiplier, computeDayPay, round2,
   isTaxiDay, taxiLimitFor, weekStartYMD, computeRestDayPay,
   avansAitYMD, pickAvansForMonth,
-  getShiftConfig, defaultShiftConfig, getLateLimit, shiftLabel,
+  getShiftConfig, defaultShiftConfig, defaultShiftTemplate, getLateLimit, shiftLabel,
   getEmployeeShift, hasApprovedLeave, getApprovedLatePerm,
-  deptToSlug, slugToDept, SLUGS, DEPTS,
-  POSITIONS, isValidPosition,
+  deptToSlug, slugToDept,
+  isValidPosition,
   getBranchScheduleKeys, validateBranchScheduleKey,
   checkWifiIp,
   getTelegramSettings, sendTelegramMsg, deptChatId,
   calcStreak,
 };
+
+// ── Dinamik siyahılar ────────────────────────────────────────────
+// `DEPTS`, `SLUGS`, `POSITIONS` əvvəl sabit massiv idi. İndi cari müştərinin
+// bazasından gəlir, amma GETTER kimi elan olunub — yəni `U.DEPTS` yazan
+// bütün mövcud kod (server.js-də ~30 yer) olduğu kimi işləməyə davam edir.
+// Funksiyaya çevirsəydik hər çağırış yerini əl ilə düzəltmək lazım gələcəkdi.
+Object.defineProperties(module.exports, {
+  DEPTS:     { enumerable: true, get: () => T.branchNames() },
+  SLUGS:     { enumerable: true, get: () => T.branchSlugs() },
+  POSITIONS: { enumerable: true, get: () => T.positions() },
+});

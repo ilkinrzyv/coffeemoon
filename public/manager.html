@@ -611,7 +611,7 @@ textarea.fine-doc-input { resize:vertical; }
 <div class="wrap">
 
 <header>
-  <div class="logo"><i class="fa-solid fa-mug-hot"></i> Coffeemoon</div>
+  <div class="logo"><i class="<?= brandIcon ?>"></i> <?= brandName ?></div>
   <div class="dept-badge" id="deptBadge"><i class="fa-solid fa-briefcase"></i> <?= dept ?> — İdarəçi Paneli</div>
 </header>
 
@@ -922,10 +922,10 @@ textarea.fine-doc-input { resize:vertical; }
 <script src="/gsr-shim.js"></script>
 <script src="/common.js"></script>
 <script>
-var BRANCH_KEY = '<?= branchKey ?>';
-var DEPT       = '<?= dept ?>';
+var BRANCH_KEY = <?= branchKey_js ?>;
+var DEPT       = <?= dept_js ?>;
 var TODAY_YMD  = toYMD(new Date());
-var SCRIPT_URL = '<?= scriptUrl ?>';
+var SCRIPT_URL = <?= scriptUrl_js ?>;
 
 // ── Çeklist link (köməkçi üçün) ─────────────────────────────────
 var _clShareUrl = SCRIPT_URL + '/checklist?key=' + BRANCH_KEY;
@@ -971,7 +971,12 @@ function switchTab(name) {
 // Bütün filiallar göstərilir (menecerin öz filialı önə çıxarılır) — kimin harada
 // işdə olduğunu bilmək növbə/əvəzləmə üçün lazımdır.
 var _lvOnline = null, _lvMgrs = null, _lvTick = null, _lvPoll = null;
-var LV_RENG = { 'Elmlər':'#bfdbfe', 'Sahil':'#fbcfe8', 'Gənclik':'#bbf7d0', 'Ağ Şəhər':'#fef08a' };
+// Filial rəngləri serverdən gəlir (`branches.color`) — əvvəl burada filial
+// adları ilə sabit cədvəl vardı və yeni filial rəngsiz qalırdı.
+var LV_RENG = {};
+google.script.run.withSuccessHandler(function(r){
+  ((r && r.branches) || []).forEach(function(b){ LV_RENG[b.name] = b.color; });
+}).getBranches();
 
 function lvStartTimers() {
   lvStopTimers();
@@ -1080,29 +1085,44 @@ function lvRender() {
 var SHIFT_CYCLE  = ['sehersm','axsamsm','fullsm','seherfullsm','tamgun','istirahetsm',''];
 var SHIFT_LABELS = {sehersm:'S', axsamsm:'A', fullsm:'AF', seherfullsm:'SF', tamgun:'TG', istirahetsm:'İ', '':'-'};
 
-var SHIFTS_A = {
-  sehersm:     { time:'07:30 — 16:30', dur:'9 saat' },
-  axsamsm:     { time:'16:00 — 01:00', dur:'9 saat' },
-  fullsm:      { time:'14:00 — 01:00', dur:'11 saat' },
-  seherfullsm: { time:'07:30 — 18:30', dur:'11 saat' }
-};
-var SHIFTS_B = {
-  sehersm:     { time:'07:30 — 15:30', dur:'8 saat' },
-  axsamsm:     { time:'15:00 — 23:00', dur:'8 saat' },
-  fullsm:      { time:'13:00 — 23:00', dur:'10 saat' },
-  seherfullsm: { time:'07:30 — 17:30', dur:'10 saat' }
-};
-var isGroupA = (DEPT === 'Ağ Şəhər' || DEPT === 'Gənclik');
-var shiftDefs = isGroupA ? SHIFTS_A : SHIFTS_B;
+// Smen saatları ARTIQ BURADA YAZILMIR.
+// ƏVVƏL iki sabit cədvəl (SHIFTS_A / SHIFTS_B) vardı və `DEPT === 'Ağ Şəhər'`
+// yoxlaması ilə seçilirdi. İki problemi vardı:
+//   1) filial adları panelə mıxlanmışdı (yeni filial → yanlış saat);
+//   2) admin panelindən saatlar dəyişəndə burada KÖHNƏ saatlar qalırdı,
+//      yəni menecerə göstərilən saat serverin işlətdiyi saatla uyğun gəlmirdi.
+// İndi hər ikisi eyni mənbədən — serverin SHIFT_CONFIG-indən — gəlir.
+var shiftDefs = {};
 
 function renderShiftInfo() {
-  var colors = {sehersm:'#dbeafe', axsamsm:'#ede9fe', fullsm:'#ffedd5', seherfullsm:'#d1fae5'};
-  var tc     = {sehersm:'#1e40af', axsamsm:'#5b21b6', fullsm:'#9a3412', seherfullsm:'#065f46'};
-  var labels = {sehersm:'Səhər smeni', axsamsm:'Axşam smeni', fullsm:'Axşam Full smen', seherfullsm:'Səhər Full smen'};
-  document.getElementById('shiftInfoGrid').innerHTML = Object.keys(shiftDefs).map(function(k) {
-    return '<div class="si-card"><div class="si-label" style="color:'+tc[k]+';background:'+colors[k]+';padding:3px 8px;border-radius:6px;display:inline-block;">'+labels[k]+'</div>'+
-      '<div class="si-time">'+shiftDefs[k].time+'</div><div class="si-dur">'+shiftDefs[k].dur+'</div></div>';
-  }).join('');
+  google.script.run.withSuccessHandler(function(res) {
+    var box = document.getElementById('shiftInfoGrid');
+    if (!res || !res.config || !res.config[DEPT]) {
+      box.innerHTML = '<div style="color:var(--text-muted);font-size:0.85rem;">Smen saatları hələ təyin edilməyib.</div>';
+      return;
+    }
+    var cfg    = res.config[DEPT];
+    var names  = res.names || {};
+    var colors = {sehersm:'#dbeafe', axsamsm:'#ede9fe', fullsm:'#ffedd5', seherfullsm:'#d1fae5'};
+    var tc     = {sehersm:'#1e40af', axsamsm:'#5b21b6', fullsm:'#9a3412', seherfullsm:'#065f46'};
+
+    function pad(n){ return String(n).padStart(2,'0'); }
+    function span(s) {
+      var end = (s.startH*60 + s.startM + s.durH*60) % (24*60);
+      return pad(s.startH)+':'+pad(s.startM)+' — '+pad(Math.floor(end/60))+':'+pad(end%60);
+    }
+
+    shiftDefs = {};
+    (res.types || []).forEach(function(k){
+      if (cfg[k]) shiftDefs[k] = { time: span(cfg[k]), dur: cfg[k].durH + ' saat' };
+    });
+
+    box.innerHTML = Object.keys(shiftDefs).map(function(k) {
+      return '<div class="si-card"><div class="si-label" style="color:'+(tc[k]||'#334155')+';background:'+(colors[k]||'#f1f5f9')+';padding:3px 8px;border-radius:6px;display:inline-block;">'+
+        ((names[k]||k)+' smeni')+'</div>'+
+        '<div class="si-time">'+shiftDefs[k].time+'</div><div class="si-dur">'+shiftDefs[k].dur+'</div></div>';
+    }).join('');
+  }).getShiftConfig();
 }
 
 // ── Cədvəl ───────────────────────────────────────────────────────
@@ -2068,6 +2088,6 @@ loadManagerDashboard();
   box-shadow:0 -8px 30px rgba(0,0,0,0.1);
 "></div>
 
-<footer style="text-align:center;padding:18px 0 14px;font-family:Inter,sans-serif;"><div style="font-size:0.72rem;font-weight:600;color:rgba(15,23,42,0.3);letter-spacing:0.01em;">created by Coffeemoon</div><div style="font-size:0.65rem;color:rgba(15,23,42,0.2);margin-top:2px;">version 1.0.1</div></footer>
+<footer style="text-align:center;padding:18px 0 14px;font-family:Inter,sans-serif;"><div style="font-size:0.72rem;font-weight:600;color:rgba(15,23,42,0.3);letter-spacing:0.01em;">created by <?= brandFooter ?></div><div style="font-size:0.65rem;color:rgba(15,23,42,0.2);margin-top:2px;">version 1.0.1</div></footer>
 </body>
 </html>

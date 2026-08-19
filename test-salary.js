@@ -14,6 +14,11 @@
 process.env.SUPABASE_URL = process.env.SUPABASE_URL || 'http://test.local';
 process.env.SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || 'test';
 
+// SALARY — Coffeemoon-un razılaşdırılmış dərəcələri. Əvvəl bunlar
+// `utils.DEFAULT_SALARY`-də idi; indi ilkin dəyərlər neytraldır (yeni müştəri
+// üçün 0) və konkret rəqəmlər müştərinin konfiqurasiyasından gəlir.
+const { enterTenant, setLocal, SALARY } = require('./test-helpers');
+enterTenant();   // müştəri kontekstini qur (filiallar, vəzifələr, parametrlər)
 const U = require('./utils');
 
 let pass = 0, fail = 0;
@@ -96,27 +101,35 @@ check(U.getLateLimit('Sahil', 'tamgun', 8 * 60) === U.getLateLimit('Sahil', 'seh
 
 // ── 10) Konfiqurasiya dəyişikliyi tətbiq olunur ──
 console.log('\n10) Dərəcə dəyişikliyi');
-U.setSetting('SALARY_CONFIG', JSON.stringify({
+setLocal('SALARY_CONFIG', JSON.stringify({
   rates: { 'Team Leader': 30, 'Barista': 25, 'Cashier': 25, 'Cleaner': 20 },
   taxi: 10, taxiDepts: ['Sahil'], taxiShifts: ['sehersm'],
-})).catch(() => {});
+}));
 check(pay('Barista', 'Sahil', 'sehersm').pay === 25, 'yeni dərəcə tətbiq olunmadı');
 check(pay('Barista', 'Sahil', 'tamgun').pay === 50, 'yeni dərəcə tam gündə 2 qat olmadı');
 check(pay('Barista', 'Sahil', 'sehersm').taxi === 10, 'yeni taksi qaydası tətbiq olunmadı');
 check(pay('Barista', 'Gənclik', 'axsamsm').taxi === 0, 'köhnə taksi qaydası hələ işləyir');
 
 // ── 11) Pozulmuş konfiqurasiya ──
+//  DAVRANIŞ DƏYİŞİB (çox-müştəriliyə keçiddən sonra):
+//  Əvvəl `DEFAULT_SALARY` Coffeemoon-un dərəcələrini (Barista 20 və s.) və
+//  taksili filiallarını saxlayırdı — yəni konfiqurasiya pozulsa sistem HƏMİN
+//  rəqəmləri "uydururdu". Çox müştəri olanda bu təhlükəlidir: bir restoranın
+//  dərəcələri başqasına yazılardı.
+//  İndi ilkin dəyərlər NEYTRALdır (0). Konfiqurasiya pozulsa maaş 0 çıxır —
+//  gözə dərhal dəyir və admin düzəldir. Səhv rəqəmlə ödəniş etməkdənsə
+//  görünən sıfır daha təhlükəsizdir.
 console.log('\n11) Pozulmuş konfiqurasiyada geri dönüş');
-U.setSetting('SALARY_CONFIG', '{pozuq json').catch(() => {});
-check(pay('Team Leader', 'Sahil', 'sehersm').pay === 23.33, 'pozulmuş JSON-da ilkin dərəcəyə qayıtmır');
-U.setSetting('SALARY_CONFIG', JSON.stringify({ rates: { 'Barista': 21 } })).catch(() => {});
+setLocal('SALARY_CONFIG', '{pozuq json');
+check(pay('Team Leader', 'Sahil', 'sehersm').pay === 0, 'pozulmuş JSON-da dərəcə uydurulur (0 olmalıdır)');
+check(pay('Barista', 'Gənclik', 'axsamsm').taxi === 0, 'pozulmuş JSON-da taksi uydurulur (0 olmalıdır)');
+setLocal('SALARY_CONFIG', JSON.stringify({ rates: { 'Barista': 21 } }));
 check(pay('Barista', 'Sahil', 'sehersm').pay === 21, 'yarımçıq konfiqdə verilən dəyər işləmir');
-check(pay('Cleaner', 'Sahil', 'sehersm').pay === 18.33, 'yarımçıq konfiqdə çatışmayan vəzifə ilkin dəyərlə tamamlanmır');
-check(pay('Barista', 'Gənclik', 'axsamsm').taxi === 7, 'yarımçıq konfiqdə taksi ilkin qayda ilə işləməlidir');
+check(pay('Cleaner', 'Sahil', 'sehersm').pay === 0, 'təyin edilməmiş vəzifə 0 qaytarmalıdır');
 
 // ── 12) Tutulma qaydaları (cərimə / avans) ──
 console.log('\n12) Tutulma qaydaları');
-U.setSetting('SALARY_CONFIG', '').catch(() => {});   // ilkin dəyərlərə qayıt
+setLocal('SALARY_CONFIG', JSON.stringify(SALARY));   // ilkin dəyərlərə qayıt
 const d = U.getSalaryConfig();
 check(d.fineStatuses.includes('unpaid'), 'ödənilməmiş cərimə defolt tutulmalıdır');
 check(!d.fineStatuses.includes('paid'), 'ödənilmiş cərimə defolt tutulmamalıdır');
@@ -135,7 +148,7 @@ check(U.round2(brut - 30) === 23.66, 'cərimə çıxılması səhvdir');
 
 // ── 14) Taksi limiti ──
 console.log('\n14) Aylıq taksi limiti');
-U.setSetting('SALARY_CONFIG', '').catch(() => {});
+setLocal('SALARY_CONFIG', JSON.stringify(SALARY));
 const c0 = U.getSalaryConfig();
 check(c0.taxiMonthlyLimit === 13, `ümumi limit 13 olmalıdır, alınan ${c0.taxiMonthlyLimit}`);
 check(U.taxiLimitFor(null, c0) === 13, 'fərdi limit yoxdursa ümumi limit işləməlidir');
@@ -185,7 +198,7 @@ check(!('2026-08-05' < hb), 'gələcək tarixlər açıq olmalıdır');
 
 // ── 18) İstirahət günü ödənişi ──
 console.log('\n18) İstirahət günü ödənilir');
-U.setSetting('SALARY_CONFIG', '').catch(() => {});
+setLocal('SALARY_CONFIG', JSON.stringify(SALARY));
 const cr = U.getSalaryConfig();
 check(cr.restDayPaid === true, 'istirahət günü defolt ÖDƏNİLMƏLİDİR');
 check(cr.restDayMultiplier === 1, 'defolt əmsal 1 (tam smen maaşı) olmalıdır');
@@ -199,24 +212,27 @@ check(U.computeRestDayPay('', cr).pay === 0, 'vəzifəsiz işçi istirahətdə d
 
 // Əmsal
 console.log('\n19) İstirahət əmsalı');
-U.setSetting('SALARY_CONFIG', JSON.stringify({ restDayMultiplier: 0.5 })).catch(() => {});
+// Dərəcələr konfiqurasiyada açıq verilir: ilkin dəyərlər artıq neytraldır (0),
+// yəni yalnız əmsalı yazsaq maaş 0 çıxardı və test əmsalı yox, boşluğu ölçərdi.
+const withRates = (patch) => JSON.stringify({ rates: SALARY.rates, ...patch });
+setLocal('SALARY_CONFIG', withRates({ restDayMultiplier: 0.5 }));
 check(U.computeRestDayPay('Barista').pay === 10, `əmsal 0.5 → 10 ₼ olmalıdır, alınan ${U.computeRestDayPay('Barista').pay}`);
 check(U.computeRestDayPay('Team Leader').pay === 11.67, `Team Leader yarım → 11.67, alınan ${U.computeRestDayPay('Team Leader').pay}`);
-U.setSetting('SALARY_CONFIG', JSON.stringify({ restDayPaid: false })).catch(() => {});
+setLocal('SALARY_CONFIG', withRates({ restDayPaid: false }));
 check(U.computeRestDayPay('Barista').pay === 0, 'söndürüləndə istirahət ödənilməməlidir');
-U.setSetting('SALARY_CONFIG', JSON.stringify({ restDayMultiplier: 5 })).catch(() => {});
+setLocal('SALARY_CONFIG', withRates({ restDayMultiplier: 5 }));
 check(U.computeRestDayPay('Barista').pay === 20, 'həddi aşan əmsal (5) ilkin dəyərə (1) qayıtmalıdır');
 
 // İş günü ilə istirahət qarışmamalıdır
 console.log('\n20) İş günü / istirahət ayrılığı');
-U.setSetting('SALARY_CONFIG', '').catch(() => {});
+setLocal('SALARY_CONFIG', JSON.stringify(SALARY));
 check(U.computeDayPay('Barista', 'Gənclik', 'istirahetsm').pay === 20,
   'computeDayPay istirahət tipini ADİ gün kimi hesablayır — hesabatda computeRestDayPay işlədilməlidir');
 check(U.computeDayPay('Barista', 'Gənclik', 'istirahetsm').taxi === 0, 'istirahət günü heç bir halda taksi almamalıdır');
 
 // Keş zəhərlənməsi — qaytarılan konfiqurasiya dəyişdirilsə sonrakı çağırışlar təmiz qalmalıdır
 console.log('\n21) Konfiqurasiya keşi referans paylaşmır');
-U.setSetting('SALARY_CONFIG', JSON.stringify({ rates: { 'Barista': 20 }, taxi: 7 })).catch(() => {});
+setLocal('SALARY_CONFIG', JSON.stringify({ rates: { 'Barista': 20 }, taxi: 7 }));
 const c1 = U.getSalaryConfig();
 c1.rates.Barista = 999; c1.taxi = 999; c1.taxiDepts.push('ZIBIL');
 const c2 = U.getSalaryConfig();
@@ -224,13 +240,13 @@ check(c2.rates.Barista === 20, `keş zəhərləndi — dərəcə 20 olmalıdır,
 check(c2.taxi === 7, `keş zəhərləndi — taksi 7 olmalıdır, alınan ${c2.taxi}`);
 check(c2.taxiDepts.indexOf('ZIBIL') < 0, 'keş zəhərləndi — massivə əlavə edilən filial qaldı');
 check(U.computeDayPay('Barista', 'Sahil', 'sehersm').pay === 20, 'zəhərlənmiş keş maaş hesabına sızdı');
-U.setSetting('SALARY_CONFIG', '').catch(() => {});
+setLocal('SALARY_CONFIG', JSON.stringify(SALARY));
 
 // ── 22) İstirahət gününün aylıq tavanı ──
 // İstirahət günü GƏLİŞ tələb etmir və cədvəli menecer yazır → tavan olmasa bütün ay
 // istirahət yazılıb işləmədən tam maaş almaq olardı.
 console.log('\n22) İstirahət günü aylıq tavanı');
-U.setSetting('SALARY_CONFIG', '').catch(() => {});
+setLocal('SALARY_CONFIG', JSON.stringify(SALARY));
 const ci = U.getSalaryConfig();
 check(ci.restDayMonthlyLimit === 12, `defolt tavan 12 olmalıdır, alınan ${ci.restDayMonthlyLimit}`);
 
@@ -255,18 +271,18 @@ check(i30.odenildi === 12 && i30.kesildi === 18, `bütün ay istirahətdə 12 ö
 check(i30.maas === 240, `bütün ay istirahət yazılsa da yalnız 240 ₼ ödənilməlidir, alınan ${i30.maas}`);
 
 // Tavanın konfiqurasiyası
-U.setSetting('SALARY_CONFIG', JSON.stringify({ restDayMonthlyLimit: 5 })).catch(() => {});
+setLocal('SALARY_CONFIG', JSON.stringify({ restDayMonthlyLimit: 5 }));
 check(U.getSalaryConfig().restDayMonthlyLimit === 5, 'verilən tavan tətbiq olunmur');
-U.setSetting('SALARY_CONFIG', JSON.stringify({ restDayMonthlyLimit: 99 })).catch(() => {});
+setLocal('SALARY_CONFIG', JSON.stringify({ restDayMonthlyLimit: 99 }));
 check(U.getSalaryConfig().restDayMonthlyLimit === 12, 'həddi aşan tavan (99) ilkin dəyərə qayıtmalıdır');
-U.setSetting('SALARY_CONFIG', JSON.stringify({ restDayMonthlyLimit: -1 })).catch(() => {});
+setLocal('SALARY_CONFIG', JSON.stringify({ restDayMonthlyLimit: -1 }));
 check(U.getSalaryConfig().restDayMonthlyLimit === 12, 'mənfi tavan ilkin dəyərə qayıtmalıdır');
-U.setSetting('SALARY_CONFIG', JSON.stringify({ restDayMonthlyLimit: 31 })).catch(() => {});
+setLocal('SALARY_CONFIG', JSON.stringify({ restDayMonthlyLimit: 31 }));
 check(istirahetHesabla(31, U.getSalaryConfig()).kesildi === 0, 'tavan 31 = limitsiz olmalıdır');
-U.setSetting('SALARY_CONFIG', JSON.stringify({ restDayMonthlyLimit: 0 })).catch(() => {});
+setLocal('SALARY_CONFIG', JSON.stringify({ restDayMonthlyLimit: 0 }));
 const i0 = istirahetHesabla(5, U.getSalaryConfig());
 check(i0.odenildi === 0 && i0.maas === 0, 'tavan 0-da heç bir istirahət günü ödənilməməlidir');
-U.setSetting('SALARY_CONFIG', '').catch(() => {});
+setLocal('SALARY_CONFIG', JSON.stringify(SALARY));
 
 // ── 23) Avans hansı aya tutulur ──
 // Pul qərar anında verilir. Tələb tarixi ilə bağlasaq, iyulda istənib avqustda

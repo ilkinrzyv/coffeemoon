@@ -68,7 +68,7 @@ header{background:var(--surface);backdrop-filter:blur(30px);border:1px solid var
 <div class="wrap">
 
 <header>
-  <div class="logo"><i class="fa-solid fa-mug-hot"></i> Coffeemoon</div>
+  <div class="logo"><i class="<?= brandIcon ?>"></i> <?= brandName ?></div>
   <div class="dept-badge" id="deptBadge"><i class="fa-solid fa-clipboard-check"></i> <?= dept ?> — Çeklist</div>
 </header>
 
@@ -93,7 +93,7 @@ header{background:var(--surface);backdrop-filter:blur(30px);border:1px solid var
 
 <script src="/gsr-shim.js"></script>
 <script>
-var BRANCH_KEY = '<?= branchKey ?>';
+var BRANCH_KEY = <?= branchKey_js ?>;
 
 var clItemsData = [];
 
@@ -247,6 +247,6 @@ function escHtml(s) {
 
 loadChecklist();
 </script>
-<footer style="text-align:center;padding:18px 0 14px;font-family:Inter,sans-serif;"><div style="font-size:0.72rem;font-weight:600;color:rgba(15,23,42,0.3);letter-spacing:0.01em;">created by Coffeemoon</div><div style="font-size:0.65rem;color:rgba(15,23,42,0.2);margin-top:2px;">version 1.0.1</div></footer>
+<footer style="text-align:center;padding:18px 0 14px;font-family:Inter,sans-serif;"><div style="font-size:0.72rem;font-weight:600;color:rgba(15,23,42,0.3);letter-spacing:0.01em;">created by <?= brandFooter ?></div><div style="font-size:0.65rem;color:rgba(15,23,42,0.2);margin-top:2px;">version 1.0.1</div></footer>
 </body>
 </html>
