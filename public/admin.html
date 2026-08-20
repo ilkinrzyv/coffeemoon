@@ -162,6 +162,20 @@ tr.open .fa-chev{transform:rotate(180deg);}
 .tg-how-title{font-size:0.83rem;font-weight:700;margin-bottom:0.75rem;display:flex;align-items:center;gap:7px;color:var(--primary);}
 .tg-how ol{padding-left:1.1rem;color:var(--text-muted);font-size:0.83rem;line-height:1.9;}
 .tg-how code{background:rgba(var(--primary-rgb),0.06);padding:1px 5px;border-radius:5px;font-size:0.8rem;color:var(--primary);font-family:monospace;}
+/* Qaydalar — pillə sətirləri (gecikmə cəzası, streak qalxanı, çoxaldıcı…) */
+.qd-tier{display:flex;gap:10px;align-items:flex-end;background:#fff;border:1px solid var(--border);border-radius:12px;padding:0.7rem 0.9rem;margin-bottom:8px;}
+.qd-tier-f{flex:1;min-width:0;}
+.qd-tier-f label{font-size:0.74rem;font-weight:600;color:var(--text-muted);display:block;margin-bottom:4px;}
+.qd-tier-f input{width:100%;min-width:unset;}
+.qd-tier .btn.sm{flex-shrink:0;}
+/* Telegram şablonları */
+.qd-tpl{background:#fff;border:1px solid var(--border);border-radius:12px;padding:0.85rem 1rem;margin-bottom:10px;}
+.qd-tpl-hd{display:flex;align-items:center;gap:8px;margin-bottom:7px;flex-wrap:wrap;}
+.qd-tpl-hd b{font-size:0.87rem;font-weight:700;}
+.qd-tpl textarea{width:100%;min-height:58px;resize:vertical;font-family:'Inter',sans-serif;font-size:0.85rem;line-height:1.5;padding:0.6rem 0.75rem;border:1px solid var(--border);border-radius:9px;background:#fbfcfe;color:var(--text-main);}
+.qd-var{font-family:monospace;font-size:0.73rem;background:rgba(var(--primary-rgb),0.07);color:var(--primary);padding:2px 7px;border-radius:6px;cursor:pointer;border:1px solid rgba(var(--primary-rgb),0.12);}
+.qd-var:hover{background:rgba(var(--primary-rgb),0.14);}
+.qd-prev{font-size:0.79rem;color:var(--text-muted);margin-top:6px;padding:0.5rem 0.7rem;background:rgba(var(--primary-rgb),0.04);border-radius:8px;line-height:1.5;white-space:pre-wrap;word-break:break-word;display:none;}
 /* Online monitor */
 @keyframes livePulse{0%,100%{box-shadow:0 0 0 4px rgba(16,185,129,0.15);}50%{box-shadow:0 0 0 8px rgba(16,185,129,0.05);}}
 /* ═══ CƏDVƏL ═══ */
@@ -388,6 +402,7 @@ tr.open .fa-chev{transform:rotate(180deg);}
     <button class="sb-item" data-pg="tg" onclick="sw('tg')"><span class="sb-ic"><i class="fa-brands fa-telegram"></i></span> Telegram</button>
     <button class="sb-item" data-pg="wifi" onclick="sw('wifi')"><span class="sb-ic"><i class="fa-solid fa-wifi"></i></span> WiFi</button>
     <button class="sb-item" data-pg="saatlar" onclick="sw('saatlar')"><span class="sb-ic"><i class="fa-solid fa-clock"></i></span> İş Saatları</button>
+    <button class="sb-item" data-pg="qaydalar" onclick="sw('qaydalar')"><span class="sb-ic"><i class="fa-solid fa-scale-balanced"></i></span> Qaydalar</button>
     <button class="sb-item" data-pg="brend" onclick="sw('brend')"><span class="sb-ic"><i class="fa-solid fa-palette"></i></span> Brend</button>
   </div>
 
@@ -832,6 +847,45 @@ tr.open .fa-chev{transform:rotate(180deg);}
     </div>
     <div class="tg-result" id="tgResult"></div>
   </div>
+
+  <!-- Mesaj mətnləri — əvvəl kodda hardcode idi -->
+  <div class="card">
+    <div class="tg-section-title" style="margin-bottom:0.6rem;">
+      <i class="fa-solid fa-comment-dots"></i> Mesaj mətnləri
+      <span style="font-size:0.75rem;font-weight:500;color:var(--text-muted);text-transform:none;letter-spacing:0;margin-left:6px;">— hansı mesajın necə görünəcəyini özün yaz</span>
+    </div>
+    <div style="background:rgba(var(--primary-rgb),0.04);border:1px solid rgba(var(--primary-rgb),0.1);border-radius:12px;padding:0.75rem 0.95rem;margin-bottom:1.1rem;font-size:0.8rem;line-height:1.55;color:var(--text-muted);">
+      <b style="color:var(--primary);">Yer tutucular</b> — <code style="font-family:monospace;">{ad}</code> kimi yazılan hissələr göndərilən anda real dəyərlə əvəz olunur.
+      Hər mesajın altındakı düymələrə basıb əlavə edə bilərsən.
+      <b>HTML dəstəklənir:</b> <code style="font-family:monospace;">&lt;b&gt;qalın&lt;/b&gt;</code>, <code style="font-family:monospace;">&lt;code&gt;</code>.
+      Mətni tam <b>boş qoysan həmin mesaj göndərilmir</b> — bildirişi susdurmağın yolu budur.
+    </div>
+    <div id="tplBody">Yüklənir...</div>
+    <div class="tg-actions">
+      <button class="btn primary" onclick="tplSave()"><i class="fa-solid fa-floppy-disk"></i> Mətnləri saxla</button>
+      <button class="btn" onclick="tplReset()"><i class="fa-solid fa-rotate-left"></i> İlkin mətnlərə qaytar</button>
+    </div>
+    <div class="tg-result" id="tplResult"></div>
+  </div>
+
+  <!-- Telefon (push) bildirişləri — Telegramdan ayrı kanaldır -->
+  <div class="card">
+    <div class="tg-section-title" style="margin-bottom:0.6rem;">
+      <i class="fa-solid fa-mobile-screen-button"></i> Telefon bildirişləri
+      <span style="font-size:0.75rem;font-weight:500;color:var(--text-muted);text-transform:none;letter-spacing:0;margin-left:6px;">— işçinin/menecerin telefonuna düşən push mesajları</span>
+    </div>
+    <div style="background:rgba(var(--primary-rgb),0.04);border:1px solid rgba(var(--primary-rgb),0.1);border-radius:12px;padding:0.75rem 0.95rem;margin-bottom:1.1rem;font-size:0.8rem;line-height:1.55;color:var(--text-muted);">
+      Bunlar Telegramdan <b>ayrı kanaldır</b> — telefonun bildiriş zolağında görünür.
+      Hər bildirişin <b>başlığı</b> və <b>mətni</b> ayrıca yazılır. HTML işləmir (telefon düz mətn göstərir).
+      Hər ikisini boş qoysan bildiriş göndərilmir.
+    </div>
+    <div id="pshBody">Yüklənir...</div>
+    <div class="tg-actions">
+      <button class="btn primary" onclick="pshSave()"><i class="fa-solid fa-floppy-disk"></i> Bildirişləri saxla</button>
+      <button class="btn" onclick="pshReset()"><i class="fa-solid fa-rotate-left"></i> İlkin mətnlərə qaytar</button>
+    </div>
+    <div class="tg-result" id="pshResult"></div>
+  </div>
 </div>
 
 <!-- WiFi -->
@@ -910,6 +964,33 @@ tr.open .fa-chev{transform:rotate(180deg);}
     </div>
 
     <div id="maasCfg" style="display:none;"></div>
+  </div>
+</div>
+
+<!-- ═══════════ QAYDALAR (intizam + XP) ═══════════ -->
+<!-- Bu dəyərlər əvvəl kodda sabit rəqəm idi (30 AZN cərimə, 3-cü gecikmə,
+     45/21 dəq XP cəzası, +20 gəliş XP-si). İndi hər müştəri özü təyin edir. -->
+<div id="tab-qaydalar" class="page">
+  <div class="card">
+    <div class="fa-sub" id="qdSubTabs">
+      <button class="fa-sb on" id="qdTabDisc" onclick="qdSetSub('disc')"><i class="fa-solid fa-gavel"></i> İntizam və cərimə</button>
+      <button class="fa-sb" id="qdTabXp" onclick="qdSetSub('xp')"><i class="fa-solid fa-star"></i> Bal (XP) mükafatları</button>
+    </div>
+
+    <div style="background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.2);border-radius:12px;padding:0.7rem 0.95rem;margin:0 0 1.1rem;font-size:0.8rem;line-height:1.45;color:var(--text-muted);">
+      <b style="color:#b45309;"><i class="fa-solid fa-triangle-exclamation"></i> Dəyişiklik BUNDAN SONRAKI qeydlərə tətbiq olunur.</b>
+      Keçmiş cərimələri yeni məbləğə keçirmək üçün «Cərimə &amp; Avans» səhifəsindəki
+      <b>Cərimələri yenilə</b>, keçmiş balı yenidən hesablamaq üçün <b>XP yenilə</b> düyməsini bas.
+      Bağlanmış maaş ayları toxunulmur.
+    </div>
+
+    <div id="qdBody">Yüklənir...</div>
+
+    <div class="tg-actions" style="margin-top:1.2rem;">
+      <button class="btn primary" onclick="qdSave()"><i class="fa-solid fa-floppy-disk"></i> Saxla</button>
+      <button class="btn" onclick="qdReset()"><i class="fa-solid fa-rotate-left"></i> İlkin dəyərlərə qaytar</button>
+    </div>
+    <div class="tg-result" id="qdResult"></div>
   </div>
 </div>
 
@@ -1300,7 +1381,7 @@ function getDayShort(s){var d=new Date(s);var names=['B.e.','Ç.a.','Çər.','C.
 function sw(name){
   // Səhifə adları — sıra əhəmiyyətsizdir (indeks uyğunluğu tələb edən köhnə nav silinib).
   // Yeni səhifə əlavə edəndə bura adı yaz + yan panelə .sb-item düyməsi qoy.
-  var tabs=['emp','cedvel','att','hesabat','izin','dev','tg','mgr','wifi','checklist','waste','yenilik','trainer','approvals','links','saatlar','maas','brend'];
+  var tabs=['emp','cedvel','att','hesabat','izin','dev','tg','mgr','wifi','checklist','waste','yenilik','trainer','approvals','links','saatlar','maas','brend','qaydalar'];
   tabs.forEach(function(n){
     var el=document.getElementById('tab-'+n);
     if(el) el.classList.toggle('active',n===name);
@@ -1325,6 +1406,235 @@ function sw(name){
   if(name==='saatlar'&&!_shiftMeta){initShiftCfg();}
   if(name==='maas'){initMaas();}
   if(name==='brend'){loadBrand();}
+  if(name==='qaydalar'){loadQaydalar();}
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  QAYDALAR — intizam/cərimə və bal (XP) mükafatları
+// ══════════════════════════════════════════════════════════════════
+//  Serverdəki DISCIPLINE_CONFIG və XP_CONFIG-in redaktoru.
+//  Pillə cədvəlləri (gecikmə cəzası, streak qalxanı, çoxaldıcı, imtahan)
+//  sətir-sətir əlavə/sil ilə idarə olunur — server onları özü sıralayır,
+//  ona görə burada sıra ilə əlləşmirik.
+var _qdSub = 'disc', _qdDisc = null, _qdXp = null;
+
+function qdSetSub(s){
+  _qdSub = s;
+  document.getElementById('qdTabDisc').classList.toggle('on', s === 'disc');
+  document.getElementById('qdTabXp').classList.toggle('on', s === 'xp');
+  qdRender();
+}
+
+function loadQaydalar(){
+  if(_qdDisc && _qdXp){ qdRender(); return; }
+  document.getElementById('qdBody').innerHTML = '<div style="text-align:center;padding:2rem;color:var(--text-muted)"><i class="fa-solid fa-circle-notch fa-spin"></i></div>';
+  google.script.run.withSuccessHandler(function(d){ _qdDisc = (d&&d.config)||{}; if(_qdXp) qdRender(); })
+    .withFailureHandler(qdErr).getDisciplineConfig();
+  google.script.run.withSuccessHandler(function(d){ _qdXp = (d&&d.config)||{}; if(_qdDisc) qdRender(); })
+    .withFailureHandler(qdErr).getXPConfig();
+}
+function qdErr(e){
+  document.getElementById('qdBody').innerHTML =
+    '<div style="color:var(--danger);font-weight:600;padding:1rem;"><i class="fa-solid fa-triangle-exclamation"></i> Xəta: '+
+    escHtml((e&&e.message)||'Server xətası')+'</div>';
+}
+
+// ── Kiçik qurucular ──────────────────────────────────────────────
+function qdNum(id, val, min, max, step){
+  return '<input type="number" id="'+id+'" value="'+(val==null?'':val)+'"'+
+    (min!=null?' min="'+min+'"':'')+(max!=null?' max="'+max+'"':'')+
+    (step?' step="'+step+'"':'')+'>';
+}
+function qdField(label, id, val, hint, min, max, step){
+  return '<div class="tg-field"><label>'+escHtml(label)+'</label>'+
+    qdNum(id, val, min, max, step)+
+    (hint?'<div style="font-size:0.74rem;color:var(--text-muted);margin-top:4px;">'+hint+'</div>':'')+
+    '</div>';
+}
+function qdSectionTitle(ikon, ad, izah){
+  return '<div class="tg-section-title" style="margin-top:1.4rem;"><i class="fa-solid '+ikon+'"></i> '+escHtml(ad)+
+    (izah?'<span style="font-size:0.75rem;font-weight:500;color:var(--text-muted);text-transform:none;letter-spacing:0;margin-left:6px;">— '+izah+'</span>':'')+
+    '</div>';
+}
+
+// Pillə cədvəli: hər sətirdə iki rəqəm + sil düyməsi
+function qdTiers(nov, rows, kA, adA, kB, adB, stepB){
+  var h = '<div id="qdT-'+nov+'">';
+  (rows||[]).forEach(function(r, i){
+    h += '<div class="qd-tier" data-i="'+i+'">'+
+      '<div class="qd-tier-f"><label>'+escHtml(adA)+'</label><input type="number" class="qd-'+nov+'-'+kA+'" value="'+r[kA]+'"></div>'+
+      '<div class="qd-tier-f"><label>'+escHtml(adB)+'</label><input type="number" step="'+(stepB||1)+'" class="qd-'+nov+'-'+kB+'" value="'+r[kB]+'"></div>'+
+      '<button class="btn sm" style="color:var(--danger);" onclick="qdTierDel(\''+nov+'\','+i+')" title="Sətri sil"><i class="fa-solid fa-trash"></i></button>'+
+    '</div>';
+  });
+  h += '</div><button class="btn sm" style="margin-top:6px;" onclick="qdTierAdd(\''+nov+'\')"><i class="fa-solid fa-plus"></i> Sətir əlavə et</button>';
+  return h;
+}
+
+// Açar→dəyər xəritəsi (milestone, reytinq): açar da redaktə olunur
+function qdMap(nov, obj, adA, adB){
+  var keys = Object.keys(obj||{}).map(Number).sort(function(a,b){return a-b;});
+  var h = '<div id="qdM-'+nov+'">';
+  keys.forEach(function(k, i){
+    h += '<div class="qd-tier" data-i="'+i+'">'+
+      '<div class="qd-tier-f"><label>'+escHtml(adA)+'</label><input type="number" class="qd-'+nov+'-k" value="'+k+'"></div>'+
+      '<div class="qd-tier-f"><label>'+escHtml(adB)+'</label><input type="number" class="qd-'+nov+'-v" value="'+obj[k]+'"></div>'+
+      '<button class="btn sm" style="color:var(--danger);" onclick="qdMapDel(\''+nov+'\','+i+')" title="Sətri sil"><i class="fa-solid fa-trash"></i></button>'+
+    '</div>';
+  });
+  h += '</div><button class="btn sm" style="margin-top:6px;" onclick="qdMapAdd(\''+nov+'\')"><i class="fa-solid fa-plus"></i> Sətir əlavə et</button>';
+  return h;
+}
+
+// Sətir əlavə/sil — əvvəlcə ekrandakı dəyərlər yaddaşa yığılır ki, yazılanlar itməsin
+function qdTierAdd(nov){ qdCollect(); qdTierList(nov).push(qdTierBos(nov)); qdRender(); }
+function qdTierDel(nov, i){ qdCollect(); qdTierList(nov).splice(i,1); qdRender(); }
+function qdMapAdd(nov){ qdCollect(); qdMapObj(nov)[qdMapNextKey(nov)] = 0; qdRender(); }
+function qdMapDel(nov, i){
+  qdCollect();
+  var o = qdMapObj(nov), keys = Object.keys(o).map(Number).sort(function(a,b){return a-b;});
+  delete o[keys[i]];
+  qdRender();
+}
+function qdMapNextKey(nov){
+  var keys = Object.keys(qdMapObj(nov)).map(Number);
+  return keys.length ? Math.max.apply(null, keys) + 1 : 1;
+}
+function qdTierList(nov){
+  if(nov==='pen')   return (_qdDisc.latePenalty  = _qdDisc.latePenalty  || []);
+  if(nov==='shld')  return (_qdDisc.streakShield = _qdDisc.streakShield || []);
+  if(nov==='mult')  return (_qdXp.multipliers    = _qdXp.multipliers    || []);
+  return (_qdXp.examTiers = _qdXp.examTiers || []);
+}
+function qdTierBos(nov){
+  if(nov==='pen')  return { mins: 0,   xp: 0   };
+  if(nov==='shld') return { streak: 1, mult: 1 };
+  if(nov==='mult') return { streak: 1, mult: 1 };
+  return { pct: 0, xp: 0 };
+}
+function qdMapObj(nov){
+  if(nov==='ms') return (_qdXp.milestones = _qdXp.milestones || {});
+  return (_qdXp.ratingXP = _qdXp.ratingXP || {});
+}
+
+// Ekrandakı bütün dəyərləri yaddaşdakı obyektlərə yığır (render arası itməsin)
+function qdCollect(){
+  var n = function(id){ var el = document.getElementById(id); return el ? Number(el.value) : undefined; };
+  if(_qdSub === 'disc' && document.getElementById('qdFineAmount')){
+    _qdDisc.fineAmount     = n('qdFineAmount');
+    _qdDisc.fineAfterLates = n('qdFineAfter');
+    _qdDisc.permGraceMins  = n('qdPermGrace');
+    _qdDisc.lunchMaxMins   = n('qdLunchMax');
+    _qdDisc.lateWarnBuffer = n('qdWarnBuf');
+    _qdDisc.avansMax       = n('qdAvansMax');
+    _qdDisc.mgrFineMax     = n('qdMgrFineMax');
+    _qdDisc.dayCutoffHour  = n('qdDayCut');
+    _qdDisc.daypartBoundaryMin = n('qdDaypart');
+    _qdDisc.latePenalty  = qdReadTiers('pen',  'mins',   'xp');
+    _qdDisc.streakShield = qdReadTiers('shld', 'streak', 'mult');
+  }
+  if(_qdSub === 'xp' && document.getElementById('qdArrivalXP')){
+    _qdXp.arrivalXP    = n('qdArrivalXP');
+    _qdXp.openAnswerXP = n('qdOpenXP');
+    _qdXp.multipliers = qdReadTiers('mult', 'streak', 'mult');
+    _qdXp.examTiers   = qdReadTiers('exam', 'pct',    'xp');
+    _qdXp.milestones  = qdReadMap('ms');
+    _qdXp.ratingXP    = qdReadMap('rt');
+  }
+}
+function qdReadTiers(nov, kA, kB){
+  var box = document.getElementById('qdT-'+nov);
+  if(!box) return qdTierList(nov);
+  var a = box.querySelectorAll('.qd-'+nov+'-'+kA), b = box.querySelectorAll('.qd-'+nov+'-'+kB), out = [];
+  for(var i=0;i<a.length;i++){
+    var o = {}; o[kA] = Number(a[i].value); o[kB] = Number(b[i].value);
+    out.push(o);
+  }
+  return out;
+}
+function qdReadMap(nov){
+  var box = document.getElementById('qdM-'+nov);
+  if(!box) return qdMapObj(nov);
+  var k = box.querySelectorAll('.qd-'+nov+'-k'), v = box.querySelectorAll('.qd-'+nov+'-v'), out = {};
+  for(var i=0;i<k.length;i++){
+    var key = Math.round(Number(k[i].value));
+    if(!isFinite(key) || key <= 0) continue;
+    out[key] = Number(v[i].value);
+  }
+  return out;
+}
+
+function qdRender(){
+  var b = document.getElementById('qdBody');
+  if(!_qdDisc || !_qdXp) return;
+  if(_qdSub === 'disc'){
+    b.innerHTML =
+      '<div class="tg-grid">'+
+        qdField('Cərimə məbləği (AZN)','qdFineAmount',_qdDisc.fineAmount,'Gecikməyə görə avtomatik yazılan cərimə',0,100000,'0.01')+
+        qdField('Neçə gecikmə güzəştdir?','qdFineAfter',_qdDisc.fineAfterLates,'2 → ayda 3-cü gecikmədən cərimə başlayır',0,31)+
+        qdField('İcazə güzəşti (dəq)','qdPermGrace',_qdDisc.permGraceMins,'Gec gəliş icazəsindəki saata əlavə olunan pay',0,180)+
+        qdField('Nahar limiti (dəq)','qdLunchMax',_qdDisc.lunchMaxMins,'Bundan çox çəksə menecerə bildiriş gedir',1,480)+
+        qdField('Xəbərdarlıq payı (dəq)','qdWarnBuf',_qdDisc.lateWarnBuffer,'İşçi kartında «gecikmisən» yazısı hədddən bu qədər sonra çıxır',0,180)+
+        qdField('Ən çox avans (AZN)','qdAvansMax',_qdDisc.avansMax,'İşçi bir dəfəyə bundan çox istəyə bilmir',1,1000000)+
+        qdField('Menecerin ən çox cəriməsi (AZN)','qdMgrFineMax',_qdDisc.mgrFineMax,'Menecerin əl ilə yaza biləcəyi yuxarı hədd',1,1000000)+
+        qdField('Gün neçədə kəsilir? (saat)','qdDayCut',_qdDisc.dayCutoffHour,'Gecə smenləri üçün: bu saatdan əvvəlki gəliş ƏVVƏLKİ günə yazılır. Gecə işləmirsənsə 0 qoy.',0,6)+
+        qdField('Səhər/axşam sərhədi (dəq)','qdDaypart',_qdDisc.daypartBoundaryMin,'Cədvəldə smen yazılmayanda gəlişin hansı smenə aid olduğunu ayırır (780 = 13:00)',0,1439)+
+      '</div>'+
+      qdSectionTitle('fa-arrow-trend-down','Gecikmə bal cəzası','neçə dəqiqə gecikmə → neçə bal itir')+
+      '<div style="font-size:0.78rem;color:var(--text-muted);margin:6px 0 10px;">Ən yuxarı uyğun sətir tətbiq olunur. Sıraya fikir vermə — server özü düzür.</div>'+
+      qdTiers('pen', _qdDisc.latePenalty, 'mins','Ən azı (dəq)','xp','İtən bal')+
+      qdSectionTitle('fa-shield-halved','Streak qalxanı','uzun streak cəzanı azaldır')+
+      '<div style="font-size:0.78rem;color:var(--text-muted);margin:6px 0 10px;">Əmsal 0.25 → cəzanın yalnız 25%-i tutulur. 1 = güzəşt yoxdur.</div>'+
+      qdTiers('shld', _qdDisc.streakShield, 'streak','Ən azı streak','mult','Əmsal', '0.05');
+  } else {
+    b.innerHTML =
+      '<div class="tg-grid">'+
+        qdField('Vaxtında gəliş balı','qdArrivalXP',_qdXp.arrivalXP,'Çoxaldıcıya vurulur',0,100000)+
+        qdField('Açıq cavab balı','qdOpenXP',_qdXp.openAnswerXP,'İmtahanda açıq sual keçəndə',0,100000)+
+      '</div>'+
+      qdSectionTitle('fa-xmarks-lines','Streak çoxaldıcısı','streak uzandıqca gəliş balı artır')+
+      qdTiers('mult', _qdXp.multipliers, 'streak','Ən azı streak','mult','Çoxaldıcı','0.05')+
+      qdSectionTitle('fa-trophy','Milestone bonusları','müəyyən streak gününə çatanda birdəfəlik bonus')+
+      qdMap('ms', _qdXp.milestones, 'Streak günü','Bonus bal')+
+      qdSectionTitle('fa-file-circle-check','İmtahan balı','test nəticəsinə görə')+
+      qdTiers('exam', _qdXp.examTiers, 'pct','Ən azı faiz (%)','xp','Bal')+
+      qdSectionTitle('fa-star','Reytinq balı','trainer ulduz verəndə')+
+      qdMap('rt', _qdXp.ratingXP, 'Ulduz','Bal');
+  }
+}
+
+function qdSave(){
+  qdCollect();
+  showResult('qdResult', null, '<i class="fa-solid fa-circle-notch fa-spin"></i> Saxlanılır...');
+  var fn = _qdSub === 'disc' ? 'saveDisciplineConfig' : 'saveXPConfig';
+  var payload = _qdSub === 'disc' ? _qdDisc : _qdXp;
+  google.script.run.withSuccessHandler(function(res){
+    if(!res || !res.success){
+      showResult('qdResult', false, 'Xəta: ' + escHtml((res && res.reason) || 'naməlum'));
+      return;
+    }
+    // Server dəyəri təmizləyir (aralıqdan kənar → ilkin dəyər, pillələr sıralanır).
+    // Panelə məhz SAXLANILAN dəyəri qaytarırıq ki, istifadəçi nəyin qəbul
+    // olunduğunu dərhal görsün — yoxsa ekranda rədd edilmiş rəqəm qalardı.
+    if(_qdSub === 'disc') _qdDisc = res.config; else _qdXp = res.config;
+    qdRender();
+    showResult('qdResult', true, 'Saxlanıldı. Aralıqdan kənar dəyər varsa ilkin dəyərə qaytarılıb — cədvələ bax.');
+  }).withFailureHandler(function(e){
+    showResult('qdResult', false, 'Xəta: ' + escHtml((e && e.message) || 'Server xətası'));
+  })[fn](payload);
+}
+
+function qdReset(){
+  var ad = _qdSub === 'disc' ? 'İntizam və cərimə' : 'Bal (XP)';
+  if(!confirm(ad + ' qaydaları ilkin dəyərlərə qaytarılacaq.\n\nDavam edilsin?')) return;
+  var fn = _qdSub === 'disc' ? 'resetDisciplineConfig' : 'resetXPConfig';
+  google.script.run.withSuccessHandler(function(res){
+    if(_qdSub === 'disc') _qdDisc = res.config; else _qdXp = res.config;
+    qdRender();
+    showResult('qdResult', true, 'İlkin dəyərlərə qaytarıldı.');
+  }).withFailureHandler(function(e){
+    showResult('qdResult', false, 'Xəta: ' + escHtml((e && e.message) || 'Server xətası'));
+  })[fn]();
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -2523,6 +2833,7 @@ function faSetir(r,i){
       '<tr class="fa-detay" style="display:none;"><td colspan="6" style="padding-top:0;">'+
         '<div class="fa-reason"><b>İzahat / səbəb</b>'+esc(d.reason||'—')+
         (imzali&&d.ackedAt?'<div style="margin-top:6px;color:var(--success);font-weight:700;font-size:0.78rem;">✍️ '+esc(fmtFineDateAdmin(d.ackedAt))+' tarixində imzalanıb</div>':'')+
+        faFineActions(d)+
         '</div></td></tr>';
   }
   if(_faSub==='avans'){
@@ -2542,6 +2853,62 @@ function faSetir(r,i){
     '<td data-l="Status">'+faBadge('Təsdiqləndi','approved')+'</td>'+
   '</tr>';
 }
+// ── Cərimə əməliyyatları (yalnız açılan detalda — səhvən silinməsin) ──
+//  İki mənbə var: 'system' (avtomatik gecikmə cəriməsi) və 'manager'.
+//  Sistem cəriməsində maaşdan tutulma statusu da göstərilir — silmək əvəzinə
+//  «Bağışla» seçmək daha təhlükəsizdir: tutulma dayanır, tarixçə qalır.
+var FA_PAY = { unpaid:['Tutulacaq','pending'], paid:['Ödənilib','approved'], waived:['Bağışlanıb','approved'] };
+
+function faFineActions(d){
+  var sys = d.source === 'system';
+  var pay = FA_PAY[d.payStatus] || FA_PAY.unpaid;
+  var id  = escAttr(d.fineId), ad = escAttr(d.empName || '');
+  var h = '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px;padding-top:10px;border-top:1px solid var(--border);">';
+  h += '<span style="font-size:0.75rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;">'+
+       (sys?'Avtomatik':'Menecer')+'</span>';
+  if(sys){
+    h += '<span style="font-size:0.75rem;color:var(--text-muted);">Maaşdan:</span>'+faBadge(pay[0],pay[1]);
+    if(d.payStatus !== 'waived'){
+      h += '<button class="btn sm" onclick="faWaive(event,\''+id+'\')" title="Maaşdan tutulmasın, amma qeyd qalsın">'+
+           '<i class="fa-solid fa-hand-holding-heart"></i> Bağışla</button>';
+    } else {
+      h += '<button class="btn sm" onclick="faUnwaive(event,\''+id+'\')" title="Yenidən tutulsun">'+
+           '<i class="fa-solid fa-rotate-left"></i> Bağışlamanı ləğv et</button>';
+    }
+  }
+  h += '<button class="btn sm" style="color:var(--danger);margin-left:auto;" '+
+       'onclick="faDelete(event,\''+id+'\',\''+(sys?'system':'manager')+'\',\''+ad+'\','+(Number(d.amount)||0)+')">'+
+       '<i class="fa-solid fa-trash"></i> Sil</button>';
+  return h + '</div>';
+}
+
+// Detal sətrindəki düymələr valideyn sətrin onclick-ini (aç/bağla) tetikləməsin
+function faStop(e){ if(e){ e.stopPropagation(); } }
+
+function faDelete(e, fineId, source, ad, mebleg){
+  faStop(e);
+  if(!confirm('Cərimə SİLİNƏCƏK:\n\n'+(ad||'İşçi')+' — '+mebleg+' ₼\n\n'+
+    'Bu qeyd tamamilə silinir və maaş hesabatındakı tutulmadan da çıxır.\n'+
+    'Yalnız tutulmanı dayandırmaq istəyirsənsə «Bağışla» daha uyğundur.\n\nDavam edilsin?')) return;
+  google.script.run.withSuccessHandler(function(r){
+    if(!r || !r.success){ alert('Silinmədi: ' + ((r&&r.reason)||'naməlum xəta')); return; }
+    faReload();
+  }).withFailureHandler(function(err){
+    alert('Xəta: ' + ((err&&err.message)||'Server xətası'));
+  }).deleteAnyFine(fineId, source);
+}
+
+function faWaive(e, fineId){ faStop(e); faSetPay(fineId, 'waived'); }
+function faUnwaive(e, fineId){ faStop(e); faSetPay(fineId, 'unpaid'); }
+function faSetPay(fineId, status){
+  google.script.run.withSuccessHandler(function(r){
+    if(!r || !r.success){ alert('Dəyişmədi: ' + ((r&&r.reason)||'naməlum xəta')); return; }
+    faReload();
+  }).withFailureHandler(function(err){
+    alert('Xəta: ' + ((err&&err.message)||'Server xətası'));
+  }).setFinePayStatus(fineId, status);
+}
+
 function faToggle(tr){
   tr.classList.toggle('open');
   var d=tr.nextElementSibling;
@@ -2628,7 +2995,181 @@ function loadTgSettings(){
       });
     }).getTelegramSettings();
   });
+  loadTplEditor();
+  loadPushEditor();
 }
+
+// ── Telegram mesaj şablonları ────────────────────────────────────
+//  Mətnlər `TG_TEMPLATES` parametrindədir. Panel serverdən həm cari
+//  mətnləri, həm də hər şablonun HANSI yer tutucuları qəbul etdiyini alır —
+//  belədə istifadəçi mövcud olmayan `{filial}` yazıb təəccüblənmir.
+var _tplMeta = null, _tplKeys = [];
+
+function loadTplEditor(){
+  google.script.run.withSuccessHandler(function(d){
+    if(!d) return;
+    _tplMeta = d.meta || {};
+    _tplKeys = d.keys || [];
+    var cfg = d.config || {};
+    document.getElementById('tplBody').innerHTML = _tplKeys.map(function(k){
+      var m = _tplMeta[k] || { ad: k, vars: [] };
+      var vars = (m.vars||[]).map(function(v){
+        return '<span class="qd-var" onclick="tplInsert(\'' + k + '\',\'{' + v + '}\')" title="Mətnə əlavə et">{' + v + '}</span>';
+      }).join(' ');
+      return '<div class="qd-tpl">' +
+        '<div class="qd-tpl-hd"><b>' + escHtml(m.ad || k) + '</b>' + vars +
+          '<button class="btn sm" style="margin-left:auto;" onclick="tplPreview(\'' + k + '\')"><i class="fa-solid fa-eye"></i> Önizlə</button>' +
+        '</div>' +
+        '<textarea id="tpl_' + k + '">' + escHtml(cfg[k] == null ? '' : cfg[k]) + '</textarea>' +
+        '<div class="qd-prev" id="tplp_' + k + '"></div>' +
+      '</div>';
+    }).join('');
+  }).withFailureHandler(function(e){
+    document.getElementById('tplBody').innerHTML =
+      '<div style="color:var(--danger);font-weight:600;">Xəta: ' + escHtml((e&&e.message)||'Server xətası') + '</div>';
+  }).getTgTemplates();
+}
+
+// Yer tutucunu kursorun olduğu yerə salır (sonuna yapışdırmaqdansa daha faydalıdır)
+function tplInsert(key, text){
+  var ta = document.getElementById('tpl_' + key);
+  if(!ta) return;
+  var s = ta.selectionStart || 0, e = ta.selectionEnd || 0;
+  ta.value = ta.value.slice(0, s) + text + ta.value.slice(e);
+  ta.focus();
+  ta.selectionStart = ta.selectionEnd = s + text.length;
+}
+
+function tplPreview(key){
+  var ta = document.getElementById('tpl_' + key), box = document.getElementById('tplp_' + key);
+  if(!ta || !box) return;
+  google.script.run.withSuccessHandler(function(r){
+    box.style.display = 'block';
+    box.textContent = (r && r.success)
+      ? (r.text.trim() ? r.text : '(boş — bu mesaj göndərilməyəcək)')
+      : ('Xəta: ' + ((r && r.reason) || 'naməlum'));
+  }).withFailureHandler(function(e){
+    box.style.display = 'block';
+    box.textContent = 'Xəta: ' + ((e && e.message) || 'Server xətası');
+  }).previewTgTemplate(key, ta.value);
+}
+
+function tplSave(){
+  var payload = {};
+  _tplKeys.forEach(function(k){
+    var ta = document.getElementById('tpl_' + k);
+    if(ta) payload[k] = ta.value;
+  });
+  showResult('tplResult', null, '<i class="fa-solid fa-circle-notch fa-spin"></i> Saxlanılır...');
+  google.script.run.withSuccessHandler(function(res){
+    if(!res || !res.success){
+      showResult('tplResult', false, 'Xəta: ' + escHtml((res && res.reason) || 'naməlum'));
+      return;
+    }
+    showResult('tplResult', true, 'Mesaj mətnləri saxlanıldı.');
+  }).withFailureHandler(function(e){
+    showResult('tplResult', false, 'Xəta: ' + escHtml((e && e.message) || 'Server xətası'));
+  }).saveTgTemplates(payload);
+}
+
+function tplReset(){
+  if(!confirm('Bütün mesaj mətnləri ilkin halına qaytarılacaq.\n\nDavam edilsin?')) return;
+  google.script.run.withSuccessHandler(function(){
+    loadTplEditor();
+    showResult('tplResult', true, 'İlkin mətnlərə qaytarıldı.');
+  }).withFailureHandler(function(e){
+    showResult('tplResult', false, 'Xəta: ' + escHtml((e && e.message) || 'Server xətası'));
+  }).resetTgTemplates();
+}
+
+// ── Telefon (push) bildiriş şablonları ───────────────────────────
+//  Telegramdan fərqi: hər bildirişin BAŞLIĞI və MƏTNİ ayrıdır.
+var _pshMeta = null, _pshKeys = [];
+
+function loadPushEditor(){
+  google.script.run.withSuccessHandler(function(d){
+    if(!d) return;
+    _pshMeta = d.meta || {};
+    _pshKeys = d.keys || [];
+    var cfg = d.config || {};
+    document.getElementById('pshBody').innerHTML = _pshKeys.map(function(k){
+      var m = _pshMeta[k] || { ad: k, vars: [] };
+      var t = cfg[k] || { title: '', body: '' };
+      var vars = (m.vars||[]).map(function(v){
+        return '<span class="qd-var" onclick="pshInsert(\'' + k + '\',\'{' + v + '}\')" title="Mətnə əlavə et">{' + v + '}</span>';
+      }).join(' ');
+      return '<div class="qd-tpl">' +
+        '<div class="qd-tpl-hd"><b>' + escHtml(m.ad || k) + '</b>' + vars +
+          '<button class="btn sm" style="margin-left:auto;" onclick="pshPreview(\'' + k + '\')"><i class="fa-solid fa-eye"></i> Önizlə</button>' +
+        '</div>' +
+        '<label style="font-size:0.74rem;font-weight:600;color:var(--text-muted);display:block;margin-bottom:4px;">Başlıq</label>' +
+        '<input id="pshT_' + k + '" style="width:100%;min-width:unset;margin-bottom:8px;" value="' + escHtml(t.title == null ? '' : t.title) + '">' +
+        '<label style="font-size:0.74rem;font-weight:600;color:var(--text-muted);display:block;margin-bottom:4px;">Mətn</label>' +
+        '<textarea id="pshB_' + k + '">' + escHtml(t.body == null ? '' : t.body) + '</textarea>' +
+        '<div class="qd-prev" id="pshp_' + k + '"></div>' +
+      '</div>';
+    }).join('');
+  }).withFailureHandler(function(e){
+    document.getElementById('pshBody').innerHTML =
+      '<div style="color:var(--danger);font-weight:600;">Xəta: ' + escHtml((e&&e.message)||'Server xətası') + '</div>';
+  }).getPushTemplates();
+}
+
+// Yer tutucu sonuncu toxunulan sahəyə düşür (başlıq yoxsa mətn)
+function pshInsert(key, text){
+  var b = document.getElementById('pshB_' + key), t = document.getElementById('pshT_' + key);
+  var el = (document.activeElement === t) ? t : b;
+  if(!el) return;
+  var s = el.selectionStart || 0, e = el.selectionEnd || 0;
+  el.value = el.value.slice(0, s) + text + el.value.slice(e);
+  el.focus();
+  el.selectionStart = el.selectionEnd = s + text.length;
+}
+
+function pshPreview(key){
+  var t = document.getElementById('pshT_' + key), b = document.getElementById('pshB_' + key);
+  var box = document.getElementById('pshp_' + key);
+  if(!t || !b || !box) return;
+  google.script.run.withSuccessHandler(function(r){
+    box.style.display = 'block';
+    if(!r || !r.success){ box.textContent = 'Xəta: ' + ((r && r.reason) || 'naməlum'); return; }
+    box.textContent = (!r.title.trim() && !r.text.trim())
+      ? '(boş — bu bildiriş göndərilməyəcək)'
+      : (r.title + '\n' + r.text);
+  }).withFailureHandler(function(e){
+    box.style.display = 'block';
+    box.textContent = 'Xəta: ' + ((e && e.message) || 'Server xətası');
+  }).previewPushTemplate(key, t.value, b.value);
+}
+
+function pshSave(){
+  var payload = {};
+  _pshKeys.forEach(function(k){
+    var t = document.getElementById('pshT_' + k), b = document.getElementById('pshB_' + k);
+    if(t && b) payload[k] = { title: t.value, body: b.value };
+  });
+  showResult('pshResult', null, '<i class="fa-solid fa-circle-notch fa-spin"></i> Saxlanılır...');
+  google.script.run.withSuccessHandler(function(res){
+    if(!res || !res.success){
+      showResult('pshResult', false, 'Xəta: ' + escHtml((res && res.reason) || 'naməlum'));
+      return;
+    }
+    showResult('pshResult', true, 'Telefon bildirişləri saxlanıldı.');
+  }).withFailureHandler(function(e){
+    showResult('pshResult', false, 'Xəta: ' + escHtml((e && e.message) || 'Server xətası'));
+  }).savePushTemplates(payload);
+}
+
+function pshReset(){
+  if(!confirm('Bütün telefon bildirişləri ilkin halına qaytarılacaq.\n\nDavam edilsin?')) return;
+  google.script.run.withSuccessHandler(function(){
+    loadPushEditor();
+    showResult('pshResult', true, 'İlkin mətnlərə qaytarıldı.');
+  }).withFailureHandler(function(e){
+    showResult('pshResult', false, 'Xəta: ' + escHtml((e && e.message) || 'Server xətası'));
+  }).resetPushTemplates();
+}
+
 function saveTg(){
   var d = {
     enabled:   document.getElementById('tgEnabled').checked,

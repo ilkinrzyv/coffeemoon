@@ -23,8 +23,10 @@ const PORT = process.env.PORT || 3000;
 // API təhlükəsizlik qatı — icazə cədvəli auth.js-dədir.
 const auth = require('./auth');
 
-// Nahar limiti (dəqiqə): yalnız gec qayıdış bildirişi + nahar jurnalı üçün (XP ilə bağlı deyil — nahar XP-si ləğv edilib)
-const LUNCH_MAX = 30;   // bundan çox → gec qayıdış: menecerə bildiriş + jurnalda işarələnir
+// Nahar limiti (dəqiqə): yalnız gec qayıdış bildirişi + nahar jurnalı üçün (XP ilə bağlı deyil — nahar XP-si ləğv edilib).
+// Sabit deyil — hər müştəri paneldən təyin edir (`DISCIPLINE_CONFIG.lunchMaxMins`).
+// Funksiya kimidir, çünki dəyər müştəri kontekstindən asılıdır; modul yüklənəndə oxuna bilməz.
+const lunchMax = () => U.getDisciplineConfig().lunchMaxMins;
 
 // ── VAPID konfiqurasiyası ─────────────────────────────────────────
 if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
@@ -188,7 +190,7 @@ async function autoCloseShiftsForTenant() {
 
   if (closed > 0) {
     console.log(`[AutoClose] ${closed} açıq smen bağlandı.`);
-    await U.sendTelegramMsg(`🤖 <b>Gecəlik avtomatik bağlama</b>\n\n${closed} açıq smen avtomatik olaraq bağlandı.`, null);
+    await U.sendTgTemplate('nightClose', { say: closed }, null);
   }
 }
 
@@ -624,6 +626,10 @@ function normSystemFine(r) {
     amount:    r.amount,
     reason,
     status:    r.acked ? 'acknowledged' : 'pending',   // imza statusu (ödəniş statusu ayrıdır)
+    // Maaşdan tutulma statusu: unpaid | paid | waived. Panel bunu göstərir ki,
+    // admin cəriməni silməzdən əvvəl onun artıq tutulub-tutulmadığını görsün.
+    payStatus: r.status || 'unpaid',
+    dateStr:   r.date_str || '',
     createdBy: 'Sistem',
     createdAt: r.created_at || (r.date_str ? r.date_str + 'T00:00:00.000Z' : ''),
     ackedAt:   r.acked_at || '',
@@ -852,10 +858,44 @@ API.deleteFine = async (fineId) => {
   return { success: !error };
 };
 
+// Admin paneldən cərimə silmək — hər iki mənbə üçün tək giriş nöqtəsi.
+// `source`: 'system' (avtomatik gecikmə cəriməsi) | 'manager' (menecerin yazdığı).
+// Silinən sətir maaş hesabatındakı tutulmadan da çıxır — ona görə əvvəlcə
+// nəyin silindiyi qaytarılır (panel təsdiq mesajında göstərir, audit üçün log).
+API.deleteAnyFine = async (fineId, source) => {
+  if (!fineId) return { success: false, reason: 'Cərimə seçilməyib.' };
+  const table = source === 'manager' ? 'mgr_fines' : 'fines';
+  const { data: row } = await db().from(table).select('*').eq('fine_id', fineId).single();
+  if (!row) return { success: false, reason: 'Cərimə tapılmadı.' };
+  const { error } = await db().from(table).delete().eq('fine_id', fineId);
+  if (error) { sbErr('deleteAnyFine', error); return { success: false, reason: error.message }; }
+  console.log(`[FINE-DELETE] ${table} ${fineId} — ${row.emp_name} ${row.amount} AZN`);
+  return {
+    success: true,
+    empName: row.emp_name || '',
+    amount:  Number(row.amount) || 0,
+    source:  source === 'manager' ? 'manager' : 'system',
+  };
+};
+
+// Sistem cəriməsinin ödəniş statusu: unpaid | paid | waived.
+// 'waived' = bağışlanıb → maaşdan tutulmur, amma tarixçə itmir (silməkdən təhlükəsizdir).
+API.setFinePayStatus = async (fineId, status) => {
+  if (!['unpaid', 'paid', 'waived'].includes(status))
+    return { success: false, reason: 'Yanlış status.' };
+  const { error } = await db().from('fines').update({ status }).eq('fine_id', fineId);
+  if (error) { sbErr('setFinePayStatus', error); return { success: false, reason: error.message }; }
+  return { success: true, status };
+};
+
 // Cərimələri mövcud davamiyyətdən sıfırdan yenidən hesabla.
-// İcazəli günlər (izin / gec gəliş icazəsi) çıxarılır; ayda 3+ gecikmə → 30 AZN.
+// İcazəli günlər (izin / gec gəliş icazəsi) çıxarılır; güzəşt sayından sonrakı
+// gecikmələr cərimələnir. Məbləğ və güzəşt DISCIPLINE_CONFIG-dən gəlir —
+// dərəcə dəyişdirilibsə mövcud cərimələrin məbləği də bu əməliyyatla düzəlir.
 // Hələ mövcud cərimələrin paid/waived statusu qorunur; aradan qalxanlar silinir.
 API.recalcAllFines = async () => {
+  const disc  = U.getDisciplineConfig();
+  const first = disc.fineAfterLates + 1;   // neçənci gecikmədən cərimə başlayır
   const { data: emps } = await db().from('employees').select('id,name,dept,is_test');
   let added = 0, removed = 0, kept = 0;
   for (const emp of emps || []) {
@@ -883,11 +923,11 @@ API.recalcAllFines = async () => {
       const ym  = ds.slice(0, 7);
       const arr = a.d.getHours() * 60 + a.d.getMinutes();
       if (izin.some(r => ds >= r.start_date && ds <= r.end_date)) continue;        // tam gün izin
-      if (ds in permMap && arr <= permMap[ds] + 5) continue;                         // icazə vaxtından tez
+      if (ds in permMap && arr <= permMap[ds] + disc.permGraceMins) continue;         // icazə vaxtından tez
       const lim = U.getLateLimit(emp.dept, a.shift, arr);
       if (arr <= lim) continue;                                                       // vaxtında
       monthCount[ym] = (monthCount[ym] || 0) + 1;
-      if (monthCount[ym] >= 3) expected[ds] = { late_num: monthCount[ym], late_mins: arr - lim };
+      if (monthCount[ym] >= first) expected[ds] = { late_num: monthCount[ym], late_mins: arr - lim };
     }
 
     const existing = fines.data || [];
@@ -900,6 +940,7 @@ API.recalcAllFines = async () => {
       } else {
         const ex = expected[f.date_str];
         await db().from('fines').update({ late_num: ex.late_num, late_mins: ex.late_mins,
+          amount: disc.fineAmount,
           reason: `Bu ay ${ex.late_num}-ci gecikmə (${ex.late_mins} dəq)` }).eq('fine_id', f.fine_id);
         kept++;
       }
@@ -911,7 +952,7 @@ API.recalcAllFines = async () => {
       await db().from('fines').insert({
         fine_id: 'FN-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substring(2, 8).toUpperCase(),
         emp_id: empId, emp_name: emp.name, dept: emp.dept, date_str: ds,
-        amount: 30, late_num: ex.late_num, late_mins: ex.late_mins,
+        amount: disc.fineAmount, late_num: ex.late_num, late_mins: ex.late_mins,
         reason: `Bu ay ${ex.late_num}-ci gecikmə (${ex.late_mins} dəq)`, status: 'unpaid',
       });
       added++;
@@ -983,7 +1024,7 @@ API.updateEmployeeDept = async (id, dept) => {
     await db().from('employees').update({ streak: newStreak }).eq('id', id);
   } catch (e) { console.error('[updateEmployeeDept] streak:', e.message); }
 
-  await U.sendTelegramMsg(`<b>${emp.name}</b> filialı dəyişdi: ${emp.dept} → <b>${dept}</b>`, dept);
+  await U.sendTgTemplate('deptChange', { ad: emp.name, kohne: emp.dept, yeni: dept }, dept);
   return { success: true, from: emp.dept, to: dept, movedSchedule: count || 0, streak: newStreak };
 };
 
@@ -1078,7 +1119,7 @@ API.checkScanDevice = async (deviceId) => {
   // Cihaz artıq bu müştəriyə bağlıdır → bundan sonra öz device_id-si ilə
   // müştərini özü tanıda bilər (`?t=` göstəricisi bir daha lazım deyil).
   T.cacheDevice(deviceId, T.tenantId());
-  await U.sendTelegramMsg(`<b>${T.brand().name}</b>\n\n📱 <b>Yeni Scan Cihazı qeydə alındı</b>\n\n🔑 <code>${deviceId}</code>`, null);
+  await U.sendTgTemplate('newDevice', { brend: T.brand().name, cihaz: deviceId }, null);
   return { allowed: false, pending: true, reason: 'Cihazınız qeydə alındı. Admin təsdiqini gözləyin.' };
 };
 
@@ -1521,10 +1562,11 @@ API.updateIzinStatus = async (izinId, status) => {
   if (!error && izin) {
     const emoji   = status === 'approved' ? '✅' : status === 'rejected' ? '❌' : '🔄';
     const statusAz = status === 'approved' ? 'təsdiqləndi' : status === 'rejected' ? 'rədd edildi' : 'yeniləndi';
-    await sendPushToEmployee(
+    const p = U.fillPush('izinDecision', { emoji, bas: izin.start_date, son: izin.end_date, status: statusAz });
+    if (p) await sendPushToEmployee(
       izin.emp_id,
-      `${emoji} İzin Tələbi`,
-      `${izin.start_date} – ${izin.end_date} tarixlərə müraciətiniz ${statusAz}.`,
+      p.title,
+      p.body,
       { tag: 'izin-' + izinId }
     );
   }
@@ -1685,6 +1727,171 @@ API.saveSalaryConfig = async (cfg) => {
 API.resetSalaryConfig = async () => {
   await U.setSetting('SALARY_CONFIG', '');
   return { success: true, config: U.getSalaryConfig() };
+};
+
+// ══════════════════════════════════════════════════════════════════
+//  İNTİZAM / XP / TELEGRAM KONFİQURASİYALARI
+// ══════════════════════════════════════════════════════════════════
+//  Bunlar əvvəl kodda sabit rəqəm və sabit mətn idi (30 AZN, 3-cü gecikmə,
+//  45/21 dəq, "<b>{ad}</b> smendə." …). İndi hər müştəri paneldən dəyişir.
+//  Yazma yolu QƏSDƏN sərtdir: dəyər aralıqdan kənardırsa səssizcə ilkin
+//  dəyərə qayıdır — pozulmuş konfiqurasiya davamiyyət yazılmasını dayandırmasın.
+
+API.getDisciplineConfig = async () => ({
+  config:   U.getDisciplineConfig(),
+  defaults: U.DEFAULT_DISCIPLINE,
+});
+
+API.saveDisciplineConfig = async (cfg) => {
+  if (!cfg || typeof cfg !== 'object') return { success: false, reason: 'Yanlış format.' };
+  // Validasiya/normallaşdırma getDisciplineConfig-in içindədir — JSON-u yazıb
+  // geri oxuyuruq ki, panel məhz saxlanılan (təmizlənmiş) dəyəri görsün.
+  await U.setSetting('DISCIPLINE_CONFIG', JSON.stringify(cfg));
+  return { success: true, config: U.getDisciplineConfig() };
+};
+
+API.resetDisciplineConfig = async () => {
+  await U.setSetting('DISCIPLINE_CONFIG', '');
+  return { success: true, config: U.getDisciplineConfig() };
+};
+
+API.getXPConfig = async () => ({
+  config:   U.getXPConfig(),
+  defaults: U.DEFAULT_XP,
+});
+
+API.saveXPConfig = async (cfg) => {
+  if (!cfg || typeof cfg !== 'object') return { success: false, reason: 'Yanlış format.' };
+  await U.setSetting('XP_CONFIG', JSON.stringify(cfg));
+  return { success: true, config: U.getXPConfig() };
+};
+
+API.resetXPConfig = async () => {
+  await U.setSetting('XP_CONFIG', '');
+  return { success: true, config: U.getXPConfig() };
+};
+
+// Telegram mesaj şablonları. Hər açar üçün hansı yer tutucuların işlədiyi də
+// qaytarılır ki, panel istifadəçiyə göstərə bilsin (yaddan çıxan `{ad}` axtarılmasın).
+const TG_TPL_META = {
+  arrive:     { ad: 'Gəliş',                 vars: ['ad', 'saat', 'qeyd'] },
+  onTime:     { ad: 'Vaxtında qeydi',        vars: [] },
+  late1:      { ad: 'Gecikmə — 1-ci',        vars: ['deq', 'say'] },
+  late2:      { ad: 'Gecikmə — xəbərdarlıq', vars: ['deq', 'say'] },
+  lateFine:   { ad: 'Gecikmə — cərimə',      vars: ['deq', 'say', 'mebleg'] },
+  leave:      { ad: 'Smendən çıxış',         vars: ['ad', 'saat', 'ferq'] },
+  lunchGo:    { ad: 'Nahara getdi',          vars: ['ad', 'saat'] },
+  lunchBack:  { ad: 'Nahardan qayıtdı',      vars: ['ad', 'saat', 'deq'] },
+  mgrIn:      { ad: 'Menecer işdə',          vars: ['saat'] },
+  mgrOut:     { ad: 'Menecer çıxdı',         vars: ['saat', 'ferq'] },
+  deptChange: { ad: 'Filial dəyişdi',        vars: ['ad', 'kohne', 'yeni'] },
+  newDevice:  { ad: 'Yeni scan cihazı',      vars: ['brend', 'cihaz'] },
+  nightClose: { ad: 'Gecəlik bağlama',       vars: ['say'] },
+  emergency:  { ad: 'Təcili bildiriş',       vars: ['ad', 'filial', 'mesaj'] },
+};
+
+API.getTgTemplates = async () => ({
+  config:   U.getTgTemplates(),
+  defaults: U.DEFAULT_TG,
+  meta:     TG_TPL_META,
+  keys:     U.TG_KEYS,
+});
+
+API.saveTgTemplates = async (cfg) => {
+  if (!cfg || typeof cfg !== 'object') return { success: false, reason: 'Yanlış format.' };
+  const clean = {};
+  for (const k of U.TG_KEYS) {
+    if (typeof cfg[k] !== 'string') continue;
+    // Telegram mesaj limiti 4096-dır; şablon + doldurulmuş dəyərlər üçün ehtiyat saxlanır.
+    clean[k] = cfg[k].slice(0, 2000);
+  }
+  await U.setSetting('TG_TEMPLATES', JSON.stringify(clean));
+  return { success: true, config: U.getTgTemplates() };
+};
+
+API.resetTgTemplates = async () => {
+  await U.setSetting('TG_TEMPLATES', '');
+  return { success: true, config: U.getTgTemplates() };
+};
+
+// Push (telefon) bildiriş şablonları — Telegram-dan fərqi: başlıq və mətn ayrıdır.
+const PUSH_TPL_META = {
+  izinDecision:     { ad: 'İzin qərarı (işçiyə)',        vars: ['emoji', 'bas', 'son', 'status'] },
+  latePermRequest:  { ad: 'Gec gəliş tələbi (menecerə)', vars: ['ad', 'tarix', 'saat'] },
+  latePermDecision: { ad: 'Gec gəliş qərarı (işçiyə)',   vars: ['emoji', 'tarix', 'saat', 'status'] },
+  avansRequest:     { ad: 'Avans tələbi (menecerə)',     vars: ['ad', 'mebleg', 'qeyd'] },
+  avansDecision:    { ad: 'Avans qərarı (işçiyə)',       vars: ['emoji', 'mebleg', 'status'] },
+  mgrFine:          { ad: 'Cərimə bildirişi (işçiyə)',   vars: ['mebleg', 'sebeb'] },
+  fineAck:          { ad: 'Cərimə imzalandı (menecerə)', vars: ['ad', 'mebleg'] },
+  lunchLate:        { ad: 'Nahar gecikməsi (menecerə)',  vars: ['ad', 'deq', 'limit'] },
+  execGlobal:       { ad: 'İcraçının ümumi mesajı',      vars: ['icraci', 'mesaj'] },
+  execMsg:          { ad: 'İcraçının filial mesajı',     vars: ['icraci', 'mesaj'] },
+  execAck:          { ad: 'Menecer təsdiqi (icraçıya)',  vars: ['filial', 'nov', 'saat'] },
+  announce:         { ad: 'Elan (hamıya)',               vars: ['emoji', 'basliq', 'metn'] },
+  examDone:         { ad: 'İmtahan bitdi (trainerə)',    vars: ['metn'] },
+};
+
+API.getPushTemplates = async () => ({
+  config:   U.getPushTemplates(),
+  defaults: U.DEFAULT_PUSH,
+  meta:     PUSH_TPL_META,
+  keys:     U.PUSH_KEYS,
+});
+
+API.savePushTemplates = async (cfg) => {
+  if (!cfg || typeof cfg !== 'object') return { success: false, reason: 'Yanlış format.' };
+  const clean = {};
+  for (const k of U.PUSH_KEYS) {
+    const v = cfg[k];
+    if (!v || typeof v !== 'object') continue;
+    clean[k] = {
+      // Push başlığı telefonda onsuz da kəsilir; həddlər səxavətli saxlanılıb.
+      title: typeof v.title === 'string' ? v.title.slice(0, 200)  : undefined,
+      body:  typeof v.body  === 'string' ? v.body.slice(0, 1000) : undefined,
+    };
+  }
+  await U.setSetting('PUSH_TEMPLATES', JSON.stringify(clean));
+  return { success: true, config: U.getPushTemplates() };
+};
+
+API.resetPushTemplates = async () => {
+  await U.setSetting('PUSH_TEMPLATES', '');
+  return { success: true, config: U.getPushTemplates() };
+};
+
+// Şablonu göndərmədən əvvəl yoxlamaq üçün: doldurulmuş nümunə mətn.
+// Bütün şablon növləri üçün ortaq nümunə dəyərlər.
+// Bir filialın/işçinin adı uydurma deyil, real siyahıdan götürülür ki,
+// önizləmə həqiqi mesajın uzunluğunu göstərsin.
+function tplSample() {
+  const filial = (U.DEPTS && U.DEPTS[0]) || 'Filial';
+  return {
+    ad: 'Rəşad Məmmədov', saat: '08:04', qeyd: ' — Vaxtında', ferq: '+15 dəq',
+    deq: 27, say: 3, limit: U.getDisciplineConfig().lunchMaxMins,
+    mebleg: U.getDisciplineConfig().fineAmount,
+    kohne: filial, yeni: (U.DEPTS && U.DEPTS[1]) || 'Filial 2',
+    brend: T.brand().name, cihaz: 'SD-4821',
+    filial, mesaj: 'Kassada problem var.',
+    emoji: '✅', status: 'təsdiqləndi', bas: '2026-08-24', son: '2026-08-26',
+    tarix: '2026-08-21', sebeb: 'Forma geyinməyib', nov: 'ümumi mesajı',
+    icraci: U.getSetting('EXEC_NAME') || 'İcraçı',
+    basliq: 'Yeni Elan', metn: 'Bazar ertəsi ümumi yığıncaq var.',
+  };
+}
+
+API.previewTgTemplate = async (key, text) => {
+  if (!U.TG_KEYS.includes(key)) return { success: false, reason: 'Belə şablon yoxdur.' };
+  return { success: true, text: U.fillTemplate(String(text || ''), tplSample()) };
+};
+
+API.previewPushTemplate = async (key, title, body) => {
+  if (!U.PUSH_KEYS.includes(key)) return { success: false, reason: 'Belə şablon yoxdur.' };
+  const s = tplSample();
+  return {
+    success: true,
+    title: U.fillTemplate(String(title || ''), s),
+    text:  U.fillTemplate(String(body  || ''), s),
+  };
 };
 
 // Avans hansı aya aiddir? — TƏSDİQ/ÖDƏNİŞ günü (`decided_ymd`), o yoxdursa tələb günü.
@@ -1997,6 +2204,7 @@ API.validateAndLog = async (enteredPin, clientIp, forceMode) => {
   const shiftInfo = todayShift ? U.getShiftInfo(matched.dept, todayShift) : null;
 
   if (todayLogs.length === 0) {
+    const disc = U.getDisciplineConfig();
     const nowMins = ts.getHours() * 60 + ts.getMinutes() +
       (ts.getHours() < 3 && shiftInfo && shiftInfo.startH >= 12 ? 24 * 60 : 0);
     let late = shiftInfo
@@ -2006,11 +2214,10 @@ API.validateAndLog = async (enteredPin, clientIp, forceMode) => {
       const perm = await U.getApprovedLatePerm(matched.id, todayYMD);
       if (perm) {
         const [ph, pm] = perm.requestedTime.split(':').map(Number);
-        if ((ts.getHours() * 60 + ts.getMinutes()) <= ph * 60 + pm + 5) late = false;
+        if ((ts.getHours() * 60 + ts.getMinutes()) <= ph * 60 + pm + disc.permGraceMins) late = false;
       }
     }
-    const lateStr = late ? 'Gecikib' : 'Vaxtında';
-    let lateWarning = late ? '' : ` — ${lateStr}`;
+    let lateWarning = late ? '' : U.getTgTemplates().onTime;
     await db().from('attendance').insert({
       emp_id: matched.id, emp_name: matched.name, dept: matched.dept,
       timestamp: ts.toISOString(), type: 'GƏLİŞ', overtime: '', shift_type: todayShift || '',
@@ -2019,9 +2226,11 @@ API.validateAndLog = async (enteredPin, clientIp, forceMode) => {
       const newStreak = await U.calcStreak(matched.id, matched.dept);
       await db().from('employees').update({ streak: newStreak }).eq('id', matched.id);
       if (!late) {
-        await awardXP(matched.id, 20, newStreak);
-        // Milestone bonusları (Variant 1)
-        const MS_BONUSES = { 7:50, 14:100, 30:250, 60:500, 100:1000 };
+        // Gəliş XP-si və milestone bonusları XP_CONFIG-dədir (əvvəl burada hardcode idi).
+        // recalcAllXP eyni mənbədən oxuyur → panel və yenidən hesablama uyğun qalır.
+        const xpCfg = U.getXPConfig();
+        await awardXP(matched.id, xpCfg.arrivalXP, newStreak);
+        const MS_BONUSES = xpCfg.milestones;
         if (MS_BONUSES[newStreak]) {
           const claimed = matched.milestones_claimed || [];
           if (!claimed.includes(newStreak)) {
@@ -2032,12 +2241,10 @@ API.validateAndLog = async (enteredPin, clientIp, forceMode) => {
           }
         }
       } else {
-        // Gecikmə cəzası — streak qalxanı
+        // Gecikmə cəzası — pillələr və streak qalxanı DISCIPLINE_CONFIG-dədir
         const lateThreshold = U.getLateLimit(matched.dept, todayShift, ts.getHours() * 60 + ts.getMinutes());
         const lateMins = nowMins - lateThreshold;
-        let penalty = lateMins >= 45 ? 50 : lateMins >= 21 ? 30 : 15;
-        if (matched.streak >= 60) penalty = Math.round(penalty * 0.25);
-        else if (matched.streak >= 30) penalty = Math.round(penalty * 0.5);
+        const penalty  = U.latePenaltyXP(lateMins, matched.streak, disc);
         const { data: empXP } = await db().from('employees').select('xp').eq('id', matched.id).single();
         const current = empXP?.xp || 0;
         await db().from('employees').update({ xp: Math.max(0, current - penalty) }).eq('id', matched.id);
@@ -2063,31 +2270,34 @@ API.validateAndLog = async (enteredPin, clientIp, forceMode) => {
           const tot = d.getHours() * 60 + d.getMinutes();
           // Tam gün izin → cərimə sayılmır
           if ((monthIzin || []).some(r => ds >= r.start_date && ds <= r.end_date)) continue;
-          // Gec gəliş icazəsi: icazə vaxtından (+5 dəq) tez gəlibsə → cərimə sayılmır
-          if (ds in finePermMap && tot <= finePermMap[ds] + 5) continue;
+          // Gec gəliş icazəsi: icazə vaxtından (+güzəşt) tez gəlibsə → cərimə sayılmır
+          if (ds in finePermMap && tot <= finePermMap[ds] + disc.permGraceMins) continue;
           const lim = U.getLateLimit(matched.dept, log.shift_type, tot);
           if (tot > lim) prevLateCount++;
         }
         const thisLateNum = prevLateCount + 1;
-        const isFined     = prevLateCount >= 2;   // 3-cü və sonrakı gecikmə → 30 AZN
-        lateWarning = prevLateCount === 0
-          ? `\n Bu ay <b>1-ci gecikmə</b> — ${lateMins} dəq. Xəbərdarlıq.`
-          : prevLateCount === 1
-            ? `\n Bu ay <b>2-ci gecikmə</b> — ${lateMins} dəq. Ciddi xəbərdarlıq!`
-            : `\n Bu ay <b>${thisLateNum}-ci gecikmə</b> — ${lateMins} dəq.\n <b>30 AZN cərimə</b> qeyd edildi.`;
+        // `fineAfterLates` qədər gecikmə güzəştdir; ondan sonrakılar cərimələnir
+        const isFined = prevLateCount >= disc.fineAfterLates;
+        // Mesaj CƏRİMƏ VƏZİYYƏTİNƏ görə seçilir, sabit "2-ci gecikmə"yə görə yox —
+        // güzəşt sayı dəyişdirilsə (məs. 4) xəbərdarlıq mərhələsi də onunla uzanır.
+        const tg = U.getTgTemplates();
+        lateWarning = U.fillTemplate(
+          isFined ? tg.lateFine : (prevLateCount === 0 ? tg.late1 : tg.late2),
+          { deq: lateMins, say: thisLateNum, mebleg: disc.fineAmount }
+        );
         // Cərimə DB-də saxlanılır (audit izi)
         if (isFined) {
           const { error: fineErr } = await db().from('fines').insert({
             fine_id:   'FN-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substring(2, 4).toUpperCase(),
             emp_id:    String(matched.id), emp_name: matched.name, dept: matched.dept,
-            date_str:  todayYMD, amount: 30, late_num: thisLateNum, late_mins: lateMins,
+            date_str:  todayYMD, amount: disc.fineAmount, late_num: thisLateNum, late_mins: lateMins,
             reason:    `Bu ay ${thisLateNum}-ci gecikmə (${lateMins} dəq)`, status: 'unpaid',
           });
           sbErr('insertFine', fineErr);
         }
       }
     }
-    await U.sendTelegramMsg(`<b>${matched.name}</b> smendə.\n${U.fmtTime(ts)}${lateWarning}`, matched.dept);
+    await U.sendTgTemplate('arrive', { ad: matched.name, saat: U.fmtTime(ts), qeyd: lateWarning }, matched.dept);
     return { valid: true, empName: matched.name, dept: matched.dept, type: 'GƏLİŞ', overtime: '' };
 
   } else if (todayLogs.length === 1) {
@@ -2112,7 +2322,7 @@ API.validateAndLog = async (enteredPin, clientIp, forceMode) => {
       timestamp: ts.toISOString(), type: 'CIXIS', overtime: overtimeStr, shift_type: todayShift || '',
     });
     // Nahara görə XP LƏĞV EDİLDİ — çıxışda nahar bonusu verilmir.
-    await U.sendTelegramMsg(`<b>${matched.name}</b> smendən çıxdı.\n${U.fmtTime(ts)} — ${overtimeStr}`, matched.dept);
+    await U.sendTgTemplate('leave', { ad: matched.name, saat: U.fmtTime(ts), ferq: overtimeStr }, matched.dept);
     return { valid: true, empName: matched.name, dept: matched.dept, type: 'CIXIS', overtime: overtimeStr };
   }
   return { valid: false, reason: 'Bu gün üçün artıq qeyd var' };
@@ -2298,10 +2508,14 @@ API.getDashboardData = async (secret) => {
     // Gecikmə xəbərdarlığının həddi. ƏVVƏL mycode.html-də filial adına görə
     // hardcode idi (`dept==='Ağ Şəhər' ? 16:05 : 15:05`). İndi filialın öz
     // konfiqurasiyasından gəlir — cavab serverdəki qayda ilə eyni olur.
-    lateLimits: {
-      morning: U.getLateLimit(emp.dept, 'sehersm', 0) + 5,
-      evening: U.getLateLimit(emp.dept, 'axsamsm', 14 * 60) + 5,
-    },
+    lateLimits: (function () {
+      // Xəbərdarlıq payı: kartda "gecikmisən" yazısı hədddən bu qədər sonra çıxır.
+      const buf = U.getDisciplineConfig().lateWarnBuffer;
+      return {
+        morning: U.getLateLimit(emp.dept, 'sehersm', 0) + buf,
+        evening: U.getLateLimit(emp.dept, 'axsamsm', 14 * 60) + buf,
+      };
+    })(),
   };
 };
 
@@ -2330,18 +2544,19 @@ API.logLunch = async (secret, clientIp, lunchType) => {
   if (lunchType === 'NAHAR_GET') {
     if (naharGet.length > 0) return { valid: false, reason: 'Artıq nahara çıxmısınız!' };
     await db().from('nahar').insert({ nahar_id: 'NH-' + Date.now().toString(36).toUpperCase(), emp_id: matched.id, emp_name: matched.name, dept: matched.dept, timestamp: ts.toISOString(), type: 'NAHAR_GET' });
-    await U.sendTelegramMsg(`<b>${matched.name}</b> naharda.\n${U.fmtTime(ts)}`, matched.dept);
+    await U.sendTgTemplate('lunchGo', { ad: matched.name, saat: U.fmtTime(ts) }, matched.dept);
     return { valid: true, empName: matched.name, dept: matched.dept, type: 'NAHAR_GET' };
   }
   if (naharGet.length === 0) return { valid: false, reason: 'Əvvəlcə nahara çıxış qeydə alınmalıdır!' };
   if (naharQay.length > 0)   return { valid: false, reason: 'Nahardan qayıdışınız artıq qeydə alınıb!' };
   const diffMin = Math.round((ts.getTime() - new Date(naharGet[0].timestamp).getTime()) / 60000);
   await db().from('nahar').insert({ nahar_id: 'NH-' + Date.now().toString(36).toUpperCase(), emp_id: matched.id, emp_name: matched.name, dept: matched.dept, timestamp: ts.toISOString(), type: 'NAHAR_QAY' });
-  const lateLunch = diffMin > LUNCH_MAX;
-  await U.sendTelegramMsg(`<b>${matched.name}</b> nahar bitdi.\n${U.fmtTime(ts)} — ${diffMin} dəq`, matched.dept);
+  const limit     = lunchMax();
+  const lateLunch = diffMin > limit;
+  await U.sendTgTemplate('lunchBack', { ad: matched.name, saat: U.fmtTime(ts), deq: diffMin }, matched.dept);
   if (lateLunch) {
-    await sendPushToManager(matched.dept, '⚠️ Nahar gecikməsi',
-      `${matched.name}: nahardan ${diffMin} dəq sonra qayıtdı (limit ${LUNCH_MAX} dəq).`,
+    const p = U.fillPush('lunchLate', { ad: matched.name, deq: diffMin, limit });
+    if (p) await sendPushToManager(matched.dept, p.title, p.body,
       { tag: 'lunch-late-' + matched.id });
   }
   // Nahar XP-si burada VERİLMİR — işçi nahar anında bal artımı görməsin.
@@ -2366,6 +2581,7 @@ API.getLunchLogForManager = async (branchKey) => {
     if (r.type === 'NAHAR_QAY') byEmp[k].qay = new Date(r.timestamp);
   }
   const now = Date.now();
+  const limit = lunchMax();
   const result = [];
   for (const k of Object.keys(byEmp)) {
     const e = byEmp[k];
@@ -2378,8 +2594,8 @@ API.getLunchLogForManager = async (branchKey) => {
       end:     e.qay ? U.fmtTime(e.qay) : '',
       durMin,
       ongoing: !e.qay,
-      late:    durMin > LUNCH_MAX,
-      limit:   LUNCH_MAX,
+      late:    durMin > limit,
+      limit,
     });
   }
   return result.sort((a, b) =>
@@ -2403,7 +2619,7 @@ API.logManagerCheckin = async (branchKey, type) => {
   if (type === 'GELIS') {
     if (todayLogs.some(r => r.type === 'GELIS' || r.type === 'GƏLİŞ')) return { valid: false, reason: 'Giriş artıq qeydə alınıb!' };
     await db().from('attendance').insert({ emp_id: MGR_ID, emp_name: mgrName, dept, timestamp: ts.toISOString(), type: 'GELIS', overtime: '', shift_type: '' });
-    await U.sendTelegramMsg(`<b>Manager</b> işdə.\n${U.fmtTime(ts)}`, dept);
+    await U.sendTgTemplate('mgrIn', { saat: U.fmtTime(ts) }, dept);
     return { valid: true, type: 'GELIS', time: U.fmtTime(ts) };
   }
   if (type === 'CIXIS') {
@@ -2414,7 +2630,7 @@ API.logManagerCheckin = async (branchKey, type) => {
     const dh = Math.floor(diffMs / 3600000), dm = Math.floor((diffMs % 3600000) / 60000);
     const dur = `${dh} saat ${dm} dəq`;
     await db().from('attendance').insert({ emp_id: MGR_ID, emp_name: mgrName, dept, timestamp: ts.toISOString(), type: 'CIXIS', overtime: dur, shift_type: '' });
-    await U.sendTelegramMsg(`<b>Manager</b> smendən çıxdı.\n${U.fmtTime(ts)} — ${dur}`, dept);
+    await U.sendTgTemplate('mgrOut', { saat: U.fmtTime(ts), ferq: dur }, dept);
     return { valid: true, type: 'CIXIS', time: U.fmtTime(ts), duration: dur };
   }
   return { valid: false, reason: 'Yanlış əməliyyat.' };
@@ -2493,7 +2709,8 @@ API.saveExecMessages = async (execKey, data) => {
     await U.setSetting('MGR_GLOBAL_MSG', data.globalMsg || '');
     if (data.globalMsg) {
       for (const dept of U.DEPTS) {
-        await sendPushToManager(dept, `📢 ${execName} — ümumi mesaj`, String(data.globalMsg).slice(0, 140),
+        const p = U.fillPush('execGlobal', { icraci: execName, mesaj: String(data.globalMsg).slice(0, 140) });
+        if (p) await sendPushToManager(dept, p.title, p.body,
           { tag: 'exec-global', url: '/manager?key=' + (keys[dept] || '') });
       }
     }
@@ -2510,7 +2727,8 @@ API.saveExecMessages = async (execKey, data) => {
   for (const b of T.branches()) {
     const msg = data.msgs?.[b.branch_id];
     if (!msg) continue;
-    await sendPushToManager(b.name, `📩 ${execName} — mesaj`, String(msg).slice(0, 140),
+    const p = U.fillPush('execMsg', { icraci: execName, mesaj: String(msg).slice(0, 140) });
+    if (p) await sendPushToManager(b.name, p.title, p.body,
       { tag: 'exec-msg-' + b.branch_id, url: '/manager?key=' + (keys[b.name] || '') });
   }
   return { success: true };
@@ -2709,8 +2927,8 @@ API.ackMgrMessage = async (branchKey, msgType) => {
   }
   // İcraçıya təsdiq bildirişi
   const typeAz = msgType === 'global' ? 'ümumi mesajı' : 'filial mesajını';
-  await sendPushToExec('✅ Mesaj təsdiqləndi',
-    `${check.dept} meneceri ${typeAz} təsdiqlədi (${ts}).`,
+  const pAck = U.fillPush('execAck', { filial: check.dept, nov: typeAz, saat: ts });
+  if (pAck) await sendPushToExec(pAck.title, pAck.body,
     { tag: 'exec-ack-' + check.dept + '-' + msgType, url: '/icraci?key=' + roleKey('exec') });
   return { success: true, time: ts };
 };
@@ -2866,10 +3084,11 @@ API.requestLatePerm = async (secret, dateStr, requestedTime) => {
   await db().from('late_perms').insert({ perm_id: permId, emp_id:emp.id, emp_name:emp.name, dept:emp.dept, date_str:dateStr, requested_time:requestedTime, status:'pending' });
 
   // Manager-ə push bildiriş
-  await sendPushToManager(
+  const pReq = U.fillPush('latePermRequest', { ad: emp.name, tarix: dateStr, saat: requestedTime });
+  if (pReq) await sendPushToManager(
     emp.dept,
-    '🕐 Gec Gəliş İcazəsi',
-    `${emp.name}: ${dateStr} — ${requestedTime}`,
+    pReq.title,
+    pReq.body,
     { tag: 'lateperm-req-' + permId, url: '/manager?key=' + (await U.getBranchScheduleKeys())[emp.dept] }
   );
   return { success:true, permId };
@@ -2954,10 +3173,11 @@ API.approveLatePerm = async (branchKey, permId, action) => {
   if (!error && perm) {
     const emoji   = action === 'approved' ? '✅' : '❌';
     const statusAz = action === 'approved' ? 'təsdiqləndi' : 'rədd edildi';
-    await sendPushToEmployee(
+    const p = U.fillPush('latePermDecision', { emoji, tarix: perm.date_str, saat: perm.requested_time, status: statusAz });
+    if (p) await sendPushToEmployee(
       perm.emp_id,
-      `${emoji} Gec Gəliş İcazəsi`,
-      `${perm.date_str} tarixi üçün ${perm.requested_time} icazəniz ${statusAz}.`,
+      p.title,
+      p.body,
       { tag: 'lateperm-' + permId }
     );
   }
@@ -2983,7 +3203,9 @@ API.getMyLatePerms = async (secret) => {
 API.requestAvans = async (secret, amount, note) => {
   if (!secret) return { success: false, reason: 'İcazəsiz giriş.' };
   const amt = parseFloat(amount);
-  if (!amt || amt <= 0 || amt > 1000) return { success: false, reason: 'Məbləğ 1–1000 AZN aralığında olmalıdır.' };
+  const avansMax = U.getDisciplineConfig().avansMax;
+  if (!amt || amt <= 0 || amt > avansMax)
+    return { success: false, reason: `Məbləğ 1–${avansMax} AZN aralığında olmalıdır.` };
 
   const { data: emp } = await db().from('employees').select('id,name,dept').eq('secret', secret).single();
   if (!emp) return { success: false, reason: 'İşçi tapılmadı.' };
@@ -3010,10 +3232,11 @@ API.requestAvans = async (secret, amount, note) => {
   if (error) { sbErr('requestAvans', error); return { success: false, reason: 'Xəta baş verdi.' }; }
 
   // Telegram YOX — manager-ə push bildiriş
-  await sendPushToManager(
+  const pAv = U.fillPush('avansRequest', { ad: emp.name, mebleg: amt, qeyd: note ? ` — ${note}` : '' });
+  if (pAv) await sendPushToManager(
     emp.dept,
-    '💵 Yeni Avans Tələbi',
-    `${emp.name}: ${amt} AZN` + (note ? ` — ${note}` : ''),
+    pAv.title,
+    pAv.body,
     { tag: 'avans-req-' + id, url: '/manager?key=' + (await U.getBranchScheduleKeys())[emp.dept] }
   );
   return { success: true };
@@ -3169,10 +3392,11 @@ API.updateAvansStatus = async (avansId, status) => {
       paid:     { emoji: '💵', az: 'ödənildi'     },
     };
     const { emoji, az } = map[status] || { emoji: '🔄', az: 'yeniləndi' };
-    await sendPushToEmployee(
+    const p = U.fillPush('avansDecision', { emoji, mebleg: av.amount, status: az });
+    if (p) await sendPushToEmployee(
       av.emp_id,
-      `${emoji} Avans Tələbi`,
-      `${av.amount} AZN avans tələbiniz ${az}.`,
+      p.title,
+      p.body,
       { tag: 'avans-' + avansId }
     );
   }
@@ -3185,8 +3409,9 @@ API.addMgrFine = async (branchKey, empId, amount, reason) => {
   const check = U.validateBranchScheduleKey(branchKey);
   if (!check.valid) return { success: false, reason: 'İcazəsiz.' };
   const amt = parseFloat(amount);
-  if (!empId || isNaN(amt) || amt <= 0 || amt > 1000)
-    return { success: false, reason: 'Məbləğ 1–1000 AZN aralığında olmalıdır.' };
+  const fineMax = U.getDisciplineConfig().mgrFineMax;
+  if (!empId || isNaN(amt) || amt <= 0 || amt > fineMax)
+    return { success: false, reason: `Məbləğ 1–${fineMax} AZN aralığında olmalıdır.` };
   if (!reason || !reason.trim()) return { success: false, reason: 'Səbəb yazılmalıdır.' };
   const { data: emp } = await db().from('employees').select('id,name,dept').eq('id', String(empId)).single();
   if (!emp) return { success: false, reason: 'İşçi tapılmadı.' };
@@ -3198,9 +3423,9 @@ API.addMgrFine = async (branchKey, empId, amount, reason) => {
     amount: amt, reason: reason.trim().slice(0, 300), status: 'pending', created_by: mgrName,
   });
   if (error) { sbErr('addMgrFine', error); return { success: false, reason: 'Xəta baş verdi.' }; }
-  await sendPushToEmployee(
-    emp.id, '⚠️ Cərimə Bildirişi',
-    `${amt} AZN — ${reason.trim().slice(0, 80)}. Təsdiqləmək üçün kartınıza daxil olun.`,
+  const pFine = U.fillPush('mgrFine', { mebleg: amt, sebeb: reason.trim().slice(0, 80) });
+  if (pFine) await sendPushToEmployee(
+    emp.id, pFine.title, pFine.body,
     { tag: 'mgrfine-' + id, requireInteraction: true }
   );
   return { success: true, fineId: id };
@@ -3273,8 +3498,8 @@ API.acknowledgeFine = async (secret, fineId) => {
     const { error } = await db().from('mgr_fines').update({ status: 'acknowledged', acked_at: now }).eq('fine_id', fineId);
     if (error) { sbErr('acknowledgeFine(mgr)', error); return { success: false, reason: 'Xəta baş verdi.' }; }
   }
-  await sendPushToManager(emp.dept, '✍️ Cərimə Təsdiqləndi',
-    `${emp.name}: ${fine.amount} AZN cəriməsini təsdiqlədi (imzaladı).`, { tag: 'fine-ack-' + fineId });
+  const pAcked = U.fillPush('fineAck', { ad: emp.name, mebleg: fine.amount });
+  if (pAcked) await sendPushToManager(emp.dept, pAcked.title, pAcked.body, { tag: 'fine-ack-' + fineId });
   return { success: true };
 };
 
@@ -3299,9 +3524,11 @@ API.saveAnnouncement = async (data) => {
   // Yeni elan — bütün işçilərə push göndər
   const typeEmoji = { info:'ℹ️', success:'✅', warning:'⚠️', new:'🆕' };
   const emoji = typeEmoji[data.type] || '📢';
+  const pAnn = U.fillPush('announce', { emoji, basliq: data.title || 'Yeni Elan', metn: data.body ? data.body.slice(0, 100) : '' })
+             || { title: '', body: '' };
   const pushRes = await sendPushToAll(
-    `${emoji} ${data.title || 'Yeni Elan'}`,
-    data.body ? data.body.slice(0, 100) : '',
+    pAnn.title,
+    pAnn.body,
     { tag: 'announce-' + newId }
   );
   console.log(`[Announce] yeni elan "${data.title}" əlavə olundu — push ${pushRes.sent}/${pushRes.total}`);
@@ -3451,8 +3678,8 @@ API.sendEmergency = async (secret, message) => {
   if (!secret || !message?.trim()) return { success: false, reason: 'Məlumatlar natamamdır.' };
   const { data: emp } = await db().from('employees').select('id,name,dept').eq('secret', secret).single();
   if (!emp) return { success: false, reason: 'İşçi tapılmadı.' };
-  const text = `🚨 <b>TƏCİLİ BİLDİRİŞ</b>\n\n👤 <b>${emp.name}</b> (${emp.dept})\n\n💬 ${message.trim()}`;
-  await U.sendTelegramMsg(text, emp.dept);
+  await U.sendTgTemplate('emergency',
+    { ad: emp.name, filial: emp.dept, mesaj: message.trim() }, emp.dept);
   return { success: true };
 };
 
@@ -3961,8 +4188,8 @@ API.giveManualXP = async (trainerKey, empId, amount) => {
 API.rateEmployee = async (trainerKey, empId, stars) => {
   if (!roleKey('trainer') || roleKey('trainer') !== trainerKey)
     return { success: false, reason: 'İcazəsiz.' };
-  const XP_MAP = { 3: 15, 4: 30, 5: 50 };
-  const xp = XP_MAP[parseInt(stars)];
+  // Ulduz → XP xəritəsi XP_CONFIG-dədir (əvvəl burada hardcode idi)
+  const xp = U.getXPConfig().ratingXP[parseInt(stars)];
   if (!empId || !xp) return { success: false, reason: 'Yanlış məlumat.' };
   const { data: emp } = await db().from('employees').select('name,dept,is_test').eq('id', String(empId)).single();
   if (!emp || emp.is_test) return { success: false, reason: 'İşçi tapılmadı.' };
@@ -4001,7 +4228,7 @@ API.gradeOpenAnswer = async (trainerKey, examId, questionId, passed) => {
   sbErr('gradeOpenAnswer', error);
   if (!error && passed) {
     const { data: empRow } = await db().from('employees').select('streak,is_test').eq('id', String(exam.emp_id)).single();
-    if (empRow && !empRow.is_test) await awardXP(exam.emp_id, 15, empRow.streak || 0);
+    if (empRow && !empRow.is_test) await awardXP(exam.emp_id, U.getXPConfig().openAnswerXP, empRow.streak || 0);
   }
   return { success: !error, score, answers };
 };
@@ -4196,7 +4423,7 @@ API.submitEmployeeExam = async (empId, empName, dept, role, answers) => {
   sbErr('submitEmployeeExam', error);
   if (!error && testTotal > 0) {
     const pct = Math.round(score / testTotal * 100);
-    const xpBase = pct >= 90 ? 100 : pct >= 80 ? 75 : pct >= 60 ? 50 : 0;
+    const xpBase = U.examXP(pct);
     if (xpBase > 0) {
       const { data: empRow } = await db().from('employees').select('streak,is_test').eq('id', String(empId)).single();
       if (empRow && !empRow.is_test) await awardXP(empId, xpBase, empRow.streak || 0);
@@ -4208,7 +4435,8 @@ API.submitEmployeeExam = async (empId, empName, dept, role, answers) => {
     const parts = [`${empName} (${dept}) imtahanı bitirdi.`];
     if (testTotal > 0)   parts.push(`Test: ${score}/${testTotal} düz.`);
     if (openCount > 0)   parts.push(`${openCount} açıq sual qiymət gözləyir.`);
-    await sendPushToTrainer('📝 İmtahan tamamlandı', parts.join(' '), {
+    const pExam = U.fillPush('examDone', { metn: parts.join(' ') });
+    if (pExam) await sendPushToTrainer(pExam.title, pExam.body, {
       tag: 'exam-' + examId,
       url: '/trainer?key=' + (roleKey('trainer') || ''),
     });

@@ -20,14 +20,20 @@ function fmtTime(d) {
   return String(d.getHours()).padStart(2, '0') + ':' +
     String(d.getMinutes()).padStart(2, '0');
 }
+// "Məntiqi gün" — gecə smenləri gecə yarısını keçdiyi üçün gün 00:00-da yox,
+// müştərinin təyin etdiyi saatda kəsilir (defolt 03:00, DISCIPLINE_CONFIG).
+// discRef() işlədilir, getDisciplineConfig() YOX: bu funksiyalar hesabatlarda
+// minlərlə dəfə çağırılır, hər çağırışda dərin kopya qəbuledilməzdir.
+function dayCutoff() { return discRef().dayCutoffHour; }
+
 function getLogicalYMD(dateObj) {
   const d = new Date(dateObj.getTime());
-  if (d.getHours() < 3) d.setDate(d.getDate() - 1);
+  if (d.getHours() < dayCutoff()) d.setDate(d.getDate() - 1);
   return toYMD(d);
 }
 function getLogicalDateStr(dateObj) {
   const d = new Date(dateObj.getTime());
-  if (d.getHours() < 3) d.setDate(d.getDate() - 1);
+  if (d.getHours() < dayCutoff()) d.setDate(d.getDate() - 1);
   return d.toDateString();
 }
 
@@ -79,7 +85,7 @@ const SHIFT_NAMES = {
 const ALL_SHIFT_TYPES = SHIFT_TYPES.concat(['tamgun']);
 
 // Gəlişin "səhər" yoxsa "axşam" hissəsinə aid olduğunu ayıran sərhəd (cədvəlsiz günlər üçün).
-// Bu iş saatı deyil, daxili bölgü həddidir — ona görə konfiqurasiyaya çıxarılmayıb.
+// Yalnız İLKİN dəyərdir — müştəri onu DISCIPLINE_CONFIG.daypartBoundaryMin ilə dəyişir.
 const DAYPART_BOUNDARY_MIN = 13 * 60;
 
 // Müştərinin defolt smen şablonu: hazır şablon adı ('A'/'B') və ya tam JSON.
@@ -171,17 +177,18 @@ function getLateLimit(dept, shiftType, arrivalMins) {
   const si = shiftType ? getShiftInfo(dept, shiftType) : null;
   if (si) return si.lateH * 60 + si.lateM;
   const d = getShiftConfig()[dept] || defaultShiftConfig()[dept] || SHIFT_TABLE.B;
-  return (arrivalMins < DAYPART_BOUNDARY_MIN)
+  return (arrivalMins < discRef().daypartBoundaryMin)
     ? d.fbMorningH * 60 + d.fbMorningM
     : d.fbEveningH * 60 + d.fbEveningM;
 }
 
 function isLate(dept, dateObj) {
+  const cut = dayCutoff();
   const h = dateObj.getHours();
   let tot = h * 60 + dateObj.getMinutes();
-  if (h < 3) tot += 24 * 60;
-  // Gecə 03:00-dan əvvəlki gəliş "axşam" tərəfə aiddir (tot 24 saat əlavə edilib)
-  return tot > getLateLimit(dept, null, h < 3 ? DAYPART_BOUNDARY_MIN : tot);
+  if (h < cut) tot += 24 * 60;
+  // Gün sərhədindən əvvəlki gəliş "axşam" tərəfə aiddir (tot 24 saat əlavə edilib)
+  return tot > getLateLimit(dept, null, h < cut ? discRef().daypartBoundaryMin : tot);
 }
 
 // ── DB köməkçi sorğular ───────────────────────────────────────────
@@ -238,8 +245,9 @@ async function calcStreak(empId, dept) {
   function hasIzin(dateStr) {
     return (izinRows || []).some(r => dateStr >= r.start_date && dateStr <= r.end_date);
   }
+  const grace = getDisciplineConfig().permGraceMins;
   function withinPerm(dateStr, arrivalMins) {
-    return dateStr in permMap && arrivalMins <= permMap[dateStr] + 5;
+    return dateStr in permMap && arrivalMins <= permMap[dateStr] + grace;
   }
 
   let streak = 0;
@@ -251,7 +259,7 @@ async function calcStreak(empId, dept) {
 
     // Tam gün izin → streak davam edir
     if (hasIzin(dateStr)) { streak++; continue; }
-    // Gec gəliş icazəsi — yalnız icazə vaxtı + 5 dəq içindədirsə streak davam edir
+    // Gec gəliş icazəsi — yalnız icazə vaxtı + güzəşt (DISCIPLINE_CONFIG) içindədirsə streak davam edir
     if (withinPerm(dateStr, arrivalMins)) { streak++; continue; }
 
     // Əvvəlcə cədvəldəki smen, yoxdursa gəliş anında qeyd olunmuş smen (hesabatla uyğun olsun)
@@ -489,17 +497,320 @@ async function sendTelegramMsg(text, dept) {
   }
 }
 
-// ── XP mühərriki ──────────────────────────────────────────────────
-// XP çoxaldıcısı — streak nə qədər uzundursa, vaxtında gəlişin XP-si o qədər artır.
-function getXPMultiplier(streak) {
-  if (streak >= 60) return 2.0;
-  if (streak >= 30) return 1.75;
-  if (streak >= 14) return 1.5;
-  if (streak >= 7)  return 1.25;
-  return 1.0;
+// ── Telegram mesaj şablonları ─────────────────────────────────────
+// Əvvəl bu mətnlər server.js-də şablon sətri kimi hardcode idi. İndi hər müştəri
+// öz dilini/tonunu paneldən yazır. Şablonda `{ad}` kimi yer tutucular işlədilir.
+//
+// QAYDA: yer tutucu naməlum olsa OLDUĞU KİMİ qalır (silinmir) — belədə yazı
+// səhvi mesajı görünməz etmir, gözə çarpır və düzəldilir.
+const DEFAULT_TG = {
+  arrive:     '<b>{ad}</b> smendə.\n{saat}{qeyd}',
+  leave:      '<b>{ad}</b> smendən çıxdı.\n{saat} — {ferq}',
+  lunchGo:    '<b>{ad}</b> naharda.\n{saat}',
+  lunchBack:  '<b>{ad}</b> nahar bitdi.\n{saat} — {deq} dəq',
+  mgrIn:      '<b>Menecer</b> işdə.\n{saat}',
+  mgrOut:     '<b>Menecer</b> smendən çıxdı.\n{saat} — {ferq}',
+  // Gəliş mesajının sonuna qoşulan {qeyd} hissəsi
+  onTime:     ' — Vaxtında',
+  late1:      '\n Bu ay <b>1-ci gecikmə</b> — {deq} dəq. Xəbərdarlıq.',
+  late2:      '\n Bu ay <b>{say}-ci gecikmə</b> — {deq} dəq. Ciddi xəbərdarlıq!',
+  lateFine:   '\n Bu ay <b>{say}-ci gecikmə</b> — {deq} dəq.\n <b>{mebleg} AZN cərimə</b> qeyd edildi.',
+  deptChange: '<b>{ad}</b> filialı dəyişdi: {kohne} → <b>{yeni}</b>',
+  newDevice:  '<b>{brend}</b>\n\n📱 <b>Yeni Scan Cihazı qeydə alındı</b>\n\n🔑 <code>{cihaz}</code>',
+  nightClose: '🤖 <b>Gecəlik avtomatik bağlama</b>\n\n{say} açıq smen avtomatik olaraq bağlandı.',
+  emergency:  '🚨 <b>TƏCİLİ BİLDİRİŞ</b>\n\n👤 <b>{ad}</b> ({filial})\n\n💬 {mesaj}',
+};
+const TG_KEYS = Object.keys(DEFAULT_TG);
+
+const _tgCache = new Map();   // tenantId → { raw, cfg }
+function getTgTemplates() {
+  const raw = getSetting('TG_TEMPLATES');
+  if (!raw) return Object.assign({}, DEFAULT_TG);
+  const tid = T.tenantIdOrNull();
+  const hit = _tgCache.get(tid);
+  if (hit && hit.raw === raw) return Object.assign({}, hit.cfg);
+  try {
+    const p = JSON.parse(raw);
+    const cfg = Object.assign({}, DEFAULT_TG);
+    for (const k of TG_KEYS) {
+      // Boş sətir QƏSDƏN icazəlidir: müştəri həmin mesajı susdura bilər.
+      if (p && typeof p[k] === 'string') cfg[k] = p[k];
+    }
+    _tgCache.set(tid, { raw, cfg });
+    return Object.assign({}, cfg);
+  } catch (e) {
+    console.error('[TG_TEMPLATES] parse xətası — ilkin mətnlər işlədilir:', e.message);
+    return Object.assign({}, DEFAULT_TG);
+  }
 }
 
-const MS_BONUSES = { 7: 50, 14: 100, 30: 250, 60: 500, 100: 1000 };
+// Şablonu doldurur. Dəyər `undefined`/`null` olsa yer tutucu olduğu kimi qalır.
+function fillTemplate(tpl, vars) {
+  if (typeof tpl !== 'string' || !tpl) return '';
+  return tpl.replace(/\{(\w+)\}/g, (m, k) =>
+    (vars && vars[k] !== undefined && vars[k] !== null) ? String(vars[k]) : m);
+}
+
+// Şablon açarı ilə mesaj göndər — server.js-də hardcode sətir qalmasın deyə.
+async function sendTgTemplate(key, vars, dept) {
+  const text = fillTemplate(getTgTemplates()[key], vars);
+  if (!text.trim()) return;          // müştəri bu mesajı söndürüb
+  await sendTelegramMsg(text, dept);
+}
+
+// ── Push (telefon) bildiriş şablonları ────────────────────────────
+// Telegram şablonları ilə eyni məntiq, sadəcə hər bildirişin BAŞLIĞI və
+// MƏTNİ ayrıdır. Başlıq da, mətn də boşdursa bildiriş ümumiyyətlə göndərilmir.
+const DEFAULT_PUSH = {
+  izinDecision:     { title: '{emoji} İzin Tələbi',        body: '{bas} – {son} tarixlərə müraciətiniz {status}.' },
+  latePermRequest:  { title: '🕐 Gec Gəliş İcazəsi',       body: '{ad}: {tarix} — {saat}' },
+  latePermDecision: { title: '{emoji} Gec Gəliş İcazəsi',  body: '{tarix} tarixi üçün {saat} icazəniz {status}.' },
+  avansRequest:     { title: '💵 Yeni Avans Tələbi',       body: '{ad}: {mebleg} AZN{qeyd}' },
+  avansDecision:    { title: '{emoji} Avans Tələbi',       body: '{mebleg} AZN avans tələbiniz {status}.' },
+  mgrFine:          { title: '⚠️ Cərimə Bildirişi',        body: '{mebleg} AZN — {sebeb}. Təsdiqləmək üçün kartınıza daxil olun.' },
+  fineAck:          { title: '✍️ Cərimə Təsdiqləndi',      body: '{ad}: {mebleg} AZN cəriməsini təsdiqlədi (imzaladı).' },
+  lunchLate:        { title: '⚠️ Nahar gecikməsi',         body: '{ad}: nahardan {deq} dəq sonra qayıtdı (limit {limit} dəq).' },
+  execGlobal:       { title: '📢 {icraci} — ümumi mesaj',  body: '{mesaj}' },
+  execMsg:          { title: '📩 {icraci} — mesaj',        body: '{mesaj}' },
+  execAck:          { title: '✅ Mesaj təsdiqləndi',        body: '{filial} meneceri {nov} təsdiqlədi ({saat}).' },
+  announce:         { title: '{emoji} {basliq}',           body: '{metn}' },
+  examDone:         { title: '📝 İmtahan tamamlandı',      body: '{metn}' },
+};
+const PUSH_KEYS = Object.keys(DEFAULT_PUSH);
+
+const _pushCache = new Map();
+function getPushTemplates() {
+  const raw = getSetting('PUSH_TEMPLATES');
+  if (!raw) return JSON.parse(JSON.stringify(DEFAULT_PUSH));
+  const tid = T.tenantIdOrNull();
+  const hit = _pushCache.get(tid);
+  if (hit && hit.raw === raw) return JSON.parse(JSON.stringify(hit.cfg));
+  try {
+    const p   = JSON.parse(raw);
+    const cfg = JSON.parse(JSON.stringify(DEFAULT_PUSH));
+    for (const k of PUSH_KEYS) {
+      const v = p && p[k];
+      if (!v || typeof v !== 'object') continue;
+      if (typeof v.title === 'string') cfg[k].title = v.title;
+      if (typeof v.body  === 'string') cfg[k].body  = v.body;
+    }
+    _pushCache.set(tid, { raw, cfg });
+    return JSON.parse(JSON.stringify(cfg));
+  } catch (e) {
+    console.error('[PUSH_TEMPLATES] parse xətası — ilkin mətnlər işlədilir:', e.message);
+    return JSON.parse(JSON.stringify(DEFAULT_PUSH));
+  }
+}
+
+// Şablonu doldurur. Başlıq və mətn hər ikisi boşdursa `null` qaytarır —
+// çağıran tərəf bildirişi ÜMUMİYYƏTLƏ göndərmir (susdurma yolu).
+function fillPush(key, vars) {
+  const t = getPushTemplates()[key];
+  if (!t) return null;
+  const title = fillTemplate(t.title, vars);
+  const body  = fillTemplate(t.body,  vars);
+  if (!title.trim() && !body.trim()) return null;
+  return { title, body };
+}
+
+// ── İNTİZAM QAYDALARI (cərimə / gecikmə / nahar) ──────────────────
+// Bunlar əvvəl kodda sabit rəqəm idi (30 AZN, 3-cü gecikmə, 45/21 dəq…).
+// Hər müştəridə fərqlidir → paneldən idarə olunur (settings.DISCIPLINE_CONFIG).
+const DEFAULT_DISCIPLINE = {
+  fineAmount:     30,   // AZN — cərimə məbləği
+  fineAfterLates: 2,    // bu qədər gecikmədən SONRA cərimə başlayır (2 → 3-cü gecikmə)
+  permGraceMins:  5,    // gec gəliş icazəsi vaxtına verilən əlavə güzəşt
+  lunchMaxMins:   30,   // nahar limiti — bundan çox → menecerə bildiriş
+  lateWarnBuffer: 5,    // işçi kartında "gecikmisən" xəbərdarlığı bu qədər sonra çıxır
+  avansMax:       1000, // işçinin bir dəfəyə istəyə biləcəyi ən çox avans (AZN)
+  mgrFineMax:     1000, // menecerin yaza biləcəyi ən çox cərimə (AZN)
+  // ── Gün sərhədi ──
+  // Gecə smenləri gecə yarısını keçdiyi üçün "gün" saat 00:00-da yox, bu saatda kəsilir.
+  // 03:00-dan əvvəlki gəliş ƏVVƏLKİ günə yazılır. Gecə işləməyən müştəri 0 qoya bilər.
+  dayCutoffHour:  3,
+  // Cədvəldə smen yazılmayıbsa gəlişin səhər yoxsa axşam smeni olduğunu bu dəqiqə ayırır
+  // (13:00 — ondan əvvəl səhər, sonra axşam sayılır).
+  daypartBoundaryMin: 13 * 60,
+  // Gecikmə XP cəzası: SIRALAMA VACİBDİR — ilk uyğun gələn tətbiq olunur,
+  // ona görə siyahı `mins` üzrə azalan olmalıdır (validasiya bunu təmin edir).
+  latePenalty: [
+    { mins: 45, xp: 50 },
+    { mins: 21, xp: 30 },
+    { mins: 0,  xp: 15 },
+  ],
+  // Streak qalxanı: uzun streak-i olan işçinin cəzası azalır
+  streakShield: [
+    { streak: 60, mult: 0.25 },
+    { streak: 30, mult: 0.5  },
+  ],
+};
+
+const _discCache = new Map();
+function getDisciplineConfig() {
+  const raw = getSetting('DISCIPLINE_CONFIG');
+  if (!raw) return JSON.parse(JSON.stringify(DEFAULT_DISCIPLINE));
+  const tid = T.tenantIdOrNull();
+  const hit = _discCache.get(tid);
+  if (hit && hit.raw === raw) return JSON.parse(JSON.stringify(hit.cfg));
+  try {
+    const p    = JSON.parse(raw);
+    const base = JSON.parse(JSON.stringify(DEFAULT_DISCIPLINE));
+    const num = (v, fb, min, max) => {
+      const n = Number(v);
+      return (Number.isFinite(n) && n >= min && n <= max) ? n : fb;
+    };
+    const cfg = {
+      fineAmount:     num(p && p.fineAmount,     base.fineAmount,     0, 100000),
+      fineAfterLates: Math.round(num(p && p.fineAfterLates, base.fineAfterLates, 0, 31)),
+      permGraceMins:  Math.round(num(p && p.permGraceMins,  base.permGraceMins,  0, 180)),
+      lunchMaxMins:   Math.round(num(p && p.lunchMaxMins,   base.lunchMaxMins,   1, 480)),
+      lateWarnBuffer: Math.round(num(p && p.lateWarnBuffer, base.lateWarnBuffer, 0, 180)),
+      avansMax:       num(p && p.avansMax,   base.avansMax,   1, 1000000),
+      mgrFineMax:     num(p && p.mgrFineMax, base.mgrFineMax, 1, 1000000),
+      // 0–6 aralığı: gün sərhədini günortadan sonraya çəkmək məntiqsizdir və
+      // bütün streak/hesabat məntiqini pozardı, ona görə qəsdən dar saxlanılıb.
+      dayCutoffHour:  Math.round(num(p && p.dayCutoffHour, base.dayCutoffHour, 0, 6)),
+      daypartBoundaryMin: Math.round(num(p && p.daypartBoundaryMin, base.daypartBoundaryMin, 0, 1439)),
+      latePenalty:    sanitizeTiers(p && p.latePenalty,  base.latePenalty,  'mins',   0, 1440, 'xp',   0, 100000),
+      streakShield:   sanitizeTiers(p && p.streakShield, base.streakShield, 'streak', 1, 3650, 'mult', 0, 1),
+    };
+    _discCache.set(tid, { raw, cfg });
+    return JSON.parse(JSON.stringify(cfg));
+  } catch (e) {
+    console.error('[DISCIPLINE_CONFIG] parse xətası — ilkin dəyərlər işlədilir:', e.message);
+    return JSON.parse(JSON.stringify(DEFAULT_DISCIPLINE));
+  }
+}
+
+// UCUZ, KOPYALAMAYAN oxu — yalnız daxili istifadə üçün.
+//
+// NİYƏ: `getDisciplineConfig()` hər çağırışda dərin kopya qaytarır (keş
+// zəhərlənməsin deyə). `getLogicalYMD` isə bir hesabatda MİNLƏRLƏ dəfə
+// çağırılır — orada hər dəfə JSON.parse(JSON.stringify(...)) etmək olmaz.
+// Bu funksiya keşdəki obyektin ÖZÜNÜ qaytarır. Qaytarılan obyekti DƏYİŞMƏ.
+function discRef() {
+  const raw = getSetting('DISCIPLINE_CONFIG');
+  if (!raw) return DEFAULT_DISCIPLINE;
+  const tid = T.tenantIdOrNull();
+  let hit = _discCache.get(tid);
+  if (!hit || hit.raw !== raw) {
+    getDisciplineConfig();               // keşi doldurur (validasiya orada)
+    hit = _discCache.get(tid);
+  }
+  return (hit && hit.raw === raw) ? hit.cfg : DEFAULT_DISCIPLINE;
+}
+
+// Pilləli siyahını təmizləyir: yanlış sətirlər atılır, qalanlar AZALAN sıralanır.
+// Sıralama olmasa "ilk uyğun gələn" məntiqi səhv pilləni seçər (məs. 0 dəq hamısını tutar).
+function sanitizeTiers(rows, fallback, kA, minA, maxA, kB, minB, maxB) {
+  if (!Array.isArray(rows)) return fallback;
+  const out = [];
+  for (const r of rows) {
+    if (!r || typeof r !== 'object') continue;
+    const a = Number(r[kA]), b = Number(r[kB]);
+    if (!Number.isFinite(a) || a < minA || a > maxA) continue;
+    if (!Number.isFinite(b) || b < minB || b > maxB) continue;
+    out.push({ [kA]: a, [kB]: b });
+  }
+  if (!out.length) return fallback;
+  out.sort((x, y) => y[kA] - x[kA]);
+  return out;
+}
+
+// Gecikməyə düşən XP cəzası (streak qalxanı tətbiq olunmuş halda).
+// `streakBefore` — gecikmədən ƏVVƏLKİ streak.
+function latePenaltyXP(lateMins, streakBefore, cfg) {
+  const c    = cfg || getDisciplineConfig();
+  const mins = Math.max(0, Number(lateMins) || 0);
+  const tier = c.latePenalty.find(t => mins >= t.mins);
+  let penalty = tier ? tier.xp : 0;
+  const shield = c.streakShield.find(s => (Number(streakBefore) || 0) >= s.streak);
+  if (shield) penalty = Math.round(penalty * shield.mult);
+  return penalty;
+}
+
+// ── XP MÜKAFATLARI ────────────────────────────────────────────────
+// Gəliş XP-si, streak çoxaldıcısı, milestone bonusları, imtahan/reytinq XP-si.
+const DEFAULT_XP = {
+  arrivalXP:    20,       // vaxtında gəliş (çoxaldıcıya vurulur)
+  openAnswerXP: 15,       // imtahanda açıq cavab keçəndə
+  multipliers: [
+    { streak: 60, mult: 2.0  },
+    { streak: 30, mult: 1.75 },
+    { streak: 14, mult: 1.5  },
+    { streak: 7,  mult: 1.25 },
+  ],
+  milestones: { 7: 50, 14: 100, 30: 250, 60: 500, 100: 1000 },
+  examTiers: [            // test faizinə görə XP
+    { pct: 90, xp: 100 },
+    { pct: 80, xp: 75  },
+    { pct: 60, xp: 50  },
+  ],
+  ratingXP: { 3: 15, 4: 30, 5: 50 },   // trainer reytinqi (ulduz → XP)
+};
+
+const _xpCache = new Map();
+function getXPConfig() {
+  const raw = getSetting('XP_CONFIG');
+  if (!raw) return JSON.parse(JSON.stringify(DEFAULT_XP));
+  const tid = T.tenantIdOrNull();
+  const hit = _xpCache.get(tid);
+  if (hit && hit.raw === raw) return JSON.parse(JSON.stringify(hit.cfg));
+  try {
+    const p    = JSON.parse(raw);
+    const base = JSON.parse(JSON.stringify(DEFAULT_XP));
+    const num = (v, fb, min, max) => {
+      const n = Number(v);
+      return (Number.isFinite(n) && n >= min && n <= max) ? n : fb;
+    };
+    // Açar→rəqəm xəritəsi (milestones, ratingXP): açar müsbət tam ədəd olmalıdır
+    const numMap = (v, fb) => {
+      if (!v || typeof v !== 'object' || Array.isArray(v)) return fb;
+      const out = {};
+      for (const k of Object.keys(v)) {
+        const key = Math.round(Number(k)), val = Number(v[k]);
+        if (!Number.isFinite(key) || key <= 0) continue;
+        if (!Number.isFinite(val) || val < 0 || val > 100000) continue;
+        out[key] = val;
+      }
+      return Object.keys(out).length ? out : fb;
+    };
+    const cfg = {
+      arrivalXP:    num(p && p.arrivalXP,    base.arrivalXP,    0, 100000),
+      openAnswerXP: num(p && p.openAnswerXP, base.openAnswerXP, 0, 100000),
+      multipliers:  sanitizeTiers(p && p.multipliers, base.multipliers, 'streak', 1, 3650, 'mult', 0, 100),
+      examTiers:    sanitizeTiers(p && p.examTiers,   base.examTiers,   'pct',    0, 100,  'xp',   0, 100000),
+      milestones:   numMap(p && p.milestones, base.milestones),
+      ratingXP:     numMap(p && p.ratingXP,   base.ratingXP),
+    };
+    _xpCache.set(tid, { raw, cfg });
+    return JSON.parse(JSON.stringify(cfg));
+  } catch (e) {
+    console.error('[XP_CONFIG] parse xətası — ilkin dəyərlər işlədilir:', e.message);
+    return JSON.parse(JSON.stringify(DEFAULT_XP));
+  }
+}
+
+// İmtahan faizinə düşən XP
+function examXP(pct, cfg) {
+  const c = cfg || getXPConfig();
+  const t = c.examTiers.find(x => (Number(pct) || 0) >= x.pct);
+  return t ? t.xp : 0;
+}
+
+// ── XP mühərriki ──────────────────────────────────────────────────
+// XP çoxaldıcısı — streak nə qədər uzundursa, vaxtında gəlişin XP-si o qədər artır.
+// Pillələr `XP_CONFIG.multipliers`-dədir (əvvəl burada hardcode idi).
+function getXPMultiplier(streak, cfg) {
+  const c = cfg || getXPConfig();
+  const t = c.multipliers.find(x => (Number(streak) || 0) >= x.streak);
+  return t ? t.mult : 1.0;
+}
+
+// GERİYƏ UYĞUNLUQ: `U.MS_BONUSES` yazan köhnə kod var. Getter kimi elan olunub —
+// cari müştərinin konfiqurasiyasından gəlir, çağırış yerləri dəyişmir.
+// (`U.DEPTS`/`U.POSITIONS` ilə eyni hiylə.)
+function milestoneBonuses(cfg) { return (cfg || getXPConfig()).milestones; }
 
 // İşçinin XP-sini sıfırdan, mövcud məlumatlardan yenidən hesablayır (recalcAllXP üçün).
 // validateAndLog / logLunch / imtahan qaydalarını eyni ardıcıllıqla təkrar oynayır.
@@ -514,6 +825,11 @@ function computeEmployeeXP(dept, opts) {
   const exams    = o.exams      || [];
 
   const onIzin = (ds) => izinRows.some(r => ds >= r.start_date && ds <= r.end_date);
+
+  // Konfiqurasiya bir dəfə oxunur — döngə içində yüzlərlə dəfə oxunmasın.
+  const xpCfg   = getXPConfig();
+  const discCfg = getDisciplineConfig();
+  const msBonus = xpCfg.milestones;
 
   // 1) Gəlişləri xronoloji oynat → streak proqresiyası + gəliş XP-si
   const arrivals = attend
@@ -531,21 +847,17 @@ function computeEmployeeXP(dept, opts) {
     const arr  = a.d.getHours() * 60 + a.d.getMinutes();
     const st   = a.shift || cedvelMap[ds] || null;   // calcStreak ilə eyni mənbə (gəliş anındakı smen)
     const lim  = getLateLimit(dept, st, arr);
-    const withinPerm = (ds in permMap) && arr <= permMap[ds] + 5;
+    const withinPerm = (ds in permMap) && arr <= permMap[ds] + discCfg.permGraceMins;
     const onTime = onIzin(ds) || withinPerm || arr <= lim;
     const streakBefore = streak;
 
     if (onTime) {
       streak++;
-      xp += Math.round(20 * getXPMultiplier(streak));
-      if (MS_BONUSES[streak] && !claimed.has(streak)) { xp += MS_BONUSES[streak]; claimed.add(streak); }
+      xp += Math.round(xpCfg.arrivalXP * getXPMultiplier(streak, xpCfg));
+      if (msBonus[streak] && !claimed.has(streak)) { xp += msBonus[streak]; claimed.add(streak); }
     } else {
-      const lateMins = arr - lim;
-      let penalty = lateMins >= 45 ? 50 : lateMins >= 21 ? 30 : 15;
-      if (streakBefore >= 60) penalty = Math.round(penalty * 0.25);
-      else if (streakBefore >= 30) penalty = Math.round(penalty * 0.5);
-      xp = Math.max(0, xp - penalty);   // validateAndLog hər cərimədə 0-da saxlayır
-      streak = 0;
+      xp = Math.max(0, xp - latePenaltyXP(arr - lim, streakBefore, discCfg));
+      streak = 0;                       // validateAndLog hər cərimədə 0-da saxlayır
     }
     dayStreak[ds] = streak;
   }
@@ -556,16 +868,16 @@ function computeEmployeeXP(dept, opts) {
   for (const ex of exams) {
     const ans = Array.isArray(ex.answers) ? ex.answers : [];
     const examStreak = dayStreak[ex.date_str] || 0;
-    const mult = getXPMultiplier(examStreak);
+    const mult = getXPMultiplier(examStreak, xpCfg);
     if (ex.trainer_name === 'Özü') {
       const testTotal = ans.filter(a => a.type === 'test').length;
       const score     = ans.filter(a => a.type === 'test' && a.passed === true).length;
       const pct       = testTotal > 0 ? Math.round(score / testTotal * 100) : 0;
-      const xpBase    = pct >= 90 ? 100 : pct >= 80 ? 75 : pct >= 60 ? 50 : 0;
+      const xpBase    = examXP(pct, xpCfg);
       if (xpBase > 0) xp += Math.round(xpBase * mult);
     }
     const openPassed = ans.filter(a => a.type === 'open' && a.passed === true).length;
-    if (openPassed) xp += openPassed * Math.round(15 * mult);
+    if (openPassed) xp += openPassed * Math.round(xpCfg.openAnswerXP * mult);
   }
 
   // 4) Trainer manual XP + reytinqlər (xp_audit_log — düz toplam, çoxaldıcısız)
@@ -576,7 +888,12 @@ function computeEmployeeXP(dept, opts) {
 
 module.exports = {
   getSetting, setSetting,
-  getXPMultiplier, computeEmployeeXP, MS_BONUSES,
+  getXPMultiplier, computeEmployeeXP,
+  // İntizam / XP / Telegram konfiqurasiyaları (əvvəl kodda hardcode idi)
+  DEFAULT_DISCIPLINE, getDisciplineConfig, latePenaltyXP,
+  DEFAULT_XP, getXPConfig, examXP, milestoneBonuses,
+  DEFAULT_TG, TG_KEYS, getTgTemplates, fillTemplate, sendTgTemplate,
+  DEFAULT_PUSH, PUSH_KEYS, getPushTemplates, fillPush,
   toYMD, fmtTime, getLogicalYMD, getLogicalDateStr,
   generateDynamicPin, TIME_STEP,
   getShiftInfo, isLate, SHIFT_TABLE, SHIFT_TYPES, SHIFT_NAMES, ALL_SHIFT_TYPES,
@@ -602,4 +919,7 @@ Object.defineProperties(module.exports, {
   DEPTS:     { enumerable: true, get: () => T.branchNames() },
   SLUGS:     { enumerable: true, get: () => T.branchSlugs() },
   POSITIONS: { enumerable: true, get: () => T.positions() },
+  // Milestone bonusları da eyni üsulla: `U.MS_BONUSES` yazan kod dəyişmir,
+  // dəyər isə artıq müştərinin XP konfiqurasiyasından gəlir.
+  MS_BONUSES: { enumerable: true, get: () => getXPConfig().milestones },
 });

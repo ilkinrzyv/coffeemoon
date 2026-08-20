@@ -45,6 +45,19 @@ const API_POLICY = {
 
   // ── Cərimələr (admin)
   getFines: 'admin', updateFineStatus: 'admin', deleteFine: 'admin',
+  // Silmək və ödəniş statusunu dəyişmək maaş tutulmasına təsir edir → yalnız admin
+  deleteAnyFine: 'admin', setFinePayStatus: 'admin',
+
+  // ── Konfiqurasiyalar (əvvəl kodda hardcode idi)
+  // Oxumaq: intizam/XP qaydalarını işçi paneli də göstərə bilsin deyə `staff`.
+  // Yazmaq: hamısı yalnız admin — bunlar cərimə məbləğinə və XP-yə təsir edir.
+  getDisciplineConfig: 'staff',  saveDisciplineConfig: 'admin', resetDisciplineConfig: 'admin',
+  getXPConfig: 'staff',          saveXPConfig: 'admin',         resetXPConfig: 'admin',
+  // Telegram şablonları mesaj mətnidir — oxumaq da yalnız admin
+  getTgTemplates: 'admin', saveTgTemplates: 'admin', resetTgTemplates: 'admin',
+  previewTgTemplate: 'admin',
+  getPushTemplates: 'admin', savePushTemplates: 'admin', resetPushTemplates: 'admin',
+  previewPushTemplate: 'admin',
 
   // ── Cihazlar
   bindDevice: 'self', resetDevice: 'admin',
