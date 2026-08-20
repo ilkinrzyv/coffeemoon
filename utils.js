@@ -315,9 +315,15 @@ const DEFAULT_SALARY = {
   // Sistem cərimələrinin statusu: unpaid | paid | waived.
   // 'waived' (bağışlanıb) heç vaxt tutulmur; 'paid' isə nağd alınıbsa təkrar tutulmasın deyə defolt xaricdədir.
   fineStatuses: ['unpaid'],
-  // Menecer cərimələrində ödəniş statusu YOXDUR (yalnız imza) — hamısı tutulur.
-  // Yalnız işçi imzalayanları tutmaq istəsən bunu false et:
-  mgrFinesOnlyAcked: false,
+  // İMZA QAYDASI (hər iki cərimə növü üçün ortaq).
+  // true  → yalnız işçinin e-imza ilə TƏSDİQLƏDİYİ cərimələr maaş hesabatında görünür və tutulur.
+  //         İmzalanmayan cərimə hesabatda ümumiyyətlə görünmür (nə məbləğdə, nə siyahıda).
+  // false → imzadan asılı olmayaraq hamısı tutulur.
+  // Defolt `true`-dur: işçinin xəbəri olmadan maaşından pul tutulmasın.
+  //
+  // Əvvəl `mgrFinesOnlyAcked` adlanırdı və YALNIZ menecer cəriməsinə aid idi
+  // (sistem cəriməsi imzadan asılı olmadan tutulurdu). 2026-08-20-dən birləşdirilib.
+  finesOnlyAcked: true,
   // Avans statusu: pending | approved | rejected | paid
   avansStatuses: ['approved', 'paid'],
 };
@@ -354,7 +360,10 @@ function getSalaryConfig() {
       restDayMonthlyLimit: (Number.isFinite(p && p.restDayMonthlyLimit) && p.restDayMonthlyLimit >= 0 && p.restDayMonthlyLimit <= 31)
         ? Math.round(p.restDayMonthlyLimit) : base.restDayMonthlyLimit,
       fineStatuses: Array.isArray(p && p.fineStatuses) ? p.fineStatuses : base.fineStatuses,
-      mgrFinesOnlyAcked: typeof (p && p.mgrFinesOnlyAcked) === 'boolean' ? p.mgrFinesOnlyAcked : base.mgrFinesOnlyAcked,
+      // DİQQƏT: köhnə `mgrFinesOnlyAcked` QƏSDƏN oxunmur. O, yalnız menecer
+      // cəriməsinə aid idi və defolt `false` ilə saxlanılmışdı; oxusaydıq
+      // mövcud müştərilərdə yeni imza qaydası işə düşməzdi.
+      finesOnlyAcked: typeof (p && p.finesOnlyAcked) === 'boolean' ? p.finesOnlyAcked : base.finesOnlyAcked,
       avansStatuses: Array.isArray(p && p.avansStatuses) ? p.avansStatuses : base.avansStatuses,
     };
     // Müştərinin hər vəzifəsi üçün dərəcə olsun (təyin edilməyibsə 0 → hesabatda görünür)

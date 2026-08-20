@@ -1706,7 +1706,7 @@ API.saveSalaryConfig = async (cfg) => {
     ? cfg.fineStatuses.filter(s => ['unpaid', 'paid'].includes(s)) : base.fineStatuses;
   clean.avansStatuses = Array.isArray(cfg.avansStatuses)
     ? cfg.avansStatuses.filter(s => ['approved', 'paid'].includes(s)) : base.avansStatuses;
-  clean.mgrFinesOnlyAcked = typeof cfg.mgrFinesOnlyAcked === 'boolean' ? cfg.mgrFinesOnlyAcked : base.mgrFinesOnlyAcked;
+  clean.finesOnlyAcked = typeof cfg.finesOnlyAcked === 'boolean' ? cfg.finesOnlyAcked : base.finesOnlyAcked;
   clean.taxiMonthlyLimit = (() => {
     const n = Math.round(Number(cfg.taxiMonthlyLimit));
     return (Number.isFinite(n) && n >= 0 && n <= 62) ? n : base.taxiMonthlyLimit;
@@ -1929,7 +1929,7 @@ async function computeSalaryReport(year, month) {
     db().from('attendance').select('emp_id,timestamp,type,shift_type').gte('timestamp', startStr).lt('timestamp', endStr),
     db().from('cedvel').select('emp_id,date_str,shift_type').gte('date_str', startStr).lt('date_str', endStr),
     // Tutulmalar — hamısı həmin aya aiddir
-    db().from('fines').select('emp_id,date_str,amount,reason,status').gte('date_str', startStr).lt('date_str', endStr),
+    db().from('fines').select('emp_id,date_str,amount,reason,status,acked').gte('date_str', startStr).lt('date_str', endStr),
     db().from('mgr_fines').select('emp_id,amount,reason,status,created_at,created_by').gte('created_at', startStr).lt('created_at', endStr),
     fetchAvansForMonth(startStr, endStr),
   ]);
@@ -1937,14 +1937,20 @@ async function computeSalaryReport(year, month) {
   // Tutulmaları işçi üzrə yığ (konfiqurasiyadakı status qaydalarına görə)
   const tutulma = {};
   const tut = (id) => (tutulma[id] = tutulma[id] || { cerime: 0, avans: 0, siyahi: [] });
+  // İMZA QAYDASI: `finesOnlyAcked` açıqdırsa işçinin e-imza ilə təsdiqləmədiyi
+  // cərimə hesabatda ÜMUMİYYƏTLƏ görünmür — nə məbləğə əlavə olunur, nə siyahıya.
+  // İmza iki cədvəldə fərqli saxlanılır: `fines.acked` (boolean),
+  // `mgr_fines.status === 'acknowledged'`.
+  const imzali = cfg.finesOnlyAcked;
   for (const f of sysFines || []) {
     if (!cfg.fineStatuses.includes(f.status || 'unpaid')) continue;
+    if (imzali && !f.acked) continue;
     const t = tut(String(f.emp_id)); const m = Number(f.amount) || 0;
     t.cerime += m;
     t.siyahi.push({ nov: 'cerime', date: f.date_str || '', mebleg: m, qeyd: f.reason || 'Gecikmə cəriməsi', menbe: 'Sistem' });
   }
   for (const f of mgrFines || []) {
-    if (cfg.mgrFinesOnlyAcked && f.status !== 'acknowledged') continue;
+    if (imzali && f.status !== 'acknowledged') continue;
     const t = tut(String(f.emp_id)); const m = Number(f.amount) || 0;
     t.cerime += m;
     t.siyahi.push({ nov: 'cerime', date: U.toYMD(new Date(f.created_at || Date.now())), mebleg: m, qeyd: f.reason || 'Menecer cəriməsi', menbe: f.created_by || 'Menecer' });

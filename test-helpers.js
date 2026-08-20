@@ -56,7 +56,7 @@ const SALARY = {
   restDayMultiplier: 1,
   restDayMonthlyLimit: 12,
   fineStatuses: ['unpaid'],
-  mgrFinesOnlyAcked: false,
+
   avansStatuses: ['approved', 'paid'],
 };
 

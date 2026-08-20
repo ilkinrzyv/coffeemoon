@@ -136,7 +136,62 @@ check(!d.fineStatuses.includes('paid'), 'ödənilmiş cərimə defolt tutulmamal
 check(!d.fineStatuses.includes('waived'), 'BAĞIŞLANMIŞ cərimə heç vaxt tutulmamalıdır');
 check(d.avansStatuses.includes('approved') && d.avansStatuses.includes('paid'), 'təsdiqlənmiş+ödənilmiş avans tutulmalıdır');
 check(!d.avansStatuses.includes('pending') && !d.avansStatuses.includes('rejected'), 'gözləyən/rədd edilən avans tutulmamalıdır');
-check(d.mgrFinesOnlyAcked === false, 'menecer cəriməsi defolt olaraq hamısı tutulur');
+check(d.finesOnlyAcked === true, 'DEFOLT: yalnız işçinin imzaladığı cərimə tutulur');
+
+// ── 12b) İmza qaydası — hesabata hansı cərimə düşür ──
+//  Bu, PULA toxunan qaydadır: imzalanmamış cərimə hesabatda görünməməlidir.
+//  `getSalaryReport`-un süzgəc məntiqinin eynisi (DB olmadan yoxlanılır).
+console.log('\n12b) İmza qaydası');
+function tutulanlar(cfg, sysFines, mgrFines) {
+  const imzali = cfg.finesOnlyAcked;
+  const out = [];
+  for (const f of sysFines) {
+    if (!cfg.fineStatuses.includes(f.status || 'unpaid')) continue;
+    if (imzali && !f.acked) continue;
+    out.push({ menbe: 'Sistem', mebleg: f.amount });
+  }
+  for (const f of mgrFines) {
+    if (imzali && f.status !== 'acknowledged') continue;
+    out.push({ menbe: 'Menecer', mebleg: f.amount });
+  }
+  return out;
+}
+const sysF = [
+  { amount: 30, status: 'unpaid', acked: true  },   // imzalı   → tutulur
+  { amount: 30, status: 'unpaid', acked: false },   // imzasız  → tutulmur
+  { amount: 30, status: 'unpaid'               },   // acked yoxdur (köhnə sətir) → tutulmur
+  { amount: 30, status: 'waived', acked: true  },   // bağışlanıb → heç vaxt tutulmur
+];
+const mgrF = [
+  { amount: 15, status: 'acknowledged' },           // imzalı  → tutulur
+  { amount: 15, status: 'pending'      },           // imzasız → tutulmur
+];
+{
+  const cfg = U.getSalaryConfig();                  // finesOnlyAcked = true
+  const r = tutulanlar(cfg, sysF, mgrF);
+  check(r.length === 2, `imza qaydası açıqda 2 cərimə qalmalıdır, alınan ${r.length}`);
+  check(r.reduce((s, x) => s + x.mebleg, 0) === 45, 'yalnız imzalananların cəmi 45 olmalıdır');
+  check(r.some(x => x.menbe === 'Sistem'), 'imzalanmış SİSTEM cəriməsi tutulur');
+  check(r.some(x => x.menbe === 'Menecer'), 'imzalanmış MENECER cəriməsi tutulur');
+}
+{
+  // Qayda söndürüləndə köhnə davranış qayıdır
+  setLocal('SALARY_CONFIG', JSON.stringify(Object.assign({}, SALARY, { finesOnlyAcked: false })));
+  const cfg = U.getSalaryConfig();
+  check(cfg.finesOnlyAcked === false, 'qayda söndürülə bilir');
+  const r = tutulanlar(cfg, sysF, mgrF);
+  // 4 sistem sətrindən 3-ü (bağışlanan çıxır) + 2 menecer sətri = 5
+  check(r.length === 5, `qayda sönülü olanda 5 cərimə qalır, alınan ${r.length}`);
+  check(r.filter(x => x.menbe === 'Sistem').length === 3,
+    'bağışlanmış cərimə imza qaydasından ASILI OLMADAN çıxarılır');
+}
+{
+  // Saxlanılmış KÖHNƏ konfiqurasiya (`mgrFinesOnlyAcked`) yeni qaydanı bloklamamalıdır
+  setLocal('SALARY_CONFIG', JSON.stringify(Object.assign({}, SALARY, { mgrFinesOnlyAcked: false })));
+  check(U.getSalaryConfig().finesOnlyAcked === true,
+    'köhnə `mgrFinesOnlyAcked: false` yeni imza qaydasını söndürmür');
+}
+setLocal('SALARY_CONFIG', JSON.stringify(SALARY));   // ilkin dəyərlərə qayıt
 
 // Net hesab: brüt − cərimə − avans
 console.log('\n13) Net ödəniş riyaziyyatı');

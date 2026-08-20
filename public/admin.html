@@ -2158,16 +2158,17 @@ function maasRenderCfg(){
     '</div>'+
     '<div class="sh-shift"><div class="sh-head"><span class="sh-name"><i class="fa-solid fa-scissors"></i> Maaşdan tutulmalar</span></div>'+
       '<div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.7rem;">Hansı cərimə və avanslar həmin ayın maaşından çıxılsın.</div>'+
-      '<div><div style="font-size:0.7rem;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:6px;">Sistem cəriməsi (gecikmə)</div>'+
+      '<div><div style="font-size:0.7rem;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:6px;">İmza şərti — hər iki cərimə növü üçün</div>'+
+        '<div style="display:flex;gap:6px;flex-wrap:wrap;">'+
+          '<button class="emp-chip'+(c.finesOnlyAcked?' on':'')+'" onclick="maasSetAck(true)">Yalnız işçi imzalayanlar</button>'+
+          '<button class="emp-chip'+(!c.finesOnlyAcked?' on':'')+'" onclick="maasSetAck(false)">Hamısı</button>'+
+        '</div>'+
+        '<div class="sh-hint" style="padding-top:6px;">İşçi kartında e-imza ilə təsdiqlənməyən cərimə hesabatda <b>ümumiyyətlə görünmür</b> — nə məbləğdə, nə siyahıda.</div></div>'+
+      '<div style="margin-top:0.9rem;"><div style="font-size:0.7rem;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:6px;">Sistem cəriməsi (gecikmə) — ödəniş statusu</div>'+
         '<div style="display:flex;gap:6px;flex-wrap:wrap;">'+[['unpaid','Ödənilməyib'],['paid','Ödənilib']].map(function(s){
           return '<button class="emp-chip'+((c.fineStatuses||[]).indexOf(s[0])>=0?' on':'')+'" onclick="maasToggle(\'fineStatuses\',\''+s[0]+'\')">'+s[1]+'</button>';
         }).join('')+'</div>'+
         '<div class="sh-hint" style="padding-top:6px;">«Bağışlanıb» statusu heç vaxt tutulmur.</div></div>'+
-      '<div style="margin-top:0.9rem;"><div style="font-size:0.7rem;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:6px;">Menecer cəriməsi</div>'+
-        '<div style="display:flex;gap:6px;flex-wrap:wrap;">'+
-          '<button class="emp-chip'+(!c.mgrFinesOnlyAcked?' on':'')+'" onclick="maasSetMgrAck(false)">Hamısı</button>'+
-          '<button class="emp-chip'+(c.mgrFinesOnlyAcked?' on':'')+'" onclick="maasSetMgrAck(true)">Yalnız işçi imzalayanlar</button>'+
-        '</div></div>'+
       '<div style="margin-top:0.9rem;"><div style="font-size:0.7rem;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:6px;">Avans</div>'+
         '<div style="display:flex;gap:6px;flex-wrap:wrap;">'+[['approved','Təsdiqlənib'],['paid','Ödənilib']].map(function(s){
           return '<button class="emp-chip'+((c.avansStatuses||[]).indexOf(s[0])>=0?' on':'')+'" onclick="maasToggle(\'avansStatuses\',\''+s[0]+'\')">'+s[1]+'</button>';
@@ -2185,7 +2186,7 @@ function maasToggle(sahe,val){
   if(i>=0) arr.splice(i,1); else arr.push(val);
   maasRenderCfg();
 }
-function maasSetMgrAck(v){ _maasCfg.mgrFinesOnlyAcked=v; maasRenderCfg(); }
+function maasSetAck(v){ _maasCfg.finesOnlyAcked=v; maasRenderCfg(); }
 function maasSetRest(v){ _maasCfg.restDayPaid=v; if(v&&_maasCfg.restDayMultiplier==null)_maasCfg.restDayMultiplier=1; maasRenderCfg(); }
 function maasSaveCfg(){
   var st=document.getElementById('maasCfgState');
