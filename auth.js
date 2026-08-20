@@ -43,6 +43,9 @@ const API_POLICY = {
   getShiftConfig: 'staff', saveShiftConfig: 'admin', resetShiftConfig: 'admin',
   registerEmployeeSession: 'admin', // heç yerdən çağırılmır (ölü kod)
 
+  // ── Açıq (bağlanmamış) smenlər — girişi bloklayır, təsdiq admindədir
+  getOpenShifts: 'admin', closeOpenShift: 'admin', closeAllOpenShifts: 'admin',
+
   // ── Cərimələr (admin)
   getFines: 'admin', updateFineStatus: 'admin', deleteFine: 'admin',
   // Silmək və ödəniş statusunu dəyişmək maaş tutulmasına təsir edir → yalnız admin

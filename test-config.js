@@ -185,6 +185,8 @@ clearCfg();
   const t = U.getTgTemplates();
   check(t.arrive.indexOf('{ad}') >= 0,  'ilkin gəliş şablonunda {ad} var');
   check(U.TG_KEYS.length >= 14,         'bütün mesaj növləri şablona çevrilib');
+  check(U.TG_KEYS.indexOf('nightClose') < 0, 'ölü şablon (gecəlik bağlama) silinib');
+  check(t.openShiftBlocked.indexOf('{gun}') >= 0, 'bağlanmamış smen xəbərdarlığı şablonu var');
 
   check(U.fillTemplate('Salam {ad}!', { ad: 'Rəşad' }) === 'Salam Rəşad!', 'yer tutucu dolur');
   check(U.fillTemplate('{ad} — {yox}', { ad: 'A' }) === 'A — {yox}',
@@ -244,7 +246,9 @@ setLocal('PUSH_TEMPLATES', '');
   check(a.body === '200 AZN avans tələbiniz təsdiqləndi.', 'avans qərarı mətni eynidir');
 
   check(U.fillPush('yoxBeleSablon', {}) === null, 'naməlum açar → null');
-  check(U.PUSH_KEYS.length === 13, 'bütün push bildirişləri şablona çevrilib');
+  check(U.PUSH_KEYS.length === 14, 'bütün push bildirişləri şablona çevrilib');
+  check(U.fillPush('openShiftBlocked', { ad: 'R', gun: '2026-03-10' }).body.indexOf('2026-03-10') >= 0,
+    'bloklama push-u günü göstərir');
 }
 
 clearCfg();
@@ -398,6 +402,77 @@ setLocal('DISCIPLINE_CONFIG', JSON.stringify({ avansMax: 5000, mgrFineMax: 200, 
 clearCfg();
 setLocal('DISCIPLINE_CONFIG', JSON.stringify({ avansMax: 0 }));
 check(U.getDisciplineConfig().avansMax === 1000, 'sıfır avans limiti rədd edilir (heç kim avans ala bilməzdi)');
+
+// ══════════════════════════════════════════════════════════════════
+bolme('8b) Bağlanmamış smenlərin tapılması');
+// ══════════════════════════════════════════════════════════════════
+clearCfg();
+{
+  const log = (emp, ymd, saat, deq, tip, shift) => ({
+    emp_id: emp, emp_name: emp === 'E1' ? 'Rəşad' : 'Aynur', dept: 'Elmlər',
+    timestamp: new Date(`${ymd}T${String(saat).padStart(2,'0')}:${String(deq).padStart(2,'0')}:00`).toISOString(),
+    type: tip, shift_type: shift || 'sehersm',
+  });
+
+  // E1: 10-da girib çıxmayıb → AÇIQ.  11-də girib çıxıb → bağlı.
+  const logs = [
+    log('E1', '2026-03-10', 8, 0,  'GƏLİŞ'),
+    log('E1', '2026-03-11', 8, 0,  'GƏLİŞ'),
+    log('E1', '2026-03-11', 17, 0, 'CIXIS'),
+    log('E2', '2026-03-11', 8, 5,  'GƏLİŞ'),   // E2 çıxmayıb → AÇIQ
+  ];
+
+  const acq = U.findOpenShifts(logs, {});
+  check(acq.length === 2, `2 açıq smen tapılmalıdır, alınan ${acq.length}`);
+  check(acq[0].dayStr === '2026-03-10' && acq[0].empId === 'E1', 'ən köhnə birinci sıralanır');
+  check(acq.some(e => e.empId === 'E2'), 'başqa işçinin açıq smeni də tapılır');
+  check(!acq.some(e => e.empId === 'E1' && e.dayStr === '2026-03-11'), 'çıxışı olan gün açıq sayılmır');
+
+  // Bugünkü açıq smen NORMALDIR — istisna edilməlidir
+  const bugunSuz = U.findOpenShifts(logs, { exceptDay: '2026-03-11' });
+  check(bugunSuz.length === 1 && bugunSuz[0].dayStr === '2026-03-10',
+    'exceptDay verilən gün siyahıdan çıxır (işçi hələ işdədir)');
+
+  // Gündə iki GƏLİŞ olsa ən erkəni smenin başlanğıcıdır
+  const ikiGelis = U.findOpenShifts([
+    log('E3', '2026-03-10', 12, 0, 'GƏLİŞ'),
+    log('E3', '2026-03-10', 8,  0, 'GƏLİŞ'),
+  ], {});
+  check(ikiGelis[0].gelis.getHours() === 8, 'ən erkən GƏLİŞ smenin başlanğıcı sayılır');
+
+  // Yalnız ÇIXIŞ varsa (gəliş yoxdur) açıq smen deyil
+  const tekCixis = U.findOpenShifts([log('E4', '2026-03-10', 17, 0, 'CIXIS')], {});
+  check(tekCixis.length === 0, 'gəlişsiz çıxış açıq smen sayılmır');
+
+  check(U.findOpenShifts([], {}).length === 0, 'boş siyahı sınmır');
+  check(U.findOpenShifts(null, {}).length === 0, 'null siyahı sınmır');
+
+  // Yararsız timestamp sətri atılmalıdır (sistem sınmasın)
+  const pis = U.findOpenShifts([
+    { emp_id: 'E5', timestamp: 'yanlış', type: 'GƏLİŞ' },
+    log('E5', '2026-03-10', 8, 0, 'GƏLİŞ'),
+  ], {});
+  check(pis.length === 1, 'yararsız tarixli sətir atılır, qalanı işləyir');
+}
+
+clearCfg();
+{
+  const d = U.getDisciplineConfig();
+  check(d.blockOnOpenShift === true, 'DEFOLT: bağlanmamış smen girişi bloklayır');
+  check(d.openShiftLookbackDays === 7, 'defolt pəncərə 7 gün');
+}
+clearCfg();
+setLocal('DISCIPLINE_CONFIG', JSON.stringify({ blockOnOpenShift: false, openShiftLookbackDays: 30 }));
+{
+  const d = U.getDisciplineConfig();
+  check(d.blockOnOpenShift === false, 'bloklama söndürülə bilir (səhər təcili hal üçün)');
+  check(d.openShiftLookbackDays === 30, 'pəncərə dəyişir');
+}
+clearCfg();
+setLocal('DISCIPLINE_CONFIG', JSON.stringify({ openShiftLookbackDays: 0 }));
+check(U.getDisciplineConfig().openShiftLookbackDays === 7, 'sıfır pəncərə rədd edilir');
+
+clearCfg();
 
 // ══════════════════════════════════════════════════════════════════
 bolme('9) Keş referans paylaşmır');

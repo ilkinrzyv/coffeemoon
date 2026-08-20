@@ -388,6 +388,7 @@ tr.open .fa-chev{transform:rotate(180deg);}
 
     <div class="sb-sect">İcazə & Növbə</div>
     <button class="sb-item" data-pg="izin" onclick="sw('izin')"><span class="sb-ic"><i class="fa-solid fa-umbrella-beach"></i></span> İcazə</button>
+    <button class="sb-item" data-pg="acqsmen" id="osTab" onclick="sw('acqsmen')"><span class="sb-ic"><i class="fa-solid fa-door-open"></i></span> Açıq smenlər<span id="osBadge"></span></button>
     <button class="sb-item" data-pg="approvals" onclick="sw('approvals')"><span class="sb-ic"><i class="fa-solid fa-gavel"></i></span> Cərimə & Avans</button>
     <button class="sb-item" data-pg="maas" onclick="sw('maas')"><span class="sb-ic"><i class="fa-solid fa-wallet"></i></span> Maaşlar</button>
     <button class="sb-item" data-pg="checklist" onclick="sw('checklist')"><span class="sb-ic"><i class="fa-solid fa-clipboard-check"></i></span> Çeklist</button>
@@ -967,6 +968,41 @@ tr.open .fa-chev{transform:rotate(180deg);}
   </div>
 </div>
 
+<!-- ═══════════ AÇIQ SMENLƏR ═══════════ -->
+<!-- Axşam çıxış etməyən işçi səhər giriş edə bilmir. Admin burada həmin smeni
+     real çıxış saatı ilə bağlayır → işçi yenidən girə bilir. -->
+<div id="tab-acqsmen" class="page">
+  <div class="card">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:1rem;">
+      <div style="width:40px;height:40px;border-radius:11px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.15);display:flex;align-items:center;justify-content:center;color:#d97706;flex-shrink:0;"><i class="fa-solid fa-door-open"></i></div>
+      <div>
+        <div style="font-weight:700;font-size:0.95rem;">Açıq smenlər</div>
+        <div style="font-size:0.82rem;color:var(--text-muted);">Çıxış edilməyib — işçi bağlanana qədər GİRİŞ EDƏ BİLMİR</div>
+      </div>
+      <button class="btn sm" style="margin-left:auto;" onclick="osLoad()"><i class="fa-solid fa-rotate"></i> Yenilə</button>
+    </div>
+
+    <div style="background:rgba(var(--primary-rgb),0.04);border:1px solid rgba(var(--primary-rgb),0.1);border-radius:12px;padding:0.75rem 0.95rem;margin-bottom:1.1rem;font-size:0.8rem;line-height:1.55;color:var(--text-muted);">
+      Çıxış saatını <b>sən yazırsan</b> — sistem uydurmur. Xana boş qalsa smenin
+      normal bitmə vaxtı işlədilir. Bağladıqdan sonra işçi dərhal giriş edə bilər.
+      <b>İş saatı və maaş</b> yazdığın saata görə hesablanır.
+    </div>
+
+    <div id="osBody">Yüklənir...</div>
+
+    <div id="osBulkWrap" style="display:none;margin-top:1.1rem;padding-top:1rem;border-top:1px solid var(--border);">
+      <div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:8px;">
+        <b>Köhnə qalıqlar:</b> girişi bloklamayan (çox köhnə) qeydləri bir dəfəyə təmizlə.
+        Hamısı təklif olunan saatla bağlanır.
+      </div>
+      <button class="btn" style="color:var(--danger);" onclick="osCloseAll()">
+        <i class="fa-solid fa-broom"></i> Hamısını təklif olunan saatla bağla
+      </button>
+    </div>
+    <div class="tg-result" id="osResult"></div>
+  </div>
+</div>
+
 <!-- ═══════════ QAYDALAR (intizam + XP) ═══════════ -->
 <!-- Bu dəyərlər əvvəl kodda sabit rəqəm idi (30 AZN cərimə, 3-cü gecikmə,
      45/21 dəq XP cəzası, +20 gəliş XP-si). İndi hər müştəri özü təyin edir. -->
@@ -1381,7 +1417,7 @@ function getDayShort(s){var d=new Date(s);var names=['B.e.','Ç.a.','Çər.','C.
 function sw(name){
   // Səhifə adları — sıra əhəmiyyətsizdir (indeks uyğunluğu tələb edən köhnə nav silinib).
   // Yeni səhifə əlavə edəndə bura adı yaz + yan panelə .sb-item düyməsi qoy.
-  var tabs=['emp','cedvel','att','hesabat','izin','dev','tg','mgr','wifi','checklist','waste','yenilik','trainer','approvals','links','saatlar','maas','brend','qaydalar'];
+  var tabs=['emp','cedvel','att','hesabat','izin','dev','tg','mgr','wifi','checklist','waste','yenilik','trainer','approvals','links','saatlar','maas','brend','qaydalar','acqsmen'];
   tabs.forEach(function(n){
     var el=document.getElementById('tab-'+n);
     if(el) el.classList.toggle('active',n===name);
@@ -1407,6 +1443,96 @@ function sw(name){
   if(name==='maas'){initMaas();}
   if(name==='brend'){loadBrand();}
   if(name==='qaydalar'){loadQaydalar();}
+  if(name==='acqsmen'){osLoad();}
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  AÇIQ SMENLƏR — çıxış edilməyib, işçi giriş edə bilmir
+// ══════════════════════════════════════════════════════════════════
+//  Ayrıca "gözləyən təsdiq" cədvəli YOXDUR — siyahı davamiyyət
+//  qeydlərindən hesablanır, ona görə heç vaxt real data ilə ayrılmır.
+var _osRows = [];
+
+function osLoad(){
+  var b = document.getElementById('osBody');
+  if(b) b.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--text-muted)"><i class="fa-solid fa-circle-notch fa-spin"></i></div>';
+  google.script.run.withSuccessHandler(function(d){
+    _osRows = (d && d.rows) || [];
+    osRender();
+    osBadge(d && d.blocking);
+  }).withFailureHandler(function(e){
+    if(b) b.innerHTML = '<div style="color:var(--danger);font-weight:600;padding:1rem;">Xəta: '+escHtml((e&&e.message)||'Server xətası')+'</div>';
+  }).getOpenShifts();
+}
+
+// Yan paneldəki nişan — səhər admin bunu görməlidir
+function osBadge(n){
+  var el = document.getElementById('osBadge');
+  if(el) el.innerHTML = n > 0 ? ' <span class="badge-count">'+n+'</span>' : '';
+}
+
+function osRender(){
+  var b = document.getElementById('osBody');
+  var bulk = document.getElementById('osBulkWrap');
+  if(!b) return;
+  if(!_osRows.length){
+    b.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:2.5rem 1rem;">'+
+      '<i class="fa-solid fa-circle-check" style="color:var(--success);opacity:0.5;display:block;font-size:1.8rem;margin-bottom:0.6rem;"></i>'+
+      'Açıq smen yoxdur — hamı çıxış edib.</div>';
+    if(bulk) bulk.style.display = 'none';
+    return;
+  }
+  if(bulk) bulk.style.display = '';
+  b.innerHTML = '<div style="overflow-x:auto;"><table class="emp-tbl">'+
+    '<thead><tr><th>İşçi</th><th>Gün</th><th>Giriş</th><th>Smen</th><th>Çıxış saatı</th><th></th></tr></thead><tbody>'+
+    _osRows.map(function(r,i){
+      var blok = r.bloklayir
+        ? '<span class="badge pending" style="margin-left:6px;">Girişi bloklayır</span>'
+        : '<span class="badge" style="margin-left:6px;opacity:0.6;">Köhnə</span>';
+      return '<tr>'+
+        '<td data-l="İşçi">'+faEmpCell(r.empName, r.dept)+'</td>'+
+        '<td data-l="Gün"><b>'+esc(fmtDMY(r.dayStr))+'</b>'+blok+'</td>'+
+        '<td data-l="Giriş"><b style="font-variant-numeric:tabular-nums;">'+esc(r.gelisTime)+'</b></td>'+
+        '<td data-l="Smen" style="color:var(--text-muted);font-size:0.83rem;">'+esc(r.shiftName||'—')+'</td>'+
+        '<td data-l="Çıxış saatı"><input id="osT'+i+'" placeholder="'+esc(r.teklifTime)+'" '+
+          'style="width:92px;min-width:unset;font-variant-numeric:tabular-nums;" maxlength="5"></td>'+
+        '<td style="text-align:right;"><button class="btn sm" onclick="osClose('+i+')">'+
+          '<i class="fa-solid fa-check"></i> Bağla</button></td>'+
+      '</tr>';
+    }).join('')+'</tbody></table></div>';
+}
+
+function osClose(i){
+  var r = _osRows[i];
+  if(!r) return;
+  var inp = document.getElementById('osT'+i);
+  var saat = (inp && inp.value.trim()) || '';
+  var gost = saat || r.teklifTime;
+  if(!confirm(r.empName+' — '+fmtDMY(r.dayStr)+'\n\nÇıxış saatı: '+gost+
+    (saat ? '' : '  (təklif olunan)')+'\n\nBağlansın? Bundan sonra işçi giriş edə bilər.')) return;
+  showResult('osResult', null, '<i class="fa-solid fa-circle-notch fa-spin"></i> Bağlanır...');
+  google.script.run.withSuccessHandler(function(res){
+    if(!res || !res.success){
+      showResult('osResult', false, 'Bağlanmadı: '+escHtml((res&&res.reason)||'naməlum xəta'));
+      return;
+    }
+    showResult('osResult', true, escHtml(res.empName)+' — '+escHtml(res.endTime)+' ilə bağlandı. İşçi indi giriş edə bilər.');
+    osLoad();
+  }).withFailureHandler(function(e){
+    showResult('osResult', false, 'Xəta: '+escHtml((e&&e.message)||'Server xətası'));
+  }).closeOpenShift(r.empId, r.dayStr, saat, '');
+}
+
+function osCloseAll(){
+  if(!confirm('BÜTÜN açıq smenlər təklif olunan saatla bağlanacaq ('+_osRows.length+' qeyd).\n\n'+
+    'Bu, real çıxış saatını bilmədiyin köhnə qalıqlar üçündür.\nBugünkü hallar üçün saatı əl ilə yazmaq daha doğrudur.\n\nDavam edilsin?')) return;
+  showResult('osResult', null, '<i class="fa-solid fa-circle-notch fa-spin"></i> Bağlanır...');
+  google.script.run.withSuccessHandler(function(res){
+    showResult('osResult', true, (res&&res.closed)+' / '+(res&&res.total)+' smen bağlandı.');
+    osLoad();
+  }).withFailureHandler(function(e){
+    showResult('osResult', false, 'Xəta: '+escHtml((e&&e.message)||'Server xətası'));
+  }).closeAllOpenShifts();
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -1417,6 +1543,9 @@ function sw(name){
 //  sətir-sətir əlavə/sil ilə idarə olunur — server onları özü sıralayır,
 //  ona görə burada sıra ilə əlləşmirik.
 var _qdSub = 'disc', _qdDisc = null, _qdXp = null;
+
+// Düymə ilə dəyişən sahə — əvvəlcə ekrandakı xanalar yığılır ki, yazılanlar itməsin
+function qdSetBlock(v){ qdCollect(); _qdDisc.blockOnOpenShift = v; qdRender(); }
 
 function qdSetSub(s){
   _qdSub = s;
@@ -1530,6 +1659,8 @@ function qdCollect(){
     _qdDisc.mgrFineMax     = n('qdMgrFineMax');
     _qdDisc.dayCutoffHour  = n('qdDayCut');
     _qdDisc.daypartBoundaryMin = n('qdDaypart');
+    _qdDisc.openShiftLookbackDays = n('qdOsDays');
+    // blockOnOpenShift düymə ilə dəyişir (qdSetBlock) — xanadan oxunmur
     _qdDisc.latePenalty  = qdReadTiers('pen',  'mins',   'xp');
     _qdDisc.streakShield = qdReadTiers('shld', 'streak', 'mult');
   }
@@ -1579,7 +1710,16 @@ function qdRender(){
         qdField('Menecerin ən çox cəriməsi (AZN)','qdMgrFineMax',_qdDisc.mgrFineMax,'Menecerin əl ilə yaza biləcəyi yuxarı hədd',1,1000000)+
         qdField('Gün neçədə kəsilir? (saat)','qdDayCut',_qdDisc.dayCutoffHour,'Gecə smenləri üçün: bu saatdan əvvəlki gəliş ƏVVƏLKİ günə yazılır. Gecə işləmirsənsə 0 qoy.',0,6)+
         qdField('Səhər/axşam sərhədi (dəq)','qdDaypart',_qdDisc.daypartBoundaryMin,'Cədvəldə smen yazılmayanda gəlişin hansı smenə aid olduğunu ayırır (780 = 13:00)',0,1439)+
+        qdField('Açıq smen pəncərəsi (gün)','qdOsDays',_qdDisc.openShiftLookbackDays,'Bu qədər günlük geriyə baxılır; daha köhnə açıq smen girişi bloklamır',1,365)+
       '</div>'+
+      qdSectionTitle('fa-door-open','Bağlanmamış smen','çıxış etməyən işçi səhər girə bilsinmi?')+
+      '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;">'+
+        '<button class="emp-chip'+(_qdDisc.blockOnOpenShift?' on':'')+'" onclick="qdSetBlock(true)">Bloklansın — admin təsdiqi lazımdır</button>'+
+        '<button class="emp-chip'+(!_qdDisc.blockOnOpenShift?' on':'')+'" onclick="qdSetBlock(false)">Bloklanmasın</button>'+
+      '</div>'+
+      '<div style="font-size:0.78rem;color:var(--text-muted);margin-top:8px;line-height:1.55;">'+
+        'Açıq smenlər <b>Açıq smenlər</b> səhifəsində bağlanır. Səhər tələsik hal olsa bunu '+
+        'müvəqqəti söndürüb işçiləri buraxa, sonra yenidən aça bilərsən.</div>'+
       qdSectionTitle('fa-arrow-trend-down','Gecikmə bal cəzası','neçə dəqiqə gecikmə → neçə bal itir')+
       '<div style="font-size:0.78rem;color:var(--text-muted);margin:6px 0 10px;">Ən yuxarı uyğun sətir tətbiq olunur. Sıraya fikir vermə — server özü düzür.</div>'+
       qdTiers('pen', _qdDisc.latePenalty, 'mins','Ən azı (dəq)','xp','İtən bal')+
@@ -3364,6 +3504,9 @@ setInterval(function(){if(document.getElementById('tab-emp').classList.contains(
 // onlardan qurulur (əvvəl HTML-ə sabit yazılmışdı).
 withBranches(function(){ loadBranchAdmin(); });
 loadPositions(); loadEmps(); loadDevices(); loadAtt(); loadWifi(); loadMgr();
+// Açıq smen nişanı başlanğıcda yüklənir — səhər admin panelə girən kimi görsün
+// (səhifəni açmasa da: işçilər onun təsdiqini gözləyir).
+osLoad();
 var clItems  = [];
 var clReport = null;
 var clBranch = '';   // initChecklist() ilk filialı seçir

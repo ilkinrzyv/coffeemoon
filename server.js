@@ -141,69 +141,19 @@ function fallbackShiftHours(dept) {
   return (si && si.durH) || 8;
 }
 
-// ── Gecəlik avtomatik smen bağlama ───────────────────────────────
-//  Fon işidir — sorğu konteksti yoxdur, ona görə hər müştərini bir-bir
-//  öz kontekstində gəzirik. Birində xəta olsa qalanları dayanmır.
-async function autoCloseShifts() {
-  await T.forEachTenant(() => autoCloseShiftsForTenant());
-}
-
-async function autoCloseShiftsForTenant() {
-  const now      = new Date();
-  const todayStr = U.getLogicalDateStr(now);
-
-  // Yalnız son 3 günün qeydləri lazımdır (əvvəlki gecənin açıq smenləri)
-  const cutoff = new Date(now.getTime() - 3 * 86400000).toISOString();
-  const { data: logs } = await db().from('attendance').select('*').gte('timestamp', cutoff).order('timestamp');
-  if (!logs?.length) return;
-
-  const byEmpDay = {};
-  for (const row of logs) {
-    const d   = new Date(row.timestamp);
-    const ds  = U.getLogicalDateStr(d);
-    const key = row.emp_id + '|' + ds;
-    if (!byEmpDay[key]) byEmpDay[key] = {
-      empId: row.emp_id, empName: row.emp_name, dept: row.dept,
-      dayStr: ds, gelis: null, gelisRow: null, cixis: false,
-    };
-    if (row.type === 'GƏLİŞ') { byEmpDay[key].gelis = new Date(row.timestamp); byEmpDay[key].gelisRow = row; }
-    if (row.type === 'CIXIS')  byEmpDay[key].cixis = true;
-  }
-
-  let closed = 0;
-  for (const entry of Object.values(byEmpDay)) {
-    if (entry.dayStr === todayStr || !entry.gelis || entry.cixis) continue;
-    const si   = entry.gelisRow?.shift_type ? U.getShiftInfo(entry.dept, entry.gelisRow.shift_type) : null;
-    const reqH = si ? si.durH : fallbackShiftHours(entry.dept);
-    const expectedEnd = new Date(entry.gelis.getTime() + reqH * 3600000);
-    await db().from('attendance').insert({
-      emp_id:     entry.empId,
-      emp_name:   entry.empName,
-      dept:       entry.dept,
-      timestamp:  expectedEnd.toISOString(),
-      type:       'CIXIS',
-      overtime:   'Avtomatik bağlandı',
-      shift_type: entry.gelisRow?.shift_type || '',
-    });
-    closed++;
-  }
-
-  if (closed > 0) {
-    console.log(`[AutoClose] ${closed} açıq smen bağlandı.`);
-    await U.sendTgTemplate('nightClose', { say: closed }, null);
-  }
-}
-
-function scheduleNightlyClose() {
-  const now  = new Date();
-  const next = new Date();
-  next.setHours(4, 0, 0, 0);
-  if (next <= now) next.setDate(next.getDate() + 1);
-  setTimeout(async () => {
-    try { await autoCloseShifts(); } catch (e) { console.error('[AutoClose]', e.message); }
-    scheduleNightlyClose();
-  }, next.getTime() - now.getTime());
-  console.log(`[AutoClose] Növbəti bağlama: ${next.toLocaleString('az-AZ')}`);
+// ── Bağlanmamış smenlər ──────────────────────────────────────────
+//  ⛔ SİLİNDİ: hər gecə 04:00-da avtomatik bağlama.
+//  Səbəb: çıxış saatını UYDURURDU (gəliş + smen müddəti) — yəni işçi çıxış
+//  etməsə də sanki vaxtında getmiş kimi yazılırdı və heç bir izi qalmırdı.
+//  İndi açıq smen açıq qalır, işçi səhər GİRƏ BİLMİR və admin real saatı
+//  yazıb təsdiqləyir (`getOpenShifts` / `closeOpenShift`).
+//
+//  Smenin gözlənilən bitmə vaxtı — adminə TƏKLİF kimi göstərilir,
+//  o istəsə dəyişir. Avtomatik yazılmır.
+function expectedShiftEnd(gelisDate, dept, shiftType) {
+  const si   = shiftType ? U.getShiftInfo(dept, shiftType) : null;
+  const reqH = si ? si.durH : fallbackShiftHours(dept);
+  return new Date(gelisDate.getTime() + reqH * 3600000);
 }
 
 // Cavabları gzip ilə sıxır (HTML/JSON yükünü azaldır, səhifə daha tez açılır).
@@ -886,6 +836,106 @@ API.setFinePayStatus = async (fineId, status) => {
   const { error } = await db().from('fines').update({ status }).eq('fine_id', fineId);
   if (error) { sbErr('setFinePayStatus', error); return { success: false, reason: error.message }; }
   return { success: true, status };
+};
+
+// ── AÇIQ (bağlanmamış) SMENLƏR ───────────────────────────────────
+//  Axşam çıxış etməyən işçi səhər giriş edə bilmir. Admin burada həmin
+//  smeni real çıxış saatı ilə bağlayır — bundan sonra işçi girə bilir.
+//
+//  Ayrıca cədvəl YOXDUR: siyahı davamiyyət qeydlərindən hesablanır.
+//  Belədə "təsdiq gözləyir" vəziyyəti heç vaxt real data ilə ayrılmır.
+
+// Neçə günlük geriyə baxılacağını konfiqurasiya deyir; siyahıda isə admin
+// daha geniş pəncərə görmək istəyə bilər (köhnə qalıqları təmizləmək üçün).
+async function openShiftRows(days) {
+  const disc   = U.getDisciplineConfig();
+  const gun     = Number(days) > 0 ? Number(days) : Math.max(disc.openShiftLookbackDays, 30);
+  const cutoff  = new Date(Date.now() - gun * 86400000).toISOString();
+  const todayYMD = U.getLogicalYMD(new Date());
+
+  const { data: logs } = await db().from('attendance')
+    .select('emp_id,emp_name,dept,timestamp,type,shift_type')
+    .gte('timestamp', cutoff).order('timestamp');
+
+  return U.findOpenShifts(logs, { exceptDay: todayYMD }).map(e => {
+    const bitis = expectedShiftEnd(e.gelis, e.dept, e.shiftType);
+    return {
+      empId:     e.empId,
+      empName:   e.empName,
+      dept:      e.dept,
+      dayStr:    e.dayStr,
+      gelisTime: U.fmtTime(e.gelis),
+      gelisIso:  e.gelis.toISOString(),
+      shiftType: e.shiftType,
+      shiftName: U.SHIFT_NAMES[e.shiftType] || '',
+      // Adminə TƏKLİF — avtomatik yazılmır
+      teklifTime: U.fmtTime(bitis),
+      teklifIso:  bitis.toISOString(),
+      // Bu qeyd girişi bloklayırmı? (pəncərədən köhnələr bloklamır)
+      bloklayir: e.dayStr >= U.toYMD(new Date(Date.now() - disc.openShiftLookbackDays * 86400000)),
+    };
+  });
+}
+
+API.getOpenShifts = async (days) => {
+  const rows = await openShiftRows(days);
+  return { rows, blocking: rows.filter(r => r.bloklayir).length };
+};
+
+// Adminin təsdiqi: smeni verilən saatla bağlayır → işçi yenidən girə bilir.
+// `endTime` — 'HH:MM' (həmin məntiqi günə görə). Boş qalsa təklif olunan vaxt.
+API.closeOpenShift = async (empId, dayStr, endTime, note) => {
+  if (!empId || !dayStr) return { success: false, reason: 'İşçi və gün tələb olunur.' };
+
+  const rows = await openShiftRows(400);
+  const hedef = rows.find(r => r.empId === String(empId) && r.dayStr === dayStr);
+  if (!hedef) return { success: false, reason: 'Bu gün üçün açıq smen tapılmadı (bəlkə artıq bağlanıb).' };
+
+  let bitis = new Date(hedef.teklifIso);
+  if (endTime) {
+    const m = /^(\d{1,2}):(\d{2})$/.exec(String(endTime).trim());
+    if (!m) return { success: false, reason: 'Saat formatı yanlışdır (HH:MM).' };
+    const [h, mi] = [Number(m[1]), Number(m[2])];
+    if (h > 23 || mi > 59) return { success: false, reason: 'Belə saat yoxdur.' };
+    // Məntiqi gün + saat → real vaxt. Gün sərhədindən əvvəlki saat ERTƏSİ günə aiddir
+    // (gecə smeni 01:30-da bitirsə, o, məntiqi günün SABAHKI təqvim günüdür).
+    const [yy, mm, dd] = dayStr.split('-').map(Number);
+    bitis = new Date(yy, mm - 1, dd, h, mi, 0, 0);
+    if (h < U.getDisciplineConfig().dayCutoffHour) bitis.setDate(bitis.getDate() + 1);
+    // Çıxış gəlişdən əvvəl ola bilməz
+    if (bitis <= new Date(hedef.gelisIso))
+      return { success: false, reason: 'Çıxış saatı gəlişdən sonra olmalıdır.' };
+  }
+
+  const { error } = await db().from('attendance').insert({
+    emp_id:     hedef.empId,
+    emp_name:   hedef.empName,
+    dept:       hedef.dept,
+    timestamp:  bitis.toISOString(),
+    type:       'CIXIS',
+    overtime:   ('Admin bağladı' + (note ? ' — ' + String(note).slice(0, 120) : '')),
+    shift_type: hedef.shiftType || '',
+  });
+  if (error) { sbErr('closeOpenShift', error); return { success: false, reason: error.message }; }
+
+  console.log(`[OpenShift] ${hedef.empName} ${dayStr} → ${U.fmtTime(bitis)} (admin)`);
+  return { success: true, empName: hedef.empName, dayStr, endTime: U.fmtTime(bitis) };
+};
+
+// Köhnə qalıqları toplu təmizləmək üçün: hamısını TƏKLİF olunan vaxtla bağlayır.
+// Gündəlik iş üçün deyil — bir dəfəlik təmizlikdir, ona görə ayrıca funksiyadır.
+API.closeAllOpenShifts = async (days) => {
+  const rows = await openShiftRows(days);
+  let bagli = 0;
+  for (const r of rows) {
+    const { error } = await db().from('attendance').insert({
+      emp_id: r.empId, emp_name: r.empName, dept: r.dept,
+      timestamp: r.teklifIso, type: 'CIXIS',
+      overtime: 'Admin bağladı — toplu', shift_type: r.shiftType || '',
+    });
+    if (error) sbErr('closeAllOpenShifts', error); else bagli++;
+  }
+  return { success: true, closed: bagli, total: rows.length };
 };
 
 // Cərimələri mövcud davamiyyətdən sıfırdan yenidən hesabla.
@@ -1786,7 +1836,7 @@ const TG_TPL_META = {
   mgrOut:     { ad: 'Menecer çıxdı',         vars: ['saat', 'ferq'] },
   deptChange: { ad: 'Filial dəyişdi',        vars: ['ad', 'kohne', 'yeni'] },
   newDevice:  { ad: 'Yeni scan cihazı',      vars: ['brend', 'cihaz'] },
-  nightClose: { ad: 'Gecəlik bağlama',       vars: ['say'] },
+  openShiftBlocked: { ad: 'Giriş bloklandı (açıq smen)', vars: ['ad', 'gun'] },
   emergency:  { ad: 'Təcili bildiriş',       vars: ['ad', 'filial', 'mesaj'] },
 };
 
@@ -2211,6 +2261,40 @@ API.validateAndLog = async (enteredPin, clientIp, forceMode) => {
 
   if (todayLogs.length === 0) {
     const disc = U.getDisciplineConfig();
+
+    // ── Bağlanmamış smen: giriş BLOKLANIR, admin təsdiqi lazımdır ──
+    //  Axşam çıxış etməyən işçi səhər gələ bilmir. Əvvəl bunun yerinə hər gecə
+    //  04:00-da avtomatik bağlama vardı — o, çıxış saatını UYDURUR və işçi
+    //  cəzasız qalırdı. İndi admin real saatı yazıb təsdiqləyir.
+    //
+    //  Yalnız `openShiftLookbackDays` günlük pəncərəyə baxılır: köhnə qeyd
+    //  səhvi işçini həmişəlik bağlamasın (adminin toplu təmizləmə düyməsi var).
+    if (disc.blockOnOpenShift) {
+      const sinir = U.toYMD(new Date(ts.getTime() - disc.openShiftLookbackDays * 86400000));
+      const acqi = U.findOpenShifts(allLogs, { exceptDay: todayYMD }).filter(e => e.dayStr >= sinir);
+      if (acqi.length) {
+        const son = acqi[acqi.length - 1];
+        // İşçi qapıda qalmasın deyə idarəçiyə DƏRHAL xəbər gedir.
+        // Bildiriş göndərilə bilməsə də giriş yenə bloklanır — qaydanı
+        // bildiriş kanalının işləməsindən asılı etmirik.
+        try {
+          await U.sendTgTemplate('openShiftBlocked',
+            { ad: matched.name, gun: son.dayStr }, matched.dept);
+          const pb = U.fillPush('openShiftBlocked', { ad: matched.name, gun: son.dayStr });
+          if (pb) await sendPushToManager(matched.dept, pb.title, pb.body,
+            { tag: 'openshift-' + matched.id, requireInteraction: true });
+        } catch (e) { console.error('[OpenShift bildiriş]', e.message); }
+
+        return {
+          valid: false,
+          warningType: 'UNCLOSED_SHIFT',       // skan səhifəsi bunu bloklayan ekranla göstərir
+          empName: matched.name,
+          openDay: son.dayStr,
+          reason: `${son.dayStr} tarixli smeniniz bağlanmayıb. Giriş üçün idarəçi təsdiqi lazımdır.`,
+        };
+      }
+    }
+
     const nowMins = ts.getHours() * 60 + ts.getMinutes() +
       (ts.getHours() < 3 && shiftInfo && shiftInfo.startH >= 12 ? 24 * 60 : 0);
     let late = shiftInfo
@@ -4525,9 +4609,8 @@ API.platformStats = async () => {
         });
       }
 
-      // Başlarkən əvvəlki gecənin açıq smenlərini bağla, sonra hər gecə 04:00-da işlət
-      try { await autoCloseShifts(); } catch (e) { console.error('[AutoClose startup]', e.message); }
-      scheduleNightlyClose();
+      // Avtomatik gecə bağlaması SİLİNİB — açıq smenləri admin paneldən
+      // «Açıq smenlər» səhifəsində real saatla bağlayır.
     });
   } catch (e) {
     console.error('❌  Başlama xətası:', e.message);

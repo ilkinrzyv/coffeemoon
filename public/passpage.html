@@ -274,14 +274,18 @@ function showWarning(res){
     wBtns.innerHTML = BTN_DISMISS;
 
   } else {
-    // UNCLOSED_WARNING və ya UNCLOSED_PENALTY — hər ikisi bloklanır
+    // UNCLOSED_SHIFT — giriş bloklanır, idarəçi təsdiqi lazımdır.
+    // Hansı günün smeni olduğu göstərilir ki, idarəçi axtarmasın.
     wIcon.innerHTML  = "<i class='fa-solid fa-triangle-exclamation'></i>";
     wIcon.style.cssText = 'background:rgba(239,68,68,0.1);color:#ef4444;border:1px solid rgba(239,68,68,0.25);';
-    wTitle.innerText = 'Xəbərdarlıq!';
+    wTitle.innerText = 'Giriş Bloklandı';
+    var gun = res.openDay
+      ? '<b style="color:var(--text-main);">'+res.openDay+'</b> tarixli smendən çıxış edilməyib.'
+      : 'Əvvəlki smendən çıxış edilməyib.';
     wSub.innerHTML   =
       '<b style="font-size:1.05rem;color:var(--text-main);">'+res.empName+'</b><br>'+
       '<span style="color:var(--text-muted);font-size:0.88rem;line-height:1.65;">'+
-      'Əvvəlki smendən çıxış edilməyib.<br>Zəhmət olmasa idarəçiyə müraciət edin.</span>';
+      gun+'<br>İdarəçi təsdiqindən sonra giriş edə bilərsiniz.</span>';
     wBtns.innerHTML = BTN_DISMISS;
   }
 

@@ -150,6 +150,31 @@ check(h.indexOf('&lt;b&gt;{ad}&lt;/b&gt;') >= 0, 'HTML teqləri textarea-da esca
 check(h.indexOf('tplInsert(\'arrive\',\'{saat}\')') >= 0, 'yer tutucu düyməsi işləyir');
 check(h.indexOf('Nahara getdi') >= 0, 'ikinci şablon da çıxır');
 
+console.log('\n── Açıq smenlər ──');
+calls = [];
+vm.runInContext('osLoad()', sandbox);
+check(calls.some(c => c.fn === 'getOpenShifts'), 'server çağırışı edilir');
+gsr._ok({
+  blocking: 1,
+  rows: [{
+    empId: 'E1', empName: "O'Neil", dept: 'Elmlər', dayStr: '2026-03-10',
+    gelisTime: '08:00', gelisIso: '2026-03-10T04:00:00.000Z', shiftType: 'sehersm',
+    shiftName: 'Səhər', teklifTime: '16:00', teklifIso: '2026-03-10T12:00:00.000Z', bloklayir: true,
+  }],
+});
+h = els.osBody.innerHTML;
+check(h.indexOf('id="osT0"') >= 0, 'çıxış saatı xanası çıxır');
+check(h.indexOf('placeholder="16:00"') >= 0, 'təklif olunan saat placeholder kimi görünür');
+check(h.indexOf('Girişi bloklayır') >= 0, 'bloklayan qeyd işarələnir');
+check(h.indexOf('osClose(0)') >= 0, 'bağla düyməsi var');
+check(h.indexOf('undefined') < 0, 'çıxışda "undefined" yoxdur');
+check(els.osBadge.innerHTML.indexOf('1') >= 0, 'yan panel nişanı sayı göstərir');
+
+// Boş hal
+gsr._ok({ blocking: 0, rows: [] });
+check(els.osBody.innerHTML.indexOf('Açıq smen yoxdur') >= 0, 'boş halda aydın mesaj');
+check(els.osBadge.innerHTML === '', 'açıq smen olmayanda nişan gizlənir');
+
 console.log('\n── Telefon (push) bildiriş redaktoru ──');
 calls = [];
 vm.runInContext('loadPushEditor()', sandbox);

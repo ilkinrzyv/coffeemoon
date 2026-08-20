@@ -526,7 +526,8 @@ const DEFAULT_TG = {
   lateFine:   '\n Bu ay <b>{say}-ci gecikmə</b> — {deq} dəq.\n <b>{mebleg} AZN cərimə</b> qeyd edildi.',
   deptChange: '<b>{ad}</b> filialı dəyişdi: {kohne} → <b>{yeni}</b>',
   newDevice:  '<b>{brend}</b>\n\n📱 <b>Yeni Scan Cihazı qeydə alındı</b>\n\n🔑 <code>{cihaz}</code>',
-  nightClose: '🤖 <b>Gecəlik avtomatik bağlama</b>\n\n{say} açıq smen avtomatik olaraq bağlandı.',
+  // Gecəlik avtomatik bağlama SİLİNİB — yerinə bağlanmamış smen xəbərdarlığı:
+  openShiftBlocked: '⛔ <b>{ad}</b> giriş edə bilmədi.\n{gun} tarixli smeni bağlanmayıb — idarəçi təsdiqi gözlənilir.',
   emergency:  '🚨 <b>TƏCİLİ BİLDİRİŞ</b>\n\n👤 <b>{ad}</b> ({filial})\n\n💬 {mesaj}',
 };
 const TG_KEYS = Object.keys(DEFAULT_TG);
@@ -584,6 +585,7 @@ const DEFAULT_PUSH = {
   execAck:          { title: '✅ Mesaj təsdiqləndi',        body: '{filial} meneceri {nov} təsdiqlədi ({saat}).' },
   announce:         { title: '{emoji} {basliq}',           body: '{metn}' },
   examDone:         { title: '📝 İmtahan tamamlandı',      body: '{metn}' },
+  openShiftBlocked: { title: '⛔ Giriş bloklandı',          body: '{ad}: {gun} tarixli smeni bağlanmayıb. Açıq smenlər səhifəsindən təsdiqlə.' },
 };
 const PUSH_KEYS = Object.keys(DEFAULT_PUSH);
 
@@ -631,6 +633,15 @@ const DEFAULT_DISCIPLINE = {
   permGraceMins:  5,    // gec gəliş icazəsi vaxtına verilən əlavə güzəşt
   lunchMaxMins:   30,   // nahar limiti — bundan çox → menecerə bildiriş
   lateWarnBuffer: 5,    // işçi kartında "gecikmisən" xəbərdarlığı bu qədər sonra çıxır
+  // ── Bağlanmamış smen ──
+  // Axşam çıxış etməyən işçi səhər GİRİŞ EDƏ BİLMİR — admin əvvəlki smeni
+  // bağlamalıdır (Açıq smenlər səhifəsi). Əvvəl bunun yerinə hər gecə 04:00-da
+  // avtomatik bağlama işləyirdi; o silindi, çünki real çıxış saatını uydururdu.
+  blockOnOpenShift: true,
+  // Neçə günlük geriyə baxılsın. Bundan köhnə açıq smen girişi BLOKLAMIR —
+  // yoxsa illər əvvəlki bir qeyd səhvi işçini həmişəlik bağlayardı.
+  // (Köhnələri admin «hamısını bağla» ilə təmizləyir.)
+  openShiftLookbackDays: 7,
   avansMax:       1000, // işçinin bir dəfəyə istəyə biləcəyi ən çox avans (AZN)
   mgrFineMax:     1000, // menecerin yaza biləcəyi ən çox cərimə (AZN)
   // ── Gün sərhədi ──
@@ -674,6 +685,8 @@ function getDisciplineConfig() {
       permGraceMins:  Math.round(num(p && p.permGraceMins,  base.permGraceMins,  0, 180)),
       lunchMaxMins:   Math.round(num(p && p.lunchMaxMins,   base.lunchMaxMins,   1, 480)),
       lateWarnBuffer: Math.round(num(p && p.lateWarnBuffer, base.lateWarnBuffer, 0, 180)),
+      blockOnOpenShift: typeof (p && p.blockOnOpenShift) === 'boolean' ? p.blockOnOpenShift : base.blockOnOpenShift,
+      openShiftLookbackDays: Math.round(num(p && p.openShiftLookbackDays, base.openShiftLookbackDays, 1, 365)),
       avansMax:       num(p && p.avansMax,   base.avansMax,   1, 1000000),
       mgrFineMax:     num(p && p.mgrFineMax, base.mgrFineMax, 1, 1000000),
       // 0–6 aralığı: gün sərhədini günortadan sonraya çəkmək məntiqsizdir və
@@ -724,6 +737,40 @@ function sanitizeTiers(rows, fallback, kA, minA, maxA, kB, minB, maxB) {
   if (!out.length) return fallback;
   out.sort((x, y) => y[kA] - x[kA]);
   return out;
+}
+
+// ── Bağlanmamış smenlərin tapılması ───────────────────────────────
+//  Davamiyyət sətirlərini məntiqi günə görə qruplaşdırır və GƏLİŞ-i olub
+//  ÇIXIŞ-ı olmayan günləri qaytarır.
+//
+//  TƏK MƏNBƏ: həm gəlişi bloklayan yoxlama, həm adminin «Açıq smenlər»
+//  siyahısı bunu işlədir — ikisi fərqli cavab verə bilməz.
+//
+//  `logs` — bir işçinin (və ya bir neçəsinin) attendance sətirləri.
+//  `opts.exceptDay` — bu məntiqi gün nəzərə alınmır (bugünkü açıq smen normaldır).
+//  Qaytarır: ən köhnədən yeniyə sıralanmış massiv.
+function findOpenShifts(logs, opts) {
+  const o = opts || {};
+  const byKey = {};
+  for (const row of logs || []) {
+    const d = new Date(row.timestamp);
+    if (isNaN(d.getTime())) continue;
+    const dayStr = getLogicalYMD(d);
+    const key = String(row.emp_id) + '|' + dayStr;
+    if (!byKey[key]) byKey[key] = {
+      empId: String(row.emp_id), empName: row.emp_name || '', dept: row.dept || '',
+      dayStr, gelis: null, shiftType: '', cixis: false,
+    };
+    const e = byKey[key];
+    if (row.type === 'GƏLİŞ') {
+      // Gündə bir neçə GƏLİŞ olsa ƏN ERKƏNİ smenin başlanğıcıdır
+      if (!e.gelis || d < e.gelis) { e.gelis = d; e.shiftType = row.shift_type || ''; }
+    }
+    if (row.type === 'CIXIS') e.cixis = true;
+  }
+  return Object.values(byKey)
+    .filter(e => e.gelis && !e.cixis && e.dayStr !== o.exceptDay)
+    .sort((a, b) => a.dayStr.localeCompare(b.dayStr) || a.empName.localeCompare(b.empName));
 }
 
 // Gecikməyə düşən XP cəzası (streak qalxanı tətbiq olunmuş halda).
@@ -899,7 +946,7 @@ module.exports = {
   getSetting, setSetting,
   getXPMultiplier, computeEmployeeXP,
   // İntizam / XP / Telegram konfiqurasiyaları (əvvəl kodda hardcode idi)
-  DEFAULT_DISCIPLINE, getDisciplineConfig, latePenaltyXP,
+  DEFAULT_DISCIPLINE, getDisciplineConfig, latePenaltyXP, findOpenShifts,
   DEFAULT_XP, getXPConfig, examXP, milestoneBonuses,
   DEFAULT_TG, TG_KEYS, getTgTemplates, fillTemplate, sendTgTemplate,
   DEFAULT_PUSH, PUSH_KEYS, getPushTemplates, fillPush,
