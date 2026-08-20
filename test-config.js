@@ -246,7 +246,9 @@ setLocal('PUSH_TEMPLATES', '');
   check(a.body === '200 AZN avans tələbiniz təsdiqləndi.', 'avans qərarı mətni eynidir');
 
   check(U.fillPush('yoxBeleSablon', {}) === null, 'naməlum açar → null');
-  check(U.PUSH_KEYS.length === 14, 'bütün push bildirişləri şablona çevrilib');
+  check(U.PUSH_KEYS.length === 15, 'bütün push bildirişləri şablona çevrilib');
+  check(U.fillPush('mgrTohmet', { tenbeh: 'Töhmət', ay: 6, sebeb: 'x' }).body.indexOf('6 ay') >= 0,
+    'menecer töhməti bildirişi müddəti göstərir');
   check(U.fillPush('openShiftBlocked', { ad: 'R', gun: '2026-03-10' }).body.indexOf('2026-03-10') >= 0,
     'bloklama push-u günü göstərir');
 }

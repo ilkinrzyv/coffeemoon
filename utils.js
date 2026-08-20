@@ -580,6 +580,7 @@ const DEFAULT_PUSH = {
   avansRequest:     { title: '💵 Yeni Avans Tələbi',       body: '{ad}: {mebleg} AZN{qeyd}' },
   avansDecision:    { title: '{emoji} Avans Tələbi',       body: '{mebleg} AZN avans tələbiniz {status}.' },
   mgrFine:          { title: '⚠️ Cərimə Bildirişi',        body: '{mebleg} AZN — {sebeb}. Təsdiqləmək üçün kartınıza daxil olun.' },
+  mgrTohmet:        { title: '⚖️ İntizam Tənbehi',          body: '{tenbeh} — {sebeb}. {ay} ay qüvvədə qalır. Kartınızdan tanış olun.' },
   fineAck:          { title: '✍️ Cərimə Təsdiqləndi',      body: '{ad}: {mebleg} AZN cəriməsini təsdiqlədi (imzaladı).' },
   lunchLate:        { title: '⚠️ Nahar gecikməsi',         body: '{ad}: nahardan {deq} dəq sonra qayıtdı (limit {limit} dəq).' },
   execGlobal:       { title: '📢 {icraci} — ümumi mesaj',  body: '{mesaj}' },

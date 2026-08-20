@@ -30,7 +30,9 @@ function mkEl(id) {
     id, value: '', textContent: '', innerHTML: '', className: '', style: {},
     dataset: {}, checked: false,
     classList: { toggle(){}, add(){}, remove(){}, contains(){ return false; } },
-    querySelectorAll(){ return []; }, querySelector(){ return null; },
+    // querySelector null qaytarsa yüklənmə anındakı kod sınır — bu, testin
+    // öz qüsuru olardı, real səhv yox. Ona görə boş element qaytarılır.
+    querySelectorAll(){ return []; }, querySelector(sel){ return mkEl(sel); },
     setAttribute(){}, getAttribute(){ return null; }, addEventListener(){},
     appendChild(){}, focus(){},
   };
@@ -196,6 +198,120 @@ gsr._ok({ config: {}, defaults: {}, keys: ['examDone'], meta: {} });
 h = els.pshBody.innerHTML;
 check(h.indexOf('id="pshT_examDone"') >= 0, 'config-də olmayan açar da boş sahə ilə çıxır');
 check(h.indexOf('undefined') < 0, 'boş konfiqurasiyada "undefined" sızmır');
+
+// ══════════════════════════════════════════════════════════════════
+//  MENECER PANELİ — cərimə tavanı (AR ƏM 175)
+// ══════════════════════════════════════════════════════════════════
+//  Ayrı sandbox: manager.html-in öz JS-i, öz DOM-u.
+console.log('\n── Menecer paneli: cərimə tavanı ──');
+{
+  const mHtml = fs.readFileSync(path.join(ROOT, 'public/manager.html'), 'utf8');
+  const mCode = mHtml.match(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/g)
+    .map(s => s.replace(/^<script[^>]*>/, '').replace(/<\/script>$/, ''))
+    .sort((a, b) => b.length - a.length)[0]
+    .replace(/<\?=[\s\S]*?\?>/g, '"__TPL__"');
+
+  const mEls = {};
+  const mkSelect = (id) => {
+    const el = mkEl(id);
+    el.options = [
+      { value: 'fine', disabled: false }, { value: 'tohmet', disabled: false },
+      { value: 'siddetli', disabled: false }, { value: 'sonuncu', disabled: false },
+    ];
+    el.value = 'fine';
+    return el;
+  };
+  const mDoc = {
+    getElementById(id) {
+      if (!mEls[id]) mEls[id] = (id === 'fineKind') ? mkSelect(id) : mkEl(id);
+      return mEls[id];
+    },
+    querySelectorAll(){ return []; },
+    // null qaytarsaq yüklənmə anında işləyən kod sınır — testin öz qüsuru olardı
+    querySelector(sel){ return mkEl(sel); },
+    addEventListener(){}, createElement(t){ return mkEl(t); },
+    body: mkEl('body'), readyState: 'complete',
+  };
+  let mCalls = [];
+  const mGsr = { run: new Proxy({}, { get(_, prop) {
+    if (prop === 'withSuccessHandler') return (fn) => { mGsr._ok = fn; return mGsr.run; };
+    if (prop === 'withFailureHandler') return (fn) => { mGsr._fail = fn; return mGsr.run; };
+    return (...args) => { mCalls.push({ fn: prop, args }); return mGsr.run; };
+  } }) };
+  const mSandbox = {
+    document: mDoc, console, location: { href: '', search: '' },
+    google: { script: { run: mGsr.run } },
+    setTimeout(){}, setInterval(){}, clearInterval(){}, clearTimeout(){},
+    alert(){}, confirm(){ return true; }, fetch(){ return Promise.resolve(); },
+    navigator: { serviceWorker: { register(){ return Promise.resolve(); } } },
+    localStorage: { getItem(){ return null; }, setItem(){}, removeItem(){} },
+    Notification: { permission: 'default' },
+  };
+  mSandbox.window = mSandbox; mSandbox.globalThis = mSandbox;
+  vm.createContext(mSandbox);
+  try {
+    vm.runInContext(common, mSandbox, { filename: 'common.js' });
+    vm.runInContext(mCode, mSandbox, { filename: 'manager.html' });
+    check(true, 'manager.html JS xətasız yüklənir');
+  } catch (e) {
+    check(false, 'manager.html JS yüklənir', e.message);
+  }
+
+  // Tavan hələ dolmayıb
+  mEls.fineEmp = mEls.fineEmp || mkEl('fineEmp');
+  mEls.fineEmp.value = 'E1';
+  mCalls = [];
+  vm.runInContext('fineEmpChanged()', mSandbox);
+  check(mCalls.some(c => c.fn === 'getFineCapacity'), 'işçi seçiləndə tavan soruşulur');
+
+  mGsr._ok({ success: true, brut: 400, yazilan: 20, limit: 80, qalan: 60, faiz: 20, doludur: false, brutYoxdur: false });
+  let h = mDoc.getElementById('fineCapBox').innerHTML;
+  check(h.indexOf('60 ₼') >= 0, 'qalan tutum göstərilir');
+  check(h.indexOf('20%') >= 0, 'qanuni faiz göstərilir');
+  check(mDoc.getElementById('fineKind').options[0].disabled === false, 'tavan boşdursa pul cəriməsi seçilə bilir');
+
+  // Tavan DOLUB → forma məcburi tənbehə keçir
+  mEls.fineEmp.value = 'E2';
+  vm.runInContext('fineEmpChanged()', mSandbox);
+  mGsr._ok({ success: true, brut: 320, yazilan: 120, limit: 64, qalan: 0, faiz: 20, doludur: true, brutYoxdur: false });
+  h = mDoc.getElementById('fineCapBox').innerHTML;
+  check(h.indexOf('tavanı dolub') >= 0, 'tavan dolanda aydın xəbərdarlıq çıxır');
+  check(h.indexOf('töhmət') >= 0, 'töhmət alternativi təklif olunur');
+  check(h.indexOf('ƏM 175') >= 0, 'hüquqi əsas göstərilir');
+  check(mDoc.getElementById('fineKind').value === 'tohmet', 'forma avtomatik töhmətə keçir');
+  check(mDoc.getElementById('fineKind').options[0].disabled === true, 'pul cəriməsi seçimi bağlanır');
+  check(mDoc.getElementById('fineAmountRow').style.display === 'none', 'töhmətdə məbləğ sahəsi gizlənir');
+
+  // Cədvəl yoxdursa bloklamırıq
+  mEls.fineEmp.value = 'E3';
+  vm.runInContext('fineEmpChanged()', mSandbox);
+  mGsr._ok({ success: true, brut: 0, yazilan: 0, limit: null, qalan: null, faiz: 20, doludur: false, brutYoxdur: true });
+  h = mDoc.getElementById('fineCapBox').innerHTML;
+  check(h.indexOf('hesablana bilmir') >= 0, 'cədvəl yoxdursa aydın izah verilir');
+  check(h.indexOf('undefined') < 0, 'çıxışda "undefined" yoxdur');
+
+  // Cərimə siyahısında töhmət ayrılır
+  vm.runInContext('renderMgrFines', mSandbox)([
+    { empName: "O'Neil", amount: 0, reason: 'Gecikmə', status: 'pending', createdAt: '2026-08-20T09:00:00Z',
+      source: 'manager', isTohmet: true, kindName: 'Töhmət', expiresYmd: '2027-02-20' },
+    { empName: 'Aynur', amount: 40, reason: 'Forma', status: 'acknowledged', createdAt: '2026-08-19T09:00:00Z',
+      source: 'manager', isTohmet: false, kindName: 'Cərimə' },
+  ]);
+  h = mDoc.getElementById('mgrFineList').innerHTML;
+  check(h.indexOf('Töhmət') >= 0, 'siyahıda töhmət adı ilə görünür');
+  check(h.indexOf('2027-02-20 tarixinədək') >= 0, 'töhmətin müddəti göstərilir');
+  check(h.indexOf('40 ₼') >= 0, 'pul cəriməsi məbləği ilə görünür');
+
+  // Töhməti TƏK render et — «0 ₼» yoxlaması başqa sətrin məbləği ilə qarışmasın
+  vm.runInContext('renderMgrFines', mSandbox)([
+    { empName: 'Tək', amount: 0, reason: 'Gecikmə', status: 'pending', createdAt: '2026-08-20T09:00:00Z',
+      source: 'manager', isTohmet: true, kindName: 'Şiddətli töhmət', expiresYmd: '2027-02-20' },
+  ]);
+  const tekH = mDoc.getElementById('mgrFineList').innerHTML;
+  check(tekH.indexOf('₼') < 0, 'töhmətdə heç bir məbləğ göstərilmir');
+  check(tekH.indexOf('Şiddətli töhmət') >= 0, 'tənbehin dəqiq növü yazılır');
+  check(h.indexOf('undefined') < 0, 'siyahıda "undefined" yoxdur');
+}
 
 console.log('\n══════════════════════════════════════════');
 console.log(`NƏTİCƏ: ${pass} keçdi, ${fail} uğursuz`);

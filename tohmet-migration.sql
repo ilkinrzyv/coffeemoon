@@ -32,6 +32,21 @@ UPDATE fines SET kind = 'fine' WHERE kind IS NULL;
 
 CREATE INDEX IF NOT EXISTS idx_fines_kind ON fines (tenant_id, kind, expires_ymd);
 
+-- ── MENECER CƏRİMƏLƏRİ ────────────────────────────────────────
+-- İşçinin aylıq cərimə tavanı (ƏM 175 → 20%) dolubsa menecer artıq pul
+-- cəriməsi yaza bilmir — yalnız intizam tənbehi yaza bilir. Ona görə
+-- eyni sütunlar `mgr_fines` cədvəlinə də lazımdır.
+ALTER TABLE mgr_fines ADD COLUMN IF NOT EXISTS kind        TEXT DEFAULT 'fine';
+ALTER TABLE mgr_fines ADD COLUMN IF NOT EXISTS expires_ymd TEXT;
+ALTER TABLE mgr_fines ADD COLUMN IF NOT EXISTS lifted_at   TIMESTAMPTZ;
+ALTER TABLE mgr_fines ADD COLUMN IF NOT EXISTS lifted_by   TEXT;
+
+UPDATE mgr_fines SET kind = 'fine' WHERE kind IS NULL;
+
+CREATE INDEX IF NOT EXISTS idx_mgrfines_kind ON mgr_fines (tenant_id, kind, expires_ymd);
+
 -- ── YOXLAMA ───────────────────────────────────────────────────
--- İşlətdikdən sonra bunu çalışdır, hamısı 'fine' görünməlidir:
---   SELECT kind, COUNT(*) FROM fines GROUP BY kind;
+-- İşlətdikdən sonra bunu çalışdır — hamısı 'fine' görünməlidir:
+--   SELECT 'fines' t, kind, COUNT(*) FROM fines GROUP BY kind
+--   UNION ALL
+--   SELECT 'mgr_fines', kind, COUNT(*) FROM mgr_fines GROUP BY kind;

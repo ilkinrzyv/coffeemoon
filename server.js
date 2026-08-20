@@ -565,6 +565,20 @@ function mgrNameOf(dept) {
 
 // Sistem (avtomatik gecikmə) cəriməsini menecer cəriməsi ilə ortaq formata gətirir:
 // Yazan = "Sistem", səbəb = niyə yazıldığı (gecikmə məlumatı).
+// Menecer cəriməsi/tənbehi üçün növ məlumatı (sistem sətrində bunu normSystemFine edir).
+// `kind` sütunu hələ yoxdursa sətir pul cəriməsi sayılır.
+function novMelumat(r) {
+  const kind = r.kind || 'fine';
+  return {
+    kind,
+    kindName:   U.TOHMET_NAMES[kind] || 'Cərimə',
+    isTohmet:   U.isTohmet(kind),
+    aktiv:      U.isTohmet(kind) ? U.tohmetAktiv(r) : null,
+    expiresYmd: r.expires_ymd || '',
+    liftedAt:   r.lifted_at || '',
+  };
+}
+
 function normSystemFine(r) {
   const reason = (r.reason && String(r.reason).trim())
     ? r.reason
@@ -1935,6 +1949,7 @@ const PUSH_TPL_META = {
   avansRequest:     { ad: 'Avans tələbi (menecerə)',     vars: ['ad', 'mebleg', 'qeyd'] },
   avansDecision:    { ad: 'Avans qərarı (işçiyə)',       vars: ['emoji', 'mebleg', 'status'] },
   mgrFine:          { ad: 'Cərimə bildirişi (işçiyə)',   vars: ['mebleg', 'sebeb'] },
+  mgrTohmet:        { ad: 'Töhmət bildirişi (işçiyə)',   vars: ['tenbeh', 'ay', 'sebeb'] },
   fineAck:          { ad: 'Cərimə imzalandı (menecerə)', vars: ['ad', 'mebleg'] },
   lunchLate:        { ad: 'Nahar gecikməsi (menecerə)',  vars: ['ad', 'deq', 'limit'] },
   execGlobal:       { ad: 'İcraçının ümumi mesajı',      vars: ['icraci', 'mesaj'] },
@@ -3551,7 +3566,7 @@ API.getMgrFinesForAdmin = async (year, month) => {
     place({
       fineId: f.fine_id, empName: f.emp_name, amount: f.amount, reason: f.reason || '',
       status: f.status, createdBy: f.created_by || 'Menecer', createdAt: f.created_at || '',
-      ackedAt: f.acked_at || '', source: 'manager',
+      ackedAt: f.acked_at || '', source: 'manager', ...novMelumat(f),
     }, f.dept, f.emp_id);
   }
   for (const f of sfines || []) {
@@ -3598,30 +3613,170 @@ API.updateAvansStatus = async (avansId, status) => {
 
 // ── MENECER CƏRİMƏSİ (manual — işçi elektron imza ilə təsdiqləyir) ───
 
-API.addMgrFine = async (branchKey, empId, amount, reason) => {
+// ══════════════════════════════════════════════════════════════════
+//  AYLIQ CƏRİMƏ TUTUMU (AR ƏM 175 → 20%)
+// ══════════════════════════════════════════════════════════════════
+//  İKİ QAT MÜDAFİƏ, hər birinin öz bazası var — bu fərq qəsdəndir:
+//
+//  1) YAZMA ANINDA (bu funksiya) — baza CƏDVƏLƏ görə proqnozlaşdırılan
+//     ay sonu brütüdür. Səbəb: ayın 3-ü faktiki brüt kiçikdir, faktiki
+//     bazadan istifadə etsək menecer ayın əvvəlində nahaq bloklanardı.
+//
+//  2) HESABATDA (`getSalaryReport`) — baza FAKTİKİ qazancdır. İşçi ayın
+//     qalanına gəlməsə tavan avtomatik daralır və artıq tutulmur.
+//
+//  Yəni yazma anındakı yoxlama səxavətlidir, real qoruma hesabatdadır.
+async function fineCapacity(empId, dept, when) {
+  const ts   = when || new Date();
+  const disc = U.getDisciplineConfig();
+  const cfg  = U.getSalaryConfig();
+  const y  = ts.getFullYear(), mo = ts.getMonth() + 1;
+  const m  = String(mo).padStart(2, '0');
+  const startStr = `${y}-${m}-01`;
+  const endStr   = mo === 12 ? `${y + 1}-01-01` : `${y}-${String(mo + 1).padStart(2, '0')}-01`;
+
+  const [{ data: emp }, { data: ced }, { data: sysF }, { data: mgrF }] = await Promise.all([
+    db().from('employees').select('id,name,dept,position').eq('id', String(empId)).single(),
+    db().from('cedvel').select('date_str,shift_type').eq('emp_id', String(empId))
+      .gte('date_str', startStr).lt('date_str', endStr),
+    db().from('fines').select('amount,status,kind').eq('emp_id', String(empId))
+      .gte('date_str', startStr).lt('date_str', endStr),
+    db().from('mgr_fines').select('amount,status,kind').eq('emp_id', String(empId))
+      .gte('created_at', startStr).lt('created_at', endStr),
+  ]);
+  if (!emp) return null;
+
+  // Ay sonu proqnoz brütü — cədvəldəki iş günlərinin cəmi
+  let brut = 0;
+  for (const c of ced || []) {
+    const st = c.shift_type || '';
+    if (!st || st === 'istirahetsm') continue;
+    brut += U.computeDayPay(emp.position, emp.dept || dept, st, cfg).pay;
+  }
+  brut = U.round2(brut);
+
+  // Artıq yazılmış cərimələr. İMZASIZLAR DA SAYILIR — onlar imzalanacaq,
+  // saymasaq menecer imzasız cərimə yığıb tavanı keçə bilərdi.
+  // Bağışlananlar (waived) və tənbehlər (məbləğ 0) sayılmır.
+  let yazilan = 0;
+  for (const f of sysF || []) {
+    if (U.isTohmet(f.kind || 'fine')) continue;
+    if (f.status === 'waived') continue;
+    yazilan += Number(f.amount) || 0;
+  }
+  for (const f of mgrF || []) {
+    if (U.isTohmet(f.kind || 'fine')) continue;
+    yazilan += Number(f.amount) || 0;
+  }
+  yazilan = U.round2(yazilan);
+
+  const pct   = disc.finePercentCap;
+  const limit = (pct && brut > 0) ? U.round2(brut * pct / 100) : null;
+  const qalan = limit === null ? null : U.round2(Math.max(0, limit - yazilan));
+
+  return {
+    empId: String(emp.id), empName: emp.name, brut, yazilan, limit, qalan,
+    faiz: pct,
+    // Tavan dolubsa menecer YALNIZ tənbeh yaza bilər
+    doludur: limit !== null && qalan <= 0,
+    // Brüt hesablana bilmirsə (cədvəl yoxdur) tavan tətbiq edilmir — bloklamırıq
+    brutYoxdur: !(brut > 0),
+  };
+};
+
+// Menecer paneli cərimə formasında bunu göstərir
+API.getFineCapacity = async (branchKey, empId) => {
   const check = U.validateBranchScheduleKey(branchKey);
   if (!check.valid) return { success: false, reason: 'İcazəsiz.' };
-  const amt = parseFloat(amount);
-  const fineMax = U.getDisciplineConfig().mgrFineMax;
-  if (!empId || isNaN(amt) || amt <= 0 || amt > fineMax)
-    return { success: false, reason: `Məbləğ 1–${fineMax} AZN aralığında olmalıdır.` };
+  if (!empId) return { success: false, reason: 'İşçi seçilməyib.' };
+  const { data: emp } = await db().from('employees').select('id,dept').eq('id', String(empId)).single();
+  if (!emp) return { success: false, reason: 'İşçi tapılmadı.' };
+  if (emp.dept !== check.dept) return { success: false, reason: 'Bu işçi sizin filialınıza aid deyil.' };
+  const cap = await fineCapacity(empId, check.dept);
+  if (!cap) return { success: false, reason: 'Hesablana bilmədi.' };
+  return { success: true, ...cap, tohmetAdlari: U.TOHMET_NAMES };
+};
+
+// `kind`: 'fine' (pul cəriməsi) | 'tohmet' | 'siddetli' | 'sonuncu'
+// Tənbehdə məbləğ YOXDUR (amount = 0) — maaşdan heç nə tutulmur.
+API.addMgrFine = async (branchKey, empId, amount, reason, kind) => {
+  const check = U.validateBranchScheduleKey(branchKey);
+  if (!check.valid) return { success: false, reason: 'İcazəsiz.' };
+  if (!empId) return { success: false, reason: 'İşçi seçilməyib.' };
   if (!reason || !reason.trim()) return { success: false, reason: 'Səbəb yazılmalıdır.' };
+
+  const nov    = kind || 'fine';
+  const tenbeh = U.isTohmet(nov);
+  if (!tenbeh && nov !== 'fine') return { success: false, reason: 'Belə sənəd növü yoxdur.' };
+
+  const disc = U.getDisciplineConfig();
+  const amt  = tenbeh ? 0 : parseFloat(amount);
+  if (!tenbeh) {
+    if (isNaN(amt) || amt <= 0 || amt > disc.mgrFineMax)
+      return { success: false, reason: `Məbləğ 1–${disc.mgrFineMax} AZN aralığında olmalıdır.` };
+  }
+
   const { data: emp } = await db().from('employees').select('id,name,dept').eq('id', String(empId)).single();
   if (!emp) return { success: false, reason: 'İşçi tapılmadı.' };
   if (emp.dept !== check.dept) return { success: false, reason: 'Bu işçi sizin filialınıza aid deyil.' };
+
+  // ── QANUNİ TAVAN (ƏM 175) ──
+  // Bu ayın cərimələri tavanı doldurubsa menecer artıq PUL cəriməsi yaza
+  // bilmir — yalnız intizam tənbehi yaza bilər. Tənbeh həmişə keçir,
+  // çünki onda tutulma yoxdur.
+  if (!tenbeh) {
+    const cap = await fineCapacity(emp.id, check.dept);
+    if (cap && cap.limit !== null && !cap.brutYoxdur) {
+      if (cap.qalan <= 0) {
+        return {
+          success: false,
+          capReached: true,
+          reason: `Bu işçinin bu aylıq cərimə tavanı dolub (${cap.limit} ₼ = maaşın ${cap.faiz}%-i, ` +
+                  `artıq ${cap.yazilan} ₼ yazılıb). AR Əmək Məcəlləsinin 175-ci maddəsinə görə ` +
+                  `daha çox tutula bilməz — pul cəriməsi əvəzinə töhmət yaza bilərsiniz.`,
+          cap,
+        };
+      }
+      if (amt > cap.qalan) {
+        return {
+          success: false,
+          capExceeded: true,
+          reason: `Bu məbləğ qanuni tavanı aşır. Bu ay ən çoxu ${cap.qalan} ₼ yazıla bilər ` +
+                  `(tavan ${cap.limit} ₼ = maaşın ${cap.faiz}%-i, artıq ${cap.yazilan} ₼ yazılıb). ` +
+                  `Məbləği azaldın və ya töhmət yazın.`,
+          cap,
+        };
+      }
+    }
+  }
+
   const id = 'MF-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substring(2, 5).toUpperCase();
   const mgrName = mgrNameOf(check.dept) || ('Menecer (' + check.dept + ')');
-  const { error } = await db().from('mgr_fines').insert({
+  const bugun = U.getLogicalYMD(new Date());
+  const row = {
     fine_id: id, emp_id: String(emp.id), emp_name: emp.name, dept: check.dept,
     amount: amt, reason: reason.trim().slice(0, 300), status: 'pending', created_by: mgrName,
-  });
+    kind: nov,
+    expires_ymd: tenbeh ? U.tohmetExpiry(bugun, disc) : null,
+  };
+  let { error } = await db().from('mgr_fines').insert(row);
+  // Sütunlar hələ yaradılmayıbsa (tohmet-migration.sql işlədilməyib) qeyd itməsin
+  if (error && /kind|expires_ymd/i.test(error.message || '')) {
+    const { kind: _k, expires_ymd: _e, ...kohne } = row;
+    ({ error } = await db().from('mgr_fines').insert(kohne));
+    if (!error && tenbeh) console.warn('[Töhmət] mgr_fines.kind sütunu yoxdur — tohmet-migration.sql işlədilməlidir.');
+  }
   if (error) { sbErr('addMgrFine', error); return { success: false, reason: 'Xəta baş verdi.' }; }
-  const pFine = U.fillPush('mgrFine', { mebleg: amt, sebeb: reason.trim().slice(0, 80) });
+
+  // Bildiriş: tənbehdə məbləğ yerinə növü və müddəti göndərilir
+  const pFine = tenbeh
+    ? U.fillPush('mgrTohmet', { tenbeh: U.TOHMET_NAMES[nov], ay: disc.tohmetMonths, sebeb: reason.trim().slice(0, 80) })
+    : U.fillPush('mgrFine',   { mebleg: amt, sebeb: reason.trim().slice(0, 80) });
   if (pFine) await sendPushToEmployee(
     emp.id, pFine.title, pFine.body,
     { tag: 'mgrfine-' + id, requireInteraction: true }
   );
-  return { success: true, fineId: id };
+  return { success: true, fineId: id, kind: nov, kindName: U.TOHMET_NAMES[nov] || 'Cərimə' };
 };
 
 API.getMgrFinesForManager = async (branchKey) => {
@@ -3643,7 +3798,7 @@ API.getMgrFinesForManager = async (branchKey) => {
     out.push({
       fineId: r.fine_id, empId: r.emp_id, empName: r.emp_name, amount: r.amount,
       reason: r.reason || '', status: r.status, createdBy: r.created_by || 'Menecer',
-      createdAt: r.created_at || '', ackedAt: r.acked_at || '', source: 'manager',
+      createdAt: r.created_at || '', ackedAt: r.acked_at || '', source: 'manager', ...novMelumat(r),
     });
   }
   for (const r of [...(sByDept || []), ...(sByEmp || [])]) {
@@ -3663,14 +3818,20 @@ API.getMyFines = async (secret) => {
     db().from('mgr_fines').select('*').eq('emp_id', eid).order('created_at', { ascending: false }).limit(20),
     db().from('fines').select('*').eq('emp_id', eid).order('created_at', { ascending: false }).limit(20),
   ]);
-  const out = [];
-  for (const r of mf || []) out.push({
-    fineId: r.fine_id, amount: r.amount, reason: r.reason || '', status: r.status,
-    createdAt: r.created_at || '', ackedAt: r.acked_at || '', createdBy: r.created_by || 'Menecer', source: 'manager',
-  });
   // İntizam tənbehi yalnız QÜVVƏDƏ olduğu müddətdə işçi kartında görünür (ƏM 190.1).
   // Müddəti bitən və ya vaxtından əvvəl götürülən tənbeh siyahıdan düşür —
   // qeyd bazada qalır (audit), sadəcə işçiyə göstərilmir.
+  // Hər iki mənbəyə (menecer + sistem) eyni qayda tətbiq olunur.
+  const out = [];
+  for (const r of mf || []) {
+    const n = {
+      fineId: r.fine_id, amount: r.amount, reason: r.reason || '', status: r.status,
+      createdAt: r.created_at || '', ackedAt: r.acked_at || '', createdBy: r.created_by || 'Menecer',
+      source: 'manager', ...novMelumat(r),
+    };
+    if (n.isTohmet && !n.aktiv) continue;
+    out.push(n);
+  }
   for (const r of sf || []) {
     const n = normSystemFine(r);
     if (n.isTohmet && !n.aktiv) continue;

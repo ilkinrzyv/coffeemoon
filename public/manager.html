@@ -775,7 +775,7 @@ textarea.fine-doc-input { resize:vertical; }
           <div class="fine-doc-title"><i class="fa-solid fa-file-signature"></i> Cərimə İzahat Sənədi</div>
           <div class="fine-doc-row">
             <span class="fine-doc-label">İşçi</span>
-            <select id="fineEmp" class="fine-doc-input"><option value="">İşçi seçin...</option></select>
+            <select id="fineEmp" class="fine-doc-input" onchange="fineEmpChanged()"><option value="">İşçi seçin...</option></select>
           </div>
           <div class="fine-doc-row">
             <span class="fine-doc-label">Tarix</span>
@@ -785,7 +785,19 @@ textarea.fine-doc-input { resize:vertical; }
             <span class="fine-doc-label">Filial</span>
             <span class="fine-doc-val"><?= dept ?></span>
           </div>
-          <div class="fine-doc-row">
+          <!-- Sənəd növü: pul cəriməsi, yoxsa intizam tənbehi (AR ƏM 186.2) -->
+          <div class="fine-doc-row col">
+            <span class="fine-doc-label">Sənəd növü</span>
+            <select id="fineKind" class="fine-doc-input" onchange="fineKindChanged()">
+              <option value="fine">Pul cəriməsi</option>
+              <option value="tohmet">Töhmət</option>
+              <option value="siddetli">Şiddətli töhmət</option>
+              <option value="sonuncu">Sonuncu xəbərdarlıq</option>
+            </select>
+          </div>
+          <!-- Qanuni tavan xəbərdarlığı — işçi seçilən kimi doldurulur -->
+          <div id="fineCapBox" style="display:none;font-size:0.78rem;line-height:1.55;border-radius:10px;padding:0.6rem 0.8rem;margin-bottom:2px;"></div>
+          <div class="fine-doc-row" id="fineAmountRow">
             <span class="fine-doc-label">Məbləğ</span>
             <span style="display:flex;align-items:center;gap:6px;flex:1;">
               <input id="fineAmount" type="number" min="1" max="1000" placeholder="0" class="fine-doc-input" style="max-width:120px;">
@@ -1421,31 +1433,120 @@ function populateFineEmps() {
   if (cur) sel.value = cur;
 }
 
+// ── Qanuni cərimə tavanı (AR ƏM 175) ────────────────────────────
+//  İşçi seçilən kimi serverdən onun bu aylıq qalan cərimə tutumu alınır.
+//  Tavan dolubsa forma özü tənbehə keçir — menecer «niyə keçmir?» deyə
+//  düyməni basıb səhv almasın.
+var _fineCap = null;
+
+function fineEmpChanged() {
+  var empId = document.getElementById('fineEmp').value;
+  var box   = document.getElementById('fineCapBox');
+  _fineCap = null;
+  if (!empId) { box.style.display = 'none'; fineKindChanged(); return; }
+  box.style.display = 'block';
+  box.style.cssText += ';background:rgba(148,163,184,0.1);color:var(--text-muted);border:1px solid rgba(148,163,184,0.2);';
+  box.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Cərimə tutumu yoxlanılır...';
+  google.script.run
+    .withSuccessHandler(function(c) {
+      if (!c || !c.success) { box.style.display = 'none'; fineKindChanged(); return; }
+      _fineCap = c;
+      renderFineCap();
+    })
+    .withFailureHandler(function(){ box.style.display = 'none'; })
+    .getFineCapacity(BRANCH_KEY, empId);
+}
+
+function renderFineCap() {
+  var box = document.getElementById('fineCapBox');
+  var c = _fineCap;
+  if (!c) { box.style.display = 'none'; return; }
+  box.style.display = 'block';
+
+  if (c.brutYoxdur || c.limit === null) {
+    box.style.cssText += ';background:rgba(148,163,184,0.1);color:var(--text-muted);border:1px solid rgba(148,163,184,0.2);';
+    box.innerHTML = '<i class="fa-solid fa-circle-info"></i> Bu ay üçün cədvəl yoxdur — tavan hesablana bilmir.';
+    return;
+  }
+
+  if (c.doludur) {
+    // Tavan dolub → forma məcburi tənbehə keçir
+    box.style.cssText += ';background:rgba(239,68,68,0.1);color:#991b1b;border:1px solid rgba(239,68,68,0.25);';
+    box.innerHTML =
+      '<b><i class="fa-solid fa-scale-balanced"></i> Cərimə tavanı dolub — pul cəriməsi yazıla bilməz.</b><br>' +
+      'Bu ay artıq <b>' + c.yazilan + ' ₼</b> cərimə var. Qanuni tavan: <b>' + c.limit + ' ₼</b> ' +
+      '(maaşın ' + c.faiz + '%-i, AR ƏM 175).<br>' +
+      'Yalnız <b>töhmət</b> yaza bilərsiniz — tənbeh maaşdan tutulmur.';
+    var sel = document.getElementById('fineKind');
+    if (sel.value === 'fine') sel.value = 'tohmet';
+    fineKindChanged(true);
+    return;
+  }
+
+  var az = c.qalan <= (c.limit * 0.25);
+  box.style.cssText += az
+    ? ';background:rgba(245,158,11,0.1);color:#92400e;border:1px solid rgba(245,158,11,0.25);'
+    : ';background:rgba(16,185,129,0.08);color:#065f46;border:1px solid rgba(16,185,129,0.2);';
+  box.innerHTML =
+    '<i class="fa-solid fa-scale-balanced"></i> Bu ay ən çoxu <b>' + c.qalan + ' ₼</b> cərimə yazıla bilər' +
+    (c.yazilan > 0 ? ' (artıq ' + c.yazilan + ' ₼ var)' : '') + '.<br>' +
+    'Qanuni tavan: ' + c.limit + ' ₼ = maaşın ' + c.faiz + '%-i (AR ƏM 175).';
+  fineKindChanged();
+}
+
+// Sənəd növü dəyişəndə məbləğ sahəsi gizlənir/görünür
+function fineKindChanged(kilidle) {
+  var kind = document.getElementById('fineKind').value;
+  var row  = document.getElementById('fineAmountRow');
+  var sel  = document.getElementById('fineKind');
+  row.style.display = (kind === 'fine') ? '' : 'none';
+  // Tavan dolubsa «Pul cəriməsi» seçimi bağlanır
+  var dolu = kilidle || (_fineCap && _fineCap.doludur && !_fineCap.brutYoxdur);
+  for (var i = 0; i < sel.options.length; i++) {
+    if (sel.options[i].value === 'fine') sel.options[i].disabled = !!dolu;
+  }
+}
+
 function submitMgrFine() {
   var empId  = document.getElementById('fineEmp').value;
+  var kind   = document.getElementById('fineKind').value;
   var amount = document.getElementById('fineAmount').value;
   var reason = document.getElementById('fineReason').value;
   var res    = document.getElementById('fineFormResult');
-  if (!empId)              { res.style.color='var(--danger)'; res.innerHTML='<i class="fa-solid fa-xmark"></i> İşçi seçin.'; return; }
-  if (!amount || amount<=0){ res.style.color='var(--danger)'; res.innerHTML='<i class="fa-solid fa-xmark"></i> Məbləğ daxil edin.'; return; }
-  if (!reason.trim())      { res.style.color='var(--danger)'; res.innerHTML='<i class="fa-solid fa-xmark"></i> Səbəb yazın.'; return; }
-  if (!confirm('Bu işçiyə ' + amount + ' AZN cərimə yazılsın?\nİşçiyə bildiriş gedəcək və o, təsdiqləməlidir.')) return;
+  var tenbeh = kind !== 'fine';
+  var adlar  = { tohmet:'Töhmət', siddetli:'Şiddətli töhmət', sonuncu:'Sonuncu xəbərdarlıq' };
+
+  if (!empId)                       { res.style.color='var(--danger)'; res.innerHTML='<i class="fa-solid fa-xmark"></i> İşçi seçin.'; return; }
+  if (!tenbeh && (!amount||amount<=0)){ res.style.color='var(--danger)'; res.innerHTML='<i class="fa-solid fa-xmark"></i> Məbləğ daxil edin.'; return; }
+  if (!reason.trim())               { res.style.color='var(--danger)'; res.innerHTML='<i class="fa-solid fa-xmark"></i> Səbəb yazın.'; return; }
+
+  var soru = tenbeh
+    ? 'Bu işçiyə ' + adlar[kind] + ' yazılsın?\nMaaşdan heç nə tutulmur, sənəd 6 ay qüvvədə qalır.'
+    : 'Bu işçiyə ' + amount + ' AZN cərimə yazılsın?\nİşçiyə bildiriş gedəcək və o, təsdiqləməlidir.';
+  if (!confirm(soru)) return;
+
   res.style.color='var(--text-muted)'; res.innerHTML='<i class="fa-solid fa-circle-notch fa-spin"></i> Göndərilir...';
   google.script.run
     .withSuccessHandler(function(r) {
       if (r && r.success) {
-        res.style.color='var(--success)'; res.innerHTML='<i class="fa-solid fa-check"></i> Cərimə yazıldı, işçiyə bildiriş göndərildi.';
+        res.style.color='var(--success)';
+        res.innerHTML='<i class="fa-solid fa-check"></i> ' + (r.kindName||'Sənəd') + ' yazıldı, işçiyə bildiriş göndərildi.';
         document.getElementById('fineAmount').value='';
         document.getElementById('fineReason').value='';
         document.getElementById('fineEmp').value='';
+        document.getElementById('fineKind').value='fine';
+        document.getElementById('fineCapBox').style.display='none';
+        _fineCap = null; fineKindChanged();
         loadMgrFines();
         setTimeout(function(){ res.innerHTML=''; }, 4000);
       } else {
         res.style.color='var(--danger)'; res.innerHTML='<i class="fa-solid fa-xmark"></i> ' + ((r&&r.reason)||'Xəta baş verdi');
+        // Tavan səbəbindən rədd olunubsa qutunu təzələ və tənbehə yönləndir
+        if (r && (r.capReached || r.capExceeded) && r.cap) { _fineCap = r.cap; _fineCap.success = true; renderFineCap(); }
       }
     })
     .withFailureHandler(function(){ res.style.color='var(--danger)'; res.innerHTML='<i class="fa-solid fa-xmark"></i> Server xətası'; })
-    .addMgrFine(BRANCH_KEY, empId, amount, reason);
+    .addMgrFine(BRANCH_KEY, empId, amount, reason, kind);
 }
 
 function loadMgrFines() {
@@ -1457,7 +1558,7 @@ function renderMgrFines(list) {
   var badge = document.getElementById('mgrFineBadge');
   if (!el) return;
   if (!list || !list.length) {
-    el.innerHTML = '<div class="req-empty"><i class="fa-solid fa-gavel" style="opacity:0.25;display:block;font-size:1.5rem;margin-bottom:0.5rem;"></i>Cərimə yoxdur.</div>';
+    el.innerHTML = '<div class="req-empty"><i class="fa-solid fa-gavel" style="opacity:0.25;display:block;font-size:1.5rem;margin-bottom:0.5rem;"></i>Cərimə və töhmət yoxdur.</div>';
     if (badge) badge.style.display='none';
     return;
   }
@@ -1475,11 +1576,18 @@ function renderMgrFines(list) {
       bcls='pending'; btxt='İmzalanmayıb';
       sub = '<div class="req-row-sub">' + (yaz || '⏳ İşçinin təsdiqi gözlənilir') + '</div>';
     }
+    // İntizam tənbehində məbləğ yoxdur — növü və qüvvədə olma müddəti göstərilir
+    var etiket = f.isTohmet
+      ? '<span style="font-size:0.86rem;font-weight:800;color:var(--warning);">' + (f.kindName || 'Töhmət') + '</span>'
+      : '<span style="font-size:0.95rem;font-weight:800;color:var(--danger);">' + f.amount + ' ₼</span>';
+    var muddet = (f.isTohmet && f.expiresYmd)
+      ? '<div class="req-row-sub" style="color:var(--warning);">⚖️ ' + f.expiresYmd + ' tarixinədək qüvvədədir</div>'
+      : '';
     return '<div class="req-row"><div class="req-row-left">' +
-      '<div class="req-row-name">' + f.empName + ' &nbsp;<span style="font-size:0.95rem;font-weight:800;color:var(--danger);">' + f.amount + ' ₼</span></div>' +
+      '<div class="req-row-name">' + f.empName + ' &nbsp;' + etiket + '</div>' +
       '<div class="req-row-note">' + f.reason + '</div>' +
       '<div class="req-row-sub">📅 ' + dd + '</div>' +
-      sub + '</div>' +
+      muddet + sub + '</div>' +
       '<span class="req-badge ' + bcls + '">' + btxt + '</span>' +
     '</div>';
   }).join('');

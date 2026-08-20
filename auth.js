@@ -135,6 +135,7 @@ const API_POLICY = {
 
   // ── Cərimə (menecer)
   addMgrFine: 'self', getMgrFinesForManager: 'self',
+  getFineCapacity: 'self',           // menecer cərimə yazmazdan əvvəl qalan tavanı görür
   getMgrFinesForAdmin: 'staff',
   getMyFines: 'self', acknowledgeFine: 'self',
 
