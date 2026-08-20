@@ -50,6 +50,7 @@ const API_POLICY = {
   getFines: 'admin', updateFineStatus: 'admin', deleteFine: 'admin',
   // Silmək və ödəniş statusunu dəyişmək maaş tutulmasına təsir edir → yalnız admin
   deleteAnyFine: 'admin', setFinePayStatus: 'admin',
+  liftTohmet: 'admin',              // AR ƏM 190 — tənbehi vaxtından əvvəl götürmək
 
   // ── Konfiqurasiyalar (əvvəl kodda hardcode idi)
   // Oxumaq: intizam/XP qaydalarını işçi paneli də göstərə bilsin deyə `staff`.

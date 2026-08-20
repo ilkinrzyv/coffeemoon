@@ -569,7 +569,16 @@ function normSystemFine(r) {
   const reason = (r.reason && String(r.reason).trim())
     ? r.reason
     : `Gecikmə${r.late_num ? ` — bu ay ${r.late_num}-ci gecikmə` : ''}${r.late_mins ? `, ${r.late_mins} dəq gec` : ''}`;
+  // `kind` sütunu hələ yoxdursa (migrasiya işlədilməyib) sətir pul cəriməsidir
+  const kind = r.kind || 'fine';
   return {
+    kind,
+    kindName:  U.TOHMET_NAMES[kind] || 'Cərimə',
+    isTohmet:  U.isTohmet(kind),
+    // Tənbeh hələ qüvvədədirmi (ƏM 190.1 — 6 ay)
+    aktiv:     U.isTohmet(kind) ? U.tohmetAktiv(r) : null,
+    expiresYmd: r.expires_ymd || '',
+    liftedAt:   r.lifted_at || '',
     fineId:    r.fine_id,
     empId:     r.emp_id,
     empName:   r.emp_name,
@@ -828,6 +837,29 @@ API.deleteAnyFine = async (fineId, source) => {
   };
 };
 
+// İntizam tənbehini VAXTINDAN ƏVVƏL götürmək (AR ƏM 190).
+// Qeyd silinmir — audit izi qalır, sadəcə qüvvədən düşür və işçi kartında görünmür.
+API.liftTohmet = async (fineId, note) => {
+  if (!fineId) return { success: false, reason: 'Sənəd seçilməyib.' };
+  const { data: row } = await db().from('fines').select('*').eq('fine_id', fineId).single();
+  if (!row) return { success: false, reason: 'Sənəd tapılmadı.' };
+  if (!U.isTohmet(row.kind)) return { success: false, reason: 'Bu, intizam tənbehi deyil.' };
+  if (row.lifted_at) return { success: true, already: true };
+
+  const { error } = await db().from('fines').update({
+    lifted_at: new Date().toISOString(),
+    lifted_by: ('Admin' + (note ? ' — ' + String(note).slice(0, 120) : '')),
+  }).eq('fine_id', fineId);
+  if (error) {
+    if (/lifted_at|lifted_by/i.test(error.message || ''))
+      return { success: false, reason: 'Sütunlar hələ yaradılmayıb — tohmet-migration.sql işlədilməlidir.' };
+    sbErr('liftTohmet', error);
+    return { success: false, reason: error.message };
+  }
+  console.log(`[Töhmət] ${row.emp_name} — ${fineId} vaxtından əvvəl götürüldü`);
+  return { success: true, empName: row.emp_name || '' };
+};
+
 // Sistem cəriməsinin ödəniş statusu: unpaid | paid | waived.
 // 'waived' = bağışlanıb → maaşdan tutulmur, amma tarixçə itmir (silməkdən təhlükəsizdir).
 API.setFinePayStatus = async (fineId, status) => {
@@ -943,6 +975,13 @@ API.closeAllOpenShifts = async (days) => {
 // gecikmələr cərimələnir. Məbləğ və güzəşt DISCIPLINE_CONFIG-dən gəlir —
 // dərəcə dəyişdirilibsə mövcud cərimələrin məbləği də bu əməliyyatla düzəlir.
 // Hələ mövcud cərimələrin paid/waived statusu qorunur; aradan qalxanlar silinir.
+// Cəza sətrinin izahı — cərimə və tənbeh üçün fərqli yazılır
+function cezaSebeb(ex) {
+  return ex.kind === 'fine'
+    ? `Bu ay ${ex.late_num}-ci gecikmə (${ex.late_mins} dəq)`
+    : `${U.TOHMET_NAMES[ex.kind]} — bu ay ${ex.late_num}-ci gecikmə (${ex.late_mins} dəq)`;
+}
+
 API.recalcAllFines = async () => {
   const disc  = U.getDisciplineConfig();
   const first = disc.fineAfterLates + 1;   // neçənci gecikmədən cərimə başlayır
@@ -977,7 +1016,12 @@ API.recalcAllFines = async () => {
       const lim = U.getLateLimit(emp.dept, a.shift, arr);
       if (arr <= lim) continue;                                                       // vaxtında
       monthCount[ym] = (monthCount[ym] || 0) + 1;
-      if (monthCount[ym] >= first) expected[ds] = { late_num: monthCount[ym], late_mins: arr - lim };
+      if (monthCount[ym] >= first) {
+        // validateAndLog ilə EYNİ pilləkən: 1-ci cəza pul, sonrakılar tənbeh.
+        // İki yerdə fərqli hesablasaq, «Cərimələri yenilə» töhmətləri cəriməyə çevirərdi.
+        const kind = U.cezaKind(monthCount[ym] - disc.fineAfterLates, disc);
+        expected[ds] = { late_num: monthCount[ym], late_mins: arr - lim, kind };
+      }
     }
 
     const existing = fines.data || [];
@@ -988,23 +1032,41 @@ API.recalcAllFines = async () => {
       if (!(f.date_str in expected)) {
         await db().from('fines').delete().eq('fine_id', f.fine_id); removed++;
       } else {
-        const ex = expected[f.date_str];
-        await db().from('fines').update({ late_num: ex.late_num, late_mins: ex.late_mins,
-          amount: disc.fineAmount,
-          reason: `Bu ay ${ex.late_num}-ci gecikmə (${ex.late_mins} dəq)` }).eq('fine_id', f.fine_id);
+        const ex   = expected[f.date_str];
+        const pul  = ex.kind === 'fine';
+        const patch = {
+          late_num: ex.late_num, late_mins: ex.late_mins,
+          amount: pul ? disc.fineAmount : 0,
+          kind:   ex.kind,
+          expires_ymd: pul ? null : U.tohmetExpiry(f.date_str, disc),
+          reason: cezaSebeb(ex),
+        };
+        let { error: uErr } = await db().from('fines').update(patch).eq('fine_id', f.fine_id);
+        if (uErr && /kind|expires_ymd/i.test(uErr.message || '')) {
+          const { kind: _k, expires_ymd: _e, ...kohne } = patch;
+          await db().from('fines').update(kohne).eq('fine_id', f.fine_id);
+        }
         kept++;
       }
     }
     // Çatışmayan cərimələri əlavə et
     for (const ds of Object.keys(expected)) {
       if (existByDate[ds]) continue;
-      const ex = expected[ds];
-      await db().from('fines').insert({
+      const ex  = expected[ds];
+      const pul = ex.kind === 'fine';
+      const row = {
         fine_id: 'FN-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substring(2, 8).toUpperCase(),
         emp_id: empId, emp_name: emp.name, dept: emp.dept, date_str: ds,
-        amount: disc.fineAmount, late_num: ex.late_num, late_mins: ex.late_mins,
-        reason: `Bu ay ${ex.late_num}-ci gecikmə (${ex.late_mins} dəq)`, status: 'unpaid',
-      });
+        amount: pul ? disc.fineAmount : 0, late_num: ex.late_num, late_mins: ex.late_mins,
+        reason: cezaSebeb(ex), status: 'unpaid',
+        kind: ex.kind,
+        expires_ymd: pul ? null : U.tohmetExpiry(ds, disc),
+      };
+      let { error: iErr } = await db().from('fines').insert(row);
+      if (iErr && /kind|expires_ymd/i.test(iErr.message || '')) {
+        const { kind: _k, expires_ymd: _e, ...kohne } = row;
+        await db().from('fines').insert(kohne);
+      }
       added++;
     }
   }
@@ -1829,6 +1891,7 @@ const TG_TPL_META = {
   late1:      { ad: 'Gecikmə — 1-ci',        vars: ['deq', 'say'] },
   late2:      { ad: 'Gecikmə — xəbərdarlıq', vars: ['deq', 'say'] },
   lateFine:   { ad: 'Gecikmə — cərimə',      vars: ['deq', 'say', 'mebleg'] },
+  lateTohmet: { ad: 'Gecikmə — töhmət',      vars: ['deq', 'say', 'tenbeh', 'ay'] },
   leave:      { ad: 'Smendən çıxış',         vars: ['ad', 'saat', 'ferq'] },
   lunchGo:    { ad: 'Nahara getdi',          vars: ['ad', 'saat'] },
   lunchBack:  { ad: 'Nahardan qayıtdı',      vars: ['ad', 'saat', 'deq'] },
@@ -1969,7 +2032,8 @@ async function fetchAvansForMonth(startStr, endStr) {
 async function computeSalaryReport(year, month) {
   const y = Number(year), mo = Number(month);
   if (!y || !mo || mo < 1 || mo > 12) return { rows: [], totals: {} };
-  const cfg = U.getSalaryConfig();
+  const cfg  = U.getSalaryConfig();
+  const disc = U.getDisciplineConfig();   // qanuni cərimə tavanı (ƏM 175)
   const m = String(mo).padStart(2, '0');
   const startStr = `${y}-${m}-01`;
   const endStr   = mo === 12 ? `${y + 1}-01-01` : `${y}-${String(mo + 1).padStart(2, '0')}-01`;
@@ -2084,6 +2148,13 @@ async function computeSalaryReport(year, month) {
       detay.sort((a, b) => String(a.date).localeCompare(String(b.date)));
       const t = tutulma[String(e.id)] || { cerime: 0, avans: 0, siyahi: [] };
       const brut = U.round2(maas + taksi);
+
+      // ── QANUNİ TAVAN (AR ƏM 175) ──
+      // Cərimə tutulması əmək haqqının müəyyən faizini (defolt 20%) keçə bilməz.
+      // Tavandan artıq hissə TUTULMUR, amma qeyd İTMİR — hesabatda göstərilir
+      // ki, admin nə qədərinin qanuni səbəbdən çıxılmadığını görsün.
+      const cap = U.applyFineCap(brut, t.cerime, disc);
+
       return {
         empId: e.id, empName: e.name, dept: e.dept, position: e.position || '',
         rate: cfg.rates[e.position] || 0,
@@ -2092,8 +2163,12 @@ async function computeSalaryReport(year, month) {
         smenSayi, tamGunSayi,
         taksiGunu, taksiLimit: limit, taksiLimitAsan: limitAsan,
         maas: U.round2(maas), taksi: U.round2(taksi), brut,
-        cerime: U.round2(t.cerime), avans: U.round2(t.avans),
-        cemi: U.round2(brut - t.cerime - t.avans),     // ƏLƏ VERİLƏCƏK məbləğ
+        cerime: U.round2(cap.tutulan), avans: U.round2(t.avans),
+        // Qanuni tavana görə çıxılmayan hissə (0 = tavan işə düşməyib)
+        cerimeXam:   U.round2(cap.tutulan + cap.kesilen),
+        cerimeKesik: U.round2(cap.kesilen),
+        cerimeLimit: cap.limit,
+        cemi: U.round2(brut - cap.tutulan - t.avans),   // ƏLƏ VERİLƏCƏK məbləğ
         detay, tutulmalar: t.siyahi.sort((a, b) => String(a.date).localeCompare(String(b.date))),
       };
     })
@@ -2106,10 +2181,13 @@ async function computeSalaryReport(year, month) {
   const totals = rows.reduce((t, r) => {
     t.maas += r.maas; t.taksi += r.taksi; t.brut += r.brut;
     t.cerime += r.cerime; t.avans += r.avans; t.cemi += r.cemi;
+    t.cerimeKesik += (r.cerimeKesik || 0);
     t.gun += r.gunSayi; t.smen += r.smenSayi; t.istirahet += r.istirahetGunu;
     return t;
-  }, { maas: 0, taksi: 0, brut: 0, cerime: 0, avans: 0, cemi: 0, gun: 0, smen: 0, istirahet: 0 });
-  ['maas', 'taksi', 'brut', 'cerime', 'avans', 'cemi'].forEach(k => { totals[k] = U.round2(totals[k]); });
+  }, { maas: 0, taksi: 0, brut: 0, cerime: 0, avans: 0, cemi: 0, cerimeKesik: 0, gun: 0, smen: 0, istirahet: 0 });
+  ['maas', 'taksi', 'brut', 'cerime', 'avans', 'cemi', 'cerimeKesik'].forEach(k => { totals[k] = U.round2(totals[k]); });
+  // Panel qanuni tavanı izah edə bilsin deyə faiz də göndərilir
+  totals.finePercentCap = disc.finePercentCap;
 
   // Vəzifəsi təyin edilməyənlər 0 maaş alır — admin xəbərdar olsun
   totals.vezifesiz = rows.filter(r => !r.position && r.gunSayi > 0).length;
@@ -2366,23 +2444,48 @@ API.validateAndLog = async (enteredPin, clientIp, forceMode) => {
           if (tot > lim) prevLateCount++;
         }
         const thisLateNum = prevLateCount + 1;
-        // `fineAfterLates` qədər gecikmə güzəştdir; ondan sonrakılar cərimələnir
-        const isFined = prevLateCount >= disc.fineAfterLates;
-        // Mesaj CƏRİMƏ VƏZİYYƏTİNƏ görə seçilir, sabit "2-ci gecikmə"yə görə yox —
-        // güzəşt sayı dəyişdirilsə (məs. 4) xəbərdarlıq mərhələsi də onunla uzanır.
+        // `fineAfterLates` qədər gecikmə güzəştdir (ƏM 186 — xəbərdarlıq tənbeh sayılmır);
+        // ondan sonrakılar cəzalandırılır.
+        const cezaVar = prevLateCount >= disc.fineAfterLates;
+        // Bu ayda neçənci CƏZADIR — pillə buna görə seçilir:
+        // 1-ci cəza pul cəriməsi, sonrakılar intizam tənbehi (töhmət → şiddətli → sonuncu).
+        const cezaSira = thisLateNum - disc.fineAfterLates;
+        const kind   = cezaVar ? U.cezaKind(cezaSira, disc) : null;
+        const pulCez = kind === 'fine';
+        const mebleg = pulCez ? disc.fineAmount : 0;
+
+        // Mesaj CƏZA VƏZİYYƏTİNƏ görə seçilir, sabit "2-ci gecikmə"yə görə yox —
+        // güzəşt sayı dəyişdirilsə xəbərdarlıq mərhələsi də onunla uzanır.
         const tg = U.getTgTemplates();
         lateWarning = U.fillTemplate(
-          isFined ? tg.lateFine : (prevLateCount === 0 ? tg.late1 : tg.late2),
-          { deq: lateMins, say: thisLateNum, mebleg: disc.fineAmount }
+          !cezaVar ? (prevLateCount === 0 ? tg.late1 : tg.late2)
+                   : (pulCez ? tg.lateFine : tg.lateTohmet),
+          { deq: lateMins, say: thisLateNum, mebleg, tenbeh: U.TOHMET_NAMES[kind] || '', ay: disc.tohmetMonths }
         );
-        // Cərimə DB-də saxlanılır (audit izi)
-        if (isFined) {
-          const { error: fineErr } = await db().from('fines').insert({
+
+        // Cəza DB-də saxlanılır (audit izi). Töhmətdə `amount = 0` olur →
+        // maaş hesabatındakı cəm dəyişmir.
+        if (cezaVar) {
+          const sebeb = pulCez
+            ? `Bu ay ${thisLateNum}-ci gecikmə (${lateMins} dəq)`
+            : `${U.TOHMET_NAMES[kind]} — bu ay ${thisLateNum}-ci gecikmə (${lateMins} dəq)`;
+          const row = {
             fine_id:   'FN-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substring(2, 4).toUpperCase(),
             emp_id:    String(matched.id), emp_name: matched.name, dept: matched.dept,
-            date_str:  todayYMD, amount: disc.fineAmount, late_num: thisLateNum, late_mins: lateMins,
-            reason:    `Bu ay ${thisLateNum}-ci gecikmə (${lateMins} dəq)`, status: 'unpaid',
-          });
+            date_str:  todayYMD, amount: mebleg, late_num: thisLateNum, late_mins: lateMins,
+            reason:    sebeb, status: 'unpaid',
+            kind,
+            // Tənbeh verilən gündən 6 ay qüvvədə olur (ƏM 190.1)
+            expires_ymd: pulCez ? null : U.tohmetExpiry(todayYMD, disc),
+          };
+          let { error: fineErr } = await db().from('fines').insert(row);
+          // `kind`/`expires_ymd` sütunları hələ yaradılmayıbsa (tohmet-migration.sql
+          // işlədilməyib) qeyd İTMƏSİN — sütunsuz təkrarlanır.
+          if (fineErr && /kind|expires_ymd/i.test(fineErr.message || '')) {
+            const { kind: _k, expires_ymd: _e, ...kohne } = row;
+            ({ error: fineErr } = await db().from('fines').insert(kohne));
+            if (!fineErr) console.warn('[Töhmət] kind sütunu yoxdur — tohmet-migration.sql işlədilməlidir.');
+          }
           sbErr('insertFine', fineErr);
         }
       }
@@ -3565,7 +3668,14 @@ API.getMyFines = async (secret) => {
     fineId: r.fine_id, amount: r.amount, reason: r.reason || '', status: r.status,
     createdAt: r.created_at || '', ackedAt: r.acked_at || '', createdBy: r.created_by || 'Menecer', source: 'manager',
   });
-  for (const r of sf || []) out.push(normSystemFine(r));
+  // İntizam tənbehi yalnız QÜVVƏDƏ olduğu müddətdə işçi kartında görünür (ƏM 190.1).
+  // Müddəti bitən və ya vaxtından əvvəl götürülən tənbeh siyahıdan düşür —
+  // qeyd bazada qalır (audit), sadəcə işçiyə göstərilmir.
+  for (const r of sf || []) {
+    const n = normSystemFine(r);
+    if (n.isTohmet && !n.aktiv) continue;
+    out.push(n);
+  }
   return out.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
 };
 

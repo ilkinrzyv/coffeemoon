@@ -1547,6 +1547,23 @@ var _qdSub = 'disc', _qdDisc = null, _qdXp = null;
 // Düymə ilə dəyişən sahə — əvvəlcə ekrandakı xanalar yığılır ki, yazılanlar itməsin
 function qdSetBlock(v){ qdCollect(); _qdDisc.blockOnOpenShift = v; qdRender(); }
 
+// Cəza pilləkənini oxunaqlı mətnə çevirir — admin nəyin nə vaxt baş verdiyini görsün.
+// Rəqəmləri təxmin etmək əvəzinə cari konfiqurasiyadan qurulur.
+var QD_TENBEH_AD = { fine:'Cərimə', tohmet:'Töhmət', siddetli:'Şiddətli töhmət', sonuncu:'Sonuncu xəbərdarlıq' };
+function qdLadderText(){
+  var guzest = Number(_qdDisc.fineAfterLates) || 0;
+  var pul    = Number(_qdDisc.fineMaxPerMonth) || 0;
+  var ladder = _qdDisc.tohmetLadder || ['tohmet','siddetli','sonuncu'];
+  var parts = [];
+  for(var i = 1; i <= guzest; i++) parts.push(i + '-ci: xəbərdarlıq');
+  for(var j = 1; j <= pul; j++)    parts.push((guzest + j) + '-ci: cərimə');
+  for(var k = 0; k < ladder.length; k++){
+    var n = guzest + pul + k + 1;
+    parts.push(n + '-ci: ' + (QD_TENBEH_AD[ladder[k]] || ladder[k]) + (k === ladder.length - 1 ? ' (sonrakılar da)' : ''));
+  }
+  return parts.join(' · ');
+}
+
 function qdSetSub(s){
   _qdSub = s;
   document.getElementById('qdTabDisc').classList.toggle('on', s === 'disc');
@@ -1660,6 +1677,9 @@ function qdCollect(){
     _qdDisc.dayCutoffHour  = n('qdDayCut');
     _qdDisc.daypartBoundaryMin = n('qdDaypart');
     _qdDisc.openShiftLookbackDays = n('qdOsDays');
+    _qdDisc.fineMaxPerMonth = n('qdFineMax');
+    _qdDisc.tohmetMonths    = n('qdTohMonths');
+    _qdDisc.finePercentCap  = n('qdFineCap');
     // blockOnOpenShift düymə ilə dəyişir (qdSetBlock) — xanadan oxunmur
     _qdDisc.latePenalty  = qdReadTiers('pen',  'mins',   'xp');
     _qdDisc.streakShield = qdReadTiers('shld', 'streak', 'mult');
@@ -1720,6 +1740,19 @@ function qdRender(){
       '<div style="font-size:0.78rem;color:var(--text-muted);margin-top:8px;line-height:1.55;">'+
         'Açıq smenlər <b>Açıq smenlər</b> səhifəsində bağlanır. Səhər tələsik hal olsa bunu '+
         'müvəqqəti söndürüb işçiləri buraxa, sonra yenidən aça bilərsən.</div>'+
+      qdSectionTitle('fa-scale-balanced','Qanuni hədlər','AR Əmək Məcəlləsi')+
+      '<div style="font-size:0.78rem;color:var(--text-muted);margin:6px 0 10px;line-height:1.6;">'+
+        '<b>ƏM 186.2</b> — intizam tənbehləri: töhmət, şiddətli töhmət, sonuncu xəbərdarlıq, işdən çıxarma. '+
+        '<b>Pul cəriməsi bu siyahıda yoxdur</b>, ona görə sistem təkrar pozuntuda cərimədən tənbehə keçir.<br>'+
+        '<b>ƏM 190.1</b> — tənbeh verilən gündən 6 ay qüvvədə olur. '+
+        '<b>ƏM 175</b> — tutulmalar əmək haqqının 20%-ni keçə bilməz.</div>'+
+      '<div class="tg-grid">'+
+        qdField('Ayda ən çox neçə PUL cəriməsi?','qdFineMax',_qdDisc.fineMaxPerMonth,'Bundan sonrakı pozuntular intizam tənbehi olur (1 → ayda bir cərimə, qalanı töhmət)',0,31)+
+        qdField('Tənbeh neçə ay qüvvədədir?','qdTohMonths',_qdDisc.tohmetMonths,'ƏM 190.1 → 6 ay. Bu müddətdə işçi kartında görünür',1,60)+
+        qdField('Cərimə tavanı (maaşın %-i)','qdFineCap',_qdDisc.finePercentCap,'ƏM 175 → 20%. Tavandan artıq hissə tutulmur. 0 = tavan yoxdur',0,100)+
+      '</div>'+
+      '<div style="font-size:0.78rem;color:var(--text-muted);margin-top:8px;line-height:1.6;">'+
+        '<b>Cəza pilləkəni:</b> '+qdLadderText()+'</div>'+
       qdSectionTitle('fa-arrow-trend-down','Gecikmə bal cəzası','neçə dəqiqə gecikmə → neçə bal itir')+
       '<div style="font-size:0.78rem;color:var(--text-muted);margin:6px 0 10px;">Ən yuxarı uyğun sətir tətbiq olunur. Sıraya fikir vermə — server özü düzür.</div>'+
       qdTiers('pen', _qdDisc.latePenalty, 'mins','Ən azı (dəq)','xp','İtən bal')+
@@ -2058,6 +2091,8 @@ function resetDev(id){var name=empName(id);if(!name)return;if(confirm(name+' —
 // ══ MAAŞLAR ══════════════════════════════════════════════════════
 // Qayda: gün yalnız işçi GƏLİBSƏ ödənilir. Cədvəldəki smen 1x/2x və taksini müəyyən edir.
 var _maasData=null, _maasCfg=null, _maasSub='rep', _maasDept='', _maasInited=false;
+// Qanuni cərimə tavanı (%) — serverdən gəlir, izah mətnində göstərilir (AR ƏM 175)
+var _maasCap=20;
 var AY_ADLARI=['Yanvar','Fevral','Mart','Aprel','May','İyun','İyul','Avqust','Sentyabr','Oktyabr','Noyabr','Dekabr'];
 
 function initMaas(){
@@ -2089,6 +2124,7 @@ function loadMaas(live){
   document.getElementById('maasBody').innerHTML='<div style="text-align:center;padding:2rem;color:var(--text-muted)"><i class="fa-solid fa-circle-notch fa-spin"></i></div>';
   google.script.run.withSuccessHandler(function(d){
     _maasData=d||{rows:[],totals:{}};
+    if(_maasData.totals&&_maasData.totals.finePercentCap!=null) _maasCap=_maasData.totals.finePercentCap;
     // DİQQƏT: bağlı ayın konfiqurasiyası SNAPSHOT-dur (o vaxtkı dərəcələr).
     // Onu _maasCfg-ə yazsaq, admin "Dərəcələr"i saxlayanda cari dərəcələr köhnəyə qayıdar.
     if(!_maasData.closed&&_maasData.config) _maasCfg=_maasData.config;
@@ -2212,7 +2248,14 @@ function maasSetir(r){
       '<td data-l="Maaş" style="text-align:right;"><span class="fa-money">'+r.maas+' ₼</span></td>'+
       '<td data-l="Taksi" style="text-align:right;"><span class="fa-money" style="color:'+(r.taksi?'var(--warning)':'var(--text-soft)')+';">'+(r.taksi||'—')+(r.taksi?' ₼':'')+'</span>'+
         (r.taksiGunu?'<div class="emp-sub" style="text-align:right;'+(r.taksiLimitAsan?'color:var(--danger);font-weight:700;':'')+'">'+r.taksiGunu+'/'+r.taksiLimit+' gün'+(r.taksiLimitAsan?' · '+r.taksiLimitAsan+' limitdən kənar':'')+'</div>':'')+'</td>'+
-      '<td data-l="Cərimə" style="text-align:right;"><span class="fa-money" style="color:'+(r.cerime?'var(--danger)':'var(--text-soft)')+';">'+(r.cerime?'−'+r.cerime+' ₼':'—')+'</span></td>'+
+      // Qanuni tavan (ƏM 175) işə düşübsə çıxılmayan hissə göstərilir —
+      // yoxsa admin niyə cərimənin hamısının tutulmadığını başa düşməz.
+      '<td data-l="Cərimə" style="text-align:right;"><span class="fa-money" style="color:'+(r.cerime?'var(--danger)':'var(--text-soft)')+';">'+(r.cerime?'−'+r.cerime+' ₼':'—')+'</span>'+
+        (r.cerimeKesik>0
+          ? '<div style="font-size:0.7rem;color:var(--warning);font-weight:600;margin-top:2px;" title="AR ƏM 175 — tutulmalar əmək haqqının '+(_maasCap||20)+'%-ni keçə bilməz">'+
+              'qanuni tavan: '+r.cerimeKesik+' ₼ tutulmadı</div>'
+          : '')+
+      '</td>'+
       '<td data-l="Avans" style="text-align:right;"><span class="fa-money" style="color:'+(r.avans?'var(--primary)':'var(--text-soft)')+';">'+(r.avans?'−'+r.avans+' ₼':'—')+'</span></td>'+
       '<td data-l="Veriləcək" style="text-align:right;"><span class="fa-money" style="color:'+(r.cemi<0?'var(--danger)':'var(--success)')+';font-size:0.95rem;">'+r.cemi+' ₼</span></td>'+
       '<td style="text-align:right;"><i class="fa-solid fa-chevron-down fa-chev"></i></td>'+
@@ -2963,9 +3006,13 @@ function faSetir(r,i){
   var d=r.d;
   if(_faSub==='fines'){
     var imzali=d.status==='acknowledged';
+    // İntizam tənbehində məbləğ yoxdur — növü və qüvvədə olma müddəti göstərilir
+    var mebleg = d.isTohmet
+      ? '<span class="fa-money" style="color:var(--warning);font-size:0.83rem;">'+esc(d.kindName||'Töhmət')+'</span>'
+      : '<span class="fa-money" style="color:var(--danger);">'+Number(d.amount)+' ₼</span>';
     return '<tr class="fa-exp" onclick="faToggle(this)">'+
         '<td data-l="İşçi">'+faEmpCell(d.empName,r.dept)+'</td>'+
-        '<td data-l="Məbləğ" style="text-align:right;"><span class="fa-money" style="color:var(--danger);">'+Number(d.amount)+' ₼</span></td>'+
+        '<td data-l="Məbləğ" style="text-align:right;">'+mebleg+'</td>'+
         '<td data-l="Tarix">'+esc(fmtFineDateAdmin(d.createdAt))+'</td>'+
         '<td data-l="Yazan">'+esc(d.createdBy||'Menecer')+'</td>'+
         '<td data-l="İmza">'+faBadge(imzali?'İmzalandı':'İmzalanmayıb',imzali?'approved':'pending')+'</td>'+
@@ -2974,6 +3021,14 @@ function faSetir(r,i){
       '<tr class="fa-detay" style="display:none;"><td colspan="6" style="padding-top:0;">'+
         '<div class="fa-reason"><b>İzahat / səbəb</b>'+esc(d.reason||'—')+
         (imzali&&d.ackedAt?'<div style="margin-top:6px;color:var(--success);font-weight:700;font-size:0.78rem;">✍️ '+esc(fmtFineDateAdmin(d.ackedAt))+' tarixində imzalanıb</div>':'')+
+        (d.isTohmet
+          ? '<div style="margin-top:6px;font-size:0.78rem;font-weight:600;color:'+(d.aktiv?'var(--warning)':'var(--text-soft)')+';">'+
+              '<i class="fa-solid fa-gavel"></i> '+esc(d.kindName||'Töhmət')+' — '+
+              (d.liftedAt ? 'vaxtından əvvəl götürülüb'
+                          : (d.aktiv ? esc(d.expiresYmd||'')+' tarixinədək qüvvədədir'
+                                     : 'müddəti bitib, qüvvədən düşüb'))+
+            '</div>'
+          : '')+
         faFineActions(d)+
         '</div></td></tr>';
   }
@@ -3007,7 +3062,16 @@ function faFineActions(d){
   var h = '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px;padding-top:10px;border-top:1px solid var(--border);">';
   h += '<span style="font-size:0.75rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;">'+
        (sys?'Avtomatik':'Menecer')+'</span>';
-  if(sys){
+  if(d.isTohmet){
+    // Tənbehdə pul yoxdur — əvəzinə ƏM 190 üzrə vaxtından əvvəl götürmə
+    if(d.aktiv && !d.liftedAt){
+      h += '<button class="btn sm" onclick="faLift(event,\''+id+'\',\''+ad+'\')" '+
+           'title="AR ƏM 190 — tənbehi vaxtından əvvəl qüvvədən sal">'+
+           '<i class="fa-solid fa-unlock"></i> Vaxtından əvvəl götür</button>';
+    } else {
+      h += '<span style="font-size:0.75rem;color:var(--text-soft);">Qüvvədə deyil</span>';
+    }
+  } else if(sys){
     h += '<span style="font-size:0.75rem;color:var(--text-muted);">Maaşdan:</span>'+faBadge(pay[0],pay[1]);
     if(d.payStatus !== 'waived'){
       h += '<button class="btn sm" onclick="faWaive(event,\''+id+'\')" title="Maaşdan tutulmasın, amma qeyd qalsın">'+
@@ -3037,6 +3101,20 @@ function faDelete(e, fineId, source, ad, mebleg){
   }).withFailureHandler(function(err){
     alert('Xəta: ' + ((err&&err.message)||'Server xətası'));
   }).deleteAnyFine(fineId, source);
+}
+
+// AR ƏM 190 — intizam tənbehi vaxtından əvvəl götürülə bilər.
+// Qeyd silinmir (audit izi qalır), sadəcə qüvvədən düşür.
+function faLift(e, fineId, ad){
+  faStop(e);
+  if(!confirm((ad||'İşçi')+' üçün intizam tənbehi VAXTINDAN ƏVVƏL qüvvədən salınacaq.\n\n'+
+    'Qeyd silinmir — sadəcə işçi kartında görünmür və qüvvədə sayılmır.\n\nDavam edilsin?')) return;
+  google.script.run.withSuccessHandler(function(r){
+    if(!r || !r.success){ alert('Alınmadı: ' + ((r&&r.reason)||'naməlum xəta')); return; }
+    faReload();
+  }).withFailureHandler(function(err){
+    alert('Xəta: ' + ((err&&err.message)||'Server xətası'));
+  }).liftTohmet(fineId, '');
 }
 
 function faWaive(e, fineId){ faStop(e); faSetPay(fineId, 'waived'); }

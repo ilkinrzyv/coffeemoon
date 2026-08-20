@@ -524,6 +524,8 @@ const DEFAULT_TG = {
   late1:      '\n Bu ay <b>1-ci gecikmə</b> — {deq} dəq. Xəbərdarlıq.',
   late2:      '\n Bu ay <b>{say}-ci gecikmə</b> — {deq} dəq. Ciddi xəbərdarlıq!',
   lateFine:   '\n Bu ay <b>{say}-ci gecikmə</b> — {deq} dəq.\n <b>{mebleg} AZN cərimə</b> qeyd edildi.',
+  // Cərimə limiti dolandan sonra intizam tənbehi verilir (ƏM 186.2)
+  lateTohmet: '\n Bu ay <b>{say}-ci gecikmə</b> — {deq} dəq.\n <b>{tenbeh}</b> verildi — {ay} ay qüvvədə qalır.',
   deptChange: '<b>{ad}</b> filialı dəyişdi: {kohne} → <b>{yeni}</b>',
   newDevice:  '<b>{brend}</b>\n\n📱 <b>Yeni Scan Cihazı qeydə alındı</b>\n\n🔑 <code>{cihaz}</code>',
   // Gecəlik avtomatik bağlama SİLİNİB — yerinə bağlanmamış smen xəbərdarlığı:
@@ -630,6 +632,23 @@ function fillPush(key, vars) {
 const DEFAULT_DISCIPLINE = {
   fineAmount:     30,   // AZN — cərimə məbləği
   fineAfterLates: 2,    // bu qədər gecikmədən SONRA cərimə başlayır (2 → 3-cü gecikmə)
+  // ── İNTİZAM PİLLƏKƏNİ (AR Əmək Məcəlləsi) ──
+  // Ayda neçə dəfə PUL cəriməsi yazılır; ondan sonrakı pozuntular
+  // pul cəriməsi yox, İNTİZAM TƏNBEHİ olur.
+  //
+  // Hüquqi əsas: ƏM 186.2-yə görə intizam tənbehləri töhmət, şiddətli
+  // töhmət, sonuncu xəbərdarlıq və işdən çıxarmadır — PUL CƏRİMƏSİ
+  // bu siyahıda yoxdur. Ona görə cəza pildən tənbehə keçir.
+  fineMaxPerMonth: 1,
+  // Cərimədən sonrakı pillələr. Sonuncu pillə təkrarlanır.
+  // 'tohmet' | 'siddetli' | 'sonuncu'  (ƏM 186.2 ardıcıllığı)
+  tohmetLadder: ['tohmet', 'siddetli', 'sonuncu'],
+  // İntizam tənbehi verilən gündən neçə ay qüvvədə olur (ƏM 190.1 → 6 ay).
+  // Bu müddət bitəndə işçi kartında göstərilmir.
+  tohmetMonths: 6,
+  // Ayda tutulan cərimələrin cəmi əmək haqqının bu faizindən çox ola bilməz
+  // (ƏM 175 → 20%). Hesabat bu tavanı avtomatik tətbiq edir.
+  finePercentCap: 20,
   permGraceMins:  5,    // gec gəliş icazəsi vaxtına verilən əlavə güzəşt
   lunchMaxMins:   30,   // nahar limiti — bundan çox → menecerə bildiriş
   lateWarnBuffer: 5,    // işçi kartında "gecikmisən" xəbərdarlığı bu qədər sonra çıxır
@@ -682,6 +701,13 @@ function getDisciplineConfig() {
     const cfg = {
       fineAmount:     num(p && p.fineAmount,     base.fineAmount,     0, 100000),
       fineAfterLates: Math.round(num(p && p.fineAfterLates, base.fineAfterLates, 0, 31)),
+      fineMaxPerMonth: Math.round(num(p && p.fineMaxPerMonth, base.fineMaxPerMonth, 0, 31)),
+      tohmetMonths:    Math.round(num(p && p.tohmetMonths,    base.tohmetMonths,    1, 60)),
+      // Qanuni tavan: 0 = tavan yoxdur. 100-dən çox ola bilməz.
+      finePercentCap:  num(p && p.finePercentCap, base.finePercentCap, 0, 100),
+      tohmetLadder: (Array.isArray(p && p.tohmetLadder)
+        ? p.tohmetLadder.filter(k => TOHMET_KINDS.includes(k))
+        : []).length ? p.tohmetLadder.filter(k => TOHMET_KINDS.includes(k)) : base.tohmetLadder,
       permGraceMins:  Math.round(num(p && p.permGraceMins,  base.permGraceMins,  0, 180)),
       lunchMaxMins:   Math.round(num(p && p.lunchMaxMins,   base.lunchMaxMins,   1, 480)),
       lateWarnBuffer: Math.round(num(p && p.lateWarnBuffer, base.lateWarnBuffer, 0, 180)),
@@ -737,6 +763,68 @@ function sanitizeTiers(rows, fallback, kA, minA, maxA, kB, minB, maxB) {
   if (!out.length) return fallback;
   out.sort((x, y) => y[kA] - x[kA]);
   return out;
+}
+
+// ── İNTİZAM TƏNBEHİ (AR Əmək Məcəlləsi 186 / 190) ─────────────────
+//  ƏM 186.2 — intizam tənbehinin növləri. Pul cəriməsi burada YOXDUR:
+//  cərimə qanunvericilikdə intizam tənbehi deyil, ona görə sistem
+//  təkrar pozuntuda pildən tənbehə keçir.
+const TOHMET_KINDS = ['tohmet', 'siddetli', 'sonuncu'];
+const TOHMET_NAMES = {
+  fine:     'Cərimə',
+  tohmet:   'Töhmət',
+  siddetli: 'Şiddətli töhmət',
+  sonuncu:  'Sonuncu xəbərdarlıq',
+};
+const isTohmet = (kind) => TOHMET_KINDS.includes(kind);
+
+// Həmin ayda neçənci cəza olduğuna görə növünü seçir.
+//  `cezaSira` — bu ayda neçənci CƏZADIR (1-dən başlayır; xəbərdarlıqlar sayılmır).
+//  Nümunə (defolt): 1 → cərimə, 2 → töhmət, 3 → şiddətli töhmət, 4+ → sonuncu xəbərdarlıq.
+function cezaKind(cezaSira, cfg) {
+  const c = cfg || getDisciplineConfig();
+  const n = Math.max(1, Number(cezaSira) || 1);
+  if (n <= c.fineMaxPerMonth) return 'fine';
+  const ladder = (c.tohmetLadder && c.tohmetLadder.length) ? c.tohmetLadder : DEFAULT_DISCIPLINE.tohmetLadder;
+  const i = n - c.fineMaxPerMonth - 1;          // 0-dan başlayan pillə indeksi
+  return ladder[Math.min(i, ladder.length - 1)]; // son pillə təkrarlanır
+}
+
+// Tənbehin qüvvədən düşmə tarixi: verilən gündən +N ay (ƏM 190.1 → 6 ay).
+// Ayın sonu problemi: 31 avqust + 6 ay = 28/29 fevral olmalıdır, 3 mart yox.
+function tohmetExpiry(ymd, cfg) {
+  const c = cfg || getDisciplineConfig();
+  const [y, m, d] = String(ymd).split('-').map(Number);
+  if (!y || !m || !d) return '';
+  const hedefAy = m - 1 + c.tohmetMonths;
+  const il = y + Math.floor(hedefAy / 12);
+  const ay = hedefAy % 12;
+  // Həmin ayın son günü — gün nömrəsi ondan böyükdürsə kəsilir
+  const sonGun = new Date(il, ay + 1, 0).getDate();
+  return toYMD(new Date(il, ay, Math.min(d, sonGun)));
+}
+
+// Tənbeh bu gün hələ qüvvədədirmi? (vaxtı keçib və ya vaxtından əvvəl götürülüb → yox)
+function tohmetAktiv(row, bugun) {
+  if (!row || !isTohmet(row.kind)) return false;
+  if (row.lifted_at) return false;                      // ƏM 190 — vaxtından əvvəl götürülüb
+  const b = bugun || toYMD(new Date());
+  if (!row.expires_ymd) return true;                    // tarix yoxdursa qüvvədə sayılır
+  return row.expires_ymd >= b;
+}
+
+// ── Qanuni tutulma tavanı (ƏM 175 → 20%) ──────────────────────────
+// Ayda tutulan cərimələrin cəmi əmək haqqının müəyyən faizini keçə bilməz.
+// Qaytarır: { limit, tutulan, kesilen } — `kesilen` tavana görə çıxılan məbləğdir.
+function applyFineCap(brut, cerime, cfg) {
+  const c = cfg || getDisciplineConfig();
+  const pct = c.finePercentCap;
+  const cem = round2(Number(cerime) || 0);
+  // Tavan 0 = məhdudiyyət yoxdur. Brüt 0/mənfi olsa tutulacaq baza yoxdur.
+  if (!pct || !(Number(brut) > 0)) return { limit: null, tutulan: cem, kesilen: 0 };
+  const limit = round2(Number(brut) * pct / 100);
+  if (cem <= limit) return { limit, tutulan: cem, kesilen: 0 };
+  return { limit, tutulan: limit, kesilen: round2(cem - limit) };
 }
 
 // ── Bağlanmamış smenlərin tapılması ───────────────────────────────
@@ -947,6 +1035,8 @@ module.exports = {
   getXPMultiplier, computeEmployeeXP,
   // İntizam / XP / Telegram konfiqurasiyaları (əvvəl kodda hardcode idi)
   DEFAULT_DISCIPLINE, getDisciplineConfig, latePenaltyXP, findOpenShifts,
+  // İntizam tənbehi (AR ƏM 186 / 190 / 175)
+  TOHMET_KINDS, TOHMET_NAMES, isTohmet, cezaKind, tohmetExpiry, tohmetAktiv, applyFineCap,
   DEFAULT_XP, getXPConfig, examXP, milestoneBonuses,
   DEFAULT_TG, TG_KEYS, getTgTemplates, fillTemplate, sendTgTemplate,
   DEFAULT_PUSH, PUSH_KEYS, getPushTemplates, fillPush,

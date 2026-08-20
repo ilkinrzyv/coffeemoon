@@ -475,6 +475,111 @@ check(U.getDisciplineConfig().openShiftLookbackDays === 7, 'sıfır pəncərə r
 clearCfg();
 
 // ══════════════════════════════════════════════════════════════════
+bolme('8c) İntizam tənbehi — AR Əmək Məcəlləsi (186 / 190 / 175)');
+// ══════════════════════════════════════════════════════════════════
+clearCfg();
+{
+  const d = U.getDisciplineConfig();
+  check(d.fineMaxPerMonth === 1, 'ayda 1 pul cəriməsi, sonrası tənbeh');
+  check(d.tohmetMonths === 6,    'tənbeh 6 ay qüvvədədir (ƏM 190.1)');
+  check(d.finePercentCap === 20, 'cərimə tavanı 20% (ƏM 175)');
+
+  // Cəza pilləkəni: 1-ci cəza pul, sonrakılar tənbeh (ƏM 186.2 ardıcıllığı)
+  check(U.cezaKind(1) === 'fine',     '1-ci cəza → pul cəriməsi');
+  check(U.cezaKind(2) === 'tohmet',   '2-ci cəza → töhmət');
+  check(U.cezaKind(3) === 'siddetli', '3-cü cəza → şiddətli töhmət');
+  check(U.cezaKind(4) === 'sonuncu',  '4-cü cəza → sonuncu xəbərdarlıq');
+  check(U.cezaKind(9) === 'sonuncu',  'son pillə təkrarlanır, massivdən kənara çıxmır');
+  check(U.cezaKind(0) === 'fine',     'sıfır/mənfi sıra 1-ə yuvarlanır (sınmır)');
+
+  check(U.isTohmet('tohmet') && U.isTohmet('siddetli') && U.isTohmet('sonuncu'), 'tənbeh növləri tanınır');
+  check(!U.isTohmet('fine'), 'pul cəriməsi tənbeh sayılmır');
+  check(U.TOHMET_NAMES.siddetli === 'Şiddətli töhmət', 'tənbeh adları düzgündür');
+}
+
+clearCfg();
+{
+  // Qüvvədən düşmə tarixi (ƏM 190.1 → +6 ay)
+  check(U.tohmetExpiry('2026-03-15') === '2026-09-15', 'adi tarix: +6 ay');
+  check(U.tohmetExpiry('2026-08-31') === '2027-02-28', 'ayın sonu kəsilir (31 avq + 6 ay ≠ 3 mart)');
+  check(U.tohmetExpiry('2026-07-31') === '2027-01-31', '31 gün olan aya düşəndə gün qorunur');
+  check(U.tohmetExpiry('2026-12-01') === '2027-06-01', 'il sərhədini keçir');
+  check(U.tohmetExpiry('yanlış') === '', 'yararsız tarix boş qaytarır (sınmır)');
+
+  // Aktivlik
+  const bugun = '2026-08-21';
+  check(U.tohmetAktiv({ kind: 'tohmet', expires_ymd: '2026-09-01' }, bugun), 'müddəti bitməyən tənbeh aktivdir');
+  check(!U.tohmetAktiv({ kind: 'tohmet', expires_ymd: '2026-08-20' }, bugun), 'müddəti bitən tənbeh aktiv deyil');
+  check(U.tohmetAktiv({ kind: 'tohmet', expires_ymd: bugun }, bugun), 'son gün hələ aktivdir');
+  check(!U.tohmetAktiv({ kind: 'tohmet', expires_ymd: '2026-09-01', lifted_at: 'x' }, bugun),
+    'vaxtından əvvəl götürülən tənbeh aktiv deyil (ƏM 190)');
+  check(!U.tohmetAktiv({ kind: 'fine', expires_ymd: '2026-09-01' }, bugun), 'pul cəriməsi tənbeh kimi sayılmır');
+  check(U.tohmetAktiv({ kind: 'tohmet' }, bugun), 'tarixi olmayan tənbeh aktiv sayılır (köhnə sətir)');
+}
+
+clearCfg();
+{
+  // ƏM 175 — tutulma tavanı
+  const c1 = U.applyFineCap(600, 150);
+  check(c1.limit === 120 && c1.tutulan === 120 && c1.kesilen === 30, '600 ₼-dən 150 ₼ → 120 tutulur, 30 kəsilir');
+
+  const c2 = U.applyFineCap(600, 90);
+  check(c2.tutulan === 90 && c2.kesilen === 0, 'tavandan aşağı məbləğ toxunulmur');
+
+  const c3 = U.applyFineCap(600, 120);
+  check(c3.kesilen === 0, 'tam tavana bərabər məbləğ keçir');
+
+  const c4 = U.applyFineCap(0, 50);
+  check(c4.kesilen === 0 && c4.limit === null, 'brüt 0 olanda tavan tətbiq edilmir (bölmə xətası olmasın)');
+
+  const c5 = U.applyFineCap(-100, 50);
+  check(c5.kesilen === 0, 'mənfi brüt sınmır');
+
+  const c6 = U.applyFineCap(600, 0);
+  check(c6.tutulan === 0 && c6.kesilen === 0, 'cərimə yoxdursa nəticə 0');
+
+  // Real hal: Cavanşir, avqust 2026 (auditdə tapılan)
+  const real = U.applyFineCap(400, 100);
+  check(real.limit === 80 && real.kesilen === 20, 'real hal: 400 ₼ brüt, 100 ₼ cərimə → 20 ₼ tutulmur');
+}
+
+clearCfg();
+setLocal('DISCIPLINE_CONFIG', JSON.stringify({ finePercentCap: 0 }));
+check(U.applyFineCap(600, 500).kesilen === 0, 'tavan 0 = məhdudiyyət yoxdur');
+
+clearCfg();
+setLocal('DISCIPLINE_CONFIG', JSON.stringify({ fineMaxPerMonth: 0 }));
+check(U.cezaKind(1) === 'tohmet', 'pul cəriməsi tamam söndürülə bilir (0 → birinci cəza da tənbeh)');
+
+clearCfg();
+setLocal('DISCIPLINE_CONFIG', JSON.stringify({ fineMaxPerMonth: 3 }));
+{
+  check(U.cezaKind(3) === 'fine',   '3 cərimə icazəlidirsə 3-cü hələ puldur');
+  check(U.cezaKind(4) === 'tohmet', '4-cü artıq tənbehdir');
+}
+
+clearCfg();
+setLocal('DISCIPLINE_CONFIG', JSON.stringify({ tohmetLadder: ['tohmet'] }));
+{
+  check(U.cezaKind(2) === 'tohmet' && U.cezaKind(5) === 'tohmet',
+    'pilləkən tək növdən ibarətdirsə həmişə o verilir');
+}
+
+clearCfg();
+setLocal('DISCIPLINE_CONFIG', JSON.stringify({ tohmetLadder: ['uydurma', 'yox'] }));
+check(U.getDisciplineConfig().tohmetLadder.length === 3, 'tanınmayan tənbeh növləri rədd edilir → ilkin pilləkən');
+
+clearCfg();
+setLocal('DISCIPLINE_CONFIG', JSON.stringify({ tohmetMonths: 200, finePercentCap: 500 }));
+{
+  const d = U.getDisciplineConfig();
+  check(d.tohmetMonths === 6,    'hədddən böyük müddət rədd edilir');
+  check(d.finePercentCap === 20, '100%-dən böyük tavan rədd edilir');
+}
+
+clearCfg();
+
+// ══════════════════════════════════════════════════════════════════
 bolme('9) Keş referans paylaşmır');
 // ══════════════════════════════════════════════════════════════════
 clearCfg();
