@@ -4476,7 +4476,11 @@
   function registerSubscription(sub) {
     if (!sub || !window.SECRET) return;
     var j = sub.toJSON ? sub.toJSON() : {};
-    google.script.run.subscribePush(window.SECRET, {
+    // Cavab QƏSDƏN oxunur: əvvəl bu çağırış «at və unut» idi və serverdə yazma
+    // sınsa heç bir iz qalmırdı (abunəliklərin yazılmadığı belə görünməz qaldı).
+    google.script.run.withSuccessHandler(function (r) {
+      if (!r || !r.ok) console.error('[Push] abunəlik yazılmadı:', (r && r.reason) || 'naməlum xəta');
+    }).subscribePush(window.SECRET, {
       endpoint: sub.endpoint,
       keys: {
         p256dh: j.keys ? j.keys.p256dh : btoa(String.fromCharCode.apply(null, new Uint8Array(sub.getKey('p256dh')))),

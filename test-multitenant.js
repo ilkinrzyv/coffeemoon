@@ -273,6 +273,50 @@ function seedCaches() {
      'server.js-də scope edilməmiş sorğu yoxdur', xamSb.join(', '));
 
   // ══════════════════════════════════════════════════════════════════════
+  section('13. upsert ON CONFLICT ↔ sxem uyğunluğu');
+  //  F-06: `onConflict:'endpoint'` tdb tərəfindən `'tenant_id,endpoint'`-a
+  //  çevrilir, amma bazada belə unikal indeks yox idi → Postgres 42P10 verirdi,
+  //  kod isə xətanı oxumadan `{ok:true}` deyirdi. Aylarla görünməz qaldı.
+  //
+  //  Bu yoxlama qaydanı avtomatlaşdırır: server.js-də işlədilən HƏR münaqişə
+  //  hədəfi üçün sxemdə MƏHZ həmin sütunlar üzrə unikal indeks (və ya ilkin
+  //  açar) olmalıdır. Postgres ON CONFLICT-də sütunları dəqiq uyğunlaşdırır —
+  //  yalnız `(endpoint)` üzrə indeks `(tenant_id, endpoint)` üçün kifayət etmir.
+  const sxem = require('fs').readFileSync(require('path').join(__dirname, 'schema-v3-multitenant.sql'), 'utf8');
+
+  // Sxemdəki bütün unikal sütun dəstləri: "cedvel" → Set{"tenant_id,cedvel_id", ...}
+  const unikal = {};
+  const eleve = (tbl, cols) => {
+    const key = cols.split(',').map(s => s.trim().toLowerCase()).filter(Boolean).join(',');
+    (unikal[tbl] = unikal[tbl] || new Set()).add(key);
+  };
+  for (const m of sxem.matchAll(/CREATE TABLE (\w+)\s*\(([\s\S]*?)\n\);/g)) {
+    const pk = /PRIMARY KEY\s*\(([^)]+)\)/i.exec(m[2]);
+    if (pk) eleve(m[1], pk[1]);
+    for (const u of m[2].matchAll(/UNIQUE\s*\(([^)]+)\)/gi)) eleve(m[1], u[1]);
+  }
+  for (const m of sxem.matchAll(/CREATE UNIQUE INDEX \w+\s+ON (\w+)\s*\(([^)]+)\)/gi)) eleve(m[1], m[2]);
+
+  // server.js-dəki upsert-lərin münaqişə hədəfləri
+  const hedefler = [];
+  for (const m of src.matchAll(/\.from\('(\w+)'\)\s*\.upsert\(/g)) {
+    const pencere = src.slice(m.index, m.index + 800);
+    const oc = /onConflict:\s*'([^']+)'/.exec(pencere);
+    if (oc) hedefler.push({ table: m[1], cols: oc[1] });
+  }
+  ok(hedefler.length >= 3, `upsert münaqişə hədəfləri tapıldı (${hedefler.length} ədəd)`);
+
+  for (const h of hedefler) {
+    // tdb.js-in etdiyi çevirmənin eynisi
+    const parcalar = h.cols.split(',').map(s => s.trim());
+    const scoped = (parcalar[0] === 'tenant_id' ? parcalar : ['tenant_id', ...parcalar])
+      .map(s => s.toLowerCase()).join(',');
+    ok((unikal[h.table] || new Set()).has(scoped),
+       `${h.table}: ON CONFLICT (${scoped}) üçün sxemdə unikal indeks var`,
+       `sxemdə olanlar: ${[...(unikal[h.table] || [])].join(' | ') || 'heç nə'}`);
+  }
+
+  // ══════════════════════════════════════════════════════════════════════
   console.log(`\n${'═'.repeat(62)}`);
   console.log(fail === 0
     ? `🎉  BÜTÜN TESTLƏR KEÇDİ  (${pass}/${pass})`

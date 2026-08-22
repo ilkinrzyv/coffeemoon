@@ -2574,89 +2574,107 @@ API.registerEmployeeSession = (secret) => {
 };
 
 // ── PUSH ABUNƏLIK ────────────────────────────────────────────────
+//  Abunəlik yazmaq/silmək üçün TƏK NÖQTƏ. Əvvəl eyni upsert dörd yerdə
+//  kopyalanmışdı və heç birində `error` OXUNMURDU — hər halda `{ ok: true }`
+//  qaytarılırdı.
+//
+//  Bu, real bir sınmanı gizlədirdi: `onConflict:'endpoint'` tdb tərəfindən
+//  (haqlı olaraq) `'tenant_id,endpoint'`-a çevrilir, amma bazada belə unikal
+//  indeks yox idi → Postgres 42P10 verirdi → HEÇ BİR yeni abunəlik yazılmırdı,
+//  panel isə «abunə olundu» göstərirdi. İndi xəta oxunur və çağırana qaytarılır.
+
+// «ON CONFLICT üçün uyğun unikal indeks yoxdur» xətasını tanıyır.
+function missingConflictIndex(err) {
+  if (!err) return false;
+  if (err.code === '42P10') return true;
+  const m = String(err.message || err.details || '').toLowerCase();
+  return m.includes('no unique or exclusion constraint');
+}
+
+async function savePushSubscription(empId, subscription) {
+  const row = {
+    emp_id:   String(empId),
+    endpoint: subscription.endpoint,
+    p256dh:   subscription.keys?.p256dh || '',
+    auth:     subscription.keys?.auth   || '',
+  };
+
+  const { error } = await db().from('push_subscriptions').upsert(row, { onConflict: 'endpoint' });
+  if (!error) return { ok: true };
+
+  // İndeks hələ yaradılmayıbsa (push-endpoint-migration.sql işlədilməyib)
+  // abunəlik İTMƏSİN — əl ilə sil+yaz. Miqrasiyadan sonra bu yol işə düşmür.
+  if (missingConflictIndex(error)) {
+    await db().from('push_subscriptions').delete().eq('endpoint', row.endpoint);
+    const { error: insErr } = await db().from('push_subscriptions').insert(row);
+    if (insErr) {
+      sbErr('savePushSubscription(ehtiyat yol)', insErr);
+      return { ok: false, reason: 'Bildiriş abunəliyi yazıla bilmədi.' };
+    }
+    console.warn('[Push] (tenant_id,endpoint) unikal indeksi yoxdur — ' +
+                 'push-endpoint-migration.sql işlədilməlidir. Hazırda ehtiyat yolla yazılır.');
+    return { ok: true, degraded: true };
+  }
+
+  sbErr('savePushSubscription', error);
+  return { ok: false, reason: 'Bildiriş abunəliyi yazıla bilmədi.' };
+}
+
+async function dropPushSubscription(empId, endpoint) {
+  const { error } = await db().from('push_subscriptions')
+    .delete().eq('emp_id', String(empId)).eq('endpoint', endpoint);
+  if (error) { sbErr('dropPushSubscription', error); return { ok: false, reason: 'Abunəlik silinmədi.' }; }
+  return { ok: true };
+}
 
 API.subscribePush = async (secret, subscription) => {
   if (!secret || !subscription?.endpoint) return { ok: false, reason: 'Məlumat çatışmır.' };
   const { data: emp } = await db().from('employees').select('id').eq('secret', secret).single();
   if (!emp) return { ok: false, reason: 'İşçi tapılmadı.' };
-
-  await db().from('push_subscriptions').upsert({
-    emp_id:   String(emp.id),
-    endpoint: subscription.endpoint,
-    p256dh:   subscription.keys?.p256dh || '',
-    auth:     subscription.keys?.auth   || '',
-  }, { onConflict: 'endpoint' });
-
-  return { ok: true };
+  return savePushSubscription(emp.id, subscription);
 };
 
 API.unsubscribePush = async (secret, endpoint) => {
   if (!secret || !endpoint) return { ok: false };
   const { data: emp } = await db().from('employees').select('id').eq('secret', secret).single();
   if (!emp) return { ok: false };
-  await db().from('push_subscriptions').delete()
-    .eq('emp_id', String(emp.id)).eq('endpoint', endpoint);
-  return { ok: true };
+  return dropPushSubscription(emp.id, endpoint);
 };
 
 // Manager push abunəliyi (branchKey ilə)
 API.subscribePushManager = async (branchKey, subscription) => {
-  if (!branchKey || !subscription?.endpoint) return { ok: false };
+  if (!branchKey || !subscription?.endpoint) return { ok: false, reason: 'Məlumat çatışmır.' };
   const check = U.validateBranchScheduleKey(branchKey);
   if (!check.valid) return { ok: false, reason: 'İcazəsiz.' };
-  const mgrId = 'MGR-' + check.dept.replace(/\s+/g, '');
-  await db().from('push_subscriptions').upsert({
-    emp_id:   mgrId,
-    endpoint: subscription.endpoint,
-    p256dh:   subscription.keys?.p256dh || '',
-    auth:     subscription.keys?.auth   || '',
-  }, { onConflict: 'endpoint' });
-  return { ok: true };
+  return savePushSubscription('MGR-' + check.dept.replace(/\s+/g, ''), subscription);
 };
 
 API.unsubscribePushManager = async (branchKey, endpoint) => {
   if (!branchKey || !endpoint) return { ok: false };
   const check = U.validateBranchScheduleKey(branchKey);
   if (!check.valid) return { ok: false };
-  const mgrId = 'MGR-' + check.dept.replace(/\s+/g, '');
-  await db().from('push_subscriptions').delete()
-    .eq('emp_id', mgrId).eq('endpoint', endpoint);
-  return { ok: true };
+  return dropPushSubscription('MGR-' + check.dept.replace(/\s+/g, ''), endpoint);
 };
 
 // İcraçı push abunəliyi (emp_id = 'EXEC')
 API.subscribePushExec = async (execKey, subscription) => {
   if (!execKey || roleKey('exec') !== execKey || !subscription?.endpoint) return { ok: false };
-  await db().from('push_subscriptions').upsert({
-    emp_id:   'EXEC',
-    endpoint: subscription.endpoint,
-    p256dh:   subscription.keys?.p256dh || '',
-    auth:     subscription.keys?.auth   || '',
-  }, { onConflict: 'endpoint' });
-  return { ok: true };
+  return savePushSubscription('EXEC', subscription);
 };
 
 API.unsubscribePushExec = async (execKey, endpoint) => {
   if (!execKey || roleKey('exec') !== execKey || !endpoint) return { ok: false };
-  await db().from('push_subscriptions').delete().eq('emp_id', 'EXEC').eq('endpoint', endpoint);
-  return { ok: true };
+  return dropPushSubscription('EXEC', endpoint);
 };
 
 API.subscribePushTrainer = async (trainerKey, subscription) => {
   if (!trainerKey || roleKey('trainer') !== trainerKey || !subscription?.endpoint) return { ok: false };
-  await db().from('push_subscriptions').upsert({
-    emp_id:   'TRAINER',
-    endpoint: subscription.endpoint,
-    p256dh:   subscription.keys?.p256dh || '',
-    auth:     subscription.keys?.auth   || '',
-  }, { onConflict: 'endpoint' });
-  return { ok: true };
+  return savePushSubscription('TRAINER', subscription);
 };
 
 API.unsubscribePushTrainer = async (trainerKey, endpoint) => {
   if (!trainerKey || roleKey('trainer') !== trainerKey || !endpoint) return { ok: false };
-  await db().from('push_subscriptions').delete().eq('emp_id', 'TRAINER').eq('endpoint', endpoint);
-  return { ok: true };
+  return dropPushSubscription('TRAINER', endpoint);
 };
 
 // ── DASHBOARD ─────────────────────────────────────────────────────

@@ -2112,7 +2112,10 @@ loadManagerDashboard();
   function registerSub(sub) {
     if (!sub || !window.BRANCH_KEY) return;
     var j = sub.toJSON ? sub.toJSON() : {};
-    google.script.run.subscribePushManager(window.BRANCH_KEY, {
+    // Cavab QƏSDƏN oxunur — serverdə yazma sınsa səssiz qalmasın.
+    google.script.run.withSuccessHandler(function (r) {
+      if (!r || !r.ok) console.error('[Push] abunəlik yazılmadı:', (r && r.reason) || 'naməlum xəta');
+    }).subscribePushManager(window.BRANCH_KEY, {
       endpoint: sub.endpoint,
       keys: {
         p256dh: j.keys ? j.keys.p256dh : btoa(String.fromCharCode.apply(null, new Uint8Array(sub.getKey('p256dh')))),

@@ -522,6 +522,11 @@ CREATE TABLE push_subscriptions (
 );
 -- Bir brauzer endpoint-i yalnız bir yerə bağlana bilər (brauzerin özü qlobal unikaldır).
 CREATE UNIQUE INDEX idx_push_endpoint_global ON push_subscriptions (endpoint);
+-- Abunəlik `upsert(..., { onConflict: 'endpoint' })` ilə yazılır; tdb.js münaqişə
+-- hədəfini `(tenant_id, endpoint)`-a çevirir. Postgres ON CONFLICT üçün MƏHZ bu
+-- sütunlar üzrə unikal indeks tələb edir — yuxarıdakı qlobal indeks kifayət etmir.
+-- Bu sətir olmasa hər abunəlik 42P10 ilə sınır (bax push-endpoint-migration.sql).
+CREATE UNIQUE INDEX idx_push_tenant_endpoint ON push_subscriptions (tenant_id, endpoint);
 CREATE INDEX idx_push_subs_emp ON push_subscriptions (tenant_id, emp_id);
 
 -- ═════════════════════════════════════════════════════════════════════════
