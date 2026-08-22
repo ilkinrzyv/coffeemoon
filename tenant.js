@@ -96,6 +96,17 @@ function tenantIdOrNull() {
 function role()     { const s = als.getStore(); return (s && s.role)     || null; }
 function branchId() { const s = als.getStore(); return (s && s.branchId) || null; }
 
+// Sorğunun GƏLDİYİ IP — serverin özünün gördüyü (`req.ip`), müştərinin
+// bildirdiyi DEYİL. Dispatcher onu kontekstə qoyur, `checkWifiIp` buradan oxuyur.
+//
+// NİYƏ kontekstdə: WiFi yoxlaması `validateAndLog` → `checkWifiIp` zəncirinin
+// dərinliyindədir; `req`-i ora ötürmək üçün onlarla imza dəyişməli olardı.
+// Bu, tenantId ilə tam eyni səbəbdir (yuxarıdakı izaha bax).
+//
+// Sorğu kontekstindən kənarda (fon işi, test, CLI skript) boş qaytarır —
+// `checkWifiIp` boş IP-ni QƏBUL ETMİR, yəni fail-closed davranır.
+function clientIp()  { const s = als.getStore(); return (s && s.clientIp)  || ''; }
+
 // ══════════════════════════════════════════════════════════════════════════
 //  YÜKLƏMƏ
 // ══════════════════════════════════════════════════════════════════════════
@@ -483,7 +494,7 @@ function __testEnter(ctx) {
 }
 
 module.exports = {
-  run, store, tenantId, tenantIdOrNull, role, branchId,
+  run, store, tenantId, tenantIdOrNull, role, branchId, clientIp,
   __testSeed, __testEnter,
   loadAll, reload,
   getTenant, currentTenant, allTenants, tenantUsable, brand,

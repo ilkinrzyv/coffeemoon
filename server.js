@@ -159,6 +159,54 @@ function expectedShiftEnd(gelisDate, dept, shiftType) {
   return new Date(gelisDate.getTime() + reqH * 3600000);
 }
 
+// ══════════════════════════════════════════════════════════════════
+//  ƏKS-PROKSİ VƏ REAL IP
+// ══════════════════════════════════════════════════════════════════
+//  Railway tətbiqi əks-proksi arxasındadır — real IP `X-Forwarded-For`-dadır.
+//
+//  NİYƏ `true` YOX, `1`: `true` desək Express başlıqdakı ƏN SOLDAKI dəyəri
+//  götürür, onu isə müştərinin özü yaza bilər → IP saxtalaşdırılardı və WiFi
+//  qoruması mənasız qalardı. `1` "yalnız ən yaxın proksiyə (Railway edge)
+//  etibar et" deməkdir; həmin proksinin özünün əlavə etdiyi dəyər alınır.
+//
+//  Zəncirdə əlavə proksi varsa (məs. Cloudflare) `TRUST_PROXY=2` ilə artırılır.
+const TRUST_PROXY = (() => {
+  const raw = process.env.TRUST_PROXY;
+  if (raw === undefined || raw === '') return 1;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : raw;      // 'loopback' kimi adlar da qəbul olunur
+})();
+app.set('trust proxy', TRUST_PROXY);
+
+// IPv4-uyğunlaşdırılmış IPv6 (`::ffff:1.2.3.4`) adi IPv4-ə çevrilir — əks halda
+// filialın qeydə alınmış `1.2.3.4` IP-si heç vaxt uyğun gəlməzdi.
+function normalizeIp(ip) {
+  let s = String(ip || '').trim();
+  if (!s) return '';
+  if (s.startsWith('::ffff:')) s = s.slice(7);
+  if (s === '::1') return '127.0.0.1';
+  return s;
+}
+function requestIp(req) {
+  return normalizeIp(req.ip || (req.socket && req.socket.remoteAddress) || '');
+}
+
+// ── Təhlükəsizlik başlıqları ──────────────────────────────────────
+//  Referrer-Policy XÜSUSİLƏ vacibdir: panel açarı URL-dədir, səhifə isə
+//  xarici resurslar yükləyir (Google Fonts, cdnjs). Referrer açıq qalsa
+//  hər belə sorğu AÇARI kənar servisə göndərərdi.
+//
+//  QEYD: `camera` QƏSDƏN məhdudlaşdırılmır — işçi kartı QR oxumaq üçün
+//  kameradan istifadə edir. CSP də QƏSDƏN qoyulmayıb: panellər inline
+//  skript/stil və üç ayrı CDN işlədir, kor-koranə CSP hamısını sındırardı.
+app.use((_req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'no-referrer');
+  res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), payment=()');
+  next();
+});
+
 // Cavabları gzip ilə sıxır (HTML/JSON yükünü azaldır, səhifə daha tez açılır).
 // Paket quraşdırılmayıbsa server yenə də normal işləyir — sadəcə sıxılma olmur.
 try { app.use(require('compression')()); }
@@ -495,15 +543,66 @@ app.get('/', (_req, res) => {
 //    4. Funksiyanı MÜŞTƏRİ KONTEKSTİNDƏ işlət → bütün DB sorğuları avtomatik
 //       həmin müştəri ilə məhdudlaşır (tdb.js)
 
+// ── SÜRƏT LİMİTİ ──────────────────────────────────────────────────
+//  Əvvəl layihədə heç bir limit yox idi: 10 000 variantlı PIN-i və panel
+//  açarlarını istənilən sürətlə sınamaq olurdu.
+//
+//  Sayğacın özü `ratelimit.js`-dədir (yeridilə bilən `now` ilə — `test-ratelimit.js`
+//  onu saat gözləmədən, dəqiq sərhədlərlə yoxlayır). Burada yalnız HƏDLƏR var.
+//
+//  ⚠️ HƏDLƏRİ SEÇƏRKƏN ƏSAS FAKT: BİR FİLİAL = BİR IP.
+//  Kiosk və bütün işçi telefonları eyni NAT arxasındadır, yəni hədd bir nəfərə
+//  yox, bütöv filiala tətbiq olunur. Ona görə rəqəmlər səxavətlidir — məqsəd
+//  brute-force-u əlverişsiz etməkdir, növbə vaxtı işi dayandırmaq yox.
+const { hit: rateHit, peek: ratePeek, ENABLED: RATE_LIMIT } = require('./ratelimit');
+const RATE = {
+  apiPerMin:    600,        // IP başına ümumi büdcə (panel yüklənməsi ~20-40 sorğudur)
+  publicPerMin:  60,        // açarsız çağırışlar (imtahan, kiosk qeydiyyatı)
+  pinFails:      30,        // 10 dəqiqədə neçə SƏHV PIN
+  pinWindowMs: 600_000,
+};
+
+//  Yalnız UĞURSUZ PIN cəhdləri sayılır. Səbəb: uğurlu giriş normal iş axınıdır,
+//  onu saymaq növbə vaxtı bütün filialı bloklayardı. Brute-force isə demək olar
+//  həmişə uğursuz olur — yəni limit hücuma dəyir, istifadəçiyə dəymir.
+function tooMany(res, r, label) {
+  res.setHeader('Retry-After', String(r.retryAfter || 60));
+  return res.status(429).json({ error: `Çox sayda sorğu. ${r.retryAfter} saniyə sonra yenidən cəhd edin.`, limit: label });
+}
+
 app.post('/api/:fn', async (req, res) => {
   const fn   = req.params.fn;
   const args = Array.isArray(req.body?.args) ? req.body.args : [];
+  const ip   = requestIp(req);
   try {
+    // 1) Ümumi büdcə — ƏN ƏVVƏL. Naməlum funksiya adları da bura düşməlidir,
+    //    əks halda uydurma adlarla sorğu yağdırıb limiti keçmək olardı.
+    const burst = rateHit('api', ip, RATE.apiPerMin, 60_000);
+    if (!burst.ok) return tooMany(res, burst, 'api');
+
     const handler = API[fn];
     if (!handler) return res.status(404).json({ error: 'Funksiya tapılmadı: ' + fn });
 
     const rec   = await T.resolveKey(req.get('X-CM-Key') || '');
     const level = auth.API_POLICY[fn];
+
+    // 2) Etibarlı açarı olmayan çağırışlar üçün daha dar büdcə.
+    //    Açar sınamaq da bura düşür: hər səhv açar `rec === null` verir.
+    if (!rec) {
+      const pub = rateHit('pub', ip, RATE.publicPerMin, 60_000);
+      if (!pub.ok) return tooMany(res, pub, 'public');
+    }
+
+    // 3) PIN brute-force qapısı — SORĞUDAN ƏVVƏL yoxlanılır.
+    //    429 yox, adi cavab qaytarılır ki, kiosk ekranında aydın mətn görünsün
+    //    («Sistem xətası» əvəzinə səbəb yazılsın).
+    if (fn === 'validateAndLog') {
+      const g = ratePeek('pin', ip, RATE.pinFails, RATE.pinWindowMs);
+      if (!g.ok) {
+        console.warn(`[RateLimit] PIN bloku — IP ${ip}, ${g.retryAfter} san qalıb`);
+        return res.json({ valid: false, reason: `Çox sayda uğursuz cəhd. ${Math.ceil(g.retryAfter / 60)} dəqiqə sonra yenidən yoxlayın.` });
+      }
+    }
 
     // Müştərini tap: əvvəl açardan, yoxdursa yalnız 'public' funksiyalar üçün
     // səhifənin göstəricisindən. Göstərici açarı ÜSTƏLƏYƏ BİLMİR.
@@ -530,13 +629,34 @@ app.post('/api/:fn', async (req, res) => {
     }
 
     const result = await T.run(
-      { tenantId, role: (rec && rec.role) || 'public', branchId: (rec && rec.branchId) || null },
+      {
+        tenantId,
+        role:     (rec && rec.role)     || 'public',
+        branchId: (rec && rec.branchId) || null,
+        // Serverin gördüyü IP — `checkWifiIp` MƏHZ bunu oxuyur.
+        // Müştərinin göndərdiyi IP arqumenti artıq qərara təsir etmir.
+        clientIp: ip,
+      },
       () => handler(...args)
     );
+
+    // Səhv PIN sayğacı — yalnız həqiqətən yanlış/vaxtı keçmiş kod sayılır.
+    // İş qaydası ilə rədd (istirahət günü, açıq smen, WiFi) BURAYA DÜŞMÜR:
+    // onlar real işçidir, cəza almamalıdırlar.
+    if (fn === 'validateAndLog' && result && result.badPin) {
+      const h = rateHit('pin', ip, RATE.pinFails, RATE.pinWindowMs);
+      if (!h.ok) console.warn(`[RateLimit] PIN həddi doldu — IP ${ip}`);
+    }
+
     res.json(result ?? null);
   } catch (e) {
-    console.error(`[API] ${fn}:`, e.message);
-    res.status(500).json({ error: e.message });
+    // Xam `e.message` MÜŞTƏRİYƏ QAYTARILMIR: Supabase xətaları cədvəl/sütun
+    // adlarını və sorğu quruluşunu açır. Tam mətn yalnız serverin logundadır;
+    // `ref` ilə istifadəçinin gördüyü xəta log sətri ilə uzlaşdırılır.
+    const ref = Date.now().toString(36).slice(-4).toUpperCase() +
+                Math.floor(Math.random() * 1296).toString(36).toUpperCase().padStart(2, '0');
+    console.error(`[API] ${fn} #${ref}:`, e.stack || e.message);
+    res.status(500).json({ error: 'Sistem xətası baş verdi. Yenidən cəhd edin.', ref });
   }
 });
 
@@ -2347,8 +2467,12 @@ API.validateAndLog = async (enteredPin, clientIp, forceMode) => {
     enteredPin === U.generateDynamicPin(emp.secret, cW) ||
     enteredPin === U.generateDynamicPin(emp.secret, cW - 1)
   );
-  if (!matched) return { valid: false, reason: 'Yanlış və ya vaxtı keçmiş kod!' };
+  // `badPin` — dispatcher-dəki brute-force sayğacı yalnız BU halı sayır.
+  // Aşağıdakı iş qaydası rədləri (istirahət, açıq smen, WiFi) sayılmır:
+  // onlar real işçidir və limitə görə bloklanmamalıdırlar.
+  if (!matched) return { valid: false, badPin: true, reason: 'Yanlış və ya vaxtı keçmiş kod!' };
 
+  // `clientIp` arqumenti yalnız diaqnostikadır — qərarı serverin gördüyü IP verir.
   const wc = U.checkWifiIp(matched.dept, clientIp || '');
   if (!wc.ok) return { valid: false, reason: wc.reason };
 
@@ -2765,7 +2889,9 @@ API.logLunch = async (secret, clientIp, lunchType) => {
   // İşçini birbaşa secret ilə tap (PIN deyil) — eyni dinamik PIN-li işçilərdə nahar başqasına yazılmasın
   const { data: matched } = await db().from('employees').select('*').eq('secret', secret).single();
   if (!matched) return { valid: false, reason: 'Yanlış və ya vaxtı keçmiş kod!' };
-  if (clientIp) { const wc = U.checkWifiIp(matched.dept, clientIp); if (!wc.ok) return { valid: false, reason: wc.reason }; }
+  // ƏVVƏL: `if (clientIp) { … }` — yəni IP gəlməsə yoxlama TAMAMİLƏ atlanırdı.
+  // İndi şərtsizdir; IP-ni onsuz da server özü müəyyən edir.
+  { const wc = U.checkWifiIp(matched.dept, clientIp); if (!wc.ok) return { valid: false, reason: wc.reason }; }
 
   const ts       = new Date();
   const todayStr = U.getLogicalDateStr(ts);
@@ -3020,6 +3146,17 @@ API.testTelegram = async () => {
 
 // ── WiFi IP ──────────────────────────────────────────────────────
 //  `branches.wifi_ips` (əvvəl `IP_<slug>` parametrləri).
+
+// Serverin MƏHZ BU sorğuda gördüyü IP.
+//
+// Admin paneli filial IP-sini bununla doldurmalıdır. Əvvəl panel `api.ipify.org`-dan
+// oxuyurdu — o isə başqa dəyər qaytara bilər (fərqli IP ailəsi, fərqli çıxış nöqtəsi),
+// yəni filial serverin heç vaxt görməyəcəyi bir IP ilə qeyd oluna bilərdi.
+// İndi paneldəki rəqəm ilə yoxlamadakı rəqəm eyni mənbədəndir.
+API.getMyIp = async () => ({
+  ip:       T.clientIp(),
+  enforced: U.WIFI_ENFORCE,     // false olsa panel bunu xəbərdarlıq kimi göstərir
+});
 
 API.getBranchIPs = () =>
   Object.fromEntries(T.branches().map(b => [b.branch_id, b.wifi_ips || '']));
@@ -4888,6 +5025,10 @@ API.platformStats = async () => {
       const base = `http://localhost:${PORT}`;
       console.log(`🚀  Server ${base}`);
       console.log(`🧩  Node ${process.version} · TZ ${process.env.TZ} · auth ${auth.AUTH_ENFORCE ? 'İCBARİ' : 'log-only'}`);
+      console.log(`🛡️   trust proxy: ${JSON.stringify(TRUST_PROXY)} · WiFi ${U.WIFI_ENFORCE ? 'İCBARİ' : 'LOG-ONLY'} · ` +
+                  `sürət limiti ${RATE_LIMIT ? 'aktiv' : 'SÖNDÜRÜLÜB'}`);
+      if (!U.WIFI_ENFORCE) console.warn('⚠️  WIFI_ENFORCE=false — filial şəbəkəsi yoxlanılır, amma BLOKLAMIR.');
+      if (!RATE_LIMIT)     console.warn('⚠️  RATE_LIMIT=false — PIN brute-force qoruması söndürülüb.');
       if (!T.PLATFORM_KEY) {
         console.warn('⚠️  PLATFORM_KEY təyin edilməyib — platforma paneli bağlıdır. ' +
                      'Yeni müştəri yaratmaq üçün onu env-ə əlavə et.');

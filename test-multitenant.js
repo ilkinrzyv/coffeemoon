@@ -197,15 +197,37 @@ function seedCaches() {
 
   // ══════════════════════════════════════════════════════════════════════
   section('8. WiFi IP və Telegram müştəriyə görə ayrılır');
-  await T.run({ tenantId: 'cm' }, async () => {
-    ok(U.checkWifiIp('Elmlər', '10.0.0.5').ok, 'cm: öz IP-si qəbul olunur');
-    ok(!U.checkWifiIp('Elmlər', '192.168.1.9').ok, 'cm: yad şəbəkə rədd olunur');
+  //  DİQQƏT: IP artıq ARQUMENTDƏN yox, tenant kontekstindən (`clientIp`) oxunur —
+  //  serverin `req.ip`-i oraya qoyur. Arqument yalnız diaqnostika üçün qalıb.
+  await T.run({ tenantId: 'cm', clientIp: '10.0.0.5' }, async () => {
+    ok(U.checkWifiIp('Elmlər', '').ok, 'cm: öz IP-si qəbul olunur');
     ok(U.getTelegramSettings().token === 'cm-token', 'cm öz Telegram tokenini alır');
     ok(U.deptChatId(U.getTelegramSettings(), 'Elmlər') === '-100111', 'filial chat id-si branches-dən gəlir');
   });
-  await T.run({ tenantId: 'pl' }, async () => {
+  await T.run({ tenantId: 'cm', clientIp: '192.168.1.9' }, async () => {
+    ok(!U.checkWifiIp('Elmlər', '').ok, 'cm: yad şəbəkə rədd olunur');
+  });
+  await T.run({ tenantId: 'pl', clientIp: '192.168.1.9' }, async () => {
     ok(U.getTelegramSettings().token === 'pl-token', 'pl öz Telegram tokenini alır');
-    ok(U.checkWifiIp('Nizami', '192.168.1.9').ok, 'pl: öz IP-si qəbul olunur');
+    ok(U.checkWifiIp('Nizami', '').ok, 'pl: öz IP-si qəbul olunur');
+  });
+
+  // ── F-04: IP saxtalaşdırıla bilməz, boş IP keçmir ────────────────────────
+  section('8b. WiFi qoruması saxtalaşdırılmır (F-04)');
+  //  ƏVVƏLKİ DAVRANIŞ (dəlik): IP-ni brauzer arqument kimi göndərirdi və
+  //  boş IP `{ ok: true }` sayılırdı → ipify yavaşlayanda qoruma öz-özünə sönürdü.
+  await T.run({ tenantId: 'cm', clientIp: '' }, async () => {
+    ok(!U.checkWifiIp('Elmlər', '').ok, 'boş IP QƏBUL EDİLMİR (fail-closed)');
+    ok(!U.checkWifiIp('Elmlər', '10.0.0.5').ok,
+       'arqumentlə «düzgün» IP göndərmək qorumanı KEÇMİR');
+  });
+  await T.run({ tenantId: 'cm', clientIp: '10.0.0.5' }, async () => {
+    ok(U.checkWifiIp('Elmlər', '203.0.113.7').ok,
+       'yanlış arqument düzgün server IP-sini POZMUR');
+  });
+  //  Kontekstdən kənarda (fon işi, CLI) da fail-closed olmalıdır
+  await T.run({ tenantId: 'cm' }, async () => {
+    ok(!U.checkWifiIp('Elmlər', '10.0.0.5').ok, 'kontekstsiz sorğu da rədd olunur');
   });
 
   // ══════════════════════════════════════════════════════════════════════
@@ -271,6 +293,25 @@ function seedCaches() {
   const xamSb = [...src.matchAll(/await sb\s*\n?\s*\.from\('([a-z_]+)'\)/g)].map(m => m[1]);
   ok(xamSb.every(t => tdb.GLOBAL_TABLES.has(t)),
      'server.js-də scope edilməmiş sorğu yoxdur', xamSb.join(', '));
+
+  //  (c) F-04: real IP mənbəyi. `trust proxy` `true` OLMAMALIDIR — o, müştərinin
+  //      öz X-Forwarded-For başlığını qəbul edərdi və WiFi qoruması saxtalaşardı.
+  ok(/app\.set\('trust proxy'/.test(src), 'trust proxy təyin olunub');
+  ok(!/app\.set\('trust proxy',\s*true\s*\)/.test(src),
+     "trust proxy `true` DEYİL (əks halda IP saxtalaşdırıla bilər)");
+  ok(/clientIp:\s*ip\b/.test(src), 'serverin gördüyü IP tenant kontekstinə qoyulur');
+  ok(!/if \(clientIp\) \{ const wc = U\.checkWifiIp/.test(src),
+     'logLunch-da WiFi yoxlaması şərtsizdir (IP gəlməsə də atlanmır)');
+
+  //  (d) F-20: təhlükəsizlik başlıqları və xəta sızması
+  for (const h of ['X-Content-Type-Options', 'X-Frame-Options', 'Referrer-Policy']) {
+    ok(src.includes(`'${h}'`), `${h} başlığı göndərilir`);
+  }
+  ok(!/camera=\(\)/.test(src), 'Permissions-Policy kameranı BAĞLAMIR (QR oxuyucu işləməlidir)');
+  ok(!/res\.status\(500\)\.json\(\{ error: e\.message \}\)/.test(src),
+     'xam xəta mətni müştəriyə qaytarılmır');
+  ok(/ratePeek\('pin'/.test(src) && /rateHit\('api'/.test(src),
+     'sürət limiti dispatcher-ə qoşulub');
 
   // ══════════════════════════════════════════════════════════════════════
   section('13. upsert ON CONFLICT ↔ sxem uyğunluğu');

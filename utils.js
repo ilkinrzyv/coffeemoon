@@ -460,16 +460,65 @@ function validateBranchScheduleKey(key) {
 }
 
 // ── WiFi IP yoxlaması ─────────────────────────────────────────────
-// IP-lər `branches.wifi_ips` sütunundadır (əvvəl `settings.IP_<slug>`).
-function checkWifiIp(dept, clientIp) {
+//  IP-lər `branches.wifi_ips` sütunundadır (əvvəl `settings.IP_<slug>`).
+//
+//  ⚠️ 2026-08-22-dən İP MƏNBƏYİ DƏYİŞDİ.
+//  ƏVVƏL: IP-ni brauzer `api.ipify.org`-dan alıb arqument kimi göndərirdi.
+//  İki dəlik vardı:
+//    1. Arqument olduğu üçün SAXTALAŞDIRILA bilirdi — istənilən şəxs
+//       `/api/validateAndLog`-a "düzgün" IP ilə müraciət edib qeyd yaza bilərdi.
+//    2. ipify 3 saniyəyə cavab verməsə səhifə boş IP göndərirdi, boş IP isə
+//       `{ ok: true }` sayılırdı → qoruma hücum olmadan, öz-özünə sönürdü.
+//
+//  İNDİ: yeganə mənbə serverin öz gördüyü IP-dir (`req.ip` → tenant konteksti).
+//  `reportedIp` arqumenti yalnız DİAQNOSTİKA üçündür (loga yazılır) — qərara
+//  təsir etmir. Boş IP artıq QƏBUL EDİLMİR (fail-closed).
+//
+//  Ehtiyat qapı: `WIFI_ENFORCE=false` (Railway Variables). Onda uyğunsuzluq
+//  bloklamır, sadəcə loga yazılır — `AUTH_ENFORCE` ilə eyni naxış. Yeni
+//  qurulan filialda IP-ni toplamaq və ya təcili hal üçündür.
+const WIFI_ENFORCE = process.env.WIFI_ENFORCE !== 'false';
+
+// Hər filial üçün İLK uğurlu uyğunluğu bir dəfə loga yazırıq (proses başına).
+// Məqsəd köçürmə günüdür: log-da «Elmlər — 5.198.x.x uyğun gəldi» sətrini görmək
+// hər şeyin işlədiyinə müsbət təsdiqdir. Rədd halları onsuz da hər dəfə yazılır.
+const _wifiSeen = new Set();
+
+function checkWifiIp(dept, reportedIp) {
   const b = T.branchByName(dept);
+  // Filial tanınmırsa bloklamırıq: adı dəyişmiş/deaktiv filialın işçisi
+  // qapıda qalmasın. (Köhnə davranış — qəsdən saxlanılıb.)
   if (!b) return { ok: true };
-  const reg = b.wifi_ips || '';
+
+  const reg = String(b.wifi_ips || '').trim();
   if (!reg) return { ok: false, reason: 'Bu filial üçün WiFi IP hələ qeydə alınmayıb.' };
-  if (!clientIp) return { ok: true };
-  const allowed = reg.split(',').map(s => s.trim());
-  if (allowed.some(a => a && clientIp.startsWith(a))) return { ok: true };
-  return { ok: false, reason: 'Filial WiFi-ına qoşulmamısınız!' };
+
+  const allowed = reg.split(',').map(s => s.trim()).filter(Boolean);
+  const seen    = T.clientIp();                       // TƏK HƏQİQƏT MƏNBƏYİ
+  if (seen && allowed.some(a => seen.startsWith(a))) {
+    const iz = `${T.tenantIdOrNull() || '?'}|${dept}`;
+    if (!_wifiSeen.has(iz)) { _wifiSeen.add(iz); console.log(`[WiFi] ${dept} — ${seen} uyğun gəldi ✓`); }
+    return { ok: true };
+  }
+
+  // Uyğunsuzluq. Brauzerin bildirdiyi IP-ni də loga yazırıq: ikisi fərqlidirsə
+  // problem `trust proxy` qatındadır, filial konfiqurasiyasında yox.
+  const reported = String(reportedIp || '').trim();
+  const qeyd = `[WiFi] ${dept} — server: ${seen || '(boş)'}` +
+               (reported && reported !== seen ? `, brauzer: ${reported}` : '') +
+               `, icazəlilər: ${allowed.join(', ')}`;
+
+  if (!WIFI_ENFORCE) {
+    console.warn(`${qeyd} — WIFI_ENFORCE=false, BURAXILDI`);
+    return { ok: true, warned: true };
+  }
+  console.warn(`${qeyd} — RƏDD`);
+  return {
+    ok: false,
+    // Görülən IP mesaja qəsdən əlavə olunur: kioskun yanındakı idarəçi
+    // problemi dərhal görüb admin panelinə həmin IP-ni yaza bilsin.
+    reason: 'Filial WiFi-ına qoşulmamısınız!' + (seen ? ` (görülən IP: ${seen})` : ''),
+  };
 }
 
 // ── Telegram ─────────────────────────────────────────────────────
@@ -1052,7 +1101,7 @@ module.exports = {
   deptToSlug, slugToDept,
   isValidPosition,
   getBranchScheduleKeys, validateBranchScheduleKey,
-  checkWifiIp,
+  checkWifiIp, WIFI_ENFORCE,
   getTelegramSettings, sendTelegramMsg, deptChatId,
   calcStreak,
 };

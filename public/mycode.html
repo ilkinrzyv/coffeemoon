@@ -4397,10 +4397,9 @@
     document.getElementById('scanConfirmOverlay').classList.remove('open');
     showScanStatus('<i class="fa-solid fa-circle-notch fa-spin"></i> Yoxlanılır...', null);
     var pin = generateDynamicPin(SECRET, Math.floor(Date.now() / TIME_STEP));
-    fetch('https://api.ipify.org?format=json')
-      .then(function(r){ return r.json(); })
-      .then(function(d){ empValidate(pin, d.ip || ''); })
-      .catch(function(){ empValidate(pin, ''); });
+    // api.ipify.org SİLİNDİ — IP-ni server özü müəyyən edir (req.ip).
+    // Əvvəl ipify cavab verməsə boş IP göndərilirdi və WiFi yoxlaması keçilirdi.
+    empValidate(pin, '');
   }
 
   function empValidate(pin, ip) {

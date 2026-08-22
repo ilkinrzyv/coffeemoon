@@ -108,6 +108,7 @@ const API_POLICY = {
   // ── Telegram / WiFi IP (bot tokeni və şəbəkə qoruması)
   getTelegramSettings: 'admin', saveTelegramSettings: 'admin', testTelegram: 'admin',
   getBranchIPs: 'admin', saveBranchIPs: 'admin',
+  getMyIp: 'admin',                 // serverin gördüyü IP — filial IP-si bununla yazılır
 
   // ── Çeklist
   getChecklistItems: 'admin', saveChecklistItems: 'admin', saveAdminNote: 'admin',

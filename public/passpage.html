@@ -187,13 +187,13 @@ function updateDisplay(){document.getElementById('pinDisplay').innerText=current
 function submitPin(){
   if(currentPin.length!==4||isProcessing)return;
   isProcessing=true;
-  statusEl.innerHTML="<i class='fa-solid fa-circle-notch fa-spin'></i> Şəbəkə yoxlanılır...";
+  statusEl.innerHTML="<i class='fa-solid fa-circle-notch fa-spin'></i> Yoxlanılır...";
   statusEl.style.color="var(--primary)";
-  var ipTimeout=setTimeout(function(){doValidate('',false);},3000);
-  fetch('https://api.ipify.org?format=json')
-    .then(function(r){return r.json();})
-    .then(function(d){clearTimeout(ipTimeout);doValidate(d.ip||'',false);})
-    .catch(function(){clearTimeout(ipTimeout);doValidate('',false);});
+  // api.ipify.org SİLİNDİ. IP-ni artıq server özü müəyyən edir (req.ip).
+  // Əvvəl burada 3 saniyəlik gözləmə vardı və vaxt bitəndə BOŞ IP göndərilirdi —
+  // boş IP isə yoxlamadan keçirdi, yəni WiFi qoruması səssizcə sönürdü.
+  // Əlavə fayda: hər skan üç saniyəyə qədər tez olur.
+  doValidate('', false);
 }
 
 // ── Servərə göndər (forceMode: warning keçdikdən sonra true olur) ─

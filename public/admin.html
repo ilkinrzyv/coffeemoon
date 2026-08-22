@@ -3540,9 +3540,19 @@ function saveMgr() {
 // ── WiFi ─────────────────────────────────────────────────────────
 var _cip='';
 function loadWifi(){
-  fetch('https://api.ipify.org?format=json').then(function(r){return r.json();})
-    .then(function(d){_cip=d.ip||'';document.getElementById('myCurrentIp').innerText=_cip||'Tapılmadı';})
-    .catch(function(){document.getElementById('myCurrentIp').innerText='Tapılmadı';});
+  // ipify DEYİL: serverin MƏHZ BU sorğuda gördüyü IP. Yoxlama da elə bu dəyəri
+  // müqayisə edir, ona görə filiala yazılacaq rəqəm buradan alınmalıdır.
+  // (ipify başqa çıxış nöqtəsi/IP ailəsi göstərə bilirdi → filial serverin heç
+  // vaxt görməyəcəyi bir IP ilə qeyd olunurdu.)
+  google.script.run.withSuccessHandler(function(d){
+    _cip = (d && d.ip) || '';
+    var el = document.getElementById('myCurrentIp');
+    if (!el) return;
+    el.innerText = _cip || 'Tapılmadı';
+    if (d && d.enforced === false) el.innerText += '  ⚠️ WiFi yoxlaması bloklamır (WIFI_ENFORCE=false)';
+  }).withFailureHandler(function(){
+    var el = document.getElementById('myCurrentIp'); if (el) el.innerText = 'Tapılmadı';
+  }).getMyIp();
 
   withBranches(function(brs){
     document.getElementById('wifiIpGrid').innerHTML = brs.map(function(b){
