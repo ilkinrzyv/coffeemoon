@@ -4248,21 +4248,59 @@ function recalcXP() {
     .recalcAllXP(true);
 }
 
+// İKİ ADDIM: əvvəlcə ÖNİZLƏMƏ (heç nə yazılmır), sonra təsdiq.
+// Səbəb: bu əməliyyat cərimə/töhmət sənədlərini silib yenidən yaradır —
+// geri dönüşü yoxdur. `recalcAllXP`-də bu naxış artıq vardı.
 function recalcFines() {
   var btn = document.getElementById('recalcFinesBtn');
   var reset = function() { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-money-bill-wave"></i> Cərimələri yenilə'; };
-  if (!confirm('Cərimələr mövcud davamiyyətdən yenidən hesablanacaq.\nİcazəli günlər (izin / gec gəliş icazəsi) çıxarılacaq, paid/waived statusu qorunacaq.\n\nDavam edilsin?')) return;
   btn.disabled = true;
-  btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Hesablanır...';
+  btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Yoxlanılır...';
+
   google.script.run
     .withSuccessHandler(function(res) {
-      btn.disabled = false;
-      btn.innerHTML = '<i class="fa-solid fa-check"></i> Hazır (+' + res.added + ' / −' + res.removed + ')';
-      setTimeout(reset, 5000);
-      alert('Cərimələr yeniləndi.\n\nYeni əlavə: ' + res.added + '\nSilinən (aradan qalxan): ' + res.removed + '\nQalan: ' + res.kept);
+      reset();
+      if (!res) { alert('Xəta baş verdi.'); return; }
+
+      var toxunulmaz = '';
+      if (res.skippedAcked)  toxunulmaz += '\n• ' + res.skippedAcked + ' imzalanmış sənədə TOXUNULMAYACAQ (işçi onları e-imza ilə təsdiqləyib)';
+      if (res.skippedClosed) toxunulmaz += '\n• ' + res.skippedClosed + ' sənəd bağlanmış aya aiddir — TOXUNULMAYACAQ';
+
+      if (!res.added && !res.removed && !res.kept) {
+        alert('Dəyişiklik yoxdur — cərimələr onsuz da düzgündür.' + (toxunulmaz ? '\n' + toxunulmaz : ''));
+        return;
+      }
+
+      var setir = (res.changes || []).slice(0, 15).map(function(c) {
+        return '  ' + c.date + '  ' + c.empName + '  —  ' + c.nov + ': ' + c.izah;
+      }).join('\n');
+      var qalan = (res.changes || []).length > 15 ? '\n  … və daha ' + ((res.changes || []).length - 15) + ' dəyişiklik' : '';
+
+      var metn = 'ÖNİZLƏMƏ — hələ heç nə dəyişməyib.\n\n' +
+                 'Əlavə ediləcək : ' + res.added + '\n' +
+                 'Silinəcək      : ' + res.removed + '\n' +
+                 'Yenilənəcək    : ' + res.kept + toxunulmaz + '\n' +
+                 (setir ? '\n────────────\n' + setir + qalan + '\n' : '') +
+                 '\nTətbiq edilsin?';
+
+      if (!confirm(metn)) return;
+
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Tətbiq olunur...';
+      google.script.run
+        .withSuccessHandler(function(r) {
+          btn.disabled = false;
+          btn.innerHTML = '<i class="fa-solid fa-check"></i> Hazır (+' + r.added + ' / −' + r.removed + ')';
+          setTimeout(reset, 5000);
+          alert('Cərimələr yeniləndi.\n\nƏlavə: ' + r.added + '\nSilinən: ' + r.removed + '\nYenilənən: ' + r.kept +
+                (r.skippedAcked ? '\nToxunulmayan (imzalı): ' + r.skippedAcked : '') +
+                (r.skippedClosed ? '\nToxunulmayan (bağlı ay): ' + r.skippedClosed : ''));
+        })
+        .withFailureHandler(function() { reset(); alert('Xəta baş verdi.'); })
+        .recalcAllFines(false);
     })
     .withFailureHandler(function() { reset(); alert('Xəta baş verdi.'); })
-    .recalcAllFines();
+    .recalcAllFines(true);   // ← quru işləmə
 }
 
 // ════════════════════════════════════════════════════════════════

@@ -327,6 +327,21 @@ function seedCaches() {
   ok(!/saveBranchIPs[\s\S]{0,400}kioskIpQeyd|kioskIpQeyd[\s\S]{0,400}saveBranchIPs/.test(src),
      'icazəli siyahını yalnız admin dəyişir');
 
+  //  (g) F-15 / F-18 / F-23: cərimə və hesabat qaydaları geriyə sürüşməsin.
+  const rf = /API\.recalcAllFines[\s\S]*?\n};/.exec(src);
+  ok(!!rf, 'recalcAllFines tapıldı');
+  ok(rf && /if \(f\.acked\) \{/.test(rf[0]),
+     'F-15: imzalanmış cəriməyə toxunulmur');
+  ok(rf && /bagli\.has\(/.test(rf[0]),
+     'F-15: bağlanmış ayın sənədinə toxunulmur');
+  ok(rf && /U\.getLogicalYMD\(a\.d\)/.test(rf[0]) && !/U\.toYMD\(a\.d\)/.test(rf[0]),
+     'F-23: cərimə döngəsi MƏNTİQİ gün işlədir (təqvim günü yox)');
+  ok(rf && /dryRun/.test(rf[0]), 'önizləmə (dryRun) dəstəklənir');
+  ok(!/latePermMap\[key\] \+ 5/.test(src),
+     'F-18: hesabatda `+ 5` hardcode qalmayıb');
+  ok(!/gte\('timestamp', startStr\)|gte\('created_at', startStr\)/.test(src),
+     'F-07: TIMESTAMPTZ sütunlar mətn sərhədi ilə süzülmür');
+
   //  (f) F-03: açar mintləyən fayllarda `Math.random()` KOD olaraq qalmamalıdır.
   //      (Davranış testi `test-keys.js` §2-dədir — bu, sadəcə ikinci qapıdır:
   //      kimsə tenant.js-də başqa yerdə Math.random yazsa dərhal görünsün.)

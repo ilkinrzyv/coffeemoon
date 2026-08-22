@@ -425,6 +425,43 @@ function pickAvansForMonth(rows, startStr, endStr) {
   });
 }
 
+// ── AYIN PƏNCƏRƏSİ ────────────────────────────────────────────────
+//  İKİ forma qaytarır, çünki sütun tipləri fərqlidir:
+//    · TEXT sütunlar (`date_str`, `decided_ymd`)      → 'YYYY-MM-DD' sətri
+//    · TIMESTAMPTZ sütunlar (`attendance.timestamp`,
+//      `mgr_fines.created_at`)                        → ISO vaxt damgası
+//
+//  ⚠️ NİYƏ FƏRQLİDİR — bu, real bir səhv idi (F-07):
+//  Postgres `timestamptz >= '2026-08-01'` yazılışını SESSİYA saat qurşağında
+//  (Supabase-də UTC) şərh edir. Bakı UTC+4 olduğu üçün həmin sərhəd əslində
+//  yerli saat 04:00-a düşürdü. Məntiqi gün isə 03:00-da kəsilir. Yəni:
+//
+//      köhnə SQL pəncərəsi : [1 avq 04:00 Bakı, 1 sen 04:00 Bakı)
+//      məntiqi gün qaydası : [1 avq 03:00 Bakı, 1 sen 03:00 Bakı)
+//
+//  Uyğunsuzluq ayın 1-i saat 03:00–04:00 arasındakı BİR SAATLIQ zolaqdır —
+//  və məhz orada gecə smeninin gəliş/çıxışları olur. 1 avqust 03:30-da gələn
+//  işçi `getLogicalYMD`-ə görə AVQUSTA aid olsa da İYUL sorğusuna düşürdü.
+//  `validateAndLog` bunu düzgün edirdi, hesabatlar isə yox — yəni cərimə
+//  sayğacı ilə maaş hesabatı fərqli ay sərhədi işlədirdi.
+//
+//  ISO sərhədi GÜN KƏSİMİ saatındadır (defolt 03:00), yəni pəncərə
+//  `getLogicalYMD` ilə DƏQİQ üst-üstə düşür — zolaq qalmır.
+function ayPencere(year, month) {
+  const y = Number(year), m = Number(month);
+  if (!y || !m || m < 1 || m > 12) return null;
+  const kesim  = discRef().dayCutoffHour;
+  const sonraY = m === 12 ? y + 1 : y;
+  const sonraM = m === 12 ? 1 : m + 1;
+  const ymd = (yy, mm) => `${yy}-${String(mm).padStart(2, '0')}-01`;
+  return {
+    startYmd: ymd(y, m),
+    endYmd:   ymd(sonraY, sonraM),
+    startIso: new Date(y, m - 1, 1, kesim, 0, 0, 0).toISOString(),
+    endIso:   new Date(sonraY, sonraM - 1, 1, kesim, 0, 0, 0).toISOString(),
+  };
+}
+
 // Verilmiş tarixin həftə başlanğıcı (bazar ertəsi) — YYYY-MM-DD
 function weekStartYMD(dateObj) {
   const d = new Date(dateObj || new Date());
@@ -1149,7 +1186,7 @@ module.exports = {
   toYMD, fmtTime, getLogicalYMD, getLogicalDateStr,
   getShiftInfo, isLate, SHIFT_TABLE, SHIFT_TYPES, SHIFT_NAMES, ALL_SHIFT_TYPES,
   DEFAULT_SALARY, getSalaryConfig, shiftMultiplier, computeDayPay, round2,
-  isTaxiDay, taxiLimitFor, weekStartYMD, computeRestDayPay,
+  isTaxiDay, taxiLimitFor, weekStartYMD, computeRestDayPay, ayPencere,
   avansAitYMD, pickAvansForMonth,
   getShiftConfig, defaultShiftConfig, defaultShiftTemplate, getLateLimit, shiftLabel,
   getEmployeeShift, hasApprovedLeave, getApprovedLatePerm,

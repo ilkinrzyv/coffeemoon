@@ -1119,11 +1119,30 @@ function cezaSebeb(ex) {
     : `${U.TOHMET_NAMES[ex.kind]} — bu ay ${ex.late_num}-ci gecikmə (${ex.late_mins} dəq)`;
 }
 
-API.recalcAllFines = async () => {
+// Bağlanmış ayların siyahısı (`salary_periods`). Cədvəl hələ yoxdursa boş dəst.
+async function bagliAylar() {
+  const { data, error } = await db().from('salary_periods').select('period');
+  if (error) {
+    if (!/salary_periods/i.test(error.message || '')) sbErr('bagliAylar', error);
+    return new Set();
+  }
+  return new Set((data || []).map(r => r.period));
+}
+
+// `dryRun = true` → HEÇ NƏ YAZILMIR, yalnız nə dəyişəcəyi qaytarılır.
+// (`recalcAllXP` ilə eyni naxış — geri dönməz əməliyyatdan əvvəl önizləmə.)
+API.recalcAllFines = async (dryRun) => {
+  const quru  = !!dryRun;
   const disc  = U.getDisciplineConfig();
   const first = disc.fineAfterLates + 1;   // neçənci gecikmədən cərimə başlayır
+  const bagli = await bagliAylar();
   const { data: emps } = await db().from('employees').select('id,name,dept,is_test');
-  let added = 0, removed = 0, kept = 0;
+  let added = 0, removed = 0, kept = 0, imzali = 0, bagliAy = 0;
+  const deyisiklikler = [];
+  const qeyd = (empName, date, nov, izah) => {
+    if (deyisiklikler.length < 500) deyisiklikler.push({ empName, date, nov, izah });
+  };
+
   for (const emp of emps || []) {
     if (emp.is_test) continue;
     const empId = String(emp.id);
@@ -1142,16 +1161,20 @@ API.recalcAllFines = async () => {
       .map(r => ({ d: new Date(r.timestamp), shift: r.shift_type || '' }))
       .filter(r => !isNaN(r.d.getTime()))
       .sort((a, b) => a.d - b.d);
-    const expected = {};      // date_str → { late_num, late_mins }
-    const monthCount = {};    // 'YYYY-MM' → unexcused late count
+    const expected = {};      // date_str → { late_num, late_mins, kind }
+    const monthCount = {};    // ay → üzrsüz gecikmə sayı
     for (const a of arrivals) {
-      const ds  = U.toYMD(a.d);
+      // MƏNTİQİ gün — təqvim günü YOX (F-23).
+      // Gecə smenində 01:00-da gələn işçinin izni/icazəsi ƏVVƏLKİ günə yazılıb;
+      // təqvim günü ilə axtarsaq tapılmır və işçi haqsız cərimə alır. Sistemin
+      // qalan hissəsi (streak, XP, hesabat, validateAndLog) məntiqi günlə işləyir.
+      const ds  = U.getLogicalYMD(a.d);
       const ym  = ds.slice(0, 7);
       const arr = a.d.getHours() * 60 + a.d.getMinutes();
       if (izin.some(r => ds >= r.start_date && ds <= r.end_date)) continue;        // tam gün izin
-      if (ds in permMap && arr <= permMap[ds] + disc.permGraceMins) continue;         // icazə vaxtından tez
+      if (ds in permMap && arr <= permMap[ds] + disc.permGraceMins) continue;      // icazə vaxtından tez
       const lim = U.getLateLimit(emp.dept, a.shift, arr);
-      if (arr <= lim) continue;                                                       // vaxtında
+      if (arr <= lim) continue;                                                    // vaxtında
       monthCount[ym] = (monthCount[ym] || 0) + 1;
       if (monthCount[ym] >= first) {
         // validateAndLog ilə EYNİ pilləkən: 1-ci cəza pul, sonrakılar tənbeh.
@@ -1164,10 +1187,26 @@ API.recalcAllFines = async () => {
     const existing = fines.data || [];
     const existByDate = {};
     for (const f of existing) existByDate[f.date_str] = f;
-    // Aradan qalxan cərimələri sil, qalanları yenilə (statusu saxla)
+
     for (const f of existing) {
+      const ay = String(f.date_str || '').slice(0, 7);
+
+      // ── TOXUNULMAZ 1: işçinin E-İMZA ilə təsdiqlədiyi sənəd (F-15) ──
+      //  İmza MƏHZ o sənədə verilib. Sonradan məbləği dəyişsək, yaxud cəriməni
+      //  töhmətə çevirsək (töhmət 6 ay qüvvədədir), işçi imzalamadığı bir sənədlə
+      //  üzləşir. AR ƏM baxımından bu zəif nöqtədir — ona görə toxunmuruq.
+      if (f.acked) { imzali++; continue; }
+
+      // ── TOXUNULMAZ 2: bağlanmış ay ──
+      //  `salary_periods`-də snapshot var, yəni ay ödənilib. Sənədin özünü
+      //  dəyişmək/silmək hesabatla sənəd arasında ziddiyyət yaradar.
+      if (bagli.has(ay)) { bagliAy++; continue; }
+
       if (!(f.date_str in expected)) {
-        await db().from('fines').delete().eq('fine_id', f.fine_id); removed++;
+        qeyd(emp.name, f.date_str, 'sil',
+             (U.TOHMET_NAMES[f.kind || 'fine'] || 'Cərimə') + (f.amount ? ' ' + f.amount + ' AZN' : ''));
+        if (!quru) await db().from('fines').delete().eq('fine_id', f.fine_id);
+        removed++;
       } else {
         const ex   = expected[f.date_str];
         const pul  = ex.kind === 'fine';
@@ -1178,19 +1217,32 @@ API.recalcAllFines = async () => {
           expires_ymd: pul ? null : U.tohmetExpiry(f.date_str, disc),
           reason: cezaSebeb(ex),
         };
-        let { error: uErr } = await db().from('fines').update(patch).eq('fine_id', f.fine_id);
-        if (uErr && /kind|expires_ymd/i.test(uErr.message || '')) {
-          const { kind: _k, expires_ymd: _e, ...kohne } = patch;
-          await db().from('fines').update(kohne).eq('fine_id', f.fine_id);
+        const kohneNov = f.kind || 'fine';
+        if (kohneNov !== ex.kind || Number(f.amount) !== Number(patch.amount)) {
+          qeyd(emp.name, f.date_str, 'dəyiş',
+               (U.TOHMET_NAMES[kohneNov] || kohneNov) + ' → ' + (U.TOHMET_NAMES[ex.kind] || ex.kind));
+        }
+        if (!quru) {
+          let { error: uErr } = await db().from('fines').update(patch).eq('fine_id', f.fine_id);
+          if (uErr && /kind|expires_ymd/i.test(uErr.message || '')) {
+            const { kind: _k, expires_ymd: _e, ...kohne } = patch;
+            await db().from('fines').update(kohne).eq('fine_id', f.fine_id);
+          }
         }
         kept++;
       }
     }
+
     // Çatışmayan cərimələri əlavə et
     for (const ds of Object.keys(expected)) {
       if (existByDate[ds]) continue;
+      if (bagli.has(ds.slice(0, 7))) { bagliAy++; continue; }   // bağlı aya yeni sənəd yazılmır
       const ex  = expected[ds];
       const pul = ex.kind === 'fine';
+      qeyd(emp.name, ds, 'əlavə',
+           (U.TOHMET_NAMES[ex.kind] || ex.kind) + (pul ? ' ' + disc.fineAmount + ' AZN' : ''));
+      added++;
+      if (quru) continue;
       const row = {
         fine_id: 'FN-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substring(2, 8).toUpperCase(),
         emp_id: empId, emp_name: emp.name, dept: emp.dept, date_str: ds,
@@ -1204,10 +1256,15 @@ API.recalcAllFines = async () => {
         const { kind: _k, expires_ymd: _e, ...kohne } = row;
         await db().from('fines').insert(kohne);
       }
-      added++;
     }
   }
-  return { success: true, added, removed, kept };
+  return {
+    success: true, dryRun: quru,
+    added, removed, kept,
+    // Toxunulmayanlar — panel bunu göstərir ki, admin niyə dəyişmədiyini bilsin
+    skippedAcked: imzali, skippedClosed: bagliAy,
+    changes: deyisiklikler,
+  };
 };
 
 API.updateEmployeeMessage = async (id, msg) => {
@@ -1932,10 +1989,19 @@ function onLeave(leaveMap, empId, dateStr) {
   return (leaveMap[String(empId)] || []).some(r => dateStr >= r.s && dateStr <= r.e);
 }
 // İcazə varsa və gəlmə vaxtı icazə vaxtı + 5 dəq içindədirsə → vaxtında
-function withinLatePerm(latePermMap, empId, dateStr, arrivalMins) {
+// `grace` — güzəşt dəqiqəsi. ƏVVƏL burada `+ 5` HARDCODE idi (F-18), halbuki
+// qalan hər yer (`validateAndLog`, `calcStreak`, `recalcAllFines`,
+// `computeEmployeeXP`) `DISCIPLINE_CONFIG.permGraceMins` işlədir. Müştəri güzəşti
+// 15 dəqiqəyə qaldırsa cərimə yazılmır və streak qırılmırdı, AMMA aylıq hesabat
+// həmin günü «gecikmə» sayırdı — işçi 100% əvəzinə 96% görürdü və səbəbi tapılmırdı.
+//
+// Dəyər arqument kimi ötürülür, içəridə oxunmur: bu funksiya işçi×gün döngüsündə
+// minlərlə dəfə çağırılır, `getDisciplineConfig()` isə hər çağırışda dərin kopya
+// qaytarır (bax ARCHITECTURE.md — `discRef()` ayrımı).
+function withinLatePerm(latePermMap, empId, dateStr, arrivalMins, grace) {
   const key = String(empId) + '|' + dateStr;
   if (!(key in latePermMap)) return false;
-  return arrivalMins <= latePermMap[key] + 5;
+  return arrivalMins <= latePermMap[key] + (Number.isFinite(grace) ? grace : 0);
 }
 
 // Açar MÜŞTƏRİ ilə başlayır. Əvvəl yalnız "il-ay" idi — yəni bir müştərinin
@@ -1951,12 +2017,15 @@ API.getMonthlyReport = async (year, month) => {
   if (cached && Date.now() - cached.ts < REPORT_TTL) return cached.data;
 
   const { data: emps } = await db().from('employees').select('*');
-  const m = String(month).padStart(2, '0');
-  const startStr = `${year}-${m}-01`;
-  const endStr   = month === 12 ? `${year + 1}-01-01` : `${year}-${String(month + 1).padStart(2, '0')}-01`;
+  const grace = U.getDisciplineConfig().permGraceMins;   // döngədən KƏNARDA (F-18)
+  const ay = U.ayPencere(year, month);
+  if (!ay) return [];
+  const startStr = ay.startYmd, endStr = ay.endYmd;   // TEXT sütunlar (cedvel.date_str)
 
   const [{ data: logs }, leaveMap, latePermMap, { data: cedvelData }] = await Promise.all([
-    db().from('attendance').select('*').gte('timestamp', startStr).lt('timestamp', endStr),
+    // `timestamp` TIMESTAMPTZ-dir → ISO sərhəd. Mətn versiyası UTC-də şərh olunub
+    // sərhədi yerli 04:00-a salırdı, məntiqi gün isə 03:00-da kəsilir (F-07).
+    db().from('attendance').select('*').gte('timestamp', ay.startIso).lt('timestamp', ay.endIso),
     buildLeaveMap(),
     buildLatePermMap(),
     db().from('cedvel').select('emp_id,date_str,shift_type').gte('date_str', startStr).lt('date_str', endStr),
@@ -1980,7 +2049,7 @@ API.getMonthlyReport = async (year, month) => {
       // Tam gün izin → vaxtında
       if (onLeave(leaveMap, emp.id, dateStr)) { onTime++; continue; }
       // Gec gəliş icazəsi → yalnız icazə vaxtı + 5 dəq içindədirsə vaxtında
-      if (withinLatePerm(latePermMap, emp.id, dateStr, arrivalMins)) { onTime++; continue; }
+      if (withinLatePerm(latePermMap, emp.id, dateStr, arrivalMins, grace)) { onTime++; continue; }
       // calcStreak ilə eyni smen məntiqi: attendance → cedvel → fallback
       const st   = r.shift_type || cedvelMap[String(emp.id) + '|' + dateStr] || null;
       const si   = st ? U.getShiftInfo(emp.dept, st) : null;
@@ -2259,17 +2328,19 @@ async function computeSalaryReport(year, month) {
   if (!y || !mo || mo < 1 || mo > 12) return { rows: [], totals: {} };
   const cfg  = U.getSalaryConfig();
   const disc = U.getDisciplineConfig();   // qanuni cərimə tavanı (ƏM 175)
-  const m = String(mo).padStart(2, '0');
-  const startStr = `${y}-${m}-01`;
-  const endStr   = mo === 12 ? `${y + 1}-01-01` : `${y}-${String(mo + 1).padStart(2, '0')}-01`;
+  // TEXT sütunlar üçün YMD, TIMESTAMPTZ sütunlar üçün ISO (izahı: U.ayPencere).
+  // Əvvəl hamısı YMD idi; `timestamp`/`created_at` müqayisələri UTC-də şərh
+  // olunub sərhədi yerli 04:00-a salırdı, məntiqi gün isə 03:00-dır (F-07).
+  const ay = U.ayPencere(y, mo);
+  const startStr = ay.startYmd, endStr = ay.endYmd;
 
   const [{ data: emps }, { data: logs }, { data: cedvelRows }, { data: sysFines }, { data: mgrFines }, { data: avansRows }] = await Promise.all([
     db().from('employees').select('*'),
-    db().from('attendance').select('emp_id,timestamp,type,shift_type').gte('timestamp', startStr).lt('timestamp', endStr),
+    db().from('attendance').select('emp_id,timestamp,type,shift_type').gte('timestamp', ay.startIso).lt('timestamp', ay.endIso),
     db().from('cedvel').select('emp_id,date_str,shift_type').gte('date_str', startStr).lt('date_str', endStr),
     // Tutulmalar — hamısı həmin aya aiddir
     db().from('fines').select('emp_id,date_str,amount,reason,status,acked').gte('date_str', startStr).lt('date_str', endStr),
-    db().from('mgr_fines').select('emp_id,amount,reason,status,created_at,created_by').gte('created_at', startStr).lt('created_at', endStr),
+    db().from('mgr_fines').select('emp_id,amount,reason,status,created_at,created_by').gte('created_at', ay.startIso).lt('created_at', ay.endIso),
     fetchAvansForMonth(startStr, endStr),
   ]);
 
@@ -2514,6 +2585,7 @@ API.getWarnings = async () => {
     warnCedvelMap[String(c.emp_id) + '|' + c.date_str] = c.shift_type || null;
   }
 
+  const grace = U.getDisciplineConfig().permGraceMins;   // döngədən KƏNARDA (F-18)
   const warnings = [];
   for (const emp of emps || []) {
     const myLogs = (logs || []).filter(r => r.emp_id === emp.id);
@@ -2522,7 +2594,7 @@ API.getWarnings = async () => {
       const d       = new Date(r.timestamp);
       const dateStr = U.getLogicalYMD(d);   // canlı sistemlə eyni gün (icazə/izin gecə-yarısı sərhədində düz tapılsın)
       const arrMins = d.getHours() * 60 + d.getMinutes();
-      if (onLeave(leaveMap, emp.id, dateStr) || withinLatePerm(latePermMap, emp.id, dateStr, arrMins)) continue;
+      if (onLeave(leaveMap, emp.id, dateStr) || withinLatePerm(latePermMap, emp.id, dateStr, arrMins, grace)) continue;
       const st  = r.shift_type || warnCedvelMap[String(emp.id) + '|' + dateStr] || null;
       const si  = st ? U.getShiftInfo(emp.dept, st) : null;
       const isL = si
@@ -2679,11 +2751,14 @@ API.validateAndLog = async (secret, qrToken, forceMode) => {
         const current = empXP?.xp || 0;
         await db().from('employees').update({ xp: Math.max(0, current - penalty) }).eq('id', matched.id);
 
-        // Aylıq cərimə sistemi — izin və gec gəliş icazəsi olan günlər SAYILMIR
-        const monthStart = new Date(ts.getFullYear(), ts.getMonth(), 1).toISOString();
+        // Aylıq cərimə sistemi — izin və gec gəliş icazəsi olan günlər SAYILMIR.
+        // Ay sərhədi GÜN KƏSİMİ saatındadır (03:00), yəni aşağıdakı `getLogicalYMD`
+        // ilə dəqiq üst-üstə düşür: 1 avqust 01:00-da gələn işçi iyula aiddir və
+        // pəncərə də onu iyulda saxlayır (F-07).
+        const cariAy = U.ayPencere(ts.getFullYear(), ts.getMonth() + 1);
         const [{ data: monthLogs }, { data: monthIzin }, { data: monthPerms }] = await Promise.all([
           db().from('attendance').select('timestamp,shift_type').eq('emp_id', String(matched.id))
-            .eq('type', 'GƏLİŞ').gte('timestamp', monthStart),
+            .eq('type', 'GƏLİŞ').gte('timestamp', cariAy.startIso).lt('timestamp', cariAy.endIso),
           db().from('izin').select('start_date,end_date').eq('emp_id', String(matched.id)).eq('status', 'approved'),
           db().from('late_perms').select('date_str,requested_time').eq('emp_id', String(matched.id)).eq('status', 'approved'),
         ]);
@@ -2696,7 +2771,10 @@ API.validateAndLog = async (secret, qrToken, forceMode) => {
         for (const log of monthLogs || []) {
           const d = new Date(log.timestamp);
           if (U.getLogicalDateStr(d) === todayStr) continue; // bugünkü qeydi sayma
-          const ds  = U.toYMD(d);
+          // MƏNTİQİ gün — təqvim günü YOX (F-23). Gecə smenində 01:00-da gələn
+          // işçinin izni/icazəsi əvvəlki günə yazılıb; təqvim günü ilə axtarsaq
+          // tapılmır və vaxtında gəlmiş gün «üzrsüz gecikmə» kimi sayılır.
+          const ds  = U.getLogicalYMD(d);
           const tot = d.getHours() * 60 + d.getMinutes();
           // Tam gün izin → cərimə sayılmır
           if ((monthIzin || []).some(r => ds >= r.start_date && ds <= r.end_date)) continue;
@@ -3774,14 +3852,10 @@ API.getAvansList = async () => {
 
 // Admin: menecerlərin təsdiqlədiyi gec gəliş icazələri + avanslar, filial üzrə
 // Ay aralığı: (2026, 7) → { start:'2026-07-01', end:'2026-08-01' }. Ay verilməyibsə null.
+// `U.ayPencere`-nin uzerine nazik ortuk: burada HEM TEXT, HEM TIMESTAMPTZ
+// sutunlar suzulur, ona gore hər iki forma lazımdır (izahı: utils.ayPencere).
 function ayAraligi(year, month) {
-  const y = Number(year), m = Number(month);
-  if (!y || !m || m < 1 || m > 12) return null;
-  const mm = String(m).padStart(2, '0');
-  return {
-    start: `${y}-${mm}-01`,
-    end:   m === 12 ? `${y + 1}-01-01` : `${y}-${String(m + 1).padStart(2, '0')}-01`,
-  };
+  return U.ayPencere(year, month);
 }
 
 // year/month verilməsə HAMISI qaytarılır (köhnə davranış — icraçı paneli belə çağırır)
@@ -3790,8 +3864,8 @@ API.getApprovedByBranch = async (year, month) => {
   let permQ = db().from('late_perms').select('*').eq('status', 'approved');
   let avansQ = db().from('avans').select('*').in('status', ['approved', 'paid']);
   if (ay) {
-    permQ  = permQ.gte('date_str', ay.start).lt('date_str', ay.end);
-    avansQ = avansQ.gte('date_str', ay.start).lt('date_str', ay.end);
+    permQ  = permQ.gte('date_str', ay.startYmd).lt('date_str', ay.endYmd);
+    avansQ = avansQ.gte('date_str', ay.startYmd).lt('date_str', ay.endYmd);
   }
   const [{ data: emps }, { data: perms }, { data: avans }] = await Promise.all([
     db().from('employees').select('id,dept'),
@@ -3830,8 +3904,9 @@ API.getMgrFinesForAdmin = async (year, month) => {
   let mgrQ = db().from('mgr_fines').select('*');
   let sysQ = db().from('fines').select('*');
   if (ay) {
-    mgrQ = mgrQ.gte('created_at', ay.start).lt('created_at', ay.end);   // menecer cəriməsində tarix = yazılma vaxtı
-    sysQ = sysQ.gte('date_str', ay.start).lt('date_str', ay.end);       // sistem cəriməsində gecikmə günü
+    // `created_at` TIMESTAMPTZ → ISO sərhəd; `date_str` TEXT → YMD sətri (F-07)
+    mgrQ = mgrQ.gte('created_at', ay.startIso).lt('created_at', ay.endIso);   // menecer cəriməsində tarix = yazılma vaxtı
+    sysQ = sysQ.gte('date_str', ay.startYmd).lt('date_str', ay.endYmd);       // sistem cəriməsində gecikmə günü
   }
   const [{ data: emps }, { data: mfines }, { data: sfines }] = await Promise.all([
     db().from('employees').select('id,dept'),
@@ -3916,19 +3991,19 @@ async function fineCapacity(empId, dept, when) {
   const ts   = when || new Date();
   const disc = U.getDisciplineConfig();
   const cfg  = U.getSalaryConfig();
-  const y  = ts.getFullYear(), mo = ts.getMonth() + 1;
-  const m  = String(mo).padStart(2, '0');
-  const startStr = `${y}-${m}-01`;
-  const endStr   = mo === 12 ? `${y + 1}-01-01` : `${y}-${String(mo + 1).padStart(2, '0')}-01`;
+  // TEXT sütunlar → YMD, TIMESTAMPTZ → ISO (izahı: U.ayPencere). Tavan hesabı
+  // maaş hesabatı ilə EYNİ pəncərədən istifadə etməlidir, yoxsa menecer paneldə
+  // görünən «qalan tutum» hesabatdakı rəqəmlə uyğun gəlməzdi.
+  const ay = U.ayPencere(ts.getFullYear(), ts.getMonth() + 1);
 
   const [{ data: emp }, { data: ced }, { data: sysF }, { data: mgrF }] = await Promise.all([
     db().from('employees').select('id,name,dept,position').eq('id', String(empId)).single(),
     db().from('cedvel').select('date_str,shift_type').eq('emp_id', String(empId))
-      .gte('date_str', startStr).lt('date_str', endStr),
+      .gte('date_str', ay.startYmd).lt('date_str', ay.endYmd),
     db().from('fines').select('amount,status,kind').eq('emp_id', String(empId))
-      .gte('date_str', startStr).lt('date_str', endStr),
+      .gte('date_str', ay.startYmd).lt('date_str', ay.endYmd),
     db().from('mgr_fines').select('amount,status,kind').eq('emp_id', String(empId))
-      .gte('created_at', startStr).lt('created_at', endStr),
+      .gte('created_at', ay.startIso).lt('created_at', ay.endIso),
   ]);
   if (!emp) return null;
 
