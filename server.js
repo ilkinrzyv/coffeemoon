@@ -820,7 +820,7 @@ API.addEmployee = async (name, dept, position) => {
   // Secret BÜTÜN platforma üzrə unikal olmalıdır — işçi /mycode?secret=… ilə
   // girəndə hansı müştəriyə aid olduğu yalnız bu dəyərdən tapılır. Ona görə
   // əvvəlki 8 simvol 16-ya qaldırıldı (toqquşma və təxmin riski).
-  const secret = T.randomKey('E').slice(0, 18);
+  const secret = T.randomKey('E', 17);   // 'E' + 17 simvol = 85 bit (crypto.randomBytes)
 
   let { error } = await db().from('employees').insert({ id, name, dept, secret, position: position || '' });
   if (error && positionColMissing(error)) {
@@ -4716,7 +4716,10 @@ API.uploadOpsPhoto = async (key, base64, ext) => {
     const buf = Buffer.from(clean, 'base64');
     const safeExt = (ext && /^(jpg|jpeg|png|webp)$/i.test(ext)) ? ext.toLowerCase() : 'jpg';
     // Yol müştəri ilə başlayır — bucket ortaq olsa da fayl adları qarışmır.
-    const fpath = `${T.tenantId()}/ops/` + Date.now().toString(36) + Math.floor(Math.random() * 1e6).toString(36) + '.' + safeExt;
+    // Fayl adı TƏXMİN EDİLƏ BİLMƏMƏLİDİR: bucket ictimaidir, yəni linki bilən
+    // şəkli aça bilir. Əvvəl `Date.now()` + `Math.random()` idi — hər ikisi
+    // proqnozlaşdırıla bilir. İndi 12 simvol crypto təsadüfü (60 bit).
+    const fpath = `${T.tenantId()}/ops/` + T.randomToken(12) + '.' + safeExt;
     const { error } = await sb.storage.from('ops-photos')
       .upload(fpath, buf, { contentType: 'image/' + (safeExt === 'jpg' ? 'jpeg' : safeExt), upsert: false });
     if (error) return { success: false, reason: error.message };

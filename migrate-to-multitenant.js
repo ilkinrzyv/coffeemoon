@@ -186,9 +186,11 @@ async function writeChunks(table, rows, onConflict) {
   }
 }
 
+// Açar generatoru tenant.js ilə EYNİ olmalıdır — bu skript real panel açarları
+// mintləyir. `Math.random()` QƏSDƏN işlədilmir (izahı: tenant.js → randomToken).
+const T = require('./tenant');
 function randomKey(prefix) {
-  const r = () => Math.random().toString(36).slice(2, 10).toUpperCase();
-  return `${prefix}${r()}${r()}`;
+  return T.randomKey(prefix);
 }
 
 (async () => {

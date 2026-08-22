@@ -327,6 +327,15 @@ function seedCaches() {
   ok(!/saveBranchIPs[\s\S]{0,400}kioskIpQeyd|kioskIpQeyd[\s\S]{0,400}saveBranchIPs/.test(src),
      'icazəli siyahını yalnız admin dəyişir');
 
+  //  (f) F-03: açar mintləyən fayllarda `Math.random()` KOD olaraq qalmamalıdır.
+  //      (Davranış testi `test-keys.js` §2-dədir — bu, sadəcə ikinci qapıdır:
+  //      kimsə tenant.js-də başqa yerdə Math.random yazsa dərhal görünsün.)
+  for (const f of ['tenant.js', 'migrate-to-multitenant.js']) {
+    const t = require('fs').readFileSync(require('path').join(__dirname, f), 'utf8')
+      .split('\n').filter(l => !l.trim().startsWith('//')).join('\n');   // şərhlər sayılmır
+    ok(!/Math\.random/.test(t), `${f}: açar yaradılışında Math.random yoxdur`);
+  }
+
   // ══════════════════════════════════════════════════════════════════════
   section('13. upsert ON CONFLICT ↔ sxem uyğunluğu');
   //  F-06: `onConflict:'endpoint'` tdb tərəfindən `'tenant_id,endpoint'`-a

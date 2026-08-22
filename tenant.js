@@ -364,9 +364,48 @@ function cacheDevice(deviceId, tid)       { if (deviceId) _devices.set(deviceId,
 //  `auth_keys` platforma cədvəlidir (tenant_id ilə scope EDİLMİR), ona görə
 //  burada xam klient işlədilir. Keşin dəqiqliyi bu funksiyaların üzərindədir.
 
-function randomKey(prefix) {
-  const rnd = () => Math.random().toString(36).slice(2, 10).toUpperCase();
-  return `${prefix}${rnd()}${rnd()}`;
+// ── TƏSADÜFİ AÇARLAR ─────────────────────────────────────────────────────
+//  ⚠️ BURADA `Math.random()` İŞLƏDİLMİR — və işlədilməməlidir.
+//
+//  ƏVVƏL belə idi: `Math.random().toString(36).slice(2, 10).toUpperCase()`.
+//  V8-in `Math.random()`-u kriptoqrafik deyil: xorshift128+ generatorudur və
+//  onun daxili vəziyyəti bir neçə ardıcıl çıxışdan geri hesablana bilir.
+//
+//  Çox-müştərili sistemdə bu konkret hücuma çevrilirdi: zərərli bir müştəri
+//  admini `regenerateAdminKey`/`regenerateTrainerKey`-i ardıcıl çağırıb nümunə
+//  toplayır, generatorun vəziyyətini bərpa edir və eyni proses daxilində
+//  BAŞQA müştərilər üçün verilən açarları qabaqcadan hesablaya bilirdi —
+//  yəni tdb.js-in qurduğu bütün izolyasiyanı yandan keçirdi.
+//
+//  İndi mənbə `crypto.randomBytes`-dir (əməliyyat sisteminin CSPRNG-i).
+//  MÖVCUD açarlar işləməyə davam edir — dəyişən yalnız YENİ açarlardır.
+const crypto = require('crypto');
+
+//  32 simvol = simvol başına DƏQİQ 5 bit. `I` və `O` qəsdən yoxdur:
+//  açarlar bəzən əl ilə köçürülür, `1/I` və `0/O` qarışığı problem yaradır.
+const KEY_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+
+//  `bytes[i] & 31` — bayrın aşağı 5 biti. 32 variantın hamısı BƏRABƏR
+//  ehtimallıdır. (`% 31` kimi bir şey yazsaydıq bəzi simvollar daha tez-tez
+//  düşərdi — modulo sürüşməsi entropiyanı azaldır.)
+//  Uzunluq yoxlaması QƏSDƏN sərtdir: səhv/pozulmuş dəyər TƏHLÜKƏSİZ ilkin
+//  dəyərə (16) düşür, qısa açara YOX. Əvvəlki variantda `Math.max(1, …)` vardı
+//  və mənfi dəyər 1 simvollu açar verirdi — testi yazanda üzə çıxdı.
+const TOKEN_MIN = 8, TOKEN_MAX = 128, TOKEN_DEFAULT = 16;
+
+function randomToken(len = TOKEN_DEFAULT) {
+  const raw = Math.round(Number(len));
+  const n = (Number.isFinite(raw) && raw >= TOKEN_MIN) ? Math.min(TOKEN_MAX, raw) : TOKEN_DEFAULT;
+  const bytes = crypto.randomBytes(n);
+  let out = '';
+  for (let i = 0; i < n; i++) out += KEY_ALPHABET[bytes[i] & 31];
+  return out;
+}
+
+//  Panel açarı: 2 simvol prefiks + 16 simvol = 80 bit entropiya.
+//  (Müqayisə üçün: UUIDv4 122 bitdir; təxmin etmək praktiki olaraq mümkün deyil.)
+function randomKey(prefix, len = 16) {
+  return `${prefix || ''}${randomToken(len)}`;
 }
 
 // Keşdən açarı tapır (rol + filial üzrə). DB-yə getmir, tərs indeksdən oxuyur.
@@ -502,7 +541,7 @@ module.exports = {
   branches, branchNames, branchSlugs, branchByName, branchBySlug, positions,
   resolveKey, resolveKeySync, resolveHost,
   cacheEmployeeSecret, forgetEmployeeSecret, cacheDevice,
-  findKey, ensureKey, issueKey, revokeKeys, branchKeys, branchByKey, randomKey,
+  findKey, ensureKey, issueKey, revokeKeys, branchKeys, branchByKey, randomKey, randomToken,
   forEachTenant,
   PLATFORM_KEY,
 };
