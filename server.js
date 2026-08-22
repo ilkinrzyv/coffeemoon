@@ -43,7 +43,10 @@ if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
 async function sendPushToEmployee(empId, title, body, extra = {}) {
   if (!process.env.VAPID_PUBLIC_KEY) return;
   try {
-    const { data: subs } = await sb
+    // db() — xam `sb` DEYİL. Səbəb: `emp_id` dəyərləri müştərilər arasında
+    // toqquşur ('EXEC', 'TRAINER', 'MGR-<Filial>' hər müştəridə eynidir), ona
+    // görə filtrsiz sorğu bir müştərinin bildirişini hamıya göndərirdi.
+    const { data: subs } = await db()
       .from('push_subscriptions')
       .select('*')
       .eq('emp_id', String(empId));
@@ -1737,11 +1740,15 @@ function withinLatePerm(latePermMap, empId, dateStr, arrivalMins) {
   return arrivalMins <= latePermMap[key] + 5;
 }
 
-const _reportCache = new Map();   // "year-month" → { ts, data }
+// Açar MÜŞTƏRİ ilə başlayır. Əvvəl yalnız "il-ay" idi — yəni bir müştərinin
+// hesabatı 60 saniyə ərzində BAŞQA müştəriyə qaytarıla bilirdi (utils.js-dəki
+// bütün keşlər onsuz da tenantId ilə açarlanır; bura unudulmuşdu).
+const _reportCache = new Map();   // "tenantId|year-month" → { ts, data }
 const REPORT_TTL   = 60 * 1000;   // 60 san — eyni hesabat təkrar hesablanmır (dashboard yükü)
+const REPORT_CACHE_MAX = 200;     // müştəri × ay kombinasiyası artdıqca yaddaş şişməsin
 
 API.getMonthlyReport = async (year, month) => {
-  const cacheKey = year + '-' + month;
+  const cacheKey = T.tenantId() + '|' + year + '-' + month;
   const cached   = _reportCache.get(cacheKey);
   if (cached && Date.now() - cached.ts < REPORT_TTL) return cached.data;
 
@@ -1798,7 +1805,12 @@ API.getMonthlyReport = async (year, month) => {
       totalHours: Math.round(totalHours * 10) / 10 };
   }).sort((a, b) => b.pct - a.pct);
 
-  _reportCache.set(cacheKey, { ts: Date.now(), data: result });
+  // Vaxtı keçmişləri at; yenə də böyükdürsə ən köhnə qeydləri sil (Map sıra saxlayır).
+  const indi = Date.now();
+  for (const [k, v] of _reportCache) if (indi - v.ts >= REPORT_TTL) _reportCache.delete(k);
+  while (_reportCache.size >= REPORT_CACHE_MAX) _reportCache.delete(_reportCache.keys().next().value);
+
+  _reportCache.set(cacheKey, { ts: indi, data: result });
   return result;
 };
 

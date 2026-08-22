@@ -244,6 +244,35 @@ function seedCaches() {
   ok(tpl.includes('var N = "Joe'), 'JS dəyəri düzgün yerləşir');
 
   // ══════════════════════════════════════════════════════════════════════
+  section('12. server.js-də sızma nöqtələri (mənbə yoxlaması)');
+  //  Bu iki səhv 2026-08-21 auditində tapıldı. Davranış testi ilə tutmaq üçün
+  //  server.js-i require etmək lazım gələrdi (o isə dərhal `app.listen` edir),
+  //  ona görə mənbə mətni yoxlanılır — geriyə sürüşməni tutmağa kifayətdir.
+  const src = require('fs').readFileSync(require('path').join(__dirname, 'server.js'), 'utf8');
+
+  //  (a) Push abunəlikləri: xam `sb` filtrsiz oxuyurdu. `emp_id` dəyərləri
+  //      ('EXEC', 'TRAINER', 'MGR-<Filial>') müştərilər arasında eynidir, ona
+  //      görə bir müştərinin bildirişi hamıya gedirdi.
+  const pushFn = /async function sendPushToEmployee[\s\S]*?\n}/.exec(src);
+  ok(!!pushFn, 'sendPushToEmployee tapıldı');
+  ok(pushFn && /await db\(\)\s*\n?\s*\.from\('push_subscriptions'\)/.test(pushFn[0]),
+     'sendPushToEmployee abunəlikləri db() ilə oxuyur (xam sb yox)');
+  ok(pushFn && !/await sb\s*\n?\s*\.from\(/.test(pushFn[0]),
+     'sendPushToEmployee-də xam sb sorğusu qalmayıb');
+
+  //  (b) Aylıq hesabat keşi: açar yalnız "il-ay" idi → A müştərisinin hesabatı
+  //      60 saniyə ərzində B müştərisinə qaytarılırdı.
+  const ckey = /const cacheKey\s*=\s*(.+);/.exec(src);
+  ok(!!ckey, 'getMonthlyReport keş açarı tapıldı');
+  ok(ckey && /tenantId\(\)/.test(ckey[1]),
+     'hesabat keşi müştəri üzrə açarlanır', ckey && ckey[1]);
+
+  //  Ümumi qayda: server.js-də `tenants` cədvəlindən başqa xam sb sorğusu olmamalıdır.
+  const xamSb = [...src.matchAll(/await sb\s*\n?\s*\.from\('([a-z_]+)'\)/g)].map(m => m[1]);
+  ok(xamSb.every(t => tdb.GLOBAL_TABLES.has(t)),
+     'server.js-də scope edilməmiş sorğu yoxdur', xamSb.join(', '));
+
+  // ══════════════════════════════════════════════════════════════════════
   console.log(`\n${'═'.repeat(62)}`);
   console.log(fail === 0
     ? `🎉  BÜTÜN TESTLƏR KEÇDİ  (${pass}/${pass})`
