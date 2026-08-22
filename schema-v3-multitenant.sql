@@ -271,6 +271,10 @@ CREATE TABLE scan_devices (
   status     TEXT DEFAULT 'pending',           -- pending | approved | blocked
   label      TEXT DEFAULT '',
   created_at TIMESTAMPTZ DEFAULT NOW(),
+  -- Kioskun serverə GÖRÜNDÜYÜ ünvan = filialın cari public IP-si.
+  -- Yalnız TƏKLİFDİR, avtomatik qəbul edilmir (izahı: kiosk-ip-migration.sql).
+  last_ip    TEXT,
+  last_seen  TIMESTAMPTZ,
   PRIMARY KEY (tenant_id, device_id)
 );
 -- Kiosk cihazı özünü yalnız device_id ilə tanıdır → qlobal unikal olmalıdır.

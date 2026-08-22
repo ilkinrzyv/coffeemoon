@@ -313,6 +313,20 @@ function seedCaches() {
   ok(/ratePeek\('pin'/.test(src) && /rateHit\('api'/.test(src),
      'sürət limiti dispatcher-ə qoşulub');
 
+  //  (e) Kiosk IP-si TƏKLİFDİR, avtomatik qəbul EDİLMİR.
+  //      Cihaz ID-si QR kodun içindədir (`CMQR:<cihazID>:<pəncərə>`), yəni QR
+  //      fotosu olan hər kəsdə o var. Avtomatik qəbul etsək, həmin adam evdən
+  //      bir sorğu ilə filialın IP-sini özününkü ilə əvəz edib girə bilər.
+  //      Bu yoxlama həmin qaydanı gələcək dəyişikliklərdən qoruyur.
+  const qeydFn = /async function kioskIpQeyd[\s\S]*?\n}/.exec(src);
+  ok(!!qeydFn, 'kioskIpQeyd tapıldı');
+  ok(qeydFn && /from\('scan_devices'\)\s*\n?\s*\.update/.test(qeydFn[0]),
+     'kiosk IP-si yalnız scan_devices-ə yazılır');
+  ok(qeydFn && !/from\('branches'\)/.test(qeydFn[0]),
+     'kiosk IP-si `branches.wifi_ips`-ə AVTOMATİK yazılmır (təsdiq admindədir)');
+  ok(!/saveBranchIPs[\s\S]{0,400}kioskIpQeyd|kioskIpQeyd[\s\S]{0,400}saveBranchIPs/.test(src),
+     'icazəli siyahını yalnız admin dəyişir');
+
   // ══════════════════════════════════════════════════════════════════════
   section('13. upsert ON CONFLICT ↔ sxem uyğunluğu');
   //  F-06: `onConflict:'endpoint'` tdb tərəfindən `'tenant_id,endpoint'`-a

@@ -1356,11 +1356,89 @@ API.resetDevice = async (id) => {
 
 // ── SCAN CİHAZLAR ────────────────────────────────────────────────
 
+// ── KİOSKUN GÖRÜNƏN IP-si ────────────────────────────────────────
+//  2026-08-22 hadisəsinin dərsi: filialın WiFi IP-si əl ilə yazılırdı və o
+//  rəqəm `api.ipify.org`-un gördüyü ünvan idi. Yoxlama isə serverin gördüyü
+//  ünvanla müqayisə edir — eyni statik WiFi üçün ikisi fərqli çıxdı və bütün
+//  filialda giriş dayandı. Rəqəmi tapmaq üçün fiziki olaraq filiala getmək
+//  lazım gəldi.
+//
+//  İndi kiosk hər bir neçə dəqiqədən bir siqnal göndərir və server həmin
+//  sorğunun GƏLDİYİ ünvanı yazır — yəni filialın cari IP-si həmişə göz
+//  önündədir, admin panelində bir kliklə siyahıya düşür.
+//
+//  ⚠️ AVTOMATİK QƏBUL EDİLMİR — bu, yalnız TƏKLİFDİR.
+//  Cihaz ID-si QR kodun İÇİNDƏDİR (`CMQR:<cihazID>:<pəncərə>`), yəni QR
+//  fotosu olan hər kəsdə cihaz ID-si də var. Avtomatik qəbul etsəydik, həmin
+//  adam evdən bir sorğu ilə filialın IP-sini özününkü ilə əvəz edib girə
+//  bilərdi — WiFi bağlantısının bütün mənası itərdi. Təsdiq insandadır.
+const IP_YAZMA_ARALIQ_MS = 2 * 60 * 1000;   // eyni IP-ni hər siqnalda yazmırıq
+const _ipXeberdarliq = new Map();           // 'cihaz|ip' → vaxt (Telegram təkrarı olmasın)
+
+async function kioskIpQeyd(dev, deviceId) {
+  const ip = T.clientIp();
+  if (!ip) return;
+  const eyni  = dev.last_ip === ip;
+  const tezed = dev.last_seen && (Date.now() - new Date(dev.last_seen).getTime()) < IP_YAZMA_ARALIQ_MS;
+  if (eyni && tezed) return;                // dəyişməyib və təzədir → yazmağa dəyməz
+
+  const { error } = await db().from('scan_devices')
+    .update({ last_ip: ip, last_seen: new Date().toISOString() }).eq('device_id', deviceId);
+  if (error) {
+    // Sütunlar hələ yaradılmayıbsa (kiosk-ip-migration.sql işlədilməyib) sistem
+    // sadəcə təklif göstərmir — heç nə sınmır.
+    if (!/last_ip|last_seen/i.test(error.message || '')) sbErr('kioskIpQeyd', error);
+    return;
+  }
+  if (eyni) return;
+
+  // IP DƏYİŞDİ. Adminə xəbər ver ki, səhər növbəsindən ƏVVƏL bilsin —
+  // bugünkü hadisədə problem yalnız işçilər qapıda qalanda üzə çıxdı.
+  const b = T.branchByName(dev.branch);
+  const icazeli = String((b && b.wifi_ips) || '').split(',').map(s => s.trim()).filter(Boolean);
+  if (icazeli.some(a => ip.startsWith(a))) return;      // onsuz da siyahıdadır
+
+  const acar = deviceId + '|' + ip;
+  if (_ipXeberdarliq.has(acar)) return;
+  if (_ipXeberdarliq.size > 200) _ipXeberdarliq.clear();
+  _ipXeberdarliq.set(acar, Date.now());
+  console.warn(`[Kiosk] ${dev.branch} — yeni IP: ${ip} (siyahıda yoxdur: ${icazeli.join(', ') || 'boş'})`);
+  await U.sendTelegramMsg(
+    `⚠️ <b>${dev.branch}</b> kiosku yeni IP-dən görünür:\n<code>${ip}</code>\n\n` +
+    `İcazəli siyahı: <code>${icazeli.join(', ') || 'boş'}</code>\n` +
+    `Admin panel → WiFi → «Siyahıya əlavə et».`, null);
+}
+
+// Admin panelinin WiFi tabı üçün: hər filialın kiosku indi hansı IP-dən görünür.
+API.getKioskIps = async () => {
+  const { data } = await db().from('scan_devices').select('*').eq('status', 'active');
+  const out = {};
+  for (const d of data || []) {
+    const b = T.branchByName(d.branch);
+    if (!b) continue;
+    const icazeli = String((b.wifi_ips) || '').split(',').map(s => s.trim()).filter(Boolean);
+    const ip = d.last_ip || '';
+    const mov = out[b.branch_id];
+    // Bir filialda bir neçə kiosk ola bilər — ən son görüləni götürürük.
+    if (mov && mov.lastSeen && d.last_seen && mov.lastSeen >= d.last_seen) continue;
+    out[b.branch_id] = {
+      deviceId: d.device_id, label: d.label || '', ip,
+      lastSeen: d.last_seen || '',
+      // Siyahıda varmı? Yoxdursa panel «əlavə et» düyməsi göstərir.
+      covered: !!ip && icazeli.some(a => ip.startsWith(a)),
+    };
+  }
+  return out;
+};
+
 API.checkScanDevice = async (deviceId) => {
   if (!deviceId) return { allowed: false, pending: false, reason: 'Cihaz ID tapılmadı.' };
   const { data: dev } = await db().from('scan_devices').select('*').eq('device_id', deviceId).single();
   if (dev) {
-    if (dev.status === 'active')  return { allowed: true, branch: dev.branch, label: dev.label };
+    if (dev.status === 'active') {
+      await kioskIpQeyd(dev, deviceId);
+      return { allowed: true, branch: dev.branch, label: dev.label };
+    }
     if (dev.status === 'pending') return { allowed: false, pending: true, reason: 'Cihazınız admin tərəfindən hələ təsdiqlənməyib.' };
     if (dev.status === 'blocked') return { allowed: false, pending: false, reason: 'Bu cihaz admin tərəfindən bloklanıb.' };
   }

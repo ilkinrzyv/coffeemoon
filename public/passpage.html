@@ -118,6 +118,23 @@ function checkDevice(){
 checkDevice();
 setInterval(function(){if(document.getElementById('pendingScreen').style.display==='block')checkDevice();},30000);
 
+// ── Kiosk siqnalı (səssiz) ────────────────────────────────────────
+//  Məqsəd: server filialın CARİ public IP-sini görsün.
+//  2026-08-22-də filialın IP-si əl ilə yazılmışdı və serverin gördüyü ünvanla
+//  uyğun gəlmədiyi üçün bütün filialda giriş dayandı — rəqəmi tapmaq üçün
+//  fiziki olaraq oraya getmək lazım gəldi. İndi server onu buradan görür və
+//  admin panelində bir kliklə siyahıya salınır (avtomatik qəbul EDİLMİR).
+//
+//  Ekrana TOXUNMUR: yalnız cihaz artıq icazəli deyilsə tam yoxlamaya keçir
+//  (admin bloklayıbsa kiosk özü xəbər tutur).
+setInterval(function(){
+  if (document.getElementById('scanArea').style.display !== 'block') return;
+  google.script.run
+    .withSuccessHandler(function(res){ if (res && !res.allowed) checkDevice(); })
+    .withFailureHandler(function(){})
+    .checkScanDevice(myDeviceId);
+}, 5 * 60 * 1000);
+
 // ══════════════════════════════════════════════════════════════════
 //  QEYD: PIN REJİMİ SİLİNDİ (2026-08-22)
 // ══════════════════════════════════════════════════════════════════

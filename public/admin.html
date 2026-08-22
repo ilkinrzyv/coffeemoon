@@ -144,6 +144,14 @@ tr.open .fa-chev{transform:rotate(180deg);}
 @media(max-width:600px){.tg-grid{grid-template-columns:1fr;}}
 .tg-field label{font-size:0.8rem;font-weight:600;color:var(--text-muted);display:block;margin-bottom:5px;}
 .tg-field input{width:100%;min-width:unset;}
+/* Kioskun görünən IP-si — filialın cari public IP-si (təklif, avtomatik yazılmır) */
+.kiosk-ip{font-size:0.76rem;margin-top:6px;line-height:1.5;display:flex;flex-wrap:wrap;align-items:center;gap:6px;}
+.kiosk-ok{color:var(--success);}
+.kiosk-warn{color:var(--warning);}
+.kiosk-muted{color:var(--text-muted);font-weight:500;}
+.kiosk-add{border:1px solid var(--primary);background:rgba(var(--primary-rgb),0.08);color:var(--primary);
+  border-radius:8px;padding:3px 9px;font-size:0.72rem;font-weight:700;cursor:pointer;font-family:inherit;}
+.kiosk-add:hover{background:var(--primary);color:#fff;}
 .toggle-row{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid var(--border);border-radius:13px;padding:0.9rem 1.1rem;margin-bottom:1.2rem;}
 .toggle-desc{flex:1;}.toggle-desc b{font-size:0.93rem;font-weight:700;}
 .toggle-desc span{font-size:0.8rem;color:var(--text-muted);display:block;margin-top:2px;}
@@ -3554,14 +3562,49 @@ function loadWifi(){
   withBranches(function(brs){
     document.getElementById('wifiIpGrid').innerHTML = brs.map(function(b){
       return '<div class="tg-field"><label>' + branchDot(b) + escHtml(b.name) + '</label>' +
-             '<input id="ip_' + b.id + '" placeholder="1.2.3.4, 5.6.7.8"></div>';
+             '<input id="ip_' + b.id + '" placeholder="1.2.3.4, 5.6.7.8">' +
+             '<div class="kiosk-ip" id="kioskip_' + b.id + '"></div></div>';
     }).join('') || '<div style="color:var(--text-muted);font-size:0.85rem;">Hələ filial yoxdur.</div>';
 
     google.script.run.withSuccessHandler(function(d){
       if(!d) return;
       brs.forEach(function(b){ var el=document.getElementById('ip_'+b.id); if(el) el.value = d[b.id] || ''; });
+      loadKioskIps();   // sahələr dolandan SONRA — «əlavə et» mövcud dəyərin yanına yazır
     }).getBranchIPs();
   });
+}
+
+// Kiosk hansı IP-dən görünür? Bu, filialın CARİ public IP-sidir — əl ilə
+// axtarmağa ehtiyac qalmır. Avtomatik yazılmır: cihaz ID-si QR kodun içindədir,
+// yəni QR fotosu olan hər kəs onu bilir. Təsdiq adminin bir klikidir.
+function loadKioskIps(){
+  google.script.run.withSuccessHandler(function(k){
+    if(!k) return;
+    Object.keys(k).forEach(function(bid){
+      var box = document.getElementById('kioskip_'+bid); if(!box) return;
+      var d = k[bid];
+      if(!d.ip){ box.innerHTML = '<span class="kiosk-muted">Kiosk hələ siqnal göndərməyib.</span>'; return; }
+      var vaxt = d.lastSeen ? new Date(d.lastSeen).toLocaleString('az-AZ') : '';
+      if(d.covered){
+        box.innerHTML = '<span class="kiosk-ok"><i class="fa-solid fa-check"></i> Kiosk: <b>'+escHtml(d.ip)+'</b>'+
+                        (vaxt?' <span class="kiosk-muted">· '+escHtml(vaxt)+'</span>':'')+'</span>';
+      } else {
+        box.innerHTML = '<span class="kiosk-warn"><i class="fa-solid fa-triangle-exclamation"></i> '+
+                        'Kiosk <b>'+escHtml(d.ip)+'</b> IP-dən görünür — siyahıda yoxdur'+
+                        (vaxt?' <span class="kiosk-muted">· '+escHtml(vaxt)+'</span>':'')+'</span> '+
+                        '<button class="kiosk-add" onclick="addKioskIp(\''+bid+'\',\''+escHtml(d.ip)+'\')">Siyahıya əlavə et</button>';
+      }
+    });
+  }).getKioskIps();
+}
+
+// Mövcud dəyəri SİLMİR — yanına vergüllə əlavə edir (köhnə IP qalsın deyə).
+function addKioskIp(bid, ip){
+  var el = document.getElementById('ip_'+bid); if(!el) return;
+  var list = el.value.split(',').map(function(s){return s.trim();}).filter(Boolean);
+  if(list.indexOf(ip) < 0) list.push(ip);
+  el.value = list.join(', ');
+  showResult('wifiResult', null, 'Əlavə olundu — <b>Saxla</b> düyməsini basmağı unutma.');
 }
 function saveWifi(){
   var payload = {};

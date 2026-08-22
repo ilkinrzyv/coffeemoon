@@ -112,6 +112,7 @@ const API_POLICY = {
   getTelegramSettings: 'admin', saveTelegramSettings: 'admin', testTelegram: 'admin',
   getBranchIPs: 'admin', saveBranchIPs: 'admin',
   getMyIp: 'admin',                 // serverin gördüyü IP — filial IP-si bununla yazılır
+  getKioskIps: 'admin',             // kioskların indi hansı IP-dən göründüyü (təklif)
 
   // ── Çeklist
   getChecklistItems: 'admin', saveChecklistItems: 'admin', saveAdminNote: 'admin',
