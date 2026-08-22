@@ -50,9 +50,17 @@ function aylar(n) {
   return out;
 }
 
-// Bir ayın brüt maaşını hesablayır — getSalaryReport ilə EYNİ qaydalar.
-// Serverin funksiyasını çağıra bilmirik (o, API obyektinin içindədir), amma
-// istifadə etdiyi utils funksiyaları eynidir, ona görə nəticə uyğun gəlir.
+// Bir ayın brüt maaşını hesablayır.
+//
+//  BİTMİŞ AY  → FAKTİKİ gəlişlərə görə (getSalaryReport ilə eyni qayda:
+//               gün yalnız faktiki GƏLİŞ varsa ödənilir).
+//  CARİ AY    → CƏDVƏLƏ görə PROQNOZ ay sonu brütü.
+//
+//  Niyə fərq? Ayın 21-i faktiki brüt hələ tamam deyil. Onunla tavan
+//  hesablasaq tavan süni şəkildə kiçik çıxar və düzəliş HƏDDƏN ARTIQ
+//  kəsər. Nümunə: Cavanşir — faktiki 360 ₼ → tavan 72 → 28 ₼ kəsilərdi;
+//  ay sonu 400 ₼ → tavan 80 → düzgün kəsim 20 ₼-dir. Fərq 8 ₼.
+//  Menecer panelindəki `fineCapacity` də cari ay üçün proqnoz işlədir.
 async function brutHesabla(period) {
   const db = tdb.db;
   const [y, m] = period.split('-').map(Number);
@@ -76,20 +84,29 @@ async function brutHesabla(period) {
   const cedvelMap = {};
   for (const c of cedvel || []) cedvelMap[String(c.emp_id) + '|' + c.date_str] = c.shift_type || '';
 
+  // Cari ayda ay sonu proqnozu lazımdır → günlər cədvəldən götürülür.
+  // Bitmiş ayda real ödəniş bazası lazımdır → günlər faktiki gəlişdən.
+  const proqnoz = (period === cariAy());
+  const cedvelGunleri = {};
+  for (const c of cedvel || []) {
+    (cedvelGunleri[String(c.emp_id)] = cedvelGunleri[String(c.emp_id)] || new Set()).add(c.date_str);
+  }
+
   const brut = {};
   for (const e of emps || []) {
     if (e.is_test) continue;
     const id = String(e.id);
     let maas = 0, taksi = 0, taksiGun = 0;
     const limit = U.taxiLimitFor(e.taxi_limit, cfg);
-    for (const ds of [...(gelis[id] || [])].sort()) {
+    const gunler = proqnoz ? (cedvelGunleri[id] || new Set()) : (gelis[id] || new Set());
+    for (const ds of [...gunler].sort()) {
       const st = cedvelMap[id + '|' + ds] || '';
       if (!st || st === 'istirahetsm') continue;
       const g = U.computeDayPay(e.position, e.dept, st, cfg);
       maas += g.pay;
       if (g.taxi > 0 && taksiGun < limit) { taksi += g.taxi; taksiGun++; }
     }
-    brut[id] = { ad: e.name, dept: e.dept, brut: U.round2(maas + taksi) };
+    brut[id] = { ad: e.name, dept: e.dept, brut: U.round2(maas + taksi), proqnoz };
   }
   return brut;
 }
@@ -129,19 +146,24 @@ async function tenantAudit(tenantId, ad) {
         .gte('created_at', start).lt('created_at', end),
     ]);
 
-    // Hesabatdakı süzgəclərin EYNİSİ — yoxsa audit uydurma rəqəm verər
+    // İMZASIZ CƏRİMƏLƏR DƏ SAYILIR.
+    // Səbəb: imzasız cərimə bu gün tutulmur, amma imzalanan kimi tutulacaq.
+    // Yalnız imzalıları saysaq, tavanı aşan imzasız yığın gözdən qaçardı və
+    // işçi imzaladığı gün problem üzə çıxardı. Menecer panelindəki tutum
+    // hesablaması (`fineCapacity`) da eyni məntiqi işlədir — ikisi uyğun olmalıdır.
+    // Bağışlanmış (waived) və tənbehlər (məbləğ 0) sayılmır.
     const tutulan = [];
     for (const f of sysF || []) {
-      if (!salCfg.fineStatuses.includes(f.status || 'unpaid')) continue;
-      if (salCfg.finesOnlyAcked && !f.acked) continue;      // imzasız tutulmur
-      if (U.isTohmet(f.kind || 'fine')) continue;           // tənbehdə pul yoxdur
+      if (f.status === 'waived') continue;
+      if (U.isTohmet(f.kind || 'fine')) continue;
       if (!(Number(f.amount) > 0)) continue;
-      tutulan.push({ ...f, menbe: 'Sistem' });
+      tutulan.push({ ...f, menbe: 'Sistem', imzali: !!f.acked });
     }
     for (const f of mgrF || []) {
-      if (salCfg.finesOnlyAcked && f.status !== 'acknowledged') continue;
+      if (U.isTohmet(f.kind || 'fine')) continue;
       if (!(Number(f.amount) > 0)) continue;
-      tutulan.push({ ...f, date_str: U.toYMD(new Date(f.created_at)), menbe: 'Menecer' });
+      tutulan.push({ ...f, date_str: U.toYMD(new Date(f.created_at)), menbe: 'Menecer',
+                     imzali: f.status === 'acknowledged' });
     }
     if (!tutulan.length) continue;
 
@@ -166,7 +188,7 @@ async function tenantAudit(tenantId, ad) {
       asanCem++;
       const bagliAy = bagliSet.has(period);
       console.log(`\n   ❗ ${period}  ${b.ad} (${b.dept})${bagliAy ? '   [AY BAĞLIDIR]' : ''}`);
-      console.log(`      Brüt: ${money(b.brut)} ₼   ·   Qanuni tavan (${pct}%): ${money(cap.limit)} ₼`);
+      console.log(`      Brüt: ${money(b.brut)} ₼${b.proqnoz ? ' (ay sonu proqnoz)' : ''}   ·   Qanuni tavan (${pct}%): ${money(cap.limit)} ₼`);
       console.log(`      Cərimə: ${money(cem)} ₼   →   TAVANI ${money(cap.kesilen)} ₼ AŞIR`);
 
       // Ən yeni cərimədən başlayaraq bağışla — köhnələr qüvvədə qalsın
@@ -180,7 +202,9 @@ async function tenantAudit(tenantId, ad) {
         qalan = U.round2(qalan - f.kesilecek);
       }
       for (const f of secilen) {
-        console.log(`      → ${f.date_str}  ${money(Number(f.amount) || 0)} ₼  [${f.menbe}]  ${f.fine_id}  ${APPLY ? (f.menbe === 'Sistem' ? 'BAĞIŞLANIR' : 'SİLİNİR') : '(quru işləmə)'}`);
+        const yeniMebleg = U.round2(Math.max(0, (Number(f.amount) || 0) - f.kesilecek));
+        console.log(`      → ${f.date_str}  ${money(Number(f.amount) || 0)} ₼  [${f.menbe}, ${f.imzali ? 'imzalı' : 'imzasız'}]  ${f.fine_id}`);
+        console.log(`         ${APPLY ? '→ YENİ MƏBLƏĞ: ' + money(yeniMebleg) + ' ₼' : '(quru işləmə — olacaq: ' + money(yeniMebleg) + ' ₼)'}`);
       }
 
       if (APPLY) {
@@ -188,13 +212,9 @@ async function tenantAudit(tenantId, ad) {
           console.log('      ⏭️  AY BAĞLIDIR — snapshot dəyişdirilmir, toxunulmadı.');
           continue;
         }
-        // BİTMƏMİŞ AY: brüt hələ artır → tavan da artır. İndi düzəltsək
-        // ay sonunda qanuni olacaq cəriməni nahaq azaltmış olarıq.
-        if (period === cariAy()) {
-          console.log('      ⏭️  AY HƏLƏ BİTMƏYİB — brüt artacaq, düzəliş ay sonuna saxlanılır.');
-          console.log('         (Maaş hesabatı onsuz da tavandan artıq tutmur — riski yoxdur.)');
-          continue;
-        }
+        // Cari ayda baza PROQNOZ ay sonu brütüdür (cədvəl üzrə), ona görə
+        // düzəliş etibarlıdır. Cədvəl sonradan dəyişsə hesabatdakı faktiki
+        // tavan onsuz da qoruyur — bu, ikinci müdafiə qatıdır.
         for (const f of secilen) {
           // Sistem cəriməsində 'waived' statusu var → qeyd qalır, tutulmur.
           // Menecer cəriməsində belə status YOXDUR (yalnız pending/acknowledged),
