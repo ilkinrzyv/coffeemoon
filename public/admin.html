@@ -97,7 +97,6 @@ tr.open .fa-chev{transform:rotate(180deg);}
 .emp-cell{display:flex;align-items:center;gap:10px;min-width:0;}
 .emp-nm{font-size:0.92rem;font-weight:700;color:var(--text-main);line-height:1.25;}
 .emp-sub{font-size:0.75rem;color:var(--text-muted);font-weight:500;margin-top:1px;}
-.emp-pin{font-family:monospace;font-size:1.05rem;font-weight:700;letter-spacing:2.5px;color:var(--text-main);background:rgba(15,23,42,0.04);padding:5px 10px;border-radius:8px;display:inline-block;}
 .emp-num{font-size:0.85rem;font-weight:700;font-variant-numeric:tabular-nums;}
 .emp-dept-sel{padding:5px 7px;border:1.5px solid rgba(15,23,42,0.1);border-radius:9px;background:#fff;font-size:0.78rem;font-weight:600;color:var(--text-muted);cursor:pointer;font-family:inherit;}
 .emp-lim{width:62px;padding:5px 6px;border:1.5px solid rgba(15,23,42,0.1);border-radius:9px;background:#fff;font-size:0.8rem;font-weight:700;text-align:center;font-family:inherit;color:var(--text-main);font-variant-numeric:tabular-nums;}
@@ -1327,7 +1326,6 @@ tr.open .fa-chev{transform:rotate(180deg);}
 // və şablon əvəzlənməsi sətri pozub bütün skripti sındırır (panel tam boş qalır).
 // gsr-shim açarı URL-dən (?key=) özü oxuyur — /admin həmişə açarla açılır.
 const SCRIPT_URL = window.location.origin;
-const TIME_STEP=10000;
 let emps=[],allLogs=[],scanDevices=[],onlineData=[],elapsedTimer=null;
 let schedData=[],schedWeekStart=getMondayYMD(new Date());
 
@@ -1983,7 +1981,7 @@ function empFiltered(){
   });
 }
 function renderEmps(){
-  var cW=Math.floor(Date.now()/TIME_STEP),list=document.getElementById('empList');
+  var list=document.getElementById('empList');
   var rows=empFiltered(), cnt=document.getElementById('empCount');
   if(cnt) cnt.textContent=rows.length+' / '+emps.length+' işçi';
   if(!emps.length){ list.innerHTML='<div style="text-align:center;padding:3rem;color:var(--text-muted)">Siyahı boşdur.</div>'; return; }
@@ -1992,7 +1990,7 @@ function renderEmps(){
     '<div style="overflow-x:auto;"><table class="emp-tbl">'+
       '<thead><tr>'+
         '<th>İşçi</th><th>Filial</th><th>Vəzifə</th><th style="text-align:center;" title="Ayda ən çoxu neçə taksili (axşam) smen yazıla bilər">Taksi limiti</th><th style="text-align:center;">Streak</th>'+
-        '<th style="text-align:center;">XP</th><th style="text-align:center;">Canlı PIN</th><th style="text-align:right;">Əməliyyat</th>'+
+        '<th style="text-align:center;">XP</th><th style="text-align:right;">Əməliyyat</th>'+
       '</tr></thead><tbody>'+
     rows.map(function(e){
       var tb=e.is_test?'<span style="font-size:0.6rem;font-weight:800;letter-spacing:.4px;color:#b45309;background:rgba(245,158,11,0.13);border:1px solid rgba(245,158,11,0.3);border-radius:5px;padding:1px 5px;margin-left:6px;">TEST</span>':'';
@@ -2010,7 +2008,6 @@ function renderEmps(){
         '<td data-l="Taksi limiti" style="text-align:center;"><input type="number" min="0" max="62" class="emp-lim" value="'+(e.taxiLimit===''||e.taxiLimit==null?'':e.taxiLimit)+'" placeholder="'+(_umumiTaksiLimit||13)+'" title="Boş = ümumi limit ('+(_umumiTaksiLimit||13)+')" onchange="changeTaxiLimit(\''+e.id+'\',this.value,this)"></td>'+
         '<td data-l="Streak" style="text-align:center;"><span class="emp-num" style="color:'+(e.streak>0?'#b45309':'var(--text-muted)')+';">'+(e.streak||0)+'</span></td>'+
         '<td data-l="XP" style="text-align:center;"><span class="emp-num" style="color:'+(e.xp>0?'var(--primary)':'var(--text-muted)')+';">'+(e.xp||0)+'</span></td>'+
-        '<td data-l="PIN" style="text-align:center;"><span class="emp-pin js-pin" data-s="'+esc(e.secret)+'">'+generateDynamicPin(e.secret,cW)+'</span></td>'+
         '<td data-l="Əməliyyat"><div class="emp-acts">'+
           '<button class="action-btn" title="Kart linkini kopyala" onclick="copyLink(\''+SCRIPT_URL+'/mycode?name='+encodeURIComponent(e.name)+'&secret='+e.secret+'\')"><i class="fa-solid fa-link"></i></button>'+
           '<button class="action-btn" title="Mesaj" style="'+(e.message?'color:var(--primary);':'')+'" onclick="sendMsg(\''+e.id+'\')"><i class="fa-regular fa-envelope"></i></button>'+
@@ -3579,15 +3576,6 @@ function copyCurrentIp(){if(!_cip)return;navigator.clipboard.writeText(_cip);ale
 // ── UTILITY ───────────────────────────────────────────────────────
 function showResult(elId,ok,msg){var el=document.getElementById(elId);el.style.display='flex';if(ok===null){el.className='tg-result';el.style.background='rgba(var(--primary-rgb),0.06)';el.style.color='var(--primary)';el.style.border='1px solid rgba(var(--primary-rgb),0.1)';}else if(ok){el.className='tg-result ok';}else{el.className='tg-result err';}el.innerHTML=msg;if(ok!==null)setTimeout(function(){el.style.display='none';},4000);}
 
-// Yalnız PIN xanalarını yenilə — bütün cədvəli yenidən qurmuruq ki, axtarış mətni,
-// açıq filial seçimi və sürüşdürmə mövqeyi itməsin.
-function refreshPins(){
-  var cW=Math.floor(Date.now()/TIME_STEP);
-  Array.prototype.forEach.call(document.querySelectorAll('.js-pin'),function(el){
-    var s=el.getAttribute('data-s'); if(s) el.textContent=generateDynamicPin(s,cW);
-  });
-}
-setInterval(function(){if(document.getElementById('tab-emp').classList.contains('active'))refreshPins();},5000);
 // Filiallar hər şeydən əvvəl yüklənir — seçim menyuları və filial sahələri
 // onlardan qurulur (əvvəl HTML-ə sabit yazılmışdı).
 withBranches(function(){ loadBranchAdmin(); });

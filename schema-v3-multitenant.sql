@@ -243,10 +243,14 @@ CREATE TABLE attendance (
   type       TEXT,                             -- GƏLİŞ | CIXIS
   overtime   TEXT DEFAULT '',
   shift_type TEXT DEFAULT '',
+  -- Qeydi HANSI kiosk yazıb (audit izi). Admin/menecer əl ilə bağladığı
+  -- smenlərdə boş qalır. Bax: attendance-device-migration.sql
+  device_id  TEXT,
   PRIMARY KEY (tenant_id, id)
 );
 CREATE INDEX idx_attendance_emp_type_ts ON attendance (tenant_id, emp_id, type, timestamp);
 CREATE INDEX idx_attendance_ts          ON attendance (tenant_id, timestamp);
+CREATE INDEX idx_attendance_device      ON attendance (tenant_id, device_id, timestamp);
 
 CREATE TABLE nahar (
   tenant_id TEXT NOT NULL REFERENCES tenants(tenant_id) ON DELETE CASCADE,

@@ -2458,23 +2458,55 @@ API.getWarnings = async () => {
 };
 
 // ── DAVAMIYYƏT ────────────────────────────────────────────────────
+//  Davamiyyət sətrini yazır və qeydi HANSI KİOSKUN yazdığını saxlayır.
+//  Audit izi: eyni cihaz bir neçə işçinin adından giriş yazırsa, yaxud bir
+//  işçinin girişləri hər dəfə fərqli cihazdan gəlirsə — bu, nümunə kimi görünür.
+//  Qarşısını almır, amma sübut yaradır.
+//
+//  `device_id` sütunu hələ yaradılmayıbsa (attendance-device-migration.sql
+//  işlədilməyib) qeyd İTMƏSİN — sütunsuz təkrarlanır. Miqrasiyadan sonra bu
+//  ehtiyat yol heç işə düşmür.
+async function insertAttendance(row) {
+  let { error } = await db().from('attendance').insert(row);
+  if (error && /device_id/i.test(error.message || '')) {
+    const { device_id: _d, ...kohne } = row;
+    ({ error } = await db().from('attendance').insert(kohne));
+    if (!error) console.warn('[Davamiyyət] device_id sütunu yoxdur — attendance-device-migration.sql işlədilməlidir.');
+  }
+  return error;
+}
 
-API.validateAndLog = async (enteredPin, clientIp, forceMode) => {
-  if (!enteredPin) return { valid: false, reason: 'Kod daxil edilməyib' };
-  const { data: emps } = await db().from('employees').select('*');
-  const cW = Math.floor(Date.now() / U.TIME_STEP);
-  const matched = (emps || []).find(emp =>
-    enteredPin === U.generateDynamicPin(emp.secret, cW) ||
-    enteredPin === U.generateDynamicPin(emp.secret, cW - 1)
-  );
+//  `secret`   — işçinin öz açarı (dispatcher onu X-CM-Key kimi də alır)
+//  `qrToken`  — kiosk ekranından skan edilən mətn
+//  ƏVVƏL burada dinamik 4 rəqəmli PIN vardı: server bütün işçiləri gəzib PIN-i
+//  uyğunlaşdırırdı. O, həm lazımsız (açar onsuz da sorğudadır), həm də riskli
+//  idi — 10 000 variant, toqquşmada SƏHV işçiyə gəliş yazılırdı. Silindi.
+API.validateAndLog = async (secret, qrToken, forceMode) => {
+  if (!secret) return { valid: false, reason: 'Kart tanınmadı. Linki yenidən açın.' };
+
+  // Köhnə (keşdə qalmış) tətbiq versiyası: birinci arqument 4 rəqəmli PIN idi.
+  // Səssiz uğursuzluq əvəzinə nə etmək lazım olduğunu deyirik.
+  if (/^\d{4}$/.test(String(secret))) {
+    return { valid: false, reason: 'Tətbiqin köhnə versiyası. Kartı bağlayıb yenidən açın.' };
+  }
+
+  const { data: matched } = await db().from('employees').select('*').eq('secret', secret).single();
   // `badPin` — dispatcher-dəki brute-force sayğacı yalnız BU halı sayır.
   // Aşağıdakı iş qaydası rədləri (istirahət, açıq smen, WiFi) sayılmır:
   // onlar real işçidir və limitə görə bloklanmamalıdırlar.
-  if (!matched) return { valid: false, badPin: true, reason: 'Yanlış və ya vaxtı keçmiş kod!' };
+  if (!matched) return { valid: false, badPin: true, reason: 'Kart tanınmadı.' };
 
-  // `clientIp` arqumenti yalnız diaqnostikadır — qərarı serverin gördüyü IP verir.
-  const wc = U.checkWifiIp(matched.dept, clientIp || '');
+  // 1) Kiosk QR-ı — «ekranın qarşısındasan» sübutu
+  const qr = await U.verifyKioskQr(qrToken, matched.dept);
+  if (!qr.ok) return { valid: false, reason: qr.reason };
+
+  // 2) Filial şəbəkəsi — «binadasan» sübutu. QR şəkil kimi ötürülə bilir,
+  //    şəbəkə isə yox; ona görə bu yoxlama QR ilə birlikdə qalır.
+  const wc = U.checkWifiIp(matched.dept, '');
   if (!wc.ok) return { valid: false, reason: wc.reason };
+
+  // Qeydi hansı kioskun yazdığı saxlanılır (audit izi — bax `insertAttendance`)
+  const deviceId = qr.device.device_id;
 
   const ts       = new Date();
   const todayStr = U.getLogicalDateStr(ts);
@@ -2537,10 +2569,11 @@ API.validateAndLog = async (enteredPin, clientIp, forceMode) => {
       }
     }
     let lateWarning = late ? '' : U.getTgTemplates().onTime;
-    await db().from('attendance').insert({
+    sbErr('validateAndLog:GƏLİŞ', await insertAttendance({
       emp_id: matched.id, emp_name: matched.name, dept: matched.dept,
       timestamp: ts.toISOString(), type: 'GƏLİŞ', overtime: '', shift_type: todayShift || '',
-    });
+      device_id: deviceId,
+    }));
     if (!matched.is_test) {
       const newStreak = await U.calcStreak(matched.id, matched.dept);
       await db().from('employees').update({ streak: newStreak }).eq('id', matched.id);
@@ -2651,7 +2684,14 @@ API.validateAndLog = async (enteredPin, clientIp, forceMode) => {
       const naharGet = (naharLogs || []).filter(r => U.getLogicalDateStr(new Date(r.timestamp)) === todayStr && r.type === 'NAHAR_GET');
       const naharQay = (naharLogs || []).filter(r => U.getLogicalDateStr(new Date(r.timestamp)) === todayStr && r.type === 'NAHAR_QAY');
       if (naharGet.length > 0 && naharQay.length === 0) {
-        return { valid: false, warningType: 'UNCLOSED_LUNCH', empName: matched.name };
+        // `reason` QƏSDƏN əlavə olunub: əvvəl bu cavabı kiosk səhifəsi ayrıca
+        // xəbərdarlıq ekranı ilə göstərirdi. PIN rejimi silindikdən sonra yeganə
+        // çağıran işçi kartıdır və o, sadəcə `reason`-u göstərir — mətnsiz cavab
+        // «Xəta baş verdi» kimi görünərdi.
+        return {
+          valid: false, warningType: 'UNCLOSED_LUNCH', empName: matched.name,
+          reason: 'Nahardan qayıdış qeyd edilməyib. Əvvəlcə nahardan qayıdışı yazın.',
+        };
       }
     }
 
@@ -2661,10 +2701,11 @@ API.validateAndLog = async (enteredPin, clientIp, forceMode) => {
     const dh = Math.floor(absMs / 3600000), dm = Math.floor((absMs % 3600000) / 60000);
     const overtimeStr = (dh === 0 && dm === 0) ? 'Tam vaxtında'
       : `${diffMs >= 0 ? '+' : '-'}${dh} saat ${dm} dəq`;
-    await db().from('attendance').insert({
+    sbErr('validateAndLog:CIXIS', await insertAttendance({
       emp_id: matched.id, emp_name: matched.name, dept: matched.dept,
       timestamp: ts.toISOString(), type: 'CIXIS', overtime: overtimeStr, shift_type: todayShift || '',
-    });
+      device_id: deviceId,
+    }));
     // Nahara görə XP LƏĞV EDİLDİ — çıxışda nahar bonusu verilmir.
     await U.sendTgTemplate('leave', { ad: matched.name, saat: U.fmtTime(ts), ferq: overtimeStr }, matched.dept);
     return { valid: true, empName: matched.name, dept: matched.dept, type: 'CIXIS', overtime: overtimeStr };
@@ -2886,7 +2927,7 @@ API.getDashboardData = async (secret) => {
 API.logLunch = async (secret, clientIp, lunchType) => {
   if (!secret) return { valid: false, reason: 'Kod daxil edilməyib' };
   if (lunchType !== 'NAHAR_GET' && lunchType !== 'NAHAR_QAY') return { valid: false, reason: 'Yanlış nahar növü' };
-  // İşçini birbaşa secret ilə tap (PIN deyil) — eyni dinamik PIN-li işçilərdə nahar başqasına yazılmasın
+  // İşçi öz `secret`-i ilə tapılır (nahar üçün kiosk QR-ı tələb olunmur — WiFi kifayətdir)
   const { data: matched } = await db().from('employees').select('*').eq('secret', secret).single();
   if (!matched) return { valid: false, reason: 'Yanlış və ya vaxtı keçmiş kod!' };
   // ƏVVƏL: `if (clientIp) { … }` — yəni IP gəlməsə yoxlama TAMAMİLƏ atlanırdı.

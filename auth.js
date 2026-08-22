@@ -91,7 +91,10 @@ const API_POLICY = {
   getOnlineEmployees: 'staff', getManagersLiveStatus: 'staff',
 
   // ── Davamiyyət
-  validateAndLog: 'public',         // PIN-in özü credential-dır
+  // ƏVVƏL 'public' idi, çünki kimlik dinamik PIN ilə müəyyən olunurdu.
+  // İndi işçi öz `secret`-i ilə tanınır (kiosk QR-ı + filial WiFi-ı isə
+  // «oradasan» sübutudur) → adi 'self' funksiyasıdır.
+  validateAndLog: 'self',
   logLunch: 'self', getLunchLogForManager: 'self', logManagerCheckin: 'self',
   getDashboardData: 'self',
 

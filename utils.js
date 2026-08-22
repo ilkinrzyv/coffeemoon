@@ -37,15 +37,21 @@ function getLogicalDateStr(dateObj) {
   return d.toDateString();
 }
 
-// ── PIN ──────────────────────────────────────────────────────────
-const TIME_STEP = 10000;
-function generateDynamicPin(secret, tw) {
-  const str = String(secret) + String(tw);
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) hash = Math.imul(31, hash) + str.charCodeAt(i) | 0;
-  hash ^= (hash << 13); hash ^= (hash >>> 17); hash ^= (hash << 5);
-  return (Math.abs(Math.imul(hash, 1664525) + 1013904223) % 10000).toString().padStart(4, '0');
-}
+// ── DİNAMİK PIN — SİLİNDİ (2026-08-22) ───────────────────────────
+//  Burada `generateDynamicPin` vardı: `secret` + vaxt pəncərəsindən 4 rəqəmli
+//  kod çıxarırdı. İki yerdə işlənirdi — kioskun klaviaturasında (heç vaxt
+//  istifadə edilmədi) və QR axınında gizli kimlik sübutu kimi.
+//
+//  NİYƏ SİLİNDİ:
+//   · Lazımsız idi — işçinin `secret`-i onsuz da hər sorğuda `X-CM-Key`
+//     başlığında gedir, yəni server kimin olduğunu artıq bilirdi.
+//   · Risklidir — cəmi 10 000 variant. Bir filialda 50 işçi olanda eyni
+//     pəncərədə iki nəfərin kodu üst-üstə düşə bilirdi və `find()` BİRİNCİ
+//     uyğun gələni götürürdü → gəliş SƏHV işçiyə yazılırdı.
+//   · Brute-force səthi idi (sürət limiti yox idi).
+//
+//  İndi kimlik `secret`-dən, «oradasan» sübutu isə kiosk QR tokeni +
+//  filial WiFi IP-si ilə verilir (bax `verifyKioskQr` — aşağıda).
 
 // ── Smen məntiqi ─────────────────────────────────────────────────
 // Saatlar `settings.SHIFT_CONFIG`-də (müştəri başına) JSON kimi saxlanılır və
@@ -457,6 +463,56 @@ async function getBranchScheduleKeys() {
 
 function validateBranchScheduleKey(key) {
   return T.branchByKey(key);
+}
+
+// ── KİOSK QR TOKENİ ───────────────────────────────────────────────
+//  Kiosk ekranında `CMQR:<cihazID>:<pəncərə>` göstərilir və 30 saniyədə bir
+//  yenilənir. ƏVVƏL bu token YALNIZ telefonun içində yoxlanılırdı və serverə
+//  ÜMUMİYYƏTLƏ göndərilmirdi — yəni server QR-ın skan edilib-edilmədiyini
+//  bilmirdi, brauzer konsolundan çağırışla tamamilə keçilə bilirdi.
+//
+//  ⚠️ QR TƏK BAŞINA KİFAYƏT DEYİL. Ekranın şəkli çəkilib göndərilə bilər
+//  (pəncərə ~60 saniyədir). Fiziki mövcudluğu sübut edən amil WiFi-dır —
+//  ona görə hər iki yoxlama SAXLANILIR, biri o birini əvəz etmir.
+//
+//  Yoxlama `test-qr.js`-dədir.
+const QR_STEP_MS  = 30000;   // kiosk QR-ı bu qədərdən bir yeniləyir (passpage.html ilə eyni)
+const QR_TOLERANS = 1;       // ±1 pəncərə → token ən çoxu ~60 saniyə etibarlıdır
+
+// Qaytarır: { ok, device } və ya { ok:false, reason }
+async function verifyKioskQr(token, dept) {
+  const t = String(token || '').trim();
+  if (!t.startsWith('CMQR:')) {
+    return { ok: false, reason: 'Kiosk QR kodu oxunmayıb. Kameranı ekrandakı koda yönəldin.' };
+  }
+  const parts = t.split(':');
+  const deviceId = parts[1] || '';
+  const tw = Number(parts[2]);
+  if (!deviceId || !Number.isFinite(tw)) {
+    return { ok: false, reason: 'QR kodu tanınmadı.' };
+  }
+
+  // Vaxt pəncərəsi SERVERİN saatı ilə yoxlanılır (telefonun saatı deyil).
+  const now = Math.floor(Date.now() / QR_STEP_MS);
+  const ferq = Math.abs(now - tw);
+  if (ferq > QR_TOLERANS) {
+    console.warn(`[QR] köhnə/gələcək token — cihaz ${deviceId}, fərq ${ferq} pəncərə (${ferq * 30} san)`);
+    return { ok: false, reason: 'QR kodunun vaxtı keçib. Yenidən skan edin.' };
+  }
+
+  // Cihaz bu müştəriyə aiddirmi və admin təsdiqləyibmi? (db() tenant ilə scope edilib)
+  const { data: dev } = await db().from('scan_devices')
+    .select('device_id,branch,status').eq('device_id', deviceId).single();
+  if (!dev)                     return { ok: false, reason: 'Bu kiosk sistemdə qeydiyyatda deyil.' };
+  if (dev.status !== 'active')  return { ok: false, reason: 'Bu kiosk cihazı aktiv deyil.' };
+
+  // Kiosk hansı filialındırsa, işçi də həmin filialın olmalıdır.
+  // (WiFi yoxlaması onsuz da bunu tələb edir — burada səbəb aydın yazılır.)
+  if (dev.branch && dept && dev.branch !== dept) {
+    console.warn(`[QR] filial uyğunsuzluğu — kiosk ${dev.branch}, işçi ${dept}`);
+    return { ok: false, reason: `Bu kiosk ${dev.branch} filialınındır, siz ${dept} filialındasınız.` };
+  }
+  return { ok: true, device: dev };
 }
 
 // ── WiFi IP yoxlaması ─────────────────────────────────────────────
@@ -1091,7 +1147,6 @@ module.exports = {
   DEFAULT_TG, TG_KEYS, getTgTemplates, fillTemplate, sendTgTemplate,
   DEFAULT_PUSH, PUSH_KEYS, getPushTemplates, fillPush,
   toYMD, fmtTime, getLogicalYMD, getLogicalDateStr,
-  generateDynamicPin, TIME_STEP,
   getShiftInfo, isLate, SHIFT_TABLE, SHIFT_TYPES, SHIFT_NAMES, ALL_SHIFT_TYPES,
   DEFAULT_SALARY, getSalaryConfig, shiftMultiplier, computeDayPay, round2,
   isTaxiDay, taxiLimitFor, weekStartYMD, computeRestDayPay,
@@ -1102,6 +1157,7 @@ module.exports = {
   isValidPosition,
   getBranchScheduleKeys, validateBranchScheduleKey,
   checkWifiIp, WIFI_ENFORCE,
+  verifyKioskQr, QR_STEP_MS, QR_TOLERANS,
   getTelegramSettings, sendTelegramMsg, deptChatId,
   calcStreak,
 };
