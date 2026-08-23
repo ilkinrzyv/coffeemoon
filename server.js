@@ -3670,6 +3670,21 @@ API.requestLatePerm = async (secret, dateStr, requestedTime) => {
   return { success:true, permId };
 };
 
+// ── MENECER BU SƏTRƏ TOXUNA BİLƏRMİ? (F-13, F-14) ────────────────
+//  Qayda: menecerin GÖRDÜYÜ sətir = dəyişə biləcəyi sətir.
+//  `getLatePermsForManager` və `getAvansForManager` siyahını İKİ mənbədən
+//  yığır — sətrin öz `dept`-i, VƏ işçinin CARİ filialı. İkisi lazımdır, çünki
+//  işçi filial dəyişəndə köhnə sətirlərdə `dept` köhnə qalır.
+//  Təsdiq yoxlaması eyni qaydanı təkrarlamalıdır: sərtləşdirsək menecer
+//  siyahıda görüb toxuna bilmədiyi sətirlə qarşılaşar, yumşaltsaq isə
+//  BAŞQA filialın sətrini dəyişə bilər (səhvin özü bu idi).
+async function rowInBranch(rowDept, empId, dept) {
+  if (rowDept && rowDept === dept) return true;
+  if (!empId) return false;
+  const { data: emp } = await db().from('employees').select('dept').eq('id', String(empId)).single();
+  return !!emp && emp.dept === dept;
+}
+
 API.getLatePermsForManager = async (branchKey) => {
   const check = U.validateBranchScheduleKey(branchKey);
   if (!check.valid) return [];
@@ -3742,7 +3757,16 @@ API.approveLatePerm = async (branchKey, permId, action) => {
   const check = U.validateBranchScheduleKey(branchKey);
   if (!check.valid) return { success: false, reason: 'İcazəsiz.' };
   if (action !== 'approved' && action !== 'rejected') return { success: false, reason: 'Yanlış əməliyyat.' };
-  const { data: perm } = await db().from('late_perms').select('emp_id,date_str,requested_time').eq('perm_id', permId).single();
+  const { data: perm } = await db().from('late_perms').select('emp_id,dept,date_str,requested_time').eq('perm_id', permId).single();
+  if (!perm) return { success: false, reason: 'İcazə tapılmadı.' };
+
+  // F-13: açar ETİBARLI olsa da, sətir HƏMİN filialın olmalıdır.
+  // Əvvəl bu yoxlama yox idi → istənilən filialın meneceri `permId`-ni bilsə
+  // (və ya təxmin etsə) BAŞQA filialın gec gəliş icazəsini təsdiqləyə bilirdi.
+  if (!await rowInBranch(perm.dept, perm.emp_id, check.dept)) {
+    return { success: false, reason: 'Bu icazə sizin filialınıza aid deyil.' };
+  }
+
   const { error, count } = await db().from('late_perms')
     .update({ status: action, approved_at: new Date().toISOString() })
     .eq('perm_id', permId);
@@ -3945,10 +3969,26 @@ API.getMgrFinesForAdmin = async (year, month) => {
 };
 
 // Admin üçün: avans statusunu dəyişdir
-API.updateAvansStatus = async (avansId, status) => {
+// F-14: ƏVVƏL imza `(avansId, status)` idi və auth səviyyəsi `'staff'`.
+// Yəni İSTƏNİLƏN panel açarı — trainer, ops, icraçı, BAŞQA filialın meneceri —
+// istənilən avansı təsdiqləyə və «Ödənildi» işarələyə bilirdi. Bu, puldur.
+// İndi filial açarı tələb olunur və sətir həmin filialın olmalıdır
+// (`getAvansForManager` onsuz da yalnız o sətirləri göstərirdi).
+API.updateAvansStatus = async (branchKey, avansId, status) => {
+  // Köhnə (keşdə qalmış) panel `(avansId, status)` göndərir → `status` boş qalır.
+  // Səssiz uğursuzluq əvəzinə nə etmək lazım olduğunu deyirik.
+  if (status === undefined && ['approved', 'rejected', 'paid'].includes(avansId)) {
+    return { success: false, reason: 'Panelin köhnə versiyası. Səhifəni yeniləyin (Ctrl+F5).' };
+  }
+  const check = U.validateBranchScheduleKey(branchKey);
+  if (!check.valid) return { success: false, reason: 'İcazəsiz.' };
   if (!['approved', 'rejected', 'paid'].includes(status))
     return { success: false, reason: 'Yanlış status.' };
-  const { data: av } = await db().from('avans').select('emp_id,emp_name,amount').eq('avans_id', avansId).single();
+  const { data: av } = await db().from('avans').select('emp_id,emp_name,amount,dept').eq('avans_id', avansId).single();
+  if (!av) return { success: false, reason: 'Avans tapılmadı.' };
+  if (!await rowInBranch(av.dept, av.emp_id, check.dept)) {
+    return { success: false, reason: 'Bu avans sizin filialınıza aid deyil.' };
+  }
   // Qərar günü: maaş hesabatı tutulmanı TƏLƏB ayına yox, TƏSDİQ/ÖDƏNİŞ ayına yazsın deyə.
   // (Rədd edilən avans tutulmur — ona qərar günü lazım deyil.)
   const patch = { status };
@@ -4290,17 +4330,27 @@ API.saveProfile = async (secret, data) => {
   if (!secret) return { success: false };
   const { data: emp } = await db().from('employees').select('id').eq('secret', secret).single();
   if (!emp) return { success: false };
+  const d = data || {};
+
+  // F-09: şəkil YOXLANILIR. Rədd səbəbi işçiyə deyilir — səssizcə boşaltmaq
+  // daha pisdir, çünki işçi şəklin saxlanıldığını zənn edərdi.
+  const photoErr = U.photoDataError(d.photoData);
+  if (photoErr) return { success: false, reason: photoErr };
+  const isPhoto = d.avatarType === 'photo';
+
   const { error } = await db().from('profiles').upsert({
     emp_id:       emp.id,
-    avatar_type:  data.avatarType  || 'preset',
-    avatar_value: data.avatarValue || 'mug-hot',
-    accent_color: data.accentColor || '#5b5ef4',
-    bio:          (data.bio || '').slice(0, 80),
-    photo_data:   data.photoData   || '',
-    banner_style: data.bannerStyle || 'none',
-    card_theme:   data.cardTheme   || 'glass',
-    glow_effect:  data.glowEffect  || 'none',
-    frame_style:  data.frameStyle  || 'none',
+    avatar_type:  isPhoto ? 'photo' : 'preset',
+    avatar_value: U.cleanStyleId(d.avatarValue, 'mug-hot'),
+    accent_color: U.cleanHexColor(d.accentColor, '#5b5ef4'),
+    bio:          String(d.bio || '').slice(0, 80),
+    // Şəkil yalnız `avatarType === 'photo'` olanda saxlanılır — preset seçildikdə
+    // köhnə base64 cədvəldə qalmasın (o, hər `getTeamProfiles` çağırışında daşınır).
+    photo_data:   isPhoto ? String(d.photoData || '') : '',
+    banner_style: U.cleanStyleId(d.bannerStyle, 'none'),
+    card_theme:   U.cleanStyleId(d.cardTheme,   'glass'),
+    glow_effect:  U.cleanStyleId(d.glowEffect,  'none'),
+    frame_style:  U.cleanStyleId(d.frameStyle,  'none'),
     updated_at:   new Date().toISOString(),
   }, { onConflict: 'emp_id' });
   sbErr('saveProfile', error);
@@ -5215,7 +5265,12 @@ API.platformStats = async () => {
 //  SERVER BAŞLAT
 // ══════════════════════════════════════════════════════════════════
 
-(async () => {
+//  ⚠️ `require.main === module` — server YALNIZ birbaşa işə salınanda dinləyir
+//  (`node server.js`, Railway də bunu edir). `require('./server')` edilsə
+//  marşrutlar qurulur, port TUTULMUR. Bu, API funksiyalarını davranış testi ilə
+//  yoxlamağa imkan verir — əvvəl yalnız mənbə mətnini oxumaq olurdu
+//  (bax test-multitenant.js §12-dəki qeyd).
+if (require.main === module) (async () => {
   try {
     // Müştərilər, açarlar, parametrlər və filiallar — hamısı bir dəfə keşə yüklənir.
     await T.loadAll();
@@ -5259,3 +5314,6 @@ API.platformStats = async () => {
     process.exit(1);
   }
 })();
+
+// Testlər üçün: `API` obyekti dispatcher-in çağırdığı funksiyaların eynisidir.
+module.exports = { API, app };

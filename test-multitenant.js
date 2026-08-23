@@ -267,9 +267,12 @@ function seedCaches() {
 
   // ══════════════════════════════════════════════════════════════════════
   section('12. server.js-də sızma nöqtələri (mənbə yoxlaması)');
-  //  Bu iki səhv 2026-08-21 auditində tapıldı. Davranış testi ilə tutmaq üçün
-  //  server.js-i require etmək lazım gələrdi (o isə dərhal `app.listen` edir),
-  //  ona görə mənbə mətni yoxlanılır — geriyə sürüşməni tutmağa kifayətdir.
+  //  Bu iki səhv 2026-08-21 auditində tapıldı və mənbə mətni ilə yoxlanılır.
+  //  QEYD (2026-08-23): `server.js` artıq require edilə bilir (port yalnız
+  //  `require.main === module` olanda tutulur) — yəni YENİ qaydalar üçün
+  //  davranış testi yazmaq olar (bax test-permissions.js, test-profile.js).
+  //  Aşağıdakılar mətn yoxlaması olaraq qalır: onlar «bu naxış kodda yoxdur»
+  //  tipli qaydalardır, davranışla ifadə edilmir.
   const src = require('fs').readFileSync(require('path').join(__dirname, 'server.js'), 'utf8');
 
   //  (a) Push abunəlikləri: xam `sb` filtrsiz oxuyurdu. `emp_id` dəyərləri
@@ -376,14 +379,22 @@ function seedCaches() {
   }
   for (const m of sxem.matchAll(/CREATE UNIQUE INDEX \w+\s+ON (\w+)\s*\(([^)]+)\)/gi)) eleve(m[1], m[2]);
 
-  // server.js-dəki upsert-lərin münaqişə hədəfləri
+  // server.js-dəki upsert-lərin münaqişə hədəfləri.
+  //  ⚠️ Pəncərə əvvəl 800 simvol idi və BİR upsert-in (`saveProfile`) sətirləri
+  //  artanda `onConflict` pəncərədən kənara düşdü — test səssizcə həmin cədvəli
+  //  yoxlamağı DAYANDIRDI (say 4-dən 3-ə düşdü, amma hamısı yaşıl qaldı).
+  //  Ona görə indi iki şey var: geniş pəncərə VƏ tapılanların sayının
+  //  `.upsert(` sayına bərabər olması — növbəti dəfə səssiz deyil, qırmızı olsun.
+  const upsertSayi = (src.match(/\.upsert\(/g) || []).length;
   const hedefler = [];
   for (const m of src.matchAll(/\.from\('(\w+)'\)\s*\.upsert\(/g)) {
-    const pencere = src.slice(m.index, m.index + 800);
+    const pencere = src.slice(m.index, m.index + 4000);
     const oc = /onConflict:\s*'([^']+)'/.exec(pencere);
     if (oc) hedefler.push({ table: m[1], cols: oc[1] });
   }
-  ok(hedefler.length >= 3, `upsert münaqişə hədəfləri tapıldı (${hedefler.length} ədəd)`);
+  ok(hedefler.length === upsertSayi,
+     `hər upsert-in münaqişə hədəfi tapıldı (${hedefler.length}/${upsertSayi})`,
+     'tapılmayan upsert var — pəncərə kiçikdir, yoxsa onConflict yazılmayıb?');
 
   for (const h of hedefler) {
     // tdb.js-in etdiyi çevirmənin eynisi

@@ -1377,7 +1377,7 @@ function actAvans(avansId, action) {
   google.script.run
     .withSuccessHandler(function(res) { if (res && res.success) loadAvans(); })
     .withFailureHandler(function() {})
-    .updateAvansStatus(avansId, action);
+    .updateAvansStatus(BRANCH_KEY, avansId, action);
 }
 
 // ── Nahar Jurnalı ────────────────────────────────────────────────

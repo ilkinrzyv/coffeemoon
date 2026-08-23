@@ -37,6 +37,53 @@ function getLogicalDateStr(dateObj) {
   return d.toDateString();
 }
 
+// ── PROFİL DƏYƏRLƏRİNİN YOXLANIŞI (F-09) ─────────────────────────
+//  `saveProfile` bu sahələri OLDUĞU KİMİ yazırdı. `photo_data` isə işçi
+//  kartında belə göstərilirdi:
+//
+//      avEl.innerHTML = '<img src="' + p.photoData + '" …>'
+//
+//  Yəni işçi `photoData` kimi `" onerror="…` göndərsə, kod HƏMKARLARININ
+//  brauzerində işləyirdi — və onların `SECRET`-i həmin səhifədə dəyişəndir.
+//  Yəni bir işçi başqasının kartını ələ keçirə bilərdi (saxlanan XSS).
+//
+//  İki qat qorunma: panel artıq `innerHTML` işlətmir (DOM qurur), server isə
+//  belə dəyəri ÜMUMİYYƏTLƏ QƏBUL ETMİR. Biri sınsa, digəri saxlayır.
+
+//  Panelin öz sıxıcısı 160×160 JPEG (keyfiyyət 0.72) verir — adətən 5–12 KB.
+//  120 KB limit qanuni şəkli rədd etmək üçün çox genişdir, amma cədvəli
+//  şişirdən dəyəri (F-21: `getTeamProfiles` bütün şəkilləri daşıyır) kəsir.
+const PHOTO_MAX_CHARS = 120 * 1024;
+const PHOTO_RE = /^data:image\/(jpeg|jpg|png|webp);base64,[A-Za-z0-9+/]+={0,2}$/;
+
+//  Xəta MƏTNİ qaytarır (null = qaydasındadır) — işçi niyə saxlanmadığını görsün.
+//  Səssizcə boşaltmaq daha pisdir: işçi şəklin yükləndiyini zənn edərdi.
+function photoDataError(v) {
+  const s = String(v == null ? '' : v);
+  if (!s) return null;                                  // şəkilsiz profil normaldır
+  if (s.length > PHOTO_MAX_CHARS)
+    return `Şəkil çox böyükdür (${Math.round(s.length / 1024)} KB). Limit ${PHOTO_MAX_CHARS / 1024} KB.`;
+  if (!PHOTO_RE.test(s))
+    return 'Şəkil formatı tanınmadı. Yalnız JPEG, PNG və ya WebP göndərilə bilər.';
+  return null;
+}
+
+//  Vurğu rəngi CSS-ə birbaşa düşür (`hexToRgba`, qradiyentlər). Yalnız hex.
+//  ⚠️ Panel profil hələ yaradılmayanda `'var(--primary)'` göndərirdi; o dəyər
+//  `hexToRgba`-da `NaN` verib hero qradiyentini SƏSSİZCƏ sındırırdı. İndi
+//  ilkin dəyərə (`#5b5ef4` = `--primary`-nin özü) düşür, yəni rəng düzəlir.
+function cleanHexColor(v, fallback) {
+  return /^#[0-9a-fA-F]{6}$/.test(String(v == null ? '' : v)) ? String(v) : fallback;
+}
+
+//  Tema/çərçivə/banner/aura adları paneldə TANINAN siyahılarla tutuşdurulur —
+//  naməlum dəyər onsuz da ilkinə düşür. Burada sadəcə əlifbanı bağlayırıq ki,
+//  heç bir kontekstdə (CSS, HTML, atribut) məna daşıyan simvol keçməsin.
+function cleanStyleId(v, fallback) {
+  const s = String(v == null ? '' : v);
+  return /^[A-Za-z0-9_-]{1,24}$/.test(s) ? s : fallback;
+}
+
 // ── KANONİK ID GENERATORU (F-12) ─────────────────────────────────
 //  Əvvəl hər cədvəl öz ID-sini özü qururdu. Ən pisi belə idi:
 //
@@ -1253,6 +1300,7 @@ module.exports = {
   getShiftConfig, defaultShiftConfig, defaultShiftTemplate, getLateLimit, shiftLabel,
   getEmployeeShift, hasApprovedLeave, getApprovedLatePerm, pickLatestPermTime,
   newId,
+  photoDataError, cleanHexColor, cleanStyleId, PHOTO_MAX_CHARS,
   deptToSlug, slugToDept,
   isValidPosition,
   getBranchScheduleKeys, validateBranchScheduleKey,

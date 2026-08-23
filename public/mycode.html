@@ -2366,7 +2366,7 @@
           _editCardTheme   = p.cardTheme  || 'glass';
           _editFrameStyle  = p.frameStyle || 'none';
           updateTicketAvatar(p);
-          var accent = p.accentColor || 'var(--primary)';
+          var accent = p.accentColor || '#5b5ef4';   // hex OLMALIDIR (hexToRgba NaN verirdi)
           applyCardTheme(p.cardTheme, accent);
           applyAvatarEffects(document.getElementById('avatarDiv'), p.frameStyle, accent, 76);
         }).getMyProfile(SECRET);
@@ -3026,7 +3026,7 @@
   var _editAvatarTab = 'preset';
   var _editAvatarType = 'preset';
   var _editAvatarValue = 'mug-hot';
-  var _editAccentColor = 'var(--primary)';
+  var _editAccentColor = '#5b5ef4';
   var _editPhotoData = '';
 
   // ── YENİ ÖZƏLLƏŞDIRMƏ VERİLƏRİ ─────────────────────────────────
@@ -3531,7 +3531,7 @@
   }
 
   function renderOwnProfileView(p) {
-    var accent = p.accentColor || 'var(--primary)';
+    var accent = p.accentColor || '#5b5ef4';   // hex OLMALIDIR (hexToRgba NaN verirdi)
     var bigEl = document.getElementById('profileAvatarBig');
     bigEl.style.cssText = 'width:88px;height:88px;border-radius:26px;display:flex;align-items:center;justify-content:center;margin:0;font-size:2.1rem;box-shadow:0 16px 36px '+hexToRgba(accent,0.38)+',0 0 0 4px rgba(255,255,255,0.95);overflow:hidden;position:relative;transition:box-shadow 0.4s;';
     renderAvatarEl(bigEl, p.avatarType, p.avatarValue, p.photoData);
@@ -3563,7 +3563,7 @@
     if (!el) return;
     var lvl = calcXPLevel(xp);
     var info = xpToNextLevel(xp);
-    var col = accent || 'var(--primary)';
+    var col = accent || '#5b5ef4';
     el.innerHTML =
       '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">' +
         '<span style="font-size:0.7rem;font-weight:800;color:'+col+';">⭐ Dərəcə ' + lvl + '</span>' +
@@ -3579,7 +3579,7 @@
     document.getElementById('profileEditMode').style.display = 'block';
     _editAvatarType  = _myProfile ? _myProfile.avatarType  : 'preset';
     _editAvatarValue = _myProfile ? _myProfile.avatarValue : 'mug-hot';
-    _editAccentColor = _myProfile ? _myProfile.accentColor : 'var(--primary)';
+    _editAccentColor = _myProfile ? _myProfile.accentColor : '#5b5ef4';
     _editPhotoData   = _myProfile ? _myProfile.photoData   : '';
     _editBannerStyle = _myProfile ? (_myProfile.bannerStyle || 'none')  : 'none';
     _editCardTheme   = _myProfile ? (_myProfile.cardTheme  || 'glass')  : 'glass';
@@ -3844,7 +3844,7 @@
     }
     grid.innerHTML = '';
     _teamMembers.slice().sort(function(a,b){ return (b.xp||0)-(a.xp||0); }).forEach(function(m, idx) {
-      var accent = m.accentColor || 'var(--primary)';
+      var accent = m.accentColor || '#5b5ef4';   // hex OLMALIDIR (hexToRgba/shadeColor)
       var card = document.createElement('div');
       card.className = 'team-card';
       card.dataset.empid = m.empId;
@@ -4191,7 +4191,7 @@
     google.script.run
       .withSuccessHandler(function(p) {
         if (!p) return;
-        var accent = p.accentColor || 'var(--primary)';
+        var accent = p.accentColor || '#5b5ef4';   // hex OLMALIDIR (hexToRgba NaN verirdi)
         // Banner + animasiya
         var bannerEl2 = document.getElementById('pmodalBannerBg');
         if (bannerEl2) {
@@ -4211,7 +4211,13 @@
         avEl.style.cssText = 'width:92px;height:92px;border-radius:26px;display:flex;align-items:center;justify-content:center;font-size:2.3rem;color:#fff;overflow:hidden;transition:box-shadow 0.35s;position:relative;z-index:2;margin:0;';
         avEl.innerHTML = '';
         if (p.avatarType === 'photo' && p.photoData) {
-          avEl.innerHTML = '<img src="'+p.photoData+'" style="width:100%;height:100%;object-fit:cover;">';
+          // F-09: `innerHTML` İŞLƏDİLMİR. Şəkil sətri BAŞQA işçidən gəlir —
+          // `" onerror="…` göndərilsə kod BU səhifədə işləyərdi, SECRET isə buradadır.
+          // DOM qurulanda `src` sadəcə dəyər olur, heç vaxt HTML kimi oxunmur.
+          var pImg = document.createElement('img');
+          pImg.src = p.photoData;
+          pImg.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+          avEl.appendChild(pImg);
         } else {
           var pr = AVATAR_PRESETS.find(function(x){ return x.id === p.avatarValue; }) || AVATAR_PRESETS[0];
           avEl.style.background = 'linear-gradient(135deg,'+pr.bg+','+shadeColor(pr.bg,-20)+')';

@@ -136,7 +136,7 @@ const API_POLICY = {
   // ── Avans
   requestAvans: 'self', getMyAvansList: 'self', getAvansForManager: 'self',
   getAvansList: 'admin', getApprovedByBranch: 'admin',
-  updateAvansStatus: 'staff',       // manager.html açarsız çağırır → ən azı panel açarı tələb olunur
+  updateAvansStatus: 'self',        // F-14: artıq filial açarı ALIR və sətrin filialını yoxlayır
 
   // ── Cərimə (menecer)
   addMgrFine: 'self', getMgrFinesForManager: 'self',
