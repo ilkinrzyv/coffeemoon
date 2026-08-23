@@ -1,3 +1,10 @@
+-- ⚠️ BU FAYL ARTIQ TƏKBAŞINA LAZIM DEYİL (2026-08-23).
+--    Sütunları `schema-v3-multitenant.sql` özü yaradır (yeni müştəri) və
+--    mövcud baza üçün `schema-sync-migration.sql` PART 1 eynisini edir.
+--    Fayl tarixi qeyd kimi saxlanılır; işlətmək zərərsizdir (IF NOT EXISTS).
+--    Yeni bazada nə etmək lazım olduğunu bilmək üçün: schema-sync-migration.sql
+-- ──────────────────────────────────────────────────────────────
+
 -- ══════════════════════════════════════════════════════════════
 --  İNTİZAM TƏNBEHİ (töhmət) — AR Əmək Məcəlləsi
 --  Supabase SQL Editor-də işlət

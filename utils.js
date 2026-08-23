@@ -37,6 +37,41 @@ function getLogicalDateStr(dateObj) {
   return d.toDateString();
 }
 
+// ── KANONİK ID GENERATORU (F-12) ─────────────────────────────────
+//  Əvvəl hər cədvəl öz ID-sini özü qururdu. Ən pisi belə idi:
+//
+//      'E' + Date.now().toString(36).toUpperCase().slice(-5)
+//
+//  `slice(-5)` vaxt möhürünün YALNIZ son 5 simvolunu saxlayır → 36⁵ ms, yəni
+//  **16 saat 47 dəqiqə**dən bir tam dövr edir. İki işçi təxminən yarım gün ara
+//  ilə eyni millisaniyə-qalığında yaradılsa eyni ID çıxırdı:
+//    · EYNİ müştəridə — `(tenant_id,id)` ilkin açarı insert-i rədd edir, işçi əlavə olunmur.
+//    · FƏRQLİ müştərilərdə — ilkin açar toqquşmur, yəni eyni `emp_id` iki müştəridə
+//      rahat yaşayır və QLOBAL unikal indeksləri (məs. `uq_cedvel_emp_date`) sındırır.
+//
+//  Kanonik forma:  <prefiks> <vaxt: 8 simvol base36> [<sıra: 2 simvol>] <təsadüfi: 6 simvol>
+//    · vaxt möhürü KƏSİLMİR → ID-lər hələ də xronoloji sıralanır. Bu vacibdir:
+//      `getEmployeeShift` və `getCedvel` `cedvel_id` üzrə `order()` edir.
+//      8 simvol 2059-cu ilə qədər bəs edir (36⁸ ms); `padStart` uzunluğu sabit saxlayır.
+//    · təsadüfi hissə `crypto.randomBytes`-dən gəlir (6 × 5 bit = 30 bit) → eyni
+//      millisaniyədə iki ID-nin toqquşması ~1/10⁹. `Math.random()` İŞLƏDİLMİR.
+//    · `seq` — batch insert-lərdə sətir indeksi. Təsadüfə heç güvənmədən batch
+//      daxilində unikallığa ZƏMANƏT verir (1000 sətirlik cədvəl saxlaması bir
+//      toqquşmadan tam sınardı).
+const ID_TIME_LEN = 8;
+
+function newId(prefix, seq) {
+  const ts = Date.now().toString(36).toUpperCase().padStart(ID_TIME_LEN, '0');
+  // Yalnız SONLU rəqəm sıra nömrəsi olur. `Infinity` → `.toString(36)` "Infinity"
+  // sətrini qaytarır (testdə tutuldu), NaN → "NaN". Belə dəyər gəlsə sıra
+  // hissəsi sadəcə yazılmır — ID formatı pozulmur, təsadüfi quyruq qalır.
+  const n = Number(seq);
+  const sq = (seq === undefined || seq === null || !Number.isFinite(n))
+    ? ''
+    : Math.abs(Math.trunc(n)).toString(36).toUpperCase().padStart(2, '0');
+  return `${prefix || ''}${ts}${sq}${T.randomChars(6)}`;
+}
+
 // ── DİNAMİK PIN — SİLİNDİ (2026-08-22) ───────────────────────────
 //  Burada `generateDynamicPin` vardı: `secret` + vaxt pəncərəsindən 4 rəqəmli
 //  kod çıxarırdı. İki yerdə işlənirdi — kioskun klaviaturasında (heç vaxt
@@ -199,9 +234,12 @@ function isLate(dept, dateObj) {
 
 // ── DB köməkçi sorğular ───────────────────────────────────────────
 async function getEmployeeShift(empId, dateStr) {
-  // DİQQƏT: cedvel-də (emp_id,date_str) üzrə unikallıq məhdudiyyəti yoxdur → təkrar sətir ola bilər.
-  // .single() təkrar sətirdə XƏTA verib null qaytarırdı → işçi cədvəli görmürdü (menecer görürdü).
-  // İndi təkrara dözümlü: ən son yazılmış qeyd qalib (getCedvel menecer görünüşü ilə uyğun).
+  // DİQQƏT: `.single()` İŞLƏDİLMİR. Təkrar sətirdə o, XƏTA verib null qaytarırdı
+  // → işçi öz cədvəlini görmürdü (menecer görürdü). Ən son yazılmış qeyd qalibdir
+  // (getCedvel menecer görünüşü ilə uyğun).
+  // F-11-dən sonra bazada `uq_cedvel_emp_date (tenant_id, emp_id, date_str)` unikal
+  // indeksi var, yəni təkrar artıq YARANA BİLMİR — amma bu oxuma dözümlü qalır:
+  // indeks `schema-sync-migration.sql` işlədilənə qədər köhnə bazada olmaya bilər.
   const { data } = await db().from('cedvel')
     .select('shift_type')
     .eq('emp_id', String(empId)).eq('date_str', dateStr)
@@ -216,10 +254,32 @@ async function hasApprovedLeave(empId, dateStr) {
   return (data || []).some(r => dateStr >= r.start_date && dateStr <= r.end_date);
 }
 
+// F-25: `.single()` İŞLƏDİLMİR. `late_perms`-də (emp_id,date_str) üzrə unikallıq
+// yoxdur — işçi eyni gün üçün iki dəfə müraciət edə bilir (`requestLatePerm`-dəki
+// yoxlama özü də `.single()` idi, yəni təkrar yaranan kimi qapı açılırdı) və
+// menecer hər ikisini təsdiqləyə bilir. İki sətirdə `.single()` XƏTA qaytarır,
+// `data` null olur → icazə YOX SAYILIR və işçi icazəsi ola-ola cərimələnir.
+// İndi bütün təsdiqlənmiş sətirlər oxunur və ƏN GEC vaxt götürülür (işçinin
+// xeyrinə — təsdiqlənmiş icazə itməməlidir). `calcStreak` də eyni qaydanı işlədir.
+function pickLatestPermTime(rows) {
+  let best = null;
+  for (const r of rows || []) {
+    const t = r.requested_time || '';
+    if (!/^\d{1,2}:\d{2}$/.test(t)) continue;
+    if (best === null || permMins(t) > permMins(best)) best = t;
+  }
+  return best;
+}
+function permMins(t) {
+  const [h, m] = String(t).split(':').map(Number);
+  return h * 60 + m;
+}
+
 async function getApprovedLatePerm(empId, dateStr) {
   const { data } = await db().from('late_perms')
-    .select('requested_time').eq('emp_id', String(empId)).eq('date_str', dateStr).eq('status', 'approved').single();
-  return data ? { requestedTime: data.requested_time } : null;
+    .select('requested_time').eq('emp_id', String(empId)).eq('date_str', dateStr).eq('status', 'approved');
+  const t = pickLatestPermTime(data);
+  return t ? { requestedTime: t } : null;
 }
 
 // ── Streak ───────────────────────────────────────────────────────
@@ -232,10 +292,12 @@ async function calcStreak(empId, dept) {
   // Gec gəliş icazələrini bir dəfə çək (vaxtı ilə birlikdə)
   const { data: perms } = await db().from('late_perms')
     .select('date_str,requested_time').eq('emp_id', String(empId)).eq('status', 'approved');
+  // Eyni gün üçün birdən çox təsdiqlənmiş icazə ola bilər → ƏN GECİ qalib
+  // (getApprovedLatePerm ilə eyni qayda; əks halda streak və cərimə fərqli qərar verirdi).
   const permMap = {};
   for (const p of perms || []) {
-    const [ph, pm] = (p.requested_time || '23:59').split(':').map(Number);
-    permMap[p.date_str] = ph * 60 + pm;
+    const mins = permMins(p.requested_time || '23:59');
+    if (!(p.date_str in permMap) || mins > permMap[p.date_str]) permMap[p.date_str] = mins;
   }
 
   // Tam gün izinlərini bir dəfə çək
@@ -1189,7 +1251,8 @@ module.exports = {
   isTaxiDay, taxiLimitFor, weekStartYMD, computeRestDayPay, ayPencere,
   avansAitYMD, pickAvansForMonth,
   getShiftConfig, defaultShiftConfig, defaultShiftTemplate, getLateLimit, shiftLabel,
-  getEmployeeShift, hasApprovedLeave, getApprovedLatePerm,
+  getEmployeeShift, hasApprovedLeave, getApprovedLatePerm, pickLatestPermTime,
+  newId,
   deptToSlug, slugToDept,
   isValidPosition,
   getBranchScheduleKeys, validateBranchScheduleKey,

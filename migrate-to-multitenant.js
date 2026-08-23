@@ -293,8 +293,25 @@ function randomKey(prefix) {
 
   // ── 7. Data cədvəlləri ──
   for (const [table, onConflict] of TABLES) {
-    const rows = await readAll(table);
+    let rows = await readAll(table);
     if (rows === null || !rows.length) continue;
+
+    // `cedvel`-də hədəf sxemdə UNİKAL indeks var: (tenant_id, emp_id, date_str).
+    // Köhnə bazada bu qayda olmaya bilər (`cedvel-dedup-migration.sql` işlədilməyibsə)
+    // → köçürmə tam sınardı. Duplikatı burada süzürük: hər (emp_id,date_str) üçün
+    // ƏN SONUNCU `cedvel_id` qalır — `getEmployeeShift`-in oxuma qaydası ilə eynidir.
+    if (table === 'cedvel') {
+      const tek = new Map();
+      for (const r of rows) {
+        const k = String(r.emp_id) + '|' + r.date_str;
+        const m = tek.get(k);
+        if (!m || String(r.cedvel_id) > String(m.cedvel_id)) tek.set(k, r);
+      }
+      if (tek.size !== rows.length) {
+        console.log(`ℹ️   cedvel: ${rows.length - tek.size} duplikat sətir atıldı (emp_id+date_str)`);
+        rows = [...tek.values()];
+      }
+    }
 
     if (SERIAL_TABLES.has(table)) {
       // id-siz köçürülür → bazanın sayğacı düzgün qalır (yuxarıdakı izaha bax).

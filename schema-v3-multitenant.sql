@@ -294,7 +294,15 @@ CREATE TABLE cedvel (
   shift_type TEXT DEFAULT '',
   PRIMARY KEY (tenant_id, cedvel_id)
 );
-CREATE INDEX idx_cedvel_emp_date  ON cedvel (tenant_id, emp_id, date_str);
+-- Bir işçinin bir günü üçün YALNIZ BİR smen sətri ola bilər.
+-- Tarixçə: `saveCedvel` sil+yaz edir, atomik deyil → sürətli/təkrar saxlamalarda
+-- duplikat sətir yaranırdı; işçi tərəfdəki `.single()` oxuma isə duplikatda null
+-- qaytarırdı, yəni işçi öz cədvəlini GÖRMÜRDÜ (menecer görürdü).
+-- ⚠️ Bu indeks köhnə bazada `(emp_id, date_str)` — yəni TENANT-SIZ — yaradılmışdı
+--    (`cedvel-dedup-migration.sql`). Çox-müştəri rejimində bu SƏHVDİR: iki fərqli
+--    müştərinin eyni `emp_id`-si olsa (bax `U.newId` / F-12) biri digərinin
+--    cədvəlini yazmağa qoymurdu. Mövcud bazanın düzəlişi: `schema-sync-migration.sql`.
+CREATE UNIQUE INDEX uq_cedvel_emp_date ON cedvel (tenant_id, emp_id, date_str);
 CREATE INDEX idx_cedvel_dept_date ON cedvel (tenant_id, dept, date_str);
 
 CREATE TABLE izin (
@@ -440,11 +448,20 @@ CREATE TABLE fines (
   status     TEXT DEFAULT 'unpaid',            -- unpaid | paid | waived
   acked      BOOLEAN DEFAULT FALSE,
   acked_at   TIMESTAMPTZ,
+  -- İNTİZAM TƏNBEHİ (AR ƏM 186.2 / 190.1) — ayrı cədvəl DEYİL, çünki eyni
+  -- hadisədən doğur, eyni e-imza axını ilə təsdiqlənir və eyni panellərdə görünür.
+  -- Töhmətdə `amount = 0` olur → bir sorğu `kind` süzgəcini unutsa belə maaş
+  -- cəmi dəyişmir. İzahı: tohmet-migration.sql (mövcud baza üçün).
+  kind        TEXT DEFAULT 'fine',             -- fine | tohmet | siddetli | sonuncu
+  expires_ymd TEXT,                            -- tənbeh 6 ay qüvvədədir (ƏM 190.1)
+  lifted_at   TIMESTAMPTZ,                     -- vaxtından əvvəl götürülübsə (ƏM 190)
+  lifted_by   TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   PRIMARY KEY (tenant_id, fine_id)
 );
 CREATE INDEX idx_fines_emp_date ON fines (tenant_id, emp_id, date_str);
 CREATE INDEX idx_fines_status   ON fines (tenant_id, status);
+CREATE INDEX idx_fines_kind     ON fines (tenant_id, kind, expires_ymd);
 
 -- Menecer cərimələri (əl ilə yazılır, işçi e-imza ilə təsdiqləyir)
 CREATE TABLE mgr_fines (
@@ -459,10 +476,17 @@ CREATE TABLE mgr_fines (
   created_by TEXT DEFAULT '',
   created_at TIMESTAMPTZ DEFAULT NOW(),
   acked_at   TIMESTAMPTZ,
+  -- İşçinin aylıq cərimə tavanı (ƏM 175 → 20%) dolubsa menecer artıq PUL cəriməsi
+  -- yaza bilmir, yalnız intizam tənbehi yaza bilir → eyni sütunlar burada da lazımdır.
+  kind        TEXT DEFAULT 'fine',             -- fine | tohmet | siddetli | sonuncu
+  expires_ymd TEXT,
+  lifted_at   TIMESTAMPTZ,
+  lifted_by   TEXT,
   PRIMARY KEY (tenant_id, fine_id)
 );
 CREATE INDEX idx_mgrfines_emp  ON mgr_fines (tenant_id, emp_id, status);
 CREATE INDEX idx_mgrfines_dept ON mgr_fines (tenant_id, dept, created_at);
+CREATE INDEX idx_mgrfines_kind ON mgr_fines (tenant_id, kind, expires_ymd);
 
 -- Bağlanmış maaş ayları (snapshot — ödənilmiş ay geriyə dəyişmir)
 CREATE TABLE salary_periods (

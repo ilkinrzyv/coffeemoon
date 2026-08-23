@@ -816,7 +816,7 @@ API.addEmployee = async (name, dept, position) => {
     }
   }
 
-  const id = 'E' + Date.now().toString(36).toUpperCase().slice(-5);
+  const id = U.newId('E');
   // Secret BÜTÜN platforma üzrə unikal olmalıdır — işçi /mycode?secret=… ilə
   // girəndə hansı müştəriyə aid olduğu yalnız bu dəyərdən tapılır. Ona görə
   // əvvəlki 8 simvol 16-ya qaldırıldı (toqquşma və təxmin riski).
@@ -1244,7 +1244,7 @@ API.recalcAllFines = async (dryRun) => {
       added++;
       if (quru) continue;
       const row = {
-        fine_id: 'FN-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substring(2, 8).toUpperCase(),
+        fine_id: U.newId('FN-'),
         emp_id: empId, emp_name: emp.name, dept: emp.dept, date_str: ds,
         amount: pul ? disc.fineAmount : 0, late_num: ex.late_num, late_mins: ex.late_mins,
         reason: cezaSebeb(ex), status: 'unpaid',
@@ -1635,7 +1635,7 @@ async function saveCedvelCore(entries, opts) {
   }
   const toInsert = [...cellMap.values()].map((e, i) => ({
     // i (sətir indeksi) batch daxilində unikallığa zəmanət verir — eyni ms-də random toqquşması cədvəli silmir
-    cedvel_id:  'C' + Date.now().toString(36).toUpperCase() + i.toString(36).toUpperCase() + Math.floor(Math.random()*46656).toString(36).toUpperCase(),
+    cedvel_id:  U.newId('C', i),
     emp_id:     e.empId, emp_name: e.empName, dept: e.dept,
     date_str:   e.dateStr, shift_type: e.shiftType,
   }));
@@ -1664,7 +1664,7 @@ function slugify(name) {
     .replace(/[əıöüçşğƏIÖÜÇŞĞ]/g, ch => AZ_MAP[ch] || ch)
     .replace(/[^a-z0-9]+/g, '')
     .slice(0, 24);
-  return base || ('f' + Date.now().toString(36).slice(-5));
+  return base || ('f' + Date.now().toString(36));
 }
 
 API.getBranches = async () => ({
@@ -1931,7 +1931,7 @@ API.getIzinList = async () => {
 };
 
 API.addIzin = async (data) => {
-  const id = 'I' + Date.now().toString(36).toUpperCase().slice(-6);
+  const id = U.newId('I');
   const { error } = await db().from('izin').insert({
     izin_id: id, emp_id: data.empId, emp_name: data.empName, dept: data.dept,
     start_date: data.startDate, end_date: data.endDate,
@@ -2810,7 +2810,7 @@ API.validateAndLog = async (secret, qrToken, forceMode) => {
             ? `Bu ay ${thisLateNum}-ci gecikmə (${lateMins} dəq)`
             : `${U.TOHMET_NAMES[kind]} — bu ay ${thisLateNum}-ci gecikmə (${lateMins} dəq)`;
           const row = {
-            fine_id:   'FN-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substring(2, 4).toUpperCase(),
+            fine_id:   U.newId('FN-'),
             emp_id:    String(matched.id), emp_name: matched.name, dept: matched.dept,
             date_str:  todayYMD, amount: mebleg, late_num: thisLateNum, late_mins: lateMins,
             reason:    sebeb, status: 'unpaid',
@@ -3104,14 +3104,14 @@ API.logLunch = async (secret, clientIp, lunchType) => {
 
   if (lunchType === 'NAHAR_GET') {
     if (naharGet.length > 0) return { valid: false, reason: 'Artıq nahara çıxmısınız!' };
-    await db().from('nahar').insert({ nahar_id: 'NH-' + Date.now().toString(36).toUpperCase(), emp_id: matched.id, emp_name: matched.name, dept: matched.dept, timestamp: ts.toISOString(), type: 'NAHAR_GET' });
+    await db().from('nahar').insert({ nahar_id: U.newId('NH-'), emp_id: matched.id, emp_name: matched.name, dept: matched.dept, timestamp: ts.toISOString(), type: 'NAHAR_GET' });
     await U.sendTgTemplate('lunchGo', { ad: matched.name, saat: U.fmtTime(ts) }, matched.dept);
     return { valid: true, empName: matched.name, dept: matched.dept, type: 'NAHAR_GET' };
   }
   if (naharGet.length === 0) return { valid: false, reason: 'Əvvəlcə nahara çıxış qeydə alınmalıdır!' };
   if (naharQay.length > 0)   return { valid: false, reason: 'Nahardan qayıdışınız artıq qeydə alınıb!' };
   const diffMin = Math.round((ts.getTime() - new Date(naharGet[0].timestamp).getTime()) / 60000);
-  await db().from('nahar').insert({ nahar_id: 'NH-' + Date.now().toString(36).toUpperCase(), emp_id: matched.id, emp_name: matched.name, dept: matched.dept, timestamp: ts.toISOString(), type: 'NAHAR_QAY' });
+  await db().from('nahar').insert({ nahar_id: U.newId('NH-'), emp_id: matched.id, emp_name: matched.name, dept: matched.dept, timestamp: ts.toISOString(), type: 'NAHAR_QAY' });
   const limit     = lunchMax();
   const lateLunch = diffMin > limit;
   await U.sendTgTemplate('lunchBack', { ad: matched.name, saat: U.fmtTime(ts), deq: diffMin }, matched.dept);
@@ -3382,7 +3382,7 @@ API.saveChecklistItems = async (items) => {
   if (!items || !items.length) return { success: true };
 
   const incoming = items.map((item, i) => ({
-    item_id:    String(item.itemId || item.item_id || ('CI-' + Date.now().toString(36).toUpperCase() + i)),
+    item_id:    String(item.itemId || item.item_id || U.newId('CI-', i)),
     text:       String(item.text || '').trim(),
     category:   String(item.category || 'Digər'),
     sort_order: i + 1,
@@ -3434,7 +3434,7 @@ API.submitChecklistItem = async (branchKey, itemId, checked, mgrNote) => {
     await db().from('checklist_logs').update({ checked: !!checked, checked_at: checked ? U.fmtTime(ts) : '', mgr_note: mgrNote || '' }).eq('log_id', existing.log_id);
   } else {
     const { data: itemRow } = await db().from('checklist_items').select('text').eq('item_id', String(itemId)).single();
-    await db().from('checklist_logs').insert({ log_id: 'CL-' + Date.now().toString(36).toUpperCase(), date: today, dept: check.dept, item_id: itemId, item_text: itemRow?.text || '', checked: !!checked, checked_at: checked ? U.fmtTime(ts) : '', mgr_note: mgrNote || '', admin_note: '' });
+    await db().from('checklist_logs').insert({ log_id: U.newId('CL-'), date: today, dept: check.dept, item_id: itemId, item_text: itemRow?.text || '', checked: !!checked, checked_at: checked ? U.fmtTime(ts) : '', mgr_note: mgrNote || '', admin_note: '' });
   }
   return { valid: true, checkedAt: checked ? U.fmtTime(ts) : '', checked_at: checked ? U.fmtTime(ts) : '' };
 };
@@ -3471,7 +3471,7 @@ API.saveAdminNote = async (dateStr, dept, itemId, adminNote) => {
     await db().from('checklist_logs').update({ admin_note: adminNote || '' }).eq('log_id', existing.log_id);
   } else {
     const { data: itemRow } = await db().from('checklist_items').select('text').eq('item_id', String(itemId)).single();
-    await db().from('checklist_logs').insert({ log_id: 'CL-' + Date.now().toString(36).toUpperCase(), date, dept, item_id: itemId, item_text: itemRow?.text || '', checked: false, checked_at: '', mgr_note: '', admin_note: adminNote || '' });
+    await db().from('checklist_logs').insert({ log_id: U.newId('CL-'), date, dept, item_id: itemId, item_text: itemRow?.text || '', checked: false, checked_at: '', mgr_note: '', admin_note: adminNote || '' });
   }
   return { success: true };
 };
@@ -3495,7 +3495,7 @@ API.ackMgrMessage = async (branchKey, msgType) => {
   if (existing) {
     await db().from('mgr_acks').update(upd).eq('ack_id', existing.ack_id);
   } else {
-    await db().from('mgr_acks').insert({ ack_id: 'ACK-' + Date.now().toString(36).toUpperCase(), date: today, dept: check.dept, ...upd });
+    await db().from('mgr_acks').insert({ ack_id: U.newId('ACK-'), date: today, dept: check.dept, ...upd });
   }
   // İcraçıya təsdiq bildirişi
   const typeAz = msgType === 'global' ? 'ümumi mesajı' : 'filial mesajını';
@@ -3534,7 +3534,7 @@ API.getProducts = async () => {
 
 API.addProduct = async (name, unit) => {
   if (!name?.trim()) return { success: false, reason: 'Ad boş ola bilməz.' };
-  const id = 'PRD-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substring(2,4).toUpperCase();
+  const id = U.newId('PRD-');
   const { error } = await db().from('products').insert({ product_id: id, name: name.trim(), unit: unit || 'ədəd', active: true });
   return { success: !error, productId: id, product_id: id };
 };
@@ -3570,8 +3570,8 @@ API.saveProductLogs = async (branchKey, monthStr, logs) => {
   const check = U.validateBranchScheduleKey(branchKey);
   if (!check.valid) return { valid: false };
   const todayYMD = U.toYMD(new Date());
-  const toInsert = (logs || []).filter(l => (l.product_id||l.productId) && (Number(l.incoming) || Number(l.wasted))).map(l => ({
-    log_id: 'PL-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substring(2,4).toUpperCase(),
+  const toInsert = (logs || []).filter(l => (l.product_id||l.productId) && (Number(l.incoming) || Number(l.wasted))).map((l, i) => ({
+    log_id: U.newId('PL-', i),
     date_str: todayYMD, dept: check.dept, product_id: l.product_id||l.productId, product_name: l.name||l.productName||'',
     incoming: Number(l.incoming) || 0, wasted: Number(l.wasted) || 0,
   }));
@@ -3619,8 +3619,8 @@ API.saveMgrWeekSchedule = async (branchKey, entries) => {
   if (!check.valid) return { success: false, reason: 'İcazəsiz.' };
   const dates = entries.map(e => e.dateStr).filter(Boolean);
   if (dates.length) await db().from('mgr_schedule').delete().eq('dept', check.dept).in('date_str', dates);
-  const toInsert = entries.filter(e => e.dateStr && e.shiftType).map(e => ({
-    sched_id: 'MS-' + Date.now().toString(36).toUpperCase() + Math.floor(Math.random()*1000).toString(36).toUpperCase(),
+  const toInsert = entries.filter(e => e.dateStr && e.shiftType).map((e, i) => ({
+    sched_id: U.newId('MS-', i),
     dept: check.dept, date_str: e.dateStr, shift_type: e.shiftType,
   }));
   if (toInsert.length) await db().from('mgr_schedule').insert(toInsert);
@@ -3650,9 +3650,13 @@ API.requestLatePerm = async (secret, dateStr, requestedTime) => {
   if (!/^\d{2}:\d{2}$/.test(requestedTime)) return { success:false, reason:'Vaxt formatı yanlışdır.' };
   const { data: emp } = await db().from('employees').select('*').eq('secret', secret).single();
   if (!emp) return { success:false, reason:'İşçi tapılmadı.' };
-  const { data: existing } = await db().from('late_perms').select('status').eq('emp_id', String(emp.id)).eq('date_str', dateStr).single();
-  if (existing && (existing.status==='pending'||existing.status==='approved')) return { success:false, reason:'Bu tarix üçün artıq icazəniz mövcuddur.' };
-  const permId = 'LP-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substring(2,5).toUpperCase();
+  // `.single()` İŞLƏDİLMİR (F-25 ilə eyni kök): (emp_id,date_str) üzrə unikallıq
+  // yoxdur, təkrar sətir olanda `.single()` xəta verib `existing`-i null edirdi —
+  // yəni bir dəfə təkrar yarananda bu qapı BÜSBÜTÜN açıq qalırdı və hər müraciət
+  // yeni sətir yazırdı. İndi bütün sətirlər oxunur.
+  const { data: existingRows } = await db().from('late_perms').select('status').eq('emp_id', String(emp.id)).eq('date_str', dateStr);
+  if ((existingRows || []).some(r => r.status==='pending' || r.status==='approved')) return { success:false, reason:'Bu tarix üçün artıq icazəniz mövcuddur.' };
+  const permId = U.newId('LP-');
   await db().from('late_perms').insert({ perm_id: permId, emp_id:emp.id, emp_name:emp.name, dept:emp.dept, date_str:dateStr, requested_time:requestedTime, status:'pending' });
 
   // Manager-ə push bildiriş
@@ -3790,7 +3794,7 @@ API.requestAvans = async (secret, amount, note) => {
     return { success: false, reason: 'Bu gün üçün artıq avans tələbiniz mövcuddur.' };
   }
 
-  const id = 'AV-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substring(2, 5).toUpperCase();
+  const id = U.newId('AV-');
   const { error } = await db().from('avans').insert({
     avans_id:   id,
     emp_id:     String(emp.id),
@@ -4111,7 +4115,7 @@ API.addMgrFine = async (branchKey, empId, amount, reason, kind) => {
     }
   }
 
-  const id = 'MF-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substring(2, 5).toUpperCase();
+  const id = U.newId('MF-');
   const mgrName = mgrNameOf(check.dept) || ('Menecer (' + check.dept + ')');
   const bugun = U.getLogicalYMD(new Date());
   const row = {
@@ -4240,8 +4244,8 @@ API.saveAnnouncement = async (data) => {
     const { error } = await db().from('announcements').update({ title:data.title, body:data.body, type:data.type||'info', pinned:!!data.pinned }).eq('id',data.id);
     if (!error) return { ok:true };
   }
-  const newId = 'YN-' + Date.now().toString(36).toUpperCase();
-  const { error: insErr } = await db().from('announcements').insert({ id:newId, title:data.title, body:data.body, type:data.type||'info', pinned:!!data.pinned });
+  const annId = U.newId('YN-');
+  const { error: insErr } = await db().from('announcements').insert({ id:annId, title:data.title, body:data.body, type:data.type||'info', pinned:!!data.pinned });
   if (insErr) { sbErr('saveAnnouncement.insert', insErr); return { ok:false, error: insErr.message }; }
   // Yeni elan — bütün işçilərə push göndər
   const typeEmoji = { info:'ℹ️', success:'✅', warning:'⚠️', new:'🆕' };
@@ -4251,10 +4255,10 @@ API.saveAnnouncement = async (data) => {
   const pushRes = await sendPushToAll(
     pAnn.title,
     pAnn.body,
-    { tag: 'announce-' + newId }
+    { tag: 'announce-' + annId }
   );
   console.log(`[Announce] yeni elan "${data.title}" əlavə olundu — push ${pushRes.sent}/${pushRes.total}`);
-  return { ok:true, id:newId, pushSent: pushRes.sent, pushTotal: pushRes.total };
+  return { ok:true, id:annId, pushSent: pushRes.sent, pushTotal: pushRes.total };
 };
 
 // ── PROFİL ────────────────────────────────────────────────────────
@@ -4538,8 +4542,7 @@ function opsInspectorLabel(auth) {
   return auth.role === 'exec' ? `${auth.name} (İcraçı)` : auth.name;
 }
 function opsId(prefix, i) {
-  return prefix + Date.now().toString(36).toUpperCase() + (i || 0).toString(36).toUpperCase() +
-    Math.floor(Math.random() * 46656).toString(36).toUpperCase();
+  return U.newId(prefix, i || 0);
 }
 function opsSev(s) { return (s === 'asagi' || s === 'orta' || s === 'kritik') ? s : 'orta'; }
 function opsWeekDates(weekStart) {
@@ -4819,7 +4822,7 @@ API.saveTrainerItems = async (items) => {
   await db().from('trainer_checklist_items').delete().neq('item_id', 'x');
   if (items && items.length) {
     const rows = items.map((item, i) => ({
-      item_id:    item.id || ('TCI-' + Date.now().toString(36).toUpperCase() + i),
+      item_id:    item.id || U.newId('TCI-', i),
       text:       String(item.text || '').trim(),
       category:   item.category || '',
       active:     item.active !== false,
@@ -4839,7 +4842,7 @@ API.submitTrainerLog = async (trainerKey, trainerName, dept, empId, empName, ite
   if (!roleKey('trainer') || roleKey('trainer') !== trainerKey)
     return { success: false, reason: 'İcazəsiz əməliyyat.' };
   const ts    = new Date();
-  const logId = 'TL-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substring(2, 4).toUpperCase();
+  const logId = U.newId('TL-');
   await db().from('trainer_logs').insert({
     log_id:       logId,
     trainer_name: String(trainerName || 'Naməlum').trim(),
@@ -4874,7 +4877,7 @@ API.submitExam = async (trainerKey, trainerName, dept, empId, empName, score, ma
   if (!roleKey('trainer') || roleKey('trainer') !== trainerKey)
     return { success: false, reason: 'İcazəsiz əməliyyat.' };
   const ts     = new Date();
-  const examId = 'EX-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substring(2, 4).toUpperCase();
+  const examId = U.newId('EX-');
   const { error } = await db().from('trainer_exams').insert({
     exam_id:      examId,
     trainer_name: String(trainerName || 'Naməlum').trim(),
@@ -5000,7 +5003,7 @@ API.saveTrainerMaterial = async (trainerKey, material) => {
   const { data: last } = await db().from('trainer_materials')
     .select('sort_order').eq('active', true).order('sort_order', { ascending: false }).limit(1);
   const sortOrder = (last?.length ? last[0].sort_order : 0) + 1;
-  const id = 'TM-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substring(2, 4).toUpperCase();
+  const id = U.newId('TM-');
   const { error } = await db().from('trainer_materials').insert({
     material_id: id,
     title:       material.title.trim(),
@@ -5047,7 +5050,7 @@ API.saveExamQuestion = async (trainerKey, question) => {
   const { data: last } = await db().from('exam_questions')
     .select('sort_order').eq('active', true).order('sort_order', { ascending: false }).limit(1);
   const sortOrder = (last?.length ? last[0].sort_order : 0) + 1;
-  const id = 'EQ-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substring(2, 4).toUpperCase();
+  const id = U.newId('EQ-');
   const { error } = await db().from('exam_questions').insert({
     question_id: id,
     text:        question.text.trim(),
@@ -5131,7 +5134,7 @@ API.submitEmployeeExam = async (empId, empName, dept, role, answers) => {
   });
 
   const ts     = new Date();
-  const examId = 'EX-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substring(2,4).toUpperCase();
+  const examId = U.newId('EX-');
   const { error } = await db().from('trainer_exams').insert({
     exam_id:      examId,
     trainer_name: 'Özü',

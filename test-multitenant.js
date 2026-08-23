@@ -396,6 +396,85 @@ function seedCaches() {
   }
 
   // ══════════════════════════════════════════════════════════════════════
+  section('14. Sxem dreyfi: migrasiya faylları ↔ schema-v3 (F-10)');
+  //  Sxem İKİ mənbədə yaşayır: canlı bazada (`*-migration.sql` əl ilə işlədilir)
+  //  və `schema-v3-multitenant.sql`-də (YENİ müştəri buradan doğulur). Bir
+  //  migrasiya sxemə köçürülməsə yeni müştəri sütunsuz doğulur — və kodda
+  //  ehtiyat yollar olduğu üçün XƏTA GÖRÜNMÜR, funksiya sadəcə heç işləmir.
+  //  Məhz bu baş verdi: `tohmet-migration.sql` köçürülməmişdi → yeni müştəridə
+  //  intizam tənbehi (ƏM 186.2) səssizcə yox idi.
+  const fs = require('fs'), path = require('path');
+  const sxemMetn = fs.readFileSync(path.join(__dirname, 'schema-v3-multitenant.sql'), 'utf8');
+
+  // schema-v3-dəki cədvəl → sütun dəsti
+  const sxemSutun = {};
+  for (const m of sxemMetn.matchAll(/CREATE TABLE (\w+)\s*\(([\s\S]*?)\n\);/g)) {
+    const set = sxemSutun[m[1]] = new Set();
+    for (const sat of m[2].split('\n')) {
+      const c = /^\s{2,}([a-z_]+)\s+[A-Za-z]/.exec(sat);
+      if (c && !['primary', 'constraint', 'unique', 'check', 'foreign'].includes(c[1])) set.add(c[1]);
+    }
+  }
+  ok(Object.keys(sxemSutun).length > 25, `schema-v3-də ${Object.keys(sxemSutun).length} cədvəl oxundu`);
+
+  // Bütün migrasiya fayllarındakı ADD COLUMN-lar sxemdə OLMALIDIR
+  const eksik = [];
+  for (const f of fs.readdirSync(__dirname).filter(x => x.endsWith('.sql') && x !== 'schema-v3-multitenant.sql')) {
+    const metn = fs.readFileSync(path.join(__dirname, f), 'utf8');
+    for (const m of metn.matchAll(/ALTER TABLE\s+(\w+)\s+ADD COLUMN(?:\s+IF NOT EXISTS)?\s+(\w+)/gi)) {
+      const tbl = m[1].toLowerCase(), col = m[2].toLowerCase();
+      if (!sxemSutun[tbl]) continue;                       // v3-də olmayan köhnə cədvəl
+      if (!sxemSutun[tbl].has(col)) eksik.push(`${tbl}.${col}  (${f})`);
+    }
+  }
+  ok(eksik.length === 0,
+     'hər migrasiya sütunu schema-v3-də də var (yeni müştəri əskik doğulmur)',
+     eksik.join('\n      → '));
+
+  // Töhmət sütunları — konkret F-10. Ehtiyat yollar səhvi gizlətdiyi üçün
+  // adbaad yoxlanılır, ümumi qaydaya güvənilmir.
+  for (const t of ['fines', 'mgr_fines']) {
+    for (const c of ['kind', 'expires_ymd', 'lifted_at', 'lifted_by']) {
+      ok(sxemSutun[t] && sxemSutun[t].has(c), `schema-v3: ${t}.${c} var`);
+    }
+  }
+
+  // ══════════════════════════════════════════════════════════════════════
+  section('15. Qlobal unikal indekslər sayılıdır (F-11)');
+  //  `uq_cedvel_emp_date` bazada `(emp_id, date_str)` — TENANT-SIZ — yaradılmışdı.
+  //  Bir müştərili dünyada düzgün idi; indi A müştərisinin işçisi B müştərisinin
+  //  eyni ID-li işçisinin gününü BLOKLAYIR (eyni ID mümkündür: F-12).
+  //
+  //  Qayda: unikal indeks `tenant_id` ilə BAŞLAMALIDIR. Yeganə istisnalar —
+  //  müştəri MƏLUM OLMADAN tanınan üç dəyər. Siyahı burada kilidlənir ki,
+  //  növbəti qlobal indeks təsadüfən yox, QƏRARLA əlavə olunsun.
+  const QLOBAL_ICAZE = new Set([
+    'idx_employees_secret_global',   // /mycode?secret=… — müştəri hələ məlum deyil
+    'idx_scan_devices_global',       // kiosk özünü yalnız device_id ilə tanıdır
+    'idx_push_endpoint_global',      // brauzer endpoint-i onsuz da qlobal unikaldır
+  ]);
+  const qlobalTapilan = [];
+  for (const m of sxemMetn.matchAll(/CREATE UNIQUE INDEX (\w+)\s+ON (\w+)\s*\(([^)]+)\)/gi)) {
+    const ad = m[1], sutunlar = m[3];
+    const ilk = sutunlar.split(',')[0].trim().toLowerCase();
+    if (ilk !== 'tenant_id' && !QLOBAL_ICAZE.has(ad)) qlobalTapilan.push(`${ad} (${sutunlar.trim()})`);
+  }
+  ok(qlobalTapilan.length === 0,
+     'icazəsiz qlobal unikal indeks yoxdur', qlobalTapilan.join(' | '));
+
+  ok(/CREATE UNIQUE INDEX uq_cedvel_emp_date ON cedvel \(tenant_id, emp_id, date_str\)/.test(sxemMetn),
+     'schema-v3: uq_cedvel_emp_date tenant_id ilə başlayır');
+
+  // Canlı baza üçün düzəliş faylı da olmalıdır — sxemi dəyişmək köhnə bazanı düzəltmir.
+  const sync = fs.existsSync(path.join(__dirname, 'schema-sync-migration.sql'))
+    ? fs.readFileSync(path.join(__dirname, 'schema-sync-migration.sql'), 'utf8') : '';
+  ok(/DROP INDEX IF EXISTS uq_cedvel_emp_date/.test(sync) &&
+     /CREATE UNIQUE INDEX uq_cedvel_emp_date ON cedvel \(tenant_id/.test(sync),
+     'schema-sync-migration.sql köhnə (tenant-sız) indeksi əvəz edir');
+  ok(/ADD COLUMN IF NOT EXISTS kind/.test(sync),
+     'schema-sync-migration.sql töhmət sütunlarını da əlavə edir');
+
+  // ══════════════════════════════════════════════════════════════════════
   console.log(`\n${'═'.repeat(62)}`);
   console.log(fail === 0
     ? `🎉  BÜTÜN TESTLƏR KEÇDİ  (${pass}/${pass})`

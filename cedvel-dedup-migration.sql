@@ -1,3 +1,11 @@
+-- ⚠️ KÖHNƏLİB (2026-08-23) — PART 3-dəki indeks SƏHVDİR.
+--    Buradakı `CREATE UNIQUE INDEX uq_cedvel_emp_date ON cedvel (emp_id, date_str)`
+--    TENANT-SIZDIR. Çox-müştərili v3-də bu, A müştərisinin işçisinin B müştərisinin
+--    eyni ID-li işçisinin gününü bloklamasına səbəb olur (F-11).
+--    DÜZGÜN VARİANT: `schema-sync-migration.sql` PART 3–4 —
+--    `(tenant_id, emp_id, date_str)`. Bu faylı ARTIQ İŞLƏTMƏ.
+-- ──────────────────────────────────────────────────────────────────
+
 -- ══════════════════════════════════════════════════════════════════
 --  CƏDVƏL DUPLİKAT FİKSİ
 --

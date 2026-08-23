@@ -393,13 +393,21 @@ const KEY_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 //  və mənfi dəyər 1 simvollu açar verirdi — testi yazanda üzə çıxdı.
 const TOKEN_MIN = 8, TOKEN_MAX = 128, TOKEN_DEFAULT = 16;
 
+//  Xam təsadüfi simvollar — uzunluq yoxlaması YOXDUR.
+//  Bunu YALNIZ sirr OLMAYAN dəyərlər üçün işlət (məsələn ID-lərin quyruğu).
+//  Giriş açarı üçün `randomToken` işlədilir: o, qısa uzunluğu qəbul etmir.
+function randomChars(n) {
+  const cnt = Math.max(1, Math.min(TOKEN_MAX, Math.round(Number(n)) || 1));
+  const bytes = crypto.randomBytes(cnt);
+  let out = '';
+  for (let i = 0; i < cnt; i++) out += KEY_ALPHABET[bytes[i] & 31];
+  return out;
+}
+
 function randomToken(len = TOKEN_DEFAULT) {
   const raw = Math.round(Number(len));
   const n = (Number.isFinite(raw) && raw >= TOKEN_MIN) ? Math.min(TOKEN_MAX, raw) : TOKEN_DEFAULT;
-  const bytes = crypto.randomBytes(n);
-  let out = '';
-  for (let i = 0; i < n; i++) out += KEY_ALPHABET[bytes[i] & 31];
-  return out;
+  return randomChars(n);
 }
 
 //  Panel açarı: 2 simvol prefiks + 16 simvol = 80 bit entropiya.
@@ -541,7 +549,7 @@ module.exports = {
   branches, branchNames, branchSlugs, branchByName, branchBySlug, positions,
   resolveKey, resolveKeySync, resolveHost,
   cacheEmployeeSecret, forgetEmployeeSecret, cacheDevice,
-  findKey, ensureKey, issueKey, revokeKeys, branchKeys, branchByKey, randomKey, randomToken,
+  findKey, ensureKey, issueKey, revokeKeys, branchKeys, branchByKey, randomKey, randomToken, randomChars,
   forEachTenant,
   PLATFORM_KEY,
 };
