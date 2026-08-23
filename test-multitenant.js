@@ -486,6 +486,46 @@ function seedCaches() {
      'schema-sync-migration.sql töhmət sütunlarını da əlavə edir');
 
   // ══════════════════════════════════════════════════════════════════════
+  section('16. Altlıq satıcını göstərir, müştərini yox');
+  //  Panellərin altlığındakı «created by …» ƏVVƏL müştərinin öz brendindən
+  //  gəlirdi (`tenants.brand.footer`, ilkin dəyər müştərinin adı). Yəni
+  //  Coffeemoon paneli «created by Coffeemoon» yazırdı — müştəri özünü
+  //  öz-özünə təqdim edirdi, ikinci müştəri isə «created by Joe's Pizza»
+  //  yazacaqdı. «created by» proqramı YAZAN şirkəti göstərməlidir.
+  const fsv = require('fs'), pathv = require('path');
+
+  ok(typeof T.VENDOR_NAME === 'string' && T.VENDOR_NAME.length > 0,
+     'satıcı adı platforma qatındadır (tenant.VENDOR_NAME)', T.VENDOR_NAME);
+
+  //  Müştəri kontekstindən ASILI OLMAMALIDIR — iki fərqli müştəridə eyni dəyər.
+  const v1 = T.run({ tenantId: 'cm' }, () => T.VENDOR_NAME);
+  const v2 = T.run({ tenantId: 'pl' }, () => T.VENDOR_NAME);
+  ok(v1 === v2, 'iki müştəri eyni altlığı görür', `${v1} / ${v2}`);
+
+  //  `brand()` artıq `footer` qaytarmır — əks halda köhnə yol dirilə bilər.
+  ok(!('footer' in T.run({ tenantId: 'cm' }, () => T.brand())),
+     'müştəri brendində `footer` yoxdur (köhnə yol bağlıdır)');
+
+  //  Şablon dəyəri: `brandFooter` heç yerdə qalmamalıdır.
+  const paneller = fsv.readdirSync(pathv.join(__dirname, 'public')).filter(f => f.endsWith('.html'));
+  const kohne = paneller.filter(f =>
+    fsv.readFileSync(pathv.join(__dirname, 'public', f), 'utf8').includes('brandFooter'));
+  ok(kohne.length === 0, 'heç bir paneldə `brandFooter` qalmayıb', kohne.join(', '));
+
+  //  «created by» yazan hər panel satıcı adını işlətməlidir.
+  const altligi = paneller.filter(f =>
+    fsv.readFileSync(pathv.join(__dirname, 'public', f), 'utf8').includes('created by'));
+  const sehv = altligi.filter(f =>
+    !fsv.readFileSync(pathv.join(__dirname, 'public', f), 'utf8').includes('created by <?= vendorName ?>'));
+  ok(altligi.length >= 7, `altlığı olan panel sayı: ${altligi.length}`);
+  ok(sehv.length === 0, 'hamısı `vendorName` işlədir', sehv.join(', '));
+
+  //  Ad `&` daşıyır — şablon onu HTML kontekstində qaçırmalıdır, yoxsa
+  //  səhifə etibarsız HTML verir (tpl.js elə bunun üçün var).
+  const cixis = require('./tpl').replaceVars('created by <?= vendorName ?>', { vendorName: 'IR & Co.' });
+  ok(cixis === 'created by IR &amp; Co.', '`&` HTML-də qaçırılır', cixis);
+
+  // ══════════════════════════════════════════════════════════════════════
   console.log(`\n${'═'.repeat(62)}`);
   console.log(fail === 0
     ? `🎉  BÜTÜN TESTLƏR KEÇDİ  (${pass}/${pass})`

@@ -61,6 +61,17 @@ const MISS_MAX   = 500;
 // Platforma sahibinin açarı (səndə). Env-dədir — heç bir müştəriyə aid deyil.
 const PLATFORM_KEY = process.env.PLATFORM_KEY || '';
 
+//  Proqramı YAZAN şirkət — panellərin altlığındakı «created by …» sətri.
+//  ⚠️ Bu, MÜŞTƏRİNİN adı DEYİL. Əvvəl altlıq müştərinin öz brendindən gəlirdi
+//  (`tenants.brand.footer`), yəni Coffeemoon paneli «created by Coffeemoon»
+//  yazırdı — müştəri özünü öz-özünə təqdim edirdi. İkinci müştəri əlavə
+//  olunanda o, «created by Joe's Pizza» yazacaqdı. «created by» satıcını
+//  göstərməlidir, ona görə dəyər indi PLATFORMA qatındadır.
+//
+//  Env-dədir, çünki bu, yerləşdirmənin (deployment) xüsusiyyətidir —
+//  müştəri datası deyil. Dəyişmək üçün deploy lazım deyil.
+const VENDOR_NAME = process.env.VENDOR_NAME || 'IR & Co.';
+
 // ══════════════════════════════════════════════════════════════════════════
 //  KONTEKST
 // ══════════════════════════════════════════════════════════════════════════
@@ -233,7 +244,9 @@ function brand(tid) {
     icon:       b.icon        || 'fa-solid fa-store',
     themeColor: b.themeColor  || '#5b5ef4',
     bgColor:    b.bgColor     || '#f0f2f8',
-    footer:     b.footer      || ((t && t.name) || ''),
+    //  `footer` QƏSDƏN yoxdur: altlıq artıq satıcının adıdır (VENDOR_NAME),
+    //  müştərinin yox. Köhnə `brand.footer` sütun datası zərərsizdir, sadəcə
+    //  heç yerdə oxunmur.
     terms:      b.terms       || {},
   };
 }
@@ -567,5 +580,5 @@ module.exports = {
   cacheEmployeeSecret, forgetEmployeeSecret, cacheDevice,
   findKey, ensureKey, issueKey, revokeKeys, branchKeys, branchByKey, randomKey, randomToken, randomChars,
   forEachTenant,
-  PLATFORM_KEY,
+  PLATFORM_KEY, VENDOR_NAME,
 };

@@ -297,7 +297,7 @@ function brandVars() {
     brandIcon:  b.icon,
     brandColor: b.themeColor,
     brandBg:    b.bgColor,
-    brandFooter: b.footer,
+    vendorName: T.VENDOR_NAME,
     brandCss:   brandCssVars(b.themeColor),
     brandTerms: JSON.stringify(termOverrides()),
     tenantId:   (t && t.tenant_id) || '',
@@ -537,7 +537,7 @@ app.get('/platform', (req, res) => {
 app.get('/', (_req, res) => {
   res.type('html').send(
     `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-     <title>Workforce</title>
+     <title>${htmlEscape(T.VENDOR_NAME)}</title>
      <div style="font-family:system-ui,sans-serif;display:flex;height:90vh;align-items:center;justify-content:center;text-align:center;color:#334155">
        <div><div style="font-size:2rem;margin-bottom:.4rem">👋</div>
        <div style="font-weight:600">Panelinizə giriş linki ilə daxil olun.</div>

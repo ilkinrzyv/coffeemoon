@@ -247,7 +247,7 @@ function randomKey(prefix) {
     status: 'active',
     trial_ends_at: null,
     brand: { displayName: TENANT_NM, icon: 'fa-solid fa-mug-hot',
-             themeColor: '#5b5ef4', bgColor: '#f0f2f8', footer: TENANT_NM },
+             themeColor: '#5b5ef4', bgColor: '#f0f2f8' },
     locale: 'az', currency: 'AZN', timezone: 'Asia/Baku',
   }, { onConflict: 'tenant_id' });
   if (tErr) throw new Error('tenants: ' + tErr.message);
