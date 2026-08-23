@@ -531,6 +531,10 @@ CREATE TABLE profiles (
   accent_color TEXT NOT NULL DEFAULT '#5b5ef4',
   bio          TEXT DEFAULT '',
   photo_data   TEXT DEFAULT '',
+  -- Komanda siyahısında daşınan 48px minik (F-21). Tam şəkil yalnız profil
+  -- pəncərəsində lazımdır; siyahı 19 işçidə 105 KB idi, minik ~1-2 KB.
+  -- Boş olsa siyahı tam şəklə geri düşür — heç nə sınmır.
+  photo_thumb  TEXT DEFAULT '',
   -- Oyunlaşdırma bəzəkləri: işçi öz kartını özəlləşdirir
   -- (mycode.html-dəki tema/çərçivə/banner/aura seçimləri).
   card_theme   TEXT DEFAULT 'glass',    -- glass | dark | coffee | void | gradient | aurora …

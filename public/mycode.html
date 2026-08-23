@@ -3071,6 +3071,55 @@
   var _editAvatarValue = 'mug-hot';
   var _editAccentColor = '#5b5ef4';
   var _editPhotoData = '';
+  var _editPhotoThumb = '';
+
+  //  ⚠️ Minik həmişə kiçik OLMUR: onsuz da balaca şəkil yenidən kodlananda
+  //  böyüyə bilər (yoxlamada 471 bayt → 1099 bayt). Belə halda minik saxlanmır
+  //  və siyahı tam şəkli daşıyır — onsuz da kiçikdir.
+  function minikSec(tam, minik) {
+    return (minik && tam && minik.length < tam.length) ? minik : '';
+  }
+
+  //  Hazır kanvası (və ya şəkli) kiçildib data URI qaytarır.
+  function kicilt(menbe, olcu, keyfiyyet) {
+    var c = document.createElement('canvas');
+    c.width = olcu; c.height = olcu;
+    c.getContext('2d').drawImage(menbe, 0, 0, olcu, olcu);
+    return c.toDataURL('image/jpeg', keyfiyyet);
+  }
+
+  //  F-21 geriyə doldurma: şəkli olub miniyi olmayan profil üçün minik
+  //  BİR DƏFƏ, sahibi öz kartını açanda yaranır və səssizcə saxlanılır.
+  //  Başqasının profilinə yazmaq olmaz, ona görə yalnız sahib doldura bilər.
+  //  Nəticə: mövcud şəkillər günlər ərzində öz-özünə miniyə keçir, heç kim
+  //  heç nə etmir və aralıqda üzlər itmir (siyahı tam şəklə geri düşür).
+  function minikGeriDoldur(p) {
+    if (!p || p.avatarType !== 'photo' || !p.photoData || p.photoThumb) return;
+    minikYarat(p.photoData, function(ham) {
+      var thumb = minikSec(p.photoData, ham);
+      if (!thumb) return;                     // minik fayda vermir — toxunma
+      _editPhotoThumb = thumb;
+      google.script.run
+        .withSuccessHandler(function(){ if (_myProfile) _myProfile.photoThumb = thumb; })
+        .withFailureHandler(function(){})
+        .saveProfile(SECRET, {
+          avatarType: p.avatarType, avatarValue: p.avatarValue, accentColor: p.accentColor,
+          bio: p.bio, photoData: p.photoData, photoThumb: thumb,
+          bannerStyle: p.bannerStyle, cardTheme: p.cardTheme,
+          glowEffect: p.glowEffect, frameStyle: p.frameStyle,
+        });
+    });
+  }
+
+  //  Mövcud (minikəsiz) şəkildən minik qurur — geriyə doldurma üçün.
+  function minikYarat(dataUri, cb) {
+    try {
+      var im = new Image();
+      im.onload = function(){ try { cb(kicilt(im, 48, 0.62)); } catch (e) { cb(''); } };
+      im.onerror = function(){ cb(''); };
+      im.src = dataUri;
+    } catch (e) { cb(''); }
+  }
 
   // ── YENİ ÖZƏLLƏŞDIRMƏ VERİLƏRİ ─────────────────────────────────
   var BANNER_OPTS = [
@@ -3480,6 +3529,8 @@
         _editAvatarValue = p.avatarValue;
         _editAccentColor = p.accentColor;
         _editPhotoData   = p.photoData;
+        _editPhotoThumb  = p.photoThumb || '';
+        minikGeriDoldur(p);
         _editBannerStyle = p.bannerStyle || 'none';
         _editCardTheme   = p.cardTheme  || 'glass';
         _editFrameStyle  = p.frameStyle || 'none';
@@ -3624,6 +3675,7 @@
     _editAvatarValue = _myProfile ? _myProfile.avatarValue : 'mug-hot';
     _editAccentColor = _myProfile ? _myProfile.accentColor : '#5b5ef4';
     _editPhotoData   = _myProfile ? _myProfile.photoData   : '';
+    _editPhotoThumb  = _myProfile ? (_myProfile.photoThumb || '') : '';
     _editBannerStyle = _myProfile ? (_myProfile.bannerStyle || 'none')  : 'none';
     _editCardTheme   = _myProfile ? (_myProfile.cardTheme  || 'glass')  : 'glass';
     _editFrameStyle  = _myProfile ? (_myProfile.frameStyle || 'none')   : 'none';
@@ -3751,6 +3803,9 @@
         else { sy = (img.height - img.width) / 2; sh = img.width; }
         ctx.drawImage(img, sx, sy, sw, sh, 0, 0, size, size);
         _editPhotoData = canvas.toDataURL('image/jpeg', 0.72);
+        //  F-21: komanda siyahısı üçün 48px minik. Siyahıda 19 nəfərin tam
+        //  şəkli 105 KB idi; minik ~1-2 KB.
+        _editPhotoThumb = minikSec(_editPhotoData, kicilt(canvas, 48, 0.62));
         _editAvatarType = 'photo'; _editAvatarValue = '';
         var prev = document.getElementById('photoPreview');
         prev.src = _editPhotoData; prev.style.display = 'block';
@@ -3772,6 +3827,7 @@
       accentColor: _editAccentColor,
       bio:         document.getElementById('bioInput').value.trim(),
       photoData:   _editAvatarType === 'photo' ? _editPhotoData : '',
+      photoThumb:  _editAvatarType === 'photo' ? _editPhotoThumb : '',
       bannerStyle: _editBannerStyle,
       cardTheme:   _editCardTheme,
       frameStyle:  _editFrameStyle,

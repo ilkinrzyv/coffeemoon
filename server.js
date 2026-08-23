@@ -4651,6 +4651,10 @@ API.getMyProfile = async (secret) => {
     accentColor: p?.accent_color || '#5b5ef4',
     bio:         p?.bio          || '',
     photoData:   p?.photo_data   || '',
+    //  Sahibinin öz profili — minik də gəlir. Yoxdursa panel onu səssizcə
+    //  yaradıb saxlayır (F-21 geriyə doldurma: mövcud şəkillərin miniyi
+    //  bir dəfə, sahibi kartını açanda yaranır).
+    photoThumb:  p?.photo_thumb  || '',
     bannerStyle: p?.banner_style || 'none',
     cardTheme:   p?.card_theme   || 'glass',
     glowEffect:  p?.glow_effect  || 'none',
@@ -4670,7 +4674,7 @@ API.saveProfile = async (secret, data) => {
   if (photoErr) return { success: false, reason: photoErr };
   const isPhoto = d.avatarType === 'photo';
 
-  const { error } = await db().from('profiles').upsert({
+  const row = {
     emp_id:       emp.id,
     avatar_type:  isPhoto ? 'photo' : 'preset',
     avatar_value: U.cleanStyleId(d.avatarValue, 'mug-hot'),
@@ -4679,12 +4683,24 @@ API.saveProfile = async (secret, data) => {
     // Şəkil yalnız `avatarType === 'photo'` olanda saxlanılır — preset seçildikdə
     // köhnə base64 cədvəldə qalmasın (o, hər `getTeamProfiles` çağırışında daşınır).
     photo_data:   isPhoto ? String(d.photoData || '') : '',
+    //  F-21: komanda siyahısı TAM şəkli daşımasın deyə panel 48px minik də
+    //  göndərir. Miniyi olmayan profil siyahıda tam şəklə geri düşür —
+    //  yəni bu sahə boş qalsa da heç nə sınmır.
+    photo_thumb:  isPhoto ? U.cleanThumb(d.photoThumb) : '',
     banner_style: U.cleanStyleId(d.bannerStyle, 'none'),
     card_theme:   U.cleanStyleId(d.cardTheme,   'glass'),
     glow_effect:  U.cleanStyleId(d.glowEffect,  'none'),
     frame_style:  U.cleanStyleId(d.frameStyle,  'none'),
     updated_at:   new Date().toISOString(),
-  }, { onConflict: 'emp_id' });
+  };
+
+  let { error } = await db().from('profiles').upsert(row, { onConflict: 'emp_id' });
+  //  Sütun hələ yaradılmayıbsa (profile-thumb-migration.sql işlədilməyib)
+  //  profil saxlamaq DAYANMAMALIDIR — miniksiz təkrarlayırıq.
+  if (error && /photo_thumb/i.test(error.message || '')) {
+    const { photo_thumb: _t, ...miniksiz } = row;
+    ({ error } = await db().from('profiles').upsert(miniksiz, { onConflict: 'emp_id' }));
+  }
   sbErr('saveProfile', error);
   return { success: !error };
 };
@@ -4707,7 +4723,14 @@ API.getTeamProfiles = async (secret) => {
     avatarValue: pm[e.id]?.avatar_value || 'mug-hot',
     accentColor: pm[e.id]?.accent_color || '#5b5ef4',
     bio:         pm[e.id]?.bio          || '',
-    photoData:   pm[e.id]?.photo_data   || '',
+    //  F-21: siyahıda MİNİK gedir, tam şəkil YOX. 19 işçidə cavab 105 KB idi —
+    //  hər profil tabı açılışında. Minik ~1-2 KB.
+    //  ⚠️ Geri uyğunluq: miniyi olmayan köhnə profil üçün tam şəkil qalır.
+    //  Belədə nə deploy ilə SQL arasındakı aralıqda, nə də köhnə profillərdə
+    //  üzlər itmir; minik yarandıqca cavab öz-özünə kiçilir.
+    photoData:   pm[e.id]?.photo_thumb  || pm[e.id]?.photo_data || '',
+    //  Sahibinə «miniyin yoxdur» demək üçün (panel onu səssizcə yaradır)
+    thumbMissing: !!(pm[e.id]?.photo_data) && !(pm[e.id]?.photo_thumb),
     bannerStyle: pm[e.id]?.banner_style || 'none',
     cardTheme:   pm[e.id]?.card_theme   || 'glass',
     glowEffect:  pm[e.id]?.glow_effect  || 'none',

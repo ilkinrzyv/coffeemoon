@@ -158,6 +158,81 @@ section('4. saveProfile — davranış');
 }
 
 // ══════════════════════════════════════════════════════════════════════════
+section('4b. F-21 — komanda siyahısı MİNİK daşıyır');
+{
+  //  `getTeamProfiles` hər işçinin TAM şəklini qaytarırdı: produksiyada
+  //  19 işçi / 9 şəkil = 105 KB, hər profil tabı açılışında.
+  const TAM   = 'data:image/jpeg;base64,' + 'A'.repeat(12 * 1024);   // ~12 KB
+  const MINIK = 'data:image/jpeg;base64,' + 'B'.repeat(1200);        // ~1.2 KB
+
+  fake.reset({
+    employees: [
+      { tenant_id: 'cm', id: 'E1', name: 'Aysel', dept: 'Elmlər', secret: 'S1' },
+      { tenant_id: 'cm', id: 'E2', name: 'Rəşad', dept: 'Elmlər', secret: 'S2' },
+    ],
+    profiles: [
+      { tenant_id: 'cm', emp_id: 'E1', avatar_type: 'photo', avatar_value: '',
+        accent_color: '#5b5ef4', bio: '', photo_data: TAM, photo_thumb: MINIK },
+      //  Miniyi HƏLƏ olmayan köhnə profil — üzü itməməlidir.
+      { tenant_id: 'cm', emp_id: 'E2', avatar_type: 'photo', avatar_value: '',
+        accent_color: '#5b5ef4', bio: '', photo_data: TAM, photo_thumb: '' },
+    ],
+  });
+
+  const team = await inCm(() => API.getTeamProfiles('S1'));
+  const a = team.find(x => x.empId === 'E1');
+  const b = team.find(x => x.empId === 'E2');
+
+  ok(a.photoData === MINIK, '⚠️ miniyi olan işçi üçün siyahıda MİNİK gedir (tam şəkil yox)');
+  ok(!a.photoData.includes('A'.repeat(100)), 'tam şəkil siyahıya düşmür');
+  ok(b.photoData === TAM, 'miniyi OLMAYAN köhnə profil tam şəklə geri düşür (üz itmir)');
+  ok(b.thumbMissing === true, 'sahibinə «miniyin yoxdur» siqnalı verilir');
+  ok(a.thumbMissing === false, 'miniyi olanda siqnal yoxdur');
+
+  //  Ölçü: iki nəfərin biri minikli → cavab təxminən yarıya düşür.
+  const olcu = JSON.stringify(team).length;
+  ok(olcu < 2 * TAM.length, `cavab iki tam şəkildən kiçikdir (${Math.round(olcu/1024)} KB)`);
+
+  //  Tam şəkil profil pəncərəsində HƏLƏ DƏ gəlir — orada lazımdır.
+  const tek = await inCm(() => API.getPublicProfile('S1', 'E1'));
+  ok(tek && tek.photoData === TAM, 'profil pəncərəsi tam şəkli alır');
+
+  //  Saxlama: minik yoxlanılır, səhv olsa səssizcə boşalır (istifadəçinin
+  //  seçimi deyil — panelin öz çıxışıdır, ona görə saxlama dayanmır).
+  fake.reset({ employees: [{ tenant_id: 'cm', id: 'E1', name: 'Aysel', dept: 'Elmlər', secret: 'S1' }], profiles: [] });
+  const r1 = await inCm(() => API.saveProfile('S1', { avatarType: 'photo', photoData: YAXSI, photoThumb: MINIK }));
+  ok(r1.success && prof().photo_thumb === MINIK, 'düzgün minik saxlanılır');
+
+  fake.reset({ employees: [{ tenant_id: 'cm', id: 'E1', name: 'Aysel', dept: 'Elmlər', secret: 'S1' }], profiles: [] });
+  const r2 = await inCm(() => API.saveProfile('S1', { avatarType: 'photo', photoData: YAXSI, photoThumb: TAM }));
+  ok(r2.success, 'həddi aşan minik SAXLAMANI dayandırmır');
+  ok(prof().photo_thumb === '', 'həddi aşan minik boşaldılır', String(prof().photo_thumb).slice(0, 20));
+
+  fake.reset({ employees: [{ tenant_id: 'cm', id: 'E1', name: 'Aysel', dept: 'Elmlər', secret: 'S1' }], profiles: [] });
+  await inCm(() => API.saveProfile('S1', { avatarType: 'photo', photoData: YAXSI, photoThumb: 'x" onerror="alert(1)' }));
+  ok(prof().photo_thumb === '', 'hücum yükü minik kimi də keçmir');
+
+  //  Preset seçiləndə minik də təmizlənir
+  fake.reset({ employees: [{ tenant_id: 'cm', id: 'E1', name: 'Aysel', dept: 'Elmlər', secret: 'S1' }], profiles: [] });
+  await inCm(() => API.saveProfile('S1', { avatarType: 'photo', photoData: YAXSI, photoThumb: MINIK }));
+  await inCm(() => API.saveProfile('S1', { avatarType: 'preset', avatarValue: 'mug-hot' }));
+  ok(prof().photo_thumb === '' && prof().photo_data === '', 'preset seçiləndə şəkil də, minik də təmizlənir');
+
+  //  Panel tərəfi: minik yaradılması və geriyə doldurma mövcuddur.
+  const src = require('fs').readFileSync(require('path').join(__dirname, 'public', 'mycode.html'), 'utf8');
+  ok(/_editPhotoThumb\s*=\s*minikSec\(_editPhotoData,\s*kicilt\(/.test(src),
+     'panel şəkli saxlayanda minik də yaradır');
+  ok(/photoThumb:\s*_editAvatarType/.test(src), 'minik saxlama yükünə əlavə olunur');
+  ok(/function minikGeriDoldur/.test(src) && /minikGeriDoldur\(p\)/.test(src),
+     'mövcud şəkillər üçün geriyə doldurma var');
+  //  ⚠️ Brauzer yoxlaması bir incəlik göstərdi: onsuz da balaca şəkil yenidən
+  //  kodlananda BÖYÜYÜR (471 → 1099 bayt). Minik yalnız həqiqətən kiçikdirsə
+  //  saxlanılır; əks halda siyahı tam şəkli daşıyır — o, onsuz da kiçikdir.
+  ok(/function minikSec/.test(src) && /minikSec\(_editPhotoData/.test(src) && /minikSec\(p\.photoData/.test(src),
+     'minik yalnız faydalı olanda saxlanılır (hər iki yolda)');
+}
+
+// ══════════════════════════════════════════════════════════════════════════
 section('5. Panel: `innerHTML` sink-i qalmayıb');
 {
   const fs = require('fs'), path = require('path');

@@ -54,18 +54,30 @@ function getLogicalDateStr(dateObj) {
 //  120 KB limit qanuni şəkli rədd etmək üçün çox genişdir, amma cədvəli
 //  şişirdən dəyəri (F-21: `getTeamProfiles` bütün şəkilləri daşıyır) kəsir.
 const PHOTO_MAX_CHARS = 120 * 1024;
+//  Komanda siyahısında daşınan MİNİK (F-21). Panel 48×48 JPEG verir — adətən
+//  1-2 KB. 8 KB tavan səxavətlidir, amma tam şəklin bura düşməsinə imkan vermir
+//  (məhz bunun qarşısını alırıq: siyahı 19 işçidə 105 KB idi).
+const THUMB_MAX_CHARS = 8 * 1024;
 const PHOTO_RE = /^data:image\/(jpeg|jpg|png|webp);base64,[A-Za-z0-9+/]+={0,2}$/;
 
 //  Xəta MƏTNİ qaytarır (null = qaydasındadır) — işçi niyə saxlanmadığını görsün.
 //  Səssizcə boşaltmaq daha pisdir: işçi şəklin yükləndiyini zənn edərdi.
-function photoDataError(v) {
+function photoDataError(v, maxChars) {
   const s = String(v == null ? '' : v);
+  const max = maxChars || PHOTO_MAX_CHARS;
   if (!s) return null;                                  // şəkilsiz profil normaldır
-  if (s.length > PHOTO_MAX_CHARS)
-    return `Şəkil çox böyükdür (${Math.round(s.length / 1024)} KB). Limit ${PHOTO_MAX_CHARS / 1024} KB.`;
+  if (s.length > max)
+    return `Şəkil çox böyükdür (${Math.round(s.length / 1024)} KB). Limit ${Math.round(max / 1024)} KB.`;
   if (!PHOTO_RE.test(s))
     return 'Şəkil formatı tanınmadı. Yalnız JPEG, PNG və ya WebP göndərilə bilər.';
   return null;
+}
+
+//  Minik səssizcə süzülür (şəkildən fərqli olaraq): o, panelin öz çıxışıdır,
+//  istifadəçinin seçimi deyil. Səhv gəlsə sadəcə boş qalır və siyahı tam
+//  şəklə geri düşür — heç nə sınmır.
+function cleanThumb(v) {
+  return photoDataError(v, THUMB_MAX_CHARS) ? '' : String(v == null ? '' : v);
 }
 
 //  Vurğu rəngi CSS-ə birbaşa düşür (`hexToRgba`, qradiyentlər). Yalnız hex.
@@ -1323,7 +1335,7 @@ module.exports = {
   getShiftConfig, defaultShiftConfig, defaultShiftTemplate, getLateLimit, shiftLabel,
   getEmployeeShift, getEmployeeShifts, hasApprovedLeave, getApprovedLatePerm, pickLatestPermTime,
   newId,
-  photoDataError, cleanHexColor, cleanStyleId, PHOTO_MAX_CHARS,
+  photoDataError, cleanThumb, cleanHexColor, cleanStyleId, PHOTO_MAX_CHARS, THUMB_MAX_CHARS,
   deptToSlug, slugToDept,
   isValidPosition,
   getBranchScheduleKeys, validateBranchScheduleKey,
