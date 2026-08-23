@@ -66,13 +66,16 @@ function scopedFrom(table, tid) {
     // Supabase-in öz builder-i üzərində davam edir.
     select: (...args) => sb.from(table).select(...args).eq('tenant_id', tid),
 
-    insert: (rows, opts) => sb.from(table).insert(stamp(rows, tid), opts),
+    // Hər yazma kontekstdə qeyd olunur — `audit_log` bundan doğur (bax audit.js).
+    // Yalnız NİYYƏT yazılır: sorğu sonradan xəta versə də sətir qalır, çünki
+    // «cəhd edildi, alınmadı» da izin bir hissəsidir.
+    insert: (rows, opts) => { tenant.noteWrite(table, 'insert'); return sb.from(table).insert(stamp(rows, tid), opts); },
 
-    upsert: (rows, opts) => sb.from(table).upsert(stamp(rows, tid), scopeConflict(opts)),
+    upsert: (rows, opts) => { tenant.noteWrite(table, 'upsert'); return sb.from(table).upsert(stamp(rows, tid), scopeConflict(opts)); },
 
-    update: (row, opts) => sb.from(table).update(stripTenant(row), opts).eq('tenant_id', tid),
+    update: (row, opts) => { tenant.noteWrite(table, 'update'); return sb.from(table).update(stripTenant(row), opts).eq('tenant_id', tid); },
 
-    delete: (opts) => sb.from(table).delete(opts).eq('tenant_id', tid),
+    delete: (opts) => { tenant.noteWrite(table, 'delete'); return sb.from(table).delete(opts).eq('tenant_id', tid); },
   };
 }
 

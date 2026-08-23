@@ -59,6 +59,7 @@ DROP TABLE IF EXISTS ops_ratings            CASCADE;
 DROP TABLE IF EXISTS ops_emp_notes          CASCADE;
 DROP TABLE IF EXISTS ops_issues             CASCADE;
 DROP TABLE IF EXISTS ops_visits             CASCADE;
+DROP TABLE IF EXISTS audit_log              CASCADE;
 DROP TABLE IF EXISTS xp_audit_log           CASCADE;
 DROP TABLE IF EXISTS trainer_exams          CASCADE;
 DROP TABLE IF EXISTS trainer_logs           CASCADE;
@@ -497,8 +498,15 @@ CREATE TABLE salary_periods (
   config    JSONB,
   rows      JSONB,
   totals    JSONB,
+  -- Ay yenidən açılanda sətir SİLİNMİR, işarələnir (F-16). Əvvəl `DELETE`
+  -- edilirdi — yəni «bağlananda rəqəmlər BUNLAR idi» məlumatı geri dönməz
+  -- itirdi, halbuki ayın bağlanmasının bütün mənası elə odur.
+  reopened_at TIMESTAMPTZ,
+  reopened_by TEXT,
   PRIMARY KEY (tenant_id, period)
 );
+-- «Bağlı» sual verilən yerlərdə süzgəc: `reopened_at IS NULL`.
+CREATE INDEX idx_salary_open ON salary_periods (tenant_id, period) WHERE reopened_at IS NULL;
 
 -- ═════════════════════════════════════════════════════════════════════════
 --  7. SOSİAL / PROFİL / BİLDİRİŞ
@@ -564,6 +572,29 @@ CREATE INDEX idx_push_subs_emp ON push_subscriptions (tenant_id, emp_id);
 -- ═════════════════════════════════════════════════════════════════════════
 --  8. TƏLİM / İMTAHAN / XP
 -- ═════════════════════════════════════════════════════════════════════════
+
+-- ── HADİSƏ JURNALI ───────────────────────────────────────────────────────
+--  «Kim nə vaxt nəyi dəyişdi». Sətir `tdb.js`-dəki yazmadan DOĞUR, funksiyanın
+--  yadına düşməsindən yox — izahı `audit.js`-dədir.
+--  ⚠️ `detail` sütununda AÇAR/SECRET YOXDUR: `audit.js` sorğunun öz açarı ilə
+--     üst-üstə düşən hər dəyəri `***` ilə əvəz edir.
+--  Təmizləmə: hazırda avtomatik silinmə YOXDUR. Cədvəl böyüyəndə köhnə
+--  sətirləri əl ilə (və ya cron ilə) atmaq lazım gələcək.
+CREATE TABLE audit_log (
+  tenant_id  TEXT NOT NULL REFERENCES tenants(tenant_id) ON DELETE CASCADE,
+  log_id     TEXT NOT NULL,
+  ts         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  actor_role TEXT NOT NULL DEFAULT '',         -- admin | manager | exec | trainer | ops | employee | public
+  actor_name TEXT NOT NULL DEFAULT '',         -- «menecer (Elmlər)» — açar DEYİL
+  action     TEXT NOT NULL DEFAULT '',         -- API funksiyasının adı
+  target     TEXT NOT NULL DEFAULT '',         -- «fines:delete, employees:update»
+  detail     TEXT NOT NULL DEFAULT '',         -- redaktə edilmiş arqumentlər
+  before     JSONB,                            -- yalnız vacib yerlərdə (məs. ayın snapshot-u)
+  ok         BOOLEAN NOT NULL DEFAULT TRUE,    -- uğursuz cəhd də yazılır
+  PRIMARY KEY (tenant_id, log_id)
+);
+CREATE INDEX idx_audit_ts     ON audit_log (tenant_id, ts DESC);
+CREATE INDEX idx_audit_action ON audit_log (tenant_id, action, ts DESC);
 
 CREATE TABLE xp_audit_log (
   tenant_id    TEXT NOT NULL REFERENCES tenants(tenant_id) ON DELETE CASCADE,

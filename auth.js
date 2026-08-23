@@ -188,6 +188,11 @@ const API_POLICY = {
   //  bayrağını soruşur); işçi məlumatı YALNIZ etibarlı `secret` ilə qaytarılır,
   //  yəni yoxlama funksiyanın öz içindədir → `'self'`.
   getExamStatus: 'self', setExamStatus: 'self',
+
+  // ── Hadisə jurnalı (audit_log)
+  //  `detail` sütununda açar/secret yoxdur (bax audit.js), amma işçi adları,
+  //  məbləğlər və ID-lər var → yalnız admin.
+  getAuditLog: 'admin', getAuditBefore: 'admin',
   // F-08: hər ikisi artıq işçinin `secret`-ini alır və özü yoxlayır.
   // Əvvəl `'public'` idi → kimlik yoxlanmırdı, XP fermi açıq idi.
   // ⚠️ Ad `getMyExamQuestions`-dur: sadə `getExamQuestions` TRAINER-in

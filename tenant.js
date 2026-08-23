@@ -107,6 +107,21 @@ function branchId() { const s = als.getStore(); return (s && s.branchId) || null
 // `checkWifiIp` boş IP-ni QƏBUL ETMİR, yəni fail-closed davranır.
 function clientIp()  { const s = als.getStore(); return (s && s.clientIp)  || ''; }
 
+// Bu sorğuda hansı cədvəllərə nə yazıldı — `tdb.js` doldurur, dispatcher
+// sorğunun sonunda `audit_log`-a bir sətir yazmaq üçün oxuyur.
+//
+// NİYƏ kontekstdə: yazma `db().from(...)` zəncirinin dərinliyində baş verir;
+// hər funksiyanın «mən yazdım» deməsini gözləmək jurnalda boşluq yaradırdı
+// (izahı: audit.js). Kontekst bunu funksiyaların yadına salmadan toplayır.
+// Sorğu kontekstindən kənarda (CLI, köçürmə skripti) sadəcə heç nə toplanmır.
+function noteWrite(table, op) {
+  const st = als.getStore();
+  if (!st) return;
+  if (!st.writes) st.writes = [];
+  if (st.writes.length < 200) st.writes.push({ table, op });   // tavan: log sətri şişməsin
+}
+function writes() { const st = als.getStore(); return (st && st.writes) || []; }
+
 // ══════════════════════════════════════════════════════════════════════════
 //  YÜKLƏMƏ
 // ══════════════════════════════════════════════════════════════════════════
@@ -542,6 +557,7 @@ function __testEnter(ctx) {
 
 module.exports = {
   run, store, tenantId, tenantIdOrNull, role, branchId, clientIp,
+  noteWrite, writes,
   __testSeed, __testEnter,
   loadAll, reload,
   getTenant, currentTenant, allTenants, tenantUsable, brand,

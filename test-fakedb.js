@@ -28,7 +28,7 @@ function makeFake() {
 
   function builder(table, op, payload, opts) {
     const filters = [];
-    let single = false, limit = null, orderBy = null, orderAsc = true;
+    let single = null, limit = null, orderBy = null, orderAsc = true;   // null | 'single' | 'maybe'
 
     const api = {};
     const add = (fn) => { filters.push(fn); return api; };
@@ -48,8 +48,8 @@ function makeFake() {
     api.order       = (c, o) => { orderBy = c; orderAsc = !o || o.ascending !== false; return api; };
     api.limit       = (n) => { limit = n; return api; };
     api.range       = (a, b) => { limit = b - a + 1; return api; };
-    api.single      = () => { single = true; return api; };
-    api.maybeSingle = () => { single = true; return api; };
+    api.single      = () => { single = 'single'; return api; };
+    api.maybeSingle = () => { single = 'maybe';  return api; };
     api.then        = (resolve) => resolve(run());
 
     const match = () => rowsOf(table).filter(r => filters.every(f => f(r)));
@@ -88,10 +88,14 @@ function makeFake() {
       if (limit != null) out = out.slice(0, limit);
 
       // PostgREST-in ƏSL davranışı — bunu «düzəltmirik», bax fayl başlığına.
+      //  ⚠️ `single` və `maybeSingle` FƏRQLİDİR və bu fərq vacibdir:
+      //  `maybeSingle` 0 sətirdə xəta VERMİR (elə buna görə var), `single` verir.
+      //  İlk yazılışda ikisi eyni idi və `getSalaryPeriod` hər çağırışda
+      //  saxta xəta logu yazırdı — test bunu üzə çıxardı.
       if (single) {
-        return out.length === 1
-          ? { data: out[0], error: null }
-          : { data: null, error: { code: 'PGRST116', message: 'JSON object requested, multiple (or no) rows returned' } };
+        if (out.length === 1) return { data: out[0], error: null };
+        if (out.length === 0 && single === 'maybe') return { data: null, error: null };
+        return { data: null, error: { code: 'PGRST116', message: 'JSON object requested, multiple (or no) rows returned' } };
       }
       return { data: out, error: null, count: out.length };
     }

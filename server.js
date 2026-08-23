@@ -225,6 +225,7 @@ function readTemplate(name) {
 
 // Şablon dəyərləri təhlükəsiz yerləşdirilir — izahı və qaçış qaydaları tpl.js-də.
 const { htmlEscape, replaceVars } = require('./tpl');
+const auditlog = require('./audit');
 
 // ── Brend rəngi ──────────────────────────────────────────────────
 //  Panellərin hamısı `--primary` CSS dəyişənindən istifadə edir. Müştərinin
@@ -636,21 +637,31 @@ app.post('/api/:fn', async (req, res) => {
 
     const acc = auth.apiAccess(fn, rec);
     if (!acc.ok) {
-      if (auth.AUTH_ENFORCE) return res.status(403).json({ error: 'İcazəsiz.' });
+      if (auth.AUTH_ENFORCE) {
+        // İcazəsiz cəhd jurnalda qalmalıdır — açar sınayan adamı yalnız bu göstərir.
+        try {
+          await T.run({ tenantId, role: (rec && rec.role) || 'public', branchId: (rec && rec.branchId) || null },
+            () => writeAuditLog({ fn, rec, args, callerKey: req.get('X-CM-Key') || '',
+                                  result: null, writes: [], denied: true }));
+        } catch (le) { console.warn('[Audit]', fn, le.message); }
+        return res.status(403).json({ error: 'İcazəsiz.' });
+      }
       console.warn(`[AUTH] ${fn} — tələb: ${acc.level}, gələn rol: ${acc.role || 'yox'} (log-only)`);
     }
 
-    const result = await T.run(
-      {
-        tenantId,
-        role:     (rec && rec.role)     || 'public',
-        branchId: (rec && rec.branchId) || null,
-        // Serverin gördüyü IP — `checkWifiIp` MƏHZ bunu oxuyur.
-        // Müştərinin göndərdiyi IP arqumenti artıq qərara təsir etmir.
-        clientIp: ip,
-      },
-      () => handler(...args)
-    );
+    //  `writes` QƏSDƏN burada yaradılır və kontekstə ötürülür: `tdb.js` içəridə
+    //  ona əlavə edir, biz isə `T.run` bitəndən SONRA oxuyuruq. Kontekstin
+    //  içindən oxumaq olmazdı — ALS store yalnız `run` müddətində yaşayır.
+    const ctx = {
+      tenantId,
+      role:     (rec && rec.role)     || 'public',
+      branchId: (rec && rec.branchId) || null,
+      // Serverin gördüyü IP — `checkWifiIp` MƏHZ bunu oxuyur.
+      // Müştərinin göndərdiyi IP arqumenti artıq qərara təsir etmir.
+      clientIp: ip,
+      writes:   [],
+    };
+    const result = await T.run(ctx, () => handler(...args));
 
     // Səhv PIN sayğacı — yalnız həqiqətən yanlış/vaxtı keçmiş kod sayılır.
     // İş qaydası ilə rədd (istirahət günü, açıq smen, WiFi) BURAYA DÜŞMÜR:
@@ -659,6 +670,15 @@ app.post('/api/:fn', async (req, res) => {
       const h = rateHit('pin', ip, RATE.pinFails, RATE.pinWindowMs);
       if (!h.ok) console.warn(`[RateLimit] PIN həddi doldu — IP ${ip}`);
     }
+
+    // Hadisə jurnalı — cavabdan əvvəl, ayrıca kontekstdə (öz yazması
+    // `ctx.writes`-a düşməsin deyə). Xətası udulur.
+    try {
+      await T.run(
+        { tenantId, role: ctx.role, branchId: ctx.branchId },
+        () => writeAuditLog({ fn, rec, args, callerKey: req.get('X-CM-Key') || '', result, writes: ctx.writes })
+      );
+    } catch (le) { console.warn('[Audit]', fn, le.message); }
 
     res.json(result ?? null);
   } catch (e) {
@@ -675,6 +695,139 @@ app.post('/api/:fn', async (req, res) => {
 // ══════════════════════════════════════════════════════════════════
 //  KÖMƏKÇI
 // ══════════════════════════════════════════════════════════════════
+
+// ══════════════════════════════════════════════════════════════════
+//  SİL + YAZ  —  ATOMİK OLMAYAN ƏMƏLİYYATIN GERİ QAYTARILMASI (F-17)
+// ══════════════════════════════════════════════════════════════════
+//  Beş yerdə eyni naxış vardı: əvvəlcə `DELETE`, sonra `INSERT`.
+//  `INSERT` sınsa (unikal indeks toqquşması, şəbəkə kəsilməsi, Supabase
+//  timeout) köhnə sətirlər ARTIQ SİLİNMİŞ qalırdı və funksiya sadəcə
+//  «Saxlama xətası» qaytarırdı. Menecer həftəlik cədvəli saxlayır, xəta
+//  görür, səhifəni yeniləyir — cədvəl BOŞDUR.
+//
+//  Ən təmiz həll Postgres tranzaksiyasıdır (RPC), amma o, ayrıca SQL
+//  funksiyası və miqrasiya tələb edir. Burada tətbiq qatında geri qaytarma
+//  seçildi: silinən sətirlər yaddaşda saxlanılır və insert sınsa geri yazılır.
+//
+//  ⚠️ Bu, tranzaksiya DEYİL — iki sorğu arasında paralel yazma olsa nəticə
+//  yenə qarışa bilər. Amma real ssenarini (insert sınır, data itir) bağlayır
+//  və heç bir sxem dəyişikliyi tələb etmir.
+//
+//  `filtr` HƏM oxumaya, HƏM silməyə eyni şəkildə tətbiq olunur — ikisinin
+//  ayrılması ən təhlükəli səhv olardı (bir dəst oxuyub başqasını silmək).
+async function replaceRows(table, filtr, yeniSetirler, etiket) {
+  const kohne = await filtr(db().from(table).select('*'));
+  if (kohne.error) return { ok: false, reason: 'Oxuma xətası: ' + kohne.error.message };
+
+  const del = await filtr(db().from(table).delete());
+  if (del.error) return { ok: false, reason: 'Silmə xətası: ' + del.error.message };
+
+  if (!yeniSetirler || !yeniSetirler.length) return { ok: true, restored: false };
+
+  const ins = await db().from(table).insert(yeniSetirler);
+  if (!ins.error) return { ok: true, restored: false };
+
+  // ── Geri qaytarma ──
+  const geri = (kohne.data || []).length
+    ? await db().from(table).insert(kohne.data)
+    : { error: null };
+  if (geri.error) {
+    // İkiqat uğursuzluq — data həqiqətən itdi. Bunu SUSDURMAQ olmaz.
+    console.error(`[${etiket || table}] KRİTİK: insert sındı, geri qaytarma da sındı. ` +
+                  `Silinən ${(kohne.data || []).length} sətir itdi. ` +
+                  `insert: ${ins.error.message} | geri: ${geri.error.message}`);
+    return { ok: false, restored: false,
+             reason: 'Saxlama xətası: ' + ins.error.message + ' — köhnə data GERİ QAYTARILA BİLMƏDİ, idarəçiyə müraciət edin.' };
+  }
+  console.warn(`[${etiket || table}] insert sındı, köhnə ${(kohne.data || []).length} sətir geri yazıldı: ${ins.error.message}`);
+  return { ok: false, restored: true,
+           reason: 'Saxlama xətası: ' + ins.error.message + ' — əvvəlki məlumat qorundu, yenidən cəhd edin.' };
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  HADİSƏ JURNALI
+// ══════════════════════════════════════════════════════════════════
+//  Dispatcher hər sorğunun SONUNDA bunu çağırır. Sətir yalnız sorğu
+//  həqiqətən nəsə YAZIBSA yaranır — oxuma sorğuları jurnala düşmür.
+//  Bunu funksiyaların özü yox, `tdb.js` bilir (izahı: audit.js).
+//
+//  ⚠️ Jurnal HEÇ VAXT əsas əməliyyatı sındırmır: cədvəl hələ yaradılmayıbsa
+//  (audit-log-migration.sql işlədilməyib) və ya yazma sınsa — yalnız konsola
+//  bir dəfə xəbərdarlıq düşür. İstifadəçi bunu hiss etmir.
+let _auditWarned = false;
+
+//  Oxuyan funksiyalar — adına görə. Bu heuristika YALNIZ «rədd edilmiş cəhdi
+//  yazaqmı?» sualına təsir edir: səhv təxmin ya artıq bir sətir yazdırır
+//  (zərərsiz), ya da bir rəddi qaçırır (əvvəlki vəziyyət).
+const OXUYAN_AD = /^(get|list|check|fetch|compute|peek|has)/;
+
+async function writeAuditLog({ fn, rec, args, callerKey, result, writes, denied }) {
+  if (auditlog.SKIP.has(fn)) return;                   // öz cədvəli iz olanlar
+
+  const ugurlu = !denied && !(result && typeof result === 'object' &&
+                   (result.success === false || result.valid === false || result.ok === false));
+
+  //  Üç halda yazırıq:
+  //    1. sorğu həqiqətən nəsə YAZDI;
+  //    2. dispatcher onu İCAZƏSİZ saydı (403) — funksiyanın adından asılı
+  //       olmayaraq, çünki açar sınayan adamı məhz bu göstərir;
+  //    3. dəyişdirən funksiya özü RƏDD etdi (başqa filialın sətri, bağlı
+  //       imtahan…). Burada yazma yoxdur, amma «kim nəyi etməyə çalışdı»
+  //       izin ən vacib hissəsidir — F-13/F-14 kimi cəhdlər belə görünür.
+  const yazdi = auditlog.hasRealWrite(writes);
+  if (!yazdi && !denied && !(!ugurlu && !OXUYAN_AD.test(fn))) return;
+
+  const { error } = await db().from('audit_log').insert({
+    log_id:     U.newId('AL-'),
+    ts:         new Date().toISOString(),
+    actor_role: (rec && rec.role) || 'public',
+    actor_name: actorLabel(rec),
+    action:     fn,
+    target:     denied ? '(icazəsiz)' : (auditlog.formatWrites(writes) || '(yazma yoxdur — rədd)'),
+    detail:     auditlog.summarize(args, callerKey),
+    ok:         ugurlu,
+  });
+  if (error && !_auditWarned) {
+    _auditWarned = true;
+    console.warn('[Audit] jurnal yazılmadı — audit-log-migration.sql işlədilib? ' + error.message);
+  }
+}
+
+//  Vacib əməliyyatlar üçün ƏLAVƏ sətir — `before` sahəsi ilə.
+//  Dispatcher-in avtomatik sətri «kim, nə vaxt, hansı funksiya» deyir, amma
+//  «əvvəl NƏ İDİ» sualına cavab verə bilmir: o dəyəri yalnız funksiyanın özü
+//  bilir. Ona görə bu, əl ilə çağırılır — həqiqətən əvəz olunmaz sənəd
+//  itəndə (məsələn ayın snapshot-u).
+async function auditDetail(action, target, before) {
+  try {
+    const { error } = await db().from('audit_log').insert({
+      log_id:     U.newId('AL-'),
+      ts:         new Date().toISOString(),
+      actor_role: T.role() || 'system',
+      actor_name: actorLabel({ role: T.role(), branchId: T.branchId() }),
+      action:     String(action || ''),
+      target:     String(target || ''),
+      detail:     '',
+      before:     before == null ? null : before,
+      ok:         true,
+    });
+    if (error && !_auditWarned) {
+      _auditWarned = true;
+      console.warn('[Audit] jurnal yazılmadı — audit-log-migration.sql işlədilib? ' + error.message);
+    }
+  } catch (e) { console.warn('[Audit]', action, e.message); }
+}
+
+// Jurnalda «kim» sütunu. Açarın ÖZÜ heç vaxt yazılmır (bax audit.js — redaktə).
+function actorLabel(rec) {
+  if (!rec) return 'naməlum';
+  if (rec.role === 'manager') {
+    const b = T.branchBySlug(rec.branchId);
+    return `menecer (${(b && b.name) || rec.branchId || '?'})`;
+  }
+  if (rec.role === 'employee') return 'işçi';
+  return rec.role;
+}
 
 function sbErr(label, error) {
   if (error) console.error(`[SB] ${label}:`, error.message);
@@ -1133,12 +1286,13 @@ function cezaSebeb(ex) {
 
 // Bağlanmış ayların siyahısı (`salary_periods`). Cədvəl hələ yoxdursa boş dəst.
 async function bagliAylar() {
-  const { data, error } = await db().from('salary_periods').select('period');
+  const { data, error } = await db().from('salary_periods').select('*');
   if (error) {
     if (!/salary_periods/i.test(error.message || '')) sbErr('bagliAylar', error);
     return new Set();
   }
-  return new Set((data || []).map(r => r.period));
+  // F-16: yenidən açılmış ay bağlı deyil → `recalcAllFines` ona toxuna bilər.
+  return new Set((data || []).filter(r => !r.reopened_at).map(r => r.period));
 }
 
 // `dryRun = true` → HEÇ NƏ YAZILMIR, yalnız nə dəyişəcəyi qaytarılır.
@@ -1635,9 +1789,6 @@ async function saveCedvelCore(entries, opts) {
     }
   }
 
-  if (empIds.length && dates.length) {
-    await db().from('cedvel').delete().in('emp_id', empIds).in('date_str', dates);
-  }
   // Eyni (emp_id,date_str) xanə batch-də təkrarlanarsa sonuncunu saxla — uq_cedvel_emp_date
   // unikal indeksi ilə toqquşub BÜTÜN saxlamanın uğursuz olmasının qarşısını alır.
   const cellMap = new Map();
@@ -1651,7 +1802,13 @@ async function saveCedvelCore(entries, opts) {
     emp_id:     e.empId, emp_name: e.empName, dept: e.dept,
     date_str:   e.dateStr, shift_type: e.shiftType,
   }));
-  if (toInsert.length) {
+  //  F-17: sil+yaz artıq geri qaytarıla bilir — insert sınsa həftənin
+  //  cədvəli SİLİNMİŞ qalmır (izahı: `replaceRows`).
+  if (empIds.length && dates.length) {
+    const r = await replaceRows('cedvel',
+      (q) => q.in('emp_id', empIds).in('date_str', dates), toInsert, 'saveCedvel');
+    if (!r.ok) return { success: false, reason: r.reason, restored: r.restored };
+  } else if (toInsert.length) {
     const { error } = await db().from('cedvel').insert(toInsert);
     if (error) return { success: false, reason: 'Saxlama xətası: ' + error.message };
   }
@@ -1846,8 +2003,17 @@ API.savePositions = async (list) => {
     return { success: false, reason: 'Bu vəzifələr işçilərdə işlədilir, silinə bilməz: ' + removed.join(', ') };
   }
 
-  await db().from('positions').delete().neq('name', ' ');
-  await db().from('positions').insert(names.map((name, i) => ({ name, sort_order: i, active: true })));
+  //  ⚠️ Süzgəcdə ƏVVƏL görünməz NUL baytı vardı (`'\0'`) — yəqin ki bir dəfə
+  //  boşluq yerinə düşüb. İki nəticəsi olub: fayl `grep` üçün «binary» sayılırdı
+  //  (axtarış nəticələri gizlənirdi) və PostgREST-ə NUL göndərmək etibarsızdır.
+  //  `name != ''` eyni işi görür — bütün sətirlərə uyğun gəlir.
+  //  Silmənin və yazmanın xətası da əvvəl oxunmurdu; indi ikisi də yoxlanılır.
+  const r = await replaceRows('positions', (q) => q.neq('name', ''),
+    names.map((name, i) => ({ name, sort_order: i, active: true })), 'savePositions');
+  if (!r.ok) {
+    await T.reload(tid);              // keş bazadakı real vəziyyətlə uzlaşsın
+    return { success: false, reason: r.reason, restored: r.restored };
+  }
   await T.reload(tid);
   return { success: true, positions: T.positions() };
 };
@@ -2510,11 +2676,28 @@ async function computeSalaryReport(year, month) {
 // dəyişməsin. Səhv olsa admin ayı yenidən aça bilər.
 const periodStr = (y, mo) => `${y}-${String(mo).padStart(2, '0')}`;
 
+//  F-16: yenidən açılmış ay sətri BAZADA QALIR (silinmir), amma «bağlı»
+//  sayılmır. `reopened_at IS NULL` — bağlılığın yeganə ölçüsüdür.
+//  Sütun hələ yaradılmayıbsa (audit-log-migration.sql işlədilməyib) köhnə
+//  davranış qalır: sətrin mövcudluğu = bağlıdır.
+function acilibmi(row) {
+  return !!(row && row.reopened_at);
+}
+
 async function getSalaryPeriod(period) {
   const { data, error } = await db().from('salary_periods').select('*').eq('period', period).maybeSingle();
   // Cədvəl hələ yaradılmayıbsa (salary-period-migration.sql işlədilməyib) sistem
   // sadəcə həmişə canlı hesablayır — heç nə sınmır.
   if (error) { if (!/salary_periods/i.test(error.message || '')) sbErr('getSalaryPeriod', error); return null; }
+  if (!data || acilibmi(data)) return null;
+  return data;
+}
+
+// Sətri OLDUĞU KİMİ oxuyur (açılmış olsa da) — yenidən bağlayanda köhnə
+// snapshot-u jurnala yazmaq üçün lazımdır.
+async function getSalaryPeriodRaw(period) {
+  const { data, error } = await db().from('salary_periods').select('*').eq('period', period).maybeSingle();
+  if (error) return null;
   return data || null;
 }
 
@@ -2549,9 +2732,29 @@ API.closeSalaryMonth = async (year, month) => {
   const rep = await computeSalaryReport(y, mo);
   if (!rep.rows || !rep.rows.length) return { success: false, reason: 'Bu ayda ödəniləcək heç nə yoxdur — bağlamağa ehtiyac yoxdur.' };
 
-  const { error } = await db().from('salary_periods').insert({
-    period, closed_by: 'admin', config: rep.config, rows: rep.rows, totals: rep.totals,
+  //  Ay əvvəl bağlanıb-açılıbsa, sətir hələ də oradadır və indi ÜSTÜNDƏN
+  //  yazılacaq. Köhnə snapshot itməsin deyə o, jurnala köçürülür —
+  //  «mart ayı iki dəfə bağlanıb, birinci dəfə rəqəmlər bunlar idi».
+  const kohne = await getSalaryPeriodRaw(period);
+  if (kohne) await auditDetail('closeSalaryMonth:yenidən', period, {
+    closed_at: kohne.closed_at, reopened_at: kohne.reopened_at, reopened_by: kohne.reopened_by,
+    totals: kohne.totals, rows: kohne.rows,
   });
+
+  const row = {
+    period, closed_by: 'admin', config: rep.config, rows: rep.rows, totals: rep.totals,
+    closed_at: new Date().toISOString(), reopened_at: null, reopened_by: null,
+  };
+  let { error } = kohne
+    ? await db().from('salary_periods').update(row).eq('period', period)
+    : await db().from('salary_periods').insert(row);
+  // Sütunlar hələ yaradılmayıbsa köhnə formada təkrarla (miqrasiyadan əvvəlki aralıq)
+  if (error && /reopened_/i.test(error.message || '')) {
+    const { reopened_at: _a, reopened_by: _b, ...kohneForma } = row;
+    ({ error } = kohne
+      ? await db().from('salary_periods').update(kohneForma).eq('period', period)
+      : await db().from('salary_periods').insert(kohneForma));
+  }
   if (error) {
     if (/salary_periods/i.test(error.message || ''))
       return { success: false, reason: 'Cədvəl hələ yaradılmayıb — salary-period-migration.sql işlədilməlidir.' };
@@ -2561,20 +2764,45 @@ API.closeSalaryMonth = async (year, month) => {
   return { success: true, period, cemi: rep.totals.cemi, isciSayi: rep.rows.length };
 };
 
+//  F-16: ƏVVƏL burada `DELETE` vardı — ay yenidən açılanda «bağlananda
+//  rəqəmlər bunlar idi» sənədi geri dönməz itirdi. Halbuki ayın bağlanmasının
+//  bütün mənası elə həmin sənəddir (imzalanmış cərimələr, ödənilmiş məbləğlər).
+//  İndi sətir QALIR, sadəcə `reopened_at` ilə işarələnir; hesabat yenidən
+//  canlı hesablanır, çünki `getSalaryPeriod` açılmış ayı «bağlı» saymır.
 API.reopenSalaryMonth = async (year, month) => {
   const y = Number(year), mo = Number(month);
   if (!y || !mo || mo < 1 || mo > 12) return { success: false, reason: 'Yanlış ay.' };
   const period = periodStr(y, mo);
-  const { error } = await db().from('salary_periods').delete().eq('period', period);
+
+  const kohne = await getSalaryPeriodRaw(period);
+  if (!kohne) return { success: false, reason: 'Bu ay bağlanmayıb.' };
+  if (kohne.reopened_at) return { success: false, reason: 'Bu ay artıq açıqdır.' };
+
+  const patch = { reopened_at: new Date().toISOString(), reopened_by: T.role() || 'admin' };
+  let { error } = await db().from('salary_periods').update(patch).eq('period', period);
+
+  //  Sütunlar hələ yaradılmayıbsa (audit-log-migration.sql işlədilməyib)
+  //  köhnə davranışa qayıdırıq — sistem dayanmasın. Amma snapshot-u ƏVVƏLCƏ
+  //  jurnala yazırıq ki, heç olmasa orada qalsın.
+  if (error && /reopened_/i.test(error.message || '')) {
+    console.warn('[Salary] reopened_at sütunu yoxdur — snapshot yalnız jurnalda saxlanılır.');
+    await auditDetail('reopenSalaryMonth:silindi', period, { totals: kohne.totals, rows: kohne.rows });
+    ({ error } = await db().from('salary_periods').delete().eq('period', period));
+  } else {
+    await auditDetail('reopenSalaryMonth', period, { totals: kohne.totals, closed_at: kohne.closed_at });
+  }
+
   sbErr('reopenSalaryMonth', error);
   return { success: !error, period };
 };
 
 // Hansı aylar bağlıdır (panel düymənin vəziyyətini bilsin)
 API.getClosedSalaryMonths = async () => {
-  const { data, error } = await db().from('salary_periods').select('period,closed_at,closed_by').order('period', { ascending: false });
+  const { data, error } = await db().from('salary_periods').select('*').order('period', { ascending: false });
   if (error) return [];
-  return (data || []).map(r => ({ period: r.period, closedAt: r.closed_at, closedBy: r.closed_by }));
+  // Yenidən açılmış aylar «bağlı» siyahısında görünmür (F-16) — sətir isə qalır.
+  return (data || []).filter(r => !acilibmi(r))
+    .map(r => ({ period: r.period, closedAt: r.closed_at, closedBy: r.closed_by }));
 };
 
 API.getWarnings = async () => {
@@ -3387,13 +3615,9 @@ API.getChecklistItems = async () => {
 };
 
 API.saveChecklistItems = async (items) => {
-  // Əvvəlcə hamısını sil
-  const { error: delErr } = await db().from('checklist_items').delete().neq('item_id', 'x');
-  if (delErr) return { success: false, reason: 'Silmə xətası: ' + delErr.message };
-
-  if (!items || !items.length) return { success: true };
-
-  const incoming = items.map((item, i) => ({
+  //  Siyahı BÜTÖV əvəz olunur (boş siyahı = hamısını sil) — davranış dəyişmir,
+  //  sadəcə insert sınsa köhnə siyahı geri qayıdır (F-17).
+  const incoming = (items || []).map((item, i) => ({
     item_id:    String(item.itemId || item.item_id || U.newId('CI-', i)),
     text:       String(item.text || '').trim(),
     category:   String(item.category || 'Digər'),
@@ -3401,11 +3625,8 @@ API.saveChecklistItems = async (items) => {
     active:     item.active !== false,
   })).filter(r => r.text);
 
-  if (!incoming.length) return { success: true };
-
-  const { error: insErr } = await db().from('checklist_items').insert(incoming);
-  if (insErr) return { success: false, reason: 'Əlavə xətası: ' + insErr.message };
-
+  const r = await replaceRows('checklist_items', (q) => q.neq('item_id', 'x'), incoming, 'saveChecklistItems');
+  if (!r.ok) return { success: false, reason: r.reason, restored: r.restored };
   return { success: true };
 };
 
@@ -3630,12 +3851,14 @@ API.saveMgrWeekSchedule = async (branchKey, entries) => {
   const check = U.validateBranchScheduleKey(branchKey);
   if (!check.valid) return { success: false, reason: 'İcazəsiz.' };
   const dates = entries.map(e => e.dateStr).filter(Boolean);
-  if (dates.length) await db().from('mgr_schedule').delete().eq('dept', check.dept).in('date_str', dates);
   const toInsert = entries.filter(e => e.dateStr && e.shiftType).map((e, i) => ({
     sched_id: U.newId('MS-', i),
     dept: check.dept, date_str: e.dateStr, shift_type: e.shiftType,
   }));
-  if (toInsert.length) await db().from('mgr_schedule').insert(toInsert);
+  if (!dates.length) return { success: true };
+  const r = await replaceRows('mgr_schedule',
+    (q) => q.eq('dept', check.dept).in('date_str', dates), toInsert, 'saveMgrWeekSchedule');
+  if (!r.ok) return { success: false, reason: r.reason, restored: r.restored };
   return { success: true };
 };
 
@@ -4881,17 +5104,17 @@ API.getActiveTrainerItems = async () => {
 };
 
 API.saveTrainerItems = async (items) => {
-  await db().from('trainer_checklist_items').delete().neq('item_id', 'x');
-  if (items && items.length) {
-    const rows = items.map((item, i) => ({
-      item_id:    item.id || U.newId('TCI-', i),
-      text:       String(item.text || '').trim(),
-      category:   item.category || '',
-      active:     item.active !== false,
-      sort_order: i,
-    }));
-    await db().from('trainer_checklist_items').insert(rows);
-  }
+  const rows = (items || []).map((item, i) => ({
+    item_id:    item.id || U.newId('TCI-', i),
+    text:       String(item.text || '').trim(),
+    category:   item.category || '',
+    active:     item.active !== false,
+    sort_order: i,
+  }));
+  //  Əvvəl nə silmənin, nə də yazmanın xətası OXUNURDU — funksiya hər halda
+  //  `{success:true}` deyirdi (F-06 ilə eyni sinif səhv). İndi ikisi də yoxlanılır.
+  const r = await replaceRows('trainer_checklist_items', (q) => q.neq('item_id', 'x'), rows, 'saveTrainerItems');
+  if (!r.ok) return { success: false, reason: r.reason, restored: r.restored };
   return { success: true };
 };
 
@@ -4991,6 +5214,41 @@ API.rateEmployee = async (trainerKey, empId, stars) => {
     created_at: new Date().toISOString(),
   });
   return { success: true, xp };
+};
+
+// ── HADİSƏ JURNALI (oxuma) ────────────────────────────────────────
+//  Yalnız admin. `detail` sütununda redaktə edilmiş arqumentlər var —
+//  açar/secret yoxdur (bax audit.js), amma yenə də işçi adları, məbləğlər
+//  və ID-lər var, ona görə panel açarı tələb olunur.
+API.getAuditLog = async (filter) => {
+  const f = filter || {};
+  let q = db().from('audit_log').select('*');
+  if (f.action) q = q.eq('action', String(f.action));
+  if (f.role)   q = q.eq('actor_role', String(f.role));
+  if (f.from)   q = q.gte('ts', String(f.from));
+  if (f.to)     q = q.lte('ts', String(f.to));
+
+  const limit = Math.min(500, Math.max(1, Number(f.limit) || 200));
+  const { data, error } = await q.order('ts', { ascending: false }).limit(limit);
+  if (error) {
+    // Cədvəl hələ yaradılmayıbsa panel boş siyahı yox, səbəb görsün.
+    return { rows: [], reason: /audit_log/i.test(error.message || '')
+      ? 'Jurnal cədvəli hələ yaradılmayıb — audit-log-migration.sql işlədilməlidir.'
+      : error.message };
+  }
+  return {
+    rows: (data || []).map(r => ({
+      logId: r.log_id, ts: r.ts, actorRole: r.actor_role, actorName: r.actor_name,
+      action: r.action, target: r.target, detail: r.detail, ok: r.ok !== false,
+      hasBefore: r.before != null,
+    })),
+  };
+};
+
+// Bir sətrin `before` sənədi (ayın snapshot-u böyük ola bilər — ayrıca çəkilir)
+API.getAuditBefore = async (logId) => {
+  const { data } = await db().from('audit_log').select('before').eq('log_id', String(logId)).maybeSingle();
+  return { before: (data && data.before) || null };
 };
 
 API.getXPAuditLog = async () => {
