@@ -570,8 +570,26 @@ function seedCaches() {
      'ad JS-də böyük hərfə çevrilmir (azərbaycanca «i» səhv çevrilərdi)');
   ok(/irs-nm\{[^}]*text-transform:uppercase/.test(srcS), 'böyük hərf CSS ilə verilir');
 
-  //  Hərəkəti azaldan istifadəçi üçün animasiya praktiki olaraq söndürülür.
+  //  ⚠️ «HƏRƏKƏTİ AZALT» — BURADA REAL SƏHV OLDU.
+  //  İlk yazılışda animasiya `.01s`-ə endirilirdi; nəticədə örtük heç
+  //  tərpənmədən bir anlıq görünüb yox olurdu və istifadəçi bunu «mobildə
+  //  animasiya işləmir» kimi bildirdi. iOS-da «Hərəkəti azalt», Android-də
+  //  batareya qənaəti bu parametri açır — yəni nadir hal DEYİL.
   ok(/prefers-reduced-motion:reduce/.test(srcS), 'hərəkəti azaltma qaydası var');
+  const azaltma = /@media\(prefers-reduced-motion:reduce\)\{([\s\S]*?)\}\}/.exec(srcS);
+  ok(!!azaltma, 'azaltma bloku tapıldı');
+  ok(azaltma && !/animation-duration:\.0\d+s/.test(azaltma[1]),
+     'azaltma rejimində animasiya SIFIRA endirilmir (görünməz sıçrayış olardı)',
+     azaltma && azaltma[1].slice(0, 90));
+  ok(azaltma && /irsFade/.test(azaltma[1]) && /irsInSoft/.test(azaltma[1]),
+     'əvəzinə yumşaq şəffaflıq keçidi verilir (miqyas yoxdur)');
+
+  //  Telefonda tam ekran qradiyenti 3.4 dəfə böyütmək ağır qatdır.
+  ok(/@media\(max-width:520px\)\{#irSplash\{animation-name:irsThroughSm\}\}/.test(srcS),
+     'kiçik ekranda miqyas azaldılır');
+  ok(srcS.indexOf('max-width:520px') < srcS.indexOf('prefers-reduced-motion'),
+     'azaltma qaydası kiçik-ekran qaydasından SONRA gəlir (üstələməlidir)');
+  ok(/will-change:transform,opacity/.test(srcS), 'qat GPU-ya verilir (titrəməsin)');
 
   // ══════════════════════════════════════════════════════════════════════
   console.log(`\n${'═'.repeat(62)}`);

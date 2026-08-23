@@ -332,6 +332,15 @@ function brandVars() {
 //
 //  Fail-safe: JS ümumiyyətlə işləməsə belə örtük `opacity:0` ilə qalır və
 //  `pointer-events:none` olduğu üçün heç nəyi bloklamır.
+//
+//  ⚠️ «HƏRƏKƏTİ AZALT» — İLK YAZILIŞDA SƏHV EDİLDİ.
+//  Animasiyanı 0.01 saniyəyə endirmişdim; nəticədə örtük heç tərpənmədən
+//  bir anlıq görünüb yox olurdu — istifadəçi bunu «mobildə animasiya
+//  işləmir» kimi gördü. Səbəb: iOS-da «Hərəkəti azalt», Android-də isə
+//  batareya qənaəti bu parametri açır, yəni bu, NADİR hal deyil.
+//  Qayda odur ki, «hərəkəti azalt» BÜTÜN keçidi silmək demək deyil —
+//  BÖYÜK hərəkəti silmək deməkdir. İndi miqyas yoxdur, yalnız yumşaq
+//  şəffaflıq keçidi var və müddət demək olar ki eynidir.
 const SPLASH_MS = 1500;          // təhlükəsizlik taymeri — hər halda götürülür
 
 function splashBlock() {
@@ -344,7 +353,8 @@ function splashBlock() {
   return `<div id="irSplash" aria-hidden="true"><div class="irs-bg"></div>` +
     `<div class="irs-mark"><span class="irs-pw">Powered by</span><span class="irs-nm">${ad}</span></div></div>` +
     `<style>#irSplash{position:fixed;inset:0;z-index:2147483000;display:grid;place-items:center;` +
-    `pointer-events:none;animation:irsThrough .62s cubic-bezier(.55,0,.35,1) .40s forwards}` +
+    `pointer-events:none;will-change:transform,opacity;` +
+    `animation:irsThrough .62s cubic-bezier(.55,0,.35,1) .40s forwards}` +
     `#irSplash .irs-bg{position:absolute;inset:0;background:linear-gradient(160deg,${base} 0%,${deep} 100%)}` +
     `#irSplash .irs-mark{position:relative;text-align:center;color:#fff;` +
     `font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;animation:irsIn .30s ease-out both}` +
@@ -352,9 +362,17 @@ function splashBlock() {
     `text-transform:uppercase;opacity:.62;margin-bottom:5px}` +
     `#irSplash .irs-nm{display:block;font-size:27px;font-weight:700;letter-spacing:.05em;text-transform:uppercase}` +
     `@keyframes irsThrough{to{transform:scale(3.4);opacity:0}}` +
+    `@keyframes irsThroughSm{to{transform:scale(2.4);opacity:0}}` +
     `@keyframes irsIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}` +
-    `@media(prefers-reduced-motion:reduce){#irSplash{animation-duration:.01s;animation-delay:.35s}` +
-    `#irSplash .irs-mark{animation-duration:.01s}}</style>` +
+    `@keyframes irsFade{to{opacity:0}}` +
+    `@keyframes irsInSoft{from{opacity:0}to{opacity:1}}` +
+    // Telefonda tam ekran qradiyenti 3.4 dəfə böyütmək ağır qatdır — 2.4 kifayətdir,
+    // görünüş eynidir. (Bu blok «hərəkəti azalt»dan ƏVVƏL gəlməlidir ki, o üstələsin.)
+    `@media(max-width:520px){#irSplash{animation-name:irsThroughSm}}` +
+    // Miqyas TAMAM söndürülür, keçid isə qalır — yalnız şəffaflıq dəyişir.
+    `@media(prefers-reduced-motion:reduce){` +
+    `#irSplash{animation:irsFade .34s ease-in .52s forwards}` +
+    `#irSplash .irs-mark{animation:irsInSoft .24s ease-out both}}</style>` +
     `<script>(function(){var e=document.getElementById('irSplash');if(!e)return;var g=false;` +
     `function go(){if(g)return;g=true;if(e.parentNode)e.parentNode.removeChild(e);}` +
     `e.addEventListener('animationend',function(v){if(v.animationName==='irsThrough')go();});` +
