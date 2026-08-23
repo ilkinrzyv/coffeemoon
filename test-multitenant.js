@@ -538,6 +538,42 @@ function seedCaches() {
   ok(cixis === 'Powered by IR &amp; Co.', '`&` daşıyan ad HTML-də qaçırılır', cixis);
 
   // ══════════════════════════════════════════════════════════════════════
+  section('17. Açılış ekranı (splash)');
+  //  Örtük ŞABLONDA yox, SERVERDƏ yerləşdirilir — 7 faylda təkrarlansaydı
+  //  biri geridə qalardı (bu bazada dəfələrlə baş verən dreyf). Aşağıdakılar
+  //  həmin qərarı və onun kənar hallarını qoruyur.
+  const srcS = src;   // server.js mətni (§12-də oxunub)
+
+  ok(/function splashBlock\(/.test(srcS) && /function withSplash\(/.test(srcS),
+     'örtük server tərəfdə qurulur');
+  ok(!paneller.some(f =>
+      require('fs').readFileSync(require('path').join(__dirname, 'public', f), 'utf8').includes('irSplash')),
+     'heç bir HTML faylında örtük markup-u təkrarlanmır');
+
+  //  Hansı səhifələrdə var / yoxdur — qəsdən seçilmiş siyahıdır.
+  const splashli = ['mycode.html','checklist.html','manager.html','admin.html',
+                    'trainer.html','icraci.html','ops.html'];
+  for (const f of splashli) {
+    ok(srcS.includes(`withSplash(replaceVars(readTemplate('${f}')`), `${f}: örtük var`);
+  }
+  //  Kiosk gün boyu açıq qalır, imtahan isə kartın içindən açılır — ikisində də yox.
+  ok(!srcS.includes("withSplash(replaceVars(readTemplate('exam.html')"), 'exam: örtük YOXDUR (kartdan açılır)');
+  ok(!/withSplash[\s\S]{0,80}passpage/.test(srcS), 'kiosk: örtük YOXDUR (divar ekranı)');
+
+  //  Fail-safe: JS sınsa belə örtük heç nəyi bloklamamalıdır.
+  ok(/pointer-events:none/.test(srcS), 'örtük klikləri bloklamır');
+  ok(/setTimeout\(go,\$\{SPLASH_MS\}\)/.test(srcS), 'təhlükəsizlik taymeri var');
+  ok(/const SPLASH_MS = \d+/.test(srcS), 'taymer müddəti bir yerdə təyin olunub');
+
+  //  Böyük hərf CSS-dədir: `'i'.toUpperCase()` azərbaycanca «I» verir, «İ» yox.
+  ok(!/VENDOR_NAME\)\.toUpperCase\(\)/.test(srcS),
+     'ad JS-də böyük hərfə çevrilmir (azərbaycanca «i» səhv çevrilərdi)');
+  ok(/irs-nm\{[^}]*text-transform:uppercase/.test(srcS), 'böyük hərf CSS ilə verilir');
+
+  //  Hərəkəti azaldan istifadəçi üçün animasiya praktiki olaraq söndürülür.
+  ok(/prefers-reduced-motion:reduce/.test(srcS), 'hərəkəti azaltma qaydası var');
+
+  // ══════════════════════════════════════════════════════════════════════
   console.log(`\n${'═'.repeat(62)}`);
   console.log(fail === 0
     ? `🎉  BÜTÜN TESTLƏR KEÇDİ  (${pass}/${pass})`

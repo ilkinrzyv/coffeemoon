@@ -310,6 +310,66 @@ function brandVars() {
   };
 }
 
+
+// ══════════════════════════════════════════════════════════════════
+//  AÇILIŞ EKRANI (splash)
+// ══════════════════════════════════════════════════════════════════
+//  Panel açılanda qısa marka anı: «Powered by IR SYSTEMS» görünür, sonra
+//  örtük böyüyüb şəffaflaşır — kamera sanki nişanın içindən keçir.
+//
+//  ⚠️ ƏSAS QAYDA: bu, AÇILIŞA VAXT ƏLAVƏ ETMİR. Panellər onsuz da
+//  «Yüklənir…» göstərir; örtük həmin boş vaxtın ÜSTÜNƏ qoyulmur, onu
+//  ÖRTÜR. Animasiya oynayarkən sorğular artıq gedir.
+//
+//  Niyə server tərəfdə yerləşdirilir:
+//    · Şablonda olsaydı 7 faylda təkrarlanardı və biri geridə qalardı
+//      (bu layihədə dəfələrlə baş verən dreyf).
+//    · `<body>`-dən dərhal sonra gəldiyi üçün ilk kadrda görünür —
+//      JS gözlənilmir, «ağ sıçrayış» olmur.
+//
+//  Örtük MÜŞTƏRİNİN rəngindədir (brend), yazı isə satıcınındır: müştəri
+//  öz tətbiqini görür, altında bizim imza qalır.
+//
+//  Fail-safe: JS ümumiyyətlə işləməsə belə örtük `opacity:0` ilə qalır və
+//  `pointer-events:none` olduğu üçün heç nəyi bloklamır.
+const SPLASH_MS = 1500;          // təhlükəsizlik taymeri — hər halda götürülür
+
+function splashBlock() {
+  const rgb  = hexToRgb(T.brand().themeColor) || [91, 94, 244];
+  const base = toHex(rgb);
+  const deep = toHex(rgb.map(n => n * 0.72));
+  //  Böyük hərfə çevirmə CSS-dədir, JS-də YOX: `'i'.toUpperCase()` azərbaycanca
+  //  «İ» yox, «I» verir. `text-transform` isə `<html lang="az">` qaydasına baxır.
+  const ad   = htmlEscape(T.VENDOR_NAME);
+  return `<div id="irSplash" aria-hidden="true"><div class="irs-bg"></div>` +
+    `<div class="irs-mark"><span class="irs-pw">Powered by</span><span class="irs-nm">${ad}</span></div></div>` +
+    `<style>#irSplash{position:fixed;inset:0;z-index:2147483000;display:grid;place-items:center;` +
+    `pointer-events:none;animation:irsThrough .62s cubic-bezier(.55,0,.35,1) .40s forwards}` +
+    `#irSplash .irs-bg{position:absolute;inset:0;background:linear-gradient(160deg,${base} 0%,${deep} 100%)}` +
+    `#irSplash .irs-mark{position:relative;text-align:center;color:#fff;` +
+    `font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;animation:irsIn .30s ease-out both}` +
+    `#irSplash .irs-pw{display:block;font-size:11px;font-weight:600;letter-spacing:.24em;` +
+    `text-transform:uppercase;opacity:.62;margin-bottom:5px}` +
+    `#irSplash .irs-nm{display:block;font-size:27px;font-weight:700;letter-spacing:.05em;text-transform:uppercase}` +
+    `@keyframes irsThrough{to{transform:scale(3.4);opacity:0}}` +
+    `@keyframes irsIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}` +
+    `@media(prefers-reduced-motion:reduce){#irSplash{animation-duration:.01s;animation-delay:.35s}` +
+    `#irSplash .irs-mark{animation-duration:.01s}}</style>` +
+    `<script>(function(){var e=document.getElementById('irSplash');if(!e)return;var g=false;` +
+    `function go(){if(g)return;g=true;if(e.parentNode)e.parentNode.removeChild(e);}` +
+    `e.addEventListener('animationend',function(v){if(v.animationName==='irsThrough')go();});` +
+    `setTimeout(go,${SPLASH_MS});})();<\/script>`;
+}
+
+//  Örtüyü `<body>`-dən dərhal sonra yerləşdirir. Quruluş gözlənilməz olsa
+//  səhifəyə TOXUNMUR — açılış effekti üçün panel sındırmağa dəyməz.
+function withSplash(html) {
+  const m = /<body[^>]*>/i.exec(html);
+  if (!m) return html;
+  const i = m.index + m[0].length;
+  return html.slice(0, i) + splashBlock() + html.slice(i);
+}
+
 // ── Səhifə marşrutları üçün müştəri konteksti ─────────────────────
 //  Panel URL-i açarı daşıyır (?key= / ?secret=). Açar həm KİM olduğunu, həm də
 //  HANSI MÜŞTƏRİ olduğunu bildirir — ona görə subdomain məcburi deyil, mövcud
@@ -420,9 +480,9 @@ app.get('/exam', tenantPage(['employee'], (req, res) => {
 // ── İŞÇİ KARTI ────────────────────────────────────────────────────
 app.get('/mycode', tenantPage(['employee'], (req, res) => {
   const { secret = '', name = 'İşçi' } = req.query;
-  res.send(replaceVars(readTemplate('mycode.html'), {
+  res.send(withSplash(replaceVars(readTemplate('mycode.html'), {
     ...brandVars(), secret, empName: name, scriptUrl: scriptUrlOf(req),
-  }));
+  })));
 }));
 
 app.get('/mycode-manifest', tenantPage(['employee'], (req, res) => {
@@ -436,18 +496,18 @@ app.get('/mycode-manifest', tenantPage(['employee'], (req, res) => {
 // ── MENECER ───────────────────────────────────────────────────────
 app.get('/checklist', tenantPage(['manager'], (req, res, rec) => {
   const b = T.branchBySlug(rec.branchId);
-  res.send(replaceVars(readTemplate('checklist.html'), {
+  res.send(withSplash(replaceVars(readTemplate('checklist.html'), {
     ...brandVars(), branchKey: req.query.key, dept: (b && b.name) || '',
     scriptUrl: scriptUrlOf(req),
-  }));
+  })));
 }));
 
 app.get('/manager', tenantPage(['manager'], (req, res, rec) => {
   const b = T.branchBySlug(rec.branchId);
-  res.send(replaceVars(readTemplate('manager.html'), {
+  res.send(withSplash(replaceVars(readTemplate('manager.html'), {
     ...brandVars(), branchKey: req.query.key, dept: (b && b.name) || '',
     scriptUrl: scriptUrlOf(req),
-  }));
+  })));
 }));
 
 app.get('/manager-manifest', tenantPage(['manager'], (req, res, rec) => {
@@ -461,19 +521,19 @@ app.get('/manager-manifest', tenantPage(['manager'], (req, res, rec) => {
 
 // ── ADMİN ─────────────────────────────────────────────────────────
 app.get('/admin', tenantPage(['admin'], (req, res) => {
-  res.send(replaceVars(readTemplate('admin.html'), {
+  res.send(withSplash(replaceVars(readTemplate('admin.html'), {
     ...brandVars(), adminKey: req.query.key, scriptUrl: scriptUrlOf(req),
-  }));
+  })));
 }));
 
 // ── TRAINER ───────────────────────────────────────────────────────
 app.get('/trainer', tenantPage(['trainer'], (req, res) => {
-  res.send(replaceVars(readTemplate('trainer.html'), {
+  res.send(withSplash(replaceVars(readTemplate('trainer.html'), {
     ...brandVars(),
     trainerKey:  req.query.key,
     trainerName: U.getSetting('TRAINER_NAME') || 'Treninq Meneceri',
     scriptUrl:   scriptUrlOf(req),
-  }));
+  })));
 }));
 
 app.get('/trainer-manifest', tenantPage(['trainer'], (req, res) => {
@@ -486,12 +546,12 @@ app.get('/trainer-manifest', tenantPage(['trainer'], (req, res) => {
 
 // ── İCRAÇI ────────────────────────────────────────────────────────
 app.get('/icraci', tenantPage(['exec'], (req, res) => {
-  res.send(replaceVars(readTemplate('icraci.html'), {
+  res.send(withSplash(replaceVars(readTemplate('icraci.html'), {
     ...brandVars(),
     execKey:   req.query.key,
     execName:  U.getSetting('EXEC_NAME') || 'İcraçı',
     scriptUrl: scriptUrlOf(req),
-  }));
+  })));
 }));
 
 app.get('/icraci-manifest', tenantPage(['exec'], (req, res) => {
@@ -504,12 +564,12 @@ app.get('/icraci-manifest', tenantPage(['exec'], (req, res) => {
 
 // ── ƏMƏLİYYAT (OPS) ───────────────────────────────────────────────
 app.get('/ops', tenantPage(['ops'], (req, res) => {
-  res.send(replaceVars(readTemplate('ops.html'), {
+  res.send(withSplash(replaceVars(readTemplate('ops.html'), {
     ...brandVars(),
     opsKey:    req.query.key,
     opsName:   U.getSetting('OPS_NAME') || 'Əməliyyat meneceri',
     scriptUrl: scriptUrlOf(req),
-  }));
+  })));
 }));
 
 app.get('/ops-manifest', tenantPage(['ops'], (req, res) => {
