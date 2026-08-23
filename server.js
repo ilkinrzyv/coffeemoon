@@ -575,6 +575,11 @@ const RATE = {
   pinWindowMs: 600_000,
 };
 
+//  Açarsız `checkScanDevice` üçün hədlər (F-19). Real filialda eyni anda
+//  1-2 cihaz təsdiq gözləyir; 20 səxavətli tavandır, spam isə minlərlə olardı.
+const PENDING_DEVICE_LIMIT = 20;
+const DEVICE_TG_PER_HOUR   = 5;
+
 //  Yalnız UĞURSUZ PIN cəhdləri sayılır. Səbəb: uğurlu giriş normal iş axınıdır,
 //  onu saymaq növbə vaxtı bütün filialı bloklayardı. Brute-force isə demək olar
 //  həmişə uğursuz olur — yəni limit hücuma dəyir, istifadəçiyə dəymir.
@@ -905,12 +910,68 @@ function fineIsOpen(f) {
 // ── XP MÜHƏRRİKİ ─────────────────────────────────────────────────
 // getXPMultiplier utils.js-də (tək mənbə — recalcAllXP də eyni formulu işlədir).
 
+//  F-24: ƏVVƏL sadə oxu-dəyiş-yaz idi:
+//      oxu xp → hesabla → yaz
+//  İki XP hadisəsi eyni anda gəlsə (gəliş + milestone bonusu, yaxud imtahan
+//  bitişi ilə üst-üstə düşsə) ikisi də EYNİ köhnə dəyəri oxuyur və biri
+//  digərinin üstündən yazır — işçi bir mükafatı itirir. Sakit itki: nə xəta
+//  var, nə də loq.
+//
+//  Postgres `xp = xp + n` bir sorğuda edərdi, amma PostgREST bunu birbaşa
+//  dəstəkləmir (RPC funksiyası lazımdır → miqrasiya + ayrıca fayl).
+//  Ona görə OPTİMİST KİLİD: yazma yalnız dəyər hələ də oxuduğumuz kimidirsə
+//  keçir (`.eq('xp', current)`). Başqası qabaqlayıbsa `count = 0` gəlir və
+//  döngə yenidən oxuyur. Bu, F-17-dəki yanaşma ilə eynidir — sxemə toxunmadan.
+//
+//  ⚠️ TƏK BAŞINA OPTİMİST KİLİD BƏS ETMƏDİ — testdə 5 paralel mükafatdan biri
+//  4 cəhddən sonra da yazıla bilmədi (hamısı eyni anda oxuyub eyni anda
+//  yazmağa çalışır). Ona görə iki qat var:
+//    1. PROSES DAXİLİNDƏ növbə — eyni işçinin XP yazmaları ardıcıllaşır.
+//       Railway-də bir nüsxə işlədiyi üçün real yarışı BÜSBÜTÜN aradan qaldırır.
+//    2. Optimist kilid — birdən çox nüsxə işləsə (gələcəkdə) yenə qoruyur.
+const XP_CEHD = 6;
+const _xpNovbe = new Map();          // empId → son əməliyyatın vədi
+
+//  Eyni işçi üçün əməliyyatları bir-birinin ardınca düzür.
+//  Əvvəlki sınsa da növbə dayanmır (`.then(fn, fn)`).
+function xpNovbede(empId, fn) {
+  const evvelki = _xpNovbe.get(empId) || Promise.resolve();
+  const indiki  = evvelki.then(fn, fn);
+  const zencir  = indiki.catch(() => {});
+  _xpNovbe.set(empId, zencir);
+  // Növbə boşalanda xəritədən çıxar — yoxsa Map işçi sayı qədər böyüyür.
+  zencir.then(() => { if (_xpNovbe.get(empId) === zencir) _xpNovbe.delete(empId); });
+  return indiki;
+}
+
 async function awardXP(empId, baseAmount, streak) {
+  return xpNovbede(String(empId), () => awardXPCore(empId, baseAmount, streak));
+}
+
+async function awardXPCore(empId, baseAmount, streak) {
   const gained = Math.round(baseAmount * U.getXPMultiplier(streak || 0));
-  const { data: emp } = await db().from('employees').select('xp').eq('id', empId).single();
-  const current = emp?.xp || 0;
-  await db().from('employees').update({ xp: current + gained }).eq('id', empId);
-  return gained;
+  if (!gained) return 0;
+
+  for (let cehd = 1; cehd <= XP_CEHD; cehd++) {
+    const { data: emp } = await db().from('employees').select('xp').eq('id', empId).single();
+    if (!emp) return 0;
+    const current = Number(emp.xp) || 0;
+
+    //  `xp` NULL ola bilər (miqrasiyadan əvvəlki sətir). SQL-də `= 0` NULL-a
+    //  uyğun GƏLMİR, ona görə şərt ayrıca qurulur.
+    let q = db().from('employees').update({ xp: current + gained }, { count: 'exact' }).eq('id', empId);
+    q = (emp.xp === null || emp.xp === undefined) ? q.is('xp', null) : q.eq('xp', current);
+
+    const { error, count } = await q;
+    if (error) { sbErr('awardXP', error); return 0; }
+    if (count === 1) return gained;
+    // count === 0 → aradan başqası yazıb; yenidən oxu.
+  }
+
+  //  Bura düşmək praktiki olaraq mümkün deyil (4 dəfə dalbadal qabaqlanmaq).
+  //  Susmuruq: XP itibsə, bunu görmək lazımdır.
+  console.warn(`[XP] ${empId}: ${XP_CEHD} cəhddən sonra yazıla bilmədi (${gained} bal itdi)`);
+  return 0;
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -1665,11 +1726,36 @@ API.checkScanDevice = async (deviceId) => {
     if (dev.status === 'pending') return { allowed: false, pending: true, reason: 'Cihazınız admin tərəfindən hələ təsdiqlənməyib.' };
     if (dev.status === 'blocked') return { allowed: false, pending: false, reason: 'Bu cihaz admin tərəfindən bloklanıb.' };
   }
+  //  F-19: bu funksiya AÇARSIZDIR — istənilən şəxs uydurma `deviceId` göndərib
+  //  həm cədvələ sətir yaza, həm də adminə Telegram göndərtdirə bilirdi.
+  //  Eyni ID təkrarlansa yuxarıdakı `if (dev)` onu tutur, amma HƏR DƏFƏ YENİ
+  //  ID göndərmək kifayət idi: sonsuz sətir + sonsuz bildiriş.
+  //
+  //  İki hədd qoyulur:
+  //    1. Eyni anda gözləyən cihazların sayı (real filialda 1-2 olur).
+  //    2. Bildiriş tezliyi — sətir yazılsa da adminin telefonu susmalıdır.
+  const { count: gozleyen } = await db().from('scan_devices')
+    .select('device_id', { count: 'exact', head: true }).eq('status', 'pending');
+  if ((gozleyen || 0) >= PENDING_DEVICE_LIMIT) {
+    // Loq da boğulur: spam altında minlərlə eyni sətir faydasızdır.
+    if (rateHit('newdev-log', T.tenantId(), 1, 3600_000).ok)
+      console.warn(`[Device] ${T.tenantId()}: gözləyən cihaz həddi doldu (${gozleyen}) — yeni qeydlər alınmır`);
+    return { allowed: false, pending: false,
+             reason: 'Təsdiq gözləyən cihaz sayı həddi keçib. Admin ilə əlaqə saxlayın.' };
+  }
+
   await db().from('scan_devices').upsert({ device_id: deviceId, status: 'pending' }, { onConflict: 'device_id' });
   // Cihaz artıq bu müştəriyə bağlıdır → bundan sonra öz device_id-si ilə
   // müştərini özü tanıda bilər (`?t=` göstəricisi bir daha lazım deyil).
   T.cacheDevice(deviceId, T.tenantId());
-  await U.sendTgTemplate('newDevice', { brend: T.brand().name, cihaz: deviceId }, null);
+
+  //  Bildiriş müştəri başına məhduddur: qeyd onsuz da bazadadır və admin
+  //  panelində görünür, yəni bildirişin itməsi məlumatı itirmir.
+  const tg = rateHit('newdev', T.tenantId(), DEVICE_TG_PER_HOUR, 3600_000);
+  if (tg.ok) await U.sendTgTemplate('newDevice', { brend: T.brand().name, cihaz: deviceId }, null);
+  else if (rateHit('newdev-log', T.tenantId(), 1, 3600_000).ok)
+    console.warn(`[Device] ${T.tenantId()}: yeni cihaz bildirişləri susduruldu (saatda ${DEVICE_TG_PER_HOUR} hədd)`);
+
   return { allowed: false, pending: true, reason: 'Cihazınız qeydə alındı. Admin təsdiqini gözləyin.' };
 };
 
@@ -3248,13 +3334,25 @@ API.getDashboardData = async (secret) => {
   monday.setHours(0, 0, 0, 0);
   const DAY_NAMES = ['B.e.','Ç.a.','Çər.','C.a.','Cüm.','Şən.','Baz.'];
 
-  const allDeptSched = await API.getCedvel(emp.dept, U.toYMD(monday));
-  const buildWeek = async (startDate, deptSched) => {
+  const nextMonday0 = new Date(monday.getTime() + 7 * 86400000);
+
+  //  F-22: iki həftənin 14 günü ÜÇÜN BİR sorğu. Əvvəl `buildWeek` hər gün
+  //  `getEmployeeShift` çağırırdı — kartın hər açılışında 14 əlavə sorğu.
+  const iki_hefte = [];
+  for (let d = 0; d < 14; d++) iki_hefte.push(U.toYMD(new Date(monday.getTime() + d * 86400000)));
+
+  const [allDeptSched, allDeptSchedNext, shiftMap] = await Promise.all([
+    API.getCedvel(emp.dept, U.toYMD(monday)),
+    API.getCedvel(emp.dept, U.toYMD(nextMonday0)),
+    U.getEmployeeShifts(emp.id, iki_hefte),
+  ]);
+
+  const buildWeek = (startDate, deptSched) => {
     const week = [];
     for (let d = 0; d < 7; d++) {
       const dd     = new Date(startDate.getTime() + d * 86400000);
       const ds     = U.toYMD(dd);
-      const st     = await U.getEmployeeShift(emp.id, ds);
+      const st     = shiftMap[ds] || null;
       const si     = st ? U.getShiftInfo(emp.dept, st) : null;
       const dayIdx = dd.getDay() === 0 ? 6 : dd.getDay() - 1;
       const myGroup = (st === 'axsamsm' || st === 'fullsm') ? 'evening' : 'morning';
@@ -3275,19 +3373,18 @@ API.getDashboardData = async (secret) => {
     return week;
   };
 
-  const nextMonday = new Date(monday.getTime() + 7 * 86400000);
-  const allDeptSchedNext = await API.getCedvel(emp.dept, U.toYMD(nextMonday));
-  const [weekSchedule, nextWeekSchedule] = await Promise.all([
-    buildWeek(monday, allDeptSched),
-    buildWeek(nextMonday, allDeptSchedNext),
-  ]);
+  const weekSchedule     = buildWeek(monday, allDeptSched);
+  const nextWeekSchedule = buildWeek(nextMonday0, allDeptSchedNext);
 
-  const report = await API.getMonthlyReport(now.getFullYear(), now.getMonth() + 1);
-  const myR    = report.find(r => r.empId === emp.id) || { totalDays:0, onTime:0, late:0, pct:0 };
-
-  // Nahar (nahar) statusu — səhifə yeniləndikdə timer davam etsin
+  // Hesabat, nahar və elanlar bir-birindən asılı deyil → paralel.
   const todayStr = U.getLogicalDateStr(now);
-  const { data: naharRows } = await db().from('nahar').select('*').eq('emp_id', String(emp.id));
+  const [report, { data: naharRows }, announcements] = await Promise.all([
+    API.getMonthlyReport(now.getFullYear(), now.getMonth() + 1),
+    db().from('nahar').select('*').eq('emp_id', String(emp.id)),
+    API.getAnnouncements(),
+  ]);
+  const myR = report.find(r => r.empId === emp.id) || { totalDays:0, onTime:0, late:0, pct:0 };
+
   const naharGet = (naharRows || []).filter(r => U.getLogicalDateStr(new Date(r.timestamp)) === todayStr && r.type === 'NAHAR_GET');
   const naharQay = (naharRows || []).filter(r => U.getLogicalDateStr(new Date(r.timestamp)) === todayStr && r.type === 'NAHAR_QAY');
   const lunchStatus = (naharGet.length > 0 && naharQay.length === 0)
@@ -3301,7 +3398,7 @@ API.getDashboardData = async (secret) => {
     weekSchedule,
     nextWeekSchedule,
     monthStats:      { days: myR.totalDays, onTime: myR.onTime, late: myR.late, pct: myR.pct },
-    announcements:   await API.getAnnouncements(),
+    announcements,
     lunchStatus,
     brand:           T.brand(),
     // Gecikmə xəbərdarlığının həddi. ƏVVƏL mycode.html-də filial adına görə

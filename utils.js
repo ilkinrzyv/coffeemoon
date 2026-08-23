@@ -295,6 +295,29 @@ async function getEmployeeShift(empId, dateStr) {
   return (data && data.length) ? (data[0].shift_type || null) : null;
 }
 
+//  F-22: `getEmployeeShift`-in ÇOXLU GÜN variantı — bir sorğu, N gün.
+//  `getDashboardData` iki həftəni qurarkən hər gün üçün ayrıca sorğu atırdı
+//  (14 sorğu, kartın hər açılışında). Nəticə eynidir, sorğu sayı 14 → 1.
+//
+//  ⚠️ `getCedvel(dept, …)` ilə ƏVƏZ ETMƏK olmazdı: o, `dept` üzrə süzür,
+//  bu isə `emp_id` üzrə. İşçi filial dəyişəndə köhnə sətirlərdə `dept` köhnə
+//  qalır (`updateEmployeeDept` yalnız GƏLƏCƏK günləri köçürür), yəni cari
+//  həftənin keçmiş günləri itərdi. Ona görə süzgəc eyni saxlanıldı.
+//
+//  Təkrar sətirdə qayda `getEmployeeShift` ilə eynidir — ən böyük `cedvel_id`
+//  qalib. Artan sıra ilə oxuyub üstünə yazırıq: sonuncu = ən böyük.
+async function getEmployeeShifts(empId, dateStrs) {
+  const out = {};
+  const dates = [...new Set((dateStrs || []).filter(Boolean))];
+  if (!dates.length) return out;
+  const { data } = await db().from('cedvel')
+    .select('date_str,shift_type,cedvel_id')
+    .eq('emp_id', String(empId)).in('date_str', dates)
+    .order('cedvel_id', { ascending: true });
+  for (const r of data || []) out[r.date_str] = r.shift_type || null;
+  return out;
+}
+
 async function hasApprovedLeave(empId, dateStr) {
   const { data } = await db().from('izin')
     .select('start_date,end_date').eq('emp_id', String(empId)).eq('status', 'approved');
@@ -1298,7 +1321,7 @@ module.exports = {
   isTaxiDay, taxiLimitFor, weekStartYMD, computeRestDayPay, ayPencere,
   avansAitYMD, pickAvansForMonth,
   getShiftConfig, defaultShiftConfig, defaultShiftTemplate, getLateLimit, shiftLabel,
-  getEmployeeShift, hasApprovedLeave, getApprovedLatePerm, pickLatestPermTime,
+  getEmployeeShift, getEmployeeShifts, hasApprovedLeave, getApprovedLatePerm, pickLatestPermTime,
   newId,
   photoDataError, cleanHexColor, cleanStyleId, PHOTO_MAX_CHARS,
   deptToSlug, slugToDept,
