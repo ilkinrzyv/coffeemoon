@@ -31,7 +31,9 @@ const AUTH_ENFORCE = process.env.AUTH_ENFORCE !== 'false';
 const API_POLICY = {
   // ── İşçilər
   getEmployees: 'admin',            // secret (login açarı) qaytarır → yalnız admin
-  getEmployeesLite: 'public',       // secret-siz siyahı (/exam və trainer paneli üçün)
+  // F-08-dən sonra `/exam` roster-ə baxmır (işçi öz secret-i ilə tanınır),
+  // ona görə açıq qalmasına ehtiyac yoxdur — yalnız trainer paneli çağırır.
+  getEmployeesLite: 'staff',
   addEmployee: 'admin', removeEmployee: 'admin',
   recalcAllStreaks: 'admin', recalcAllXP: 'admin', recalcAllFines: 'admin',
   updateEmployeeMessage: 'admin', getEmployeesByDept: 'admin',
@@ -180,9 +182,17 @@ const API_POLICY = {
   getExamQuestions: 'staff',        // DÜZGÜN CAVABLARI da qaytarır → açıq qalmamalıdır
   saveExamQuestion: 'self', deleteExamQuestion: 'self',
 
-  // ── İşçi özü imtahanı (/exam səhifəsinin açarı yoxdur)
-  getExamStatus: 'public', setExamStatus: 'self',
-  getExamQuestionsPublic: 'public', submitEmployeeExam: 'public',
+  // ── İşçi özü imtahanı
+  //  ⚠️ `/exam` ARTIQ AÇARSIZ DEYİL (F-08) — işçinin kart `secret`-i ilə açılır.
+  //  `getExamStatus` açarsız da çağırıla bilər (trainer paneli yalnız `active`
+  //  bayrağını soruşur); işçi məlumatı YALNIZ etibarlı `secret` ilə qaytarılır,
+  //  yəni yoxlama funksiyanın öz içindədir → `'self'`.
+  getExamStatus: 'self', setExamStatus: 'self',
+  // F-08: hər ikisi artıq işçinin `secret`-ini alır və özü yoxlayır.
+  // Əvvəl `'public'` idi → kimlik yoxlanmırdı, XP fermi açıq idi.
+  // ⚠️ Ad `getMyExamQuestions`-dur: sadə `getExamQuestions` TRAINER-in
+  // funksiyasıdır (yuxarıda, `'staff'`) və düzgün cavabları da qaytarır.
+  getMyExamQuestions: 'self', submitEmployeeExam: 'self',
 
   // ── FİLİALLAR (Faza 1) — filial artıq datadır, kod deyil
   getBranches: 'staff',

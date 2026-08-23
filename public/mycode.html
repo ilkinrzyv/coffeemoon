@@ -1834,6 +1834,20 @@
   <!-- PANEL 1: GÜNDƏLİK -->
   <div class="tab-panel" id="panel-gundelik">
 
+    <!-- İMTAHAN (F-08) — yalnız treynər imtahanı aktiv edəndə görünür.
+         Ümumi `/exam` linki silindi: səhifə işçinin öz kart açarı ilə açılır,
+         yəni kimsə başqasının adından imtahan verə bilmir. -->
+    <div class="lunch-card" id="examCard" style="display:none;">
+      <div class="lunch-card-header">
+        <i class="fa-solid fa-graduation-cap"></i>
+        <div class="week-card-title">İmtahan</div>
+      </div>
+      <div id="examCardBody" style="font-size:0.8rem;color:var(--text-soft);line-height:1.5;margin-bottom:10px;"></div>
+      <button class="btn-refresh" id="examOpenBtn" style="width:100%;justify-content:center;" onclick="openExam()">
+        <i class="fa-solid fa-play"></i> İmtahana Başla
+      </button>
+    </div>
+
     <div class="lunch-card" id="lunchCard">
       <div class="lunch-card-header">
         <i class="fa-solid fa-utensils"></i>
@@ -2308,6 +2322,34 @@
     else { stopEmpScan(); }
   }
 
+  // ── İMTAHAN KARTI ────────────────────────────────────────────────
+  //  Kart yalnız imtahan AKTİV olanda görünür. «Bu gün verilib» halında
+  //  düymə yerinə izah göstərilir — işçi boş yerə açıb geri qayıtmasın.
+  function initExamCard() {
+    google.script.run
+      .withSuccessHandler(function(st) {
+        if (!st || !st.active || !st.known) return;
+        var card = document.getElementById('examCard');
+        var body = document.getElementById('examCardBody');
+        var btn  = document.getElementById('examOpenBtn');
+        if (st.doneToday) {
+          body.innerHTML = '<i class="fa-solid fa-circle-check" style="color:var(--success);"></i> ' +
+                           'Bu gün imtahan vermisiniz. Sabah yenidən cəhd edə bilərsiniz.';
+          btn.style.display = 'none';
+        } else {
+          body.textContent = 'Treynər imtahanı aktiv edib. Gündə bir dəfə verilə bilər.';
+          btn.style.display = '';
+        }
+        card.style.display = 'block';
+      })
+      .withFailureHandler(function(){})
+      .getExamStatus(SECRET);
+  }
+
+  function openExam() {
+    window.location.href = '/exam?secret=' + encodeURIComponent(SECRET);
+  }
+
   // ── AUTH ─────────────────────────────────────────────────────────
   if (SECRET) {
     google.script.run
@@ -2326,6 +2368,7 @@
         }
 
         document.getElementById('emergencyBtn').style.display = 'flex';
+        initExamCard();
         initLatePermCard();
         loadMyAvans();
         setInterval(updateApp, 1000);

@@ -152,33 +152,44 @@ body{background:var(--bg);background-image:radial-gradient(ellipse 80% 60% at 20
   </div>
 </div>
 
+<!-- ══ BU GÜN ARTIQ VERİLİB ══ -->
+<!-- Gündə bir imtahan qaydası: nəticə ekranı düzgün cavabları göstərir
+     (təlimin faydası budur), ona görə təkrar göndərmə bağlıdır. -->
+<div id="s-done" class="hidden" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:70vh;text-align:center;gap:0.75rem;">
+  <div style="width:80px;height:80px;border-radius:24px;background:rgba(16,185,129,0.1);display:flex;align-items:center;justify-content:center;margin-bottom:0.5rem;">
+    <i class="fa-solid fa-circle-check" style="font-size:2rem;color:var(--success,#10b981);"></i>
+  </div>
+  <div style="font-size:1.3rem;font-weight:800;color:var(--text-main);">Bu gün imtahan verilib</div>
+  <div style="font-size:0.88rem;color:var(--text-muted);max-width:300px;line-height:1.55;">
+    Gündə bir imtahan verilə bilər. Sabah yenidən cəhd edə bilərsiniz.
+  </div>
+</div>
+
 <!-- ══ QURAŞDIRMA ══ -->
 <div id="s-setup" class="hidden">
   <div class="page-header">
     <div class="page-logo"><i class="<?= brandIcon ?>"></i> <?= brandName ?></div>
     <div class="page-title">İmtahan</div>
-    <div class="page-sub">Filial, ad və vəzifənizi seçib başlayın</div>
+    <div class="page-sub">Vəzifənizi seçib başlayın</div>
   </div>
 
+  <!-- Kim olduğu SERVERDƏN gəlir (kart açarı ilə) — əvvəl işçi siyahıdan
+       özünü seçirdi, yəni kim olduğunu söyləyirdi, sübut etmirdi. -->
   <div class="card">
-    <div class="sec-label"><span class="sec-num">1</span> Filialınız</div>
-    <!-- Filial düymələri serverdən qurulur (əvvəl 4 düymə burada sabit idi) -->
-    <div class="grid-2" id="branchBtns">
-      <div style="grid-column:1/-1;color:var(--text-muted);font-size:0.85rem;padding:0.5rem 0;">Yüklənir...</div>
+    <div class="sec-label">Kim imtahan verir</div>
+    <div style="display:flex;align-items:center;gap:12px;padding:0.35rem 0;">
+      <div style="width:44px;height:44px;border-radius:14px;background:rgba(var(--primary-rgb),0.1);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+        <i class="fa-solid fa-user" style="color:var(--primary);"></i>
+      </div>
+      <div style="min-width:0;">
+        <div id="meName" style="font-size:1rem;font-weight:800;color:var(--text-main);">Yüklənir...</div>
+        <div id="meDept" style="font-size:0.82rem;color:var(--text-muted);font-weight:600;"></div>
+      </div>
     </div>
   </div>
 
-  <div class="card hidden" id="empCard">
-    <div class="sec-label"><span class="sec-num">2</span> Adınız
-      <span id="branchLbl" style="font-weight:700;color:var(--primary);text-transform:none;letter-spacing:0;margin-left:4px;"></span>
-    </div>
-    <div class="emp-list" id="empList">
-      <div class="empty"><i class="fa-solid fa-circle-notch fa-spin"></i><p>Yüklənir...</p></div>
-    </div>
-  </div>
-
-  <div class="card hidden" id="roleCard">
-    <div class="sec-label"><span class="sec-num">3</span> Vəzifəniz</div>
+  <div class="card" id="roleCard">
+    <div class="sec-label">Vəzifəniz</div>
     <div class="role-grid">
       <button class="role-btn" id="roleKassir" onclick="pickRole('kassir',this)">
         <i class="fa-solid fa-cash-register"></i><span>Kassir</span>
@@ -229,90 +240,38 @@ body{background:var(--bg);background-image:radial-gradient(ellipse 80% 60% at 20
 </div>
 <script src="/gsr-shim.js"></script>
 <script>
-// İmtahan səhifəsinin açarı yoxdur — hansı müştəriyə aid olduğunu link
-// (`/exam?t=<id>`) bildirir, gsr-shim isə bunu X-CM-Tenant kimi göndərir.
-var TENANT_HINT = <?= tenantHint_js ?>;
+// İşçinin öz kart açarı — səhifə `/exam?secret=…` ilə açılır (kartdakı
+// «İmtahan» düyməsindən). gsr-shim bunu `X-CM-Key` kimi göndərir, server
+// isə həm müştərini, həm də KİMİN imtahan verdiyini ondan tanıyır.
+// Əvvəl səhifə açarsız idi və işçi siyahıdan özünü seçirdi (F-08).
+var SECRET = <?= secret_js ?>;
 
 // ── State ─────────────────────────────────────────────────────────
-var selBranch=null, selEmpId=null, selEmpName=null, selRole=null;
-var allEmps=[], examQs=[], curIdx=0;
+var selRole=null, examQs=[], curIdx=0;
 var testAnswers={};   // questionId → option label (test sualları)
 var openAnswers={};   // questionId → text (açıq suallar)
 
-// ── Yüklənmə — aktivlik yoxlaması ────────────────────────────────
+// ── Yüklənmə — aktivlik + kimlik + günlük vəziyyət (bir çağırış) ─────
 google.script.run
-  .withSuccessHandler(function(status) {
+  .withSuccessHandler(function(st) {
     document.getElementById('s-loading').style.display = 'none';
-    if (status && status.active) {
-      document.getElementById('s-setup').classList.remove('hidden');
-    } else {
-      document.getElementById('s-inactive').classList.remove('hidden');
-    }
+    if (!st || !st.active)   { document.getElementById('s-inactive').classList.remove('hidden'); return; }
+    if (!st.known)           { document.getElementById('s-inactive').classList.remove('hidden'); return; }
+    if (st.doneToday)        { document.getElementById('s-done').classList.remove('hidden'); return; }
+    document.getElementById('meName').textContent = st.empName || '';
+    document.getElementById('meDept').textContent = st.dept || '';
+    document.getElementById('s-setup').classList.remove('hidden');
   })
   .withFailureHandler(function() {
     document.getElementById('s-loading').style.display = 'none';
     document.getElementById('s-inactive').classList.remove('hidden');
   })
-  .getExamStatus();
+  .getExamStatus(SECRET);
 
 // ── Quraşdırma ────────────────────────────────────────────────────
-// Filial düymələri serverdən qurulur — hansı müştəri olduğu linkdəki `?t=`
-// göstəricisindən bilinir (yuxarıdakı TENANT_HINT).
-google.script.run
-  .withSuccessHandler(function(list){
-    var box = document.getElementById('branchBtns');
-    var depts = list || [];
-    if (!depts.length) {
-      box.innerHTML = '<div style="grid-column:1/-1;color:var(--text-muted);font-size:0.85rem;">Filial tapılmadı.</div>';
-      return;
-    }
-    box.innerHTML = depts.map(function(d){
-      return '<button class="sel-btn" data-dept="'+escAttr(d)+'" onclick="pickBranch(this.dataset.dept,this)">'+
-             '<i class="fa-solid fa-store"></i> '+escAttr(d)+'</button>';
-    }).join('');
-  })
-  .withFailureHandler(function(){
-    document.getElementById('branchBtns').innerHTML =
-      '<div style="grid-column:1/-1;color:var(--danger);font-size:0.85rem;">Filiallar yüklənmədi.</div>';
-  })
-  .getDeptList();
-
-function escAttr(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-
-function pickBranch(dept, btn) {
-  document.querySelectorAll('#s-setup .sel-btn').forEach(function(b){ b.classList.remove('active'); });
-  btn.classList.add('active');
-  selBranch=dept; selEmpId=null; selEmpName=null; selRole=null;
-  document.getElementById('branchLbl').textContent='— '+dept;
-  document.getElementById('roleCard').classList.add('hidden');
-  document.getElementById('empCard').classList.remove('hidden');
-  document.getElementById('empList').innerHTML='<div class="empty"><i class="fa-solid fa-circle-notch fa-spin"></i><p>Yüklənir...</p></div>';
-  resetRoleBtns(); checkStart();
-  if (allEmps.length) { renderEmps(dept); return; }
-  google.script.run
-    .withSuccessHandler(function(d){ allEmps=d||[]; renderEmps(dept); })
-    .withFailureHandler(function(){ document.getElementById('empList').innerHTML='<div class="empty"><i class="fa-solid fa-triangle-exclamation"></i><p>Xəta baş verdi.</p></div>'; })
-    .getEmployeesLite();
-}
-
-function renderEmps(dept) {
-  var list=document.getElementById('empList'), f=allEmps.filter(function(e){ return e.dept===dept; });
-  if (!f.length) { list.innerHTML='<div class="empty"><i class="fa-solid fa-users-slash"></i><p>İşçi tapılmadı.</p></div>'; return; }
-  list.innerHTML=f.map(function(e){
-    return '<button class="emp-btn" onclick="pickEmp(\''+e.id+'\',\''+e.name.replace(/'/g,"\\'")+'\',this)"><div class="emp-av">'+e.name.charAt(0)+'</div><span>'+e.name+'</span></button>';
-  }).join('');
-  document.getElementById('empCard').scrollIntoView({ behavior:'smooth', block:'nearest' });
-}
-
-function pickEmp(id, name, btn) {
-  document.querySelectorAll('#empList .emp-btn').forEach(function(b){ b.classList.remove('active'); });
-  btn.classList.add('active');
-  selEmpId=id; selEmpName=name; selRole=null;
-  resetRoleBtns();
-  document.getElementById('roleCard').classList.remove('hidden');
-  document.getElementById('roleCard').scrollIntoView({ behavior:'smooth', block:'nearest' });
-  checkStart();
-}
+// Filial və ad seçimi SİLİNDİ (F-08): kimlik `secret`-dən gəlir.
+// Onunla birlikdə `getDeptList` və `getEmployeesLite` çağırışları da getdi —
+// bu səhifə artıq bütün işçilərin siyahısını görmür.
 
 function pickRole(role, btn) {
   resetRoleBtns(); btn.classList.add('active-'+role); selRole=role;
@@ -326,7 +285,7 @@ function resetRoleBtns() {
 }
 
 function checkStart() {
-  document.getElementById('startBtn').disabled = !(selBranch && selEmpId && selRole);
+  document.getElementById('startBtn').disabled = !selRole;
 }
 
 // ── İmtahan başlat ────────────────────────────────────────────────
@@ -348,7 +307,7 @@ function startExam() {
       btn.disabled=false; btn.innerHTML='<i class="fa-solid fa-play"></i> İmtahana Başla';
       alert('Xəta: '+(e.message||'bilinmir'));
     })
-    .getExamQuestionsPublic(selRole);
+    .getMyExamQuestions(SECRET, selRole);
 }
 
 // ── Sual render ───────────────────────────────────────────────────
@@ -456,7 +415,7 @@ function submitExam() {
       btn.disabled=false; btn.innerHTML='<i class="fa-solid fa-check-double"></i> Bitir';
       alert('Xəta: '+(e.message||'bilinmir'));
     })
-    .submitEmployeeExam(selEmpId, selEmpName, selBranch, selRole, payload);
+    .submitEmployeeExam(SECRET, selRole, payload);
 }
 
 // ── Nəticə ────────────────────────────────────────────────────────

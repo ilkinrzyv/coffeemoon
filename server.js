@@ -396,7 +396,19 @@ function hintedPage(file, extraVars) {
 }
 
 app.get('/scan', hintedPage('passpage.html'));
-app.get('/exam', hintedPage('exam.html'));
+
+// ── İMTAHAN ───────────────────────────────────────────────────────
+//  F-08: səhifə ƏVVƏL açarsız idi (`/exam?t=<slug>`) və işçi siyahıdan ÖZÜNÜ
+//  seçirdi — yəni kim olduğunu SÖYLƏYİRDİ, sübut etmirdi. İndi işçinin öz
+//  kart açarı (`secret`) ilə açılır, eynilə `/mycode` kimi: kimlik serverdə
+//  həll olunur, səhifə heç kimin adından danışa bilmir.
+//  Link işçinin öz kartındakı «İmtahan» düyməsindən gəlir.
+app.get('/exam', tenantPage(['employee'], (req, res) => {
+  const { secret = '' } = req.query;
+  res.send(replaceVars(readTemplate('exam.html'), {
+    ...brandVars(), secret, scriptUrl: scriptUrlOf(req),
+  }));
+}));
 
 // ── İŞÇİ KARTI ────────────────────────────────────────────────────
 app.get('/mycode', tenantPage(['employee'], (req, res) => {
@@ -5125,9 +5137,26 @@ API.deleteExamQuestion = async (trainerKey, questionId) => {
 
 // ── İŞÇİ ÖZÜ İMTAHAN ────────────────────────────────────────────
 
-API.getExamStatus = async () => ({
-  active: U.getSetting('EXAM_ACTIVE') === 'true',
-});
+//  Bir çağırışda hər şey: imtahan açıqdırmı, işçi kimdir, bu gün veribmi.
+//  `secret` OLMADAN da işləyir — trainer paneli yalnız `active` bayrağını
+//  soruşur (onun öz açarı var, işçi secret-i yoxdur).
+API.getExamStatus = async (secret) => {
+  const active = examOpen();
+  if (!secret) return { active };
+
+  const { data: emp } = await db().from('employees')
+    .select('id,name,dept').eq('secret', secret).single();
+  if (!emp) return { active, known: false };
+
+  return {
+    active,
+    known:     true,
+    empId:     emp.id,
+    empName:   emp.name,
+    dept:      emp.dept,
+    doneToday: await selfExamToday(emp.id, U.getLogicalYMD(new Date())),
+  };
+};
 
 API.setExamStatus = async (trainerKey, active) => {
   if (!roleKey('trainer') || roleKey('trainer') !== trainerKey)
@@ -5136,9 +5165,46 @@ API.setExamStatus = async (trainerKey, active) => {
   return { success: true, active };
 };
 
-// Düzgün cavablar göndərilmir — test + açıq suallar birlikdə qaytarılır
-API.getExamQuestionsPublic = async (role) => {
+// ── İMTAHAN QAYDALARI (F-08) ─────────────────────────────────────
+//  `submitEmployeeExam` `'public'` idi və HEÇ NƏ yoxlamırdı: `empId` sadəcə
+//  arqument idi, `EXAM_ACTIVE` baxılmırdı, limit yox idi, cavabda isə DÜZGÜN
+//  CAVABLAR qayıdırdı. Yəni zəncir açıq idi — sualları al, bir dəfə göndər,
+//  düzgün cavabları oxu, 100% ilə SONSUZ sayda yenidən göndər. Hər dəfə XP.
+//
+//  Düzgün cavabların qaytarılması QƏSDƏN saxlanılır: nəticə ekranındakı
+//  «harada səhv etdim» icmalı təlimin əsas faydasıdır. Fermanı bağlayan şey
+//  cavabları gizlətmək yox, GÜNDƏ BİR imtahan qaydasıdır — onunla XP artıq
+//  namuslu işçinin ala biləcəyi qədərdir.
+function examOpen() {
+  return U.getSetting('EXAM_ACTIVE') === 'true';
+}
+
+// İşçi bu MƏNTİQİ gündə artıq özü imtahan veribmi?
+// Yalnız «özü» imtahanları sayılır — trainer-in keçirdiyi imtahan ayrı işdir
+// və işçinin öz cəhdini bloklamamalıdır.
+const SELF_EXAM_LABEL = 'Özü';
+
+async function selfExamToday(empId, ymd) {
+  const { data } = await db().from('trainer_exams')
+    .select('exam_id').eq('emp_id', String(empId)).eq('date_str', ymd).eq('trainer_name', SELF_EXAM_LABEL);
+  return (data || []).length > 0;
+}
+
+// Düzgün cavablar göndərilmir — test + açıq suallar birlikdə qaytarılır.
+// F-08: `EXAM_ACTIVE` BURADA da yoxlanılır. Əvvəl yalnız səhifə onu soruşurdu
+// (`getExamStatus`), yəni API-yə birbaşa müraciətlə bağlı imtahanın sualları
+// da alınırdı. Bayraq bir yerdə deyil, HƏR qapıda yoxlanmalıdır.
+//  ⚠️ ADI DƏYİŞDİ: `getExamQuestionsPublic` → `getMyExamQuestions`.
+//  Köhnə ad yalan deyirdi (funksiya artıq işçinin `secret`-ini tələb edir),
+//  sadəcə `getExamQuestions` isə TRAINER-in sual idarəetmə funksiyasıdır —
+//  o, düzgün cavabları da qaytarır və `'staff'` olaraq qalmalıdır.
+//  `getMy…` prefiksi paneldəki digər işçi funksiyaları ilə eynidir.
+//  `/exam` service worker-də keşlənmir, ona görə köhnə ad qalmır.
+API.getMyExamQuestions = async (secret, role) => {
+  if (!examOpen()) return [];
   if (!['kassir','barista'].includes(role)) return [];
+  const { data: emp } = await db().from('employees').select('id').eq('secret', secret).single();
+  if (!emp) return [];
   const { data } = await db().from('exam_questions')
     .select('question_id,text,type,options,category,role')
     .eq('active', true).order('sort_order');
@@ -5155,62 +5221,83 @@ API.getExamQuestionsPublic = async (role) => {
 };
 
 // Server-side qiymətləndirmə: test → avtomatik, açıq → saxlanır (null)
-API.submitEmployeeExam = async (empId, empName, dept, role, answers) => {
-  if (!empId || !empName || !dept || !role || !answers?.length)
+//  F-08: imza `(empId, empName, dept, role, answers)` idi və funksiya `'public'`.
+//  Yəni `empId` sadəcə arqument idi — istənilən şəxs istənilən işçinin adından
+//  imtahan göndərə (və ona XP yaza) bilirdi. İndi kimlik `secret`-dən çıxır,
+//  ad/filial isə bazadan — müştəri onları uydura bilmir.
+API.submitEmployeeExam = async (secret, role, answers) => {
+  if (!secret || !role || !answers?.length)
     return { success: false, reason: 'Məlumatlar natamamdır.' };
+  if (!examOpen()) return { success: false, reason: 'İmtahan hazırda bağlıdır.' };
 
-  const testIds = answers.filter(a => a.type === 'test').map(a => a.questionId).filter(Boolean);
-  const cMap = {};
-  if (testIds.length) {
-    const { data: qs } = await db().from('exam_questions')
-      .select('question_id,correct').in('question_id', testIds);
-    for (const q of qs || []) cMap[q.question_id] = q.correct;
+  const { data: emp } = await db().from('employees')
+    .select('id,name,dept,streak,is_test').eq('secret', secret).single();
+  if (!emp) return { success: false, reason: 'İşçi tapılmadı. Kartınızı yenidən açın.' };
+
+  const ts  = new Date();
+  const ymd = U.getLogicalYMD(ts);
+
+  // Gündə bir imtahan — fermanı bağlayan qayda budur.
+  if (await selfExamToday(emp.id, ymd)) {
+    return { success: false, reason: 'Bu gün artıq imtahan vermisiniz. Sabah yenidən cəhd edə bilərsiniz.' };
   }
 
-  let score = 0, testTotal = 0;
-  const graded = answers.map(a => {
-    if (a.type === 'test') {
-      testTotal++;
-      const correct = cMap[a.questionId] || '';
-      const passed  = !!correct && a.given === correct;
-      if (passed) score++;
-      return { questionId:a.questionId, text:a.text, category:a.category,
-               options:a.options||[], correct, given:a.given||null, passed, type:'test' };
-    } else {
-      // Açıq sual — mətni saxla, qiymət trainer tərəfindən
-      return { questionId:a.questionId, text:a.text, category:a.category,
-               options:[], correct:'', given:null, givenText:a.givenText||'', passed:null, type:'open' };
-    }
-  });
+  // Sual mətni, variantlar və tip də BAZADAN götürülür — müştəri yalnız
+  // «hansı suala nə cavab verdim» deyir. Əvvəl `text`/`options` göndərildiyi
+  // kimi saxlanılırdı və trainer panelində göstərilirdi (uydurma sual riski).
+  const qIds = [...new Set(answers.map(a => a.questionId).filter(Boolean))];
+  const { data: qRows } = qIds.length
+    ? await db().from('exam_questions')
+        .select('question_id,text,type,options,category,correct').in('question_id', qIds)
+    : { data: [] };
+  const qMap = {};
+  for (const q of qRows || []) qMap[q.question_id] = q;
 
-  const ts     = new Date();
+  let score = 0, testTotal = 0;
+  const graded = [];
+  for (const a of answers) {
+    const q = qMap[a.questionId];
+    if (!q) continue;                       // silinmiş/naməlum sual — sayılmır
+    if (q.type === 'test') {
+      testTotal++;
+      const passed = !!q.correct && a.given === q.correct;
+      if (passed) score++;
+      graded.push({ questionId:q.question_id, text:q.text, category:q.category || '',
+                    options:q.options || [], correct:q.correct, given:a.given || null,
+                    passed, type:'test' });
+    } else {
+      // Açıq sual — cavab mətni saxlanılır, qiyməti trainer verir
+      graded.push({ questionId:q.question_id, text:q.text, category:q.category || '',
+                    options:[], correct:'', given:null,
+                    givenText:String(a.givenText || '').slice(0, 2000), passed:null, type:'open' });
+    }
+  }
+  if (!graded.length) return { success: false, reason: 'Sual tapılmadı. Səhifəni yeniləyin.' };
+
   const examId = U.newId('EX-');
   const { error } = await db().from('trainer_exams').insert({
     exam_id:      examId,
-    trainer_name: 'Özü',
-    dept,
-    emp_id:       String(empId),
-    emp_name:     String(empName),
+    trainer_name: SELF_EXAM_LABEL,
+    dept:         emp.dept,
+    emp_id:       String(emp.id),
+    emp_name:     emp.name,
     score,
     max_score:    graded.length,
     answers:      graded,
     note:         '',
-    date_str:     U.getLogicalYMD(ts),
+    date_str:     ymd,
     created_at:   ts.toISOString(),
   });
   sbErr('submitEmployeeExam', error);
   if (!error && testTotal > 0) {
     const pct = Math.round(score / testTotal * 100);
     const xpBase = U.examXP(pct);
-    if (xpBase > 0) {
-      const { data: empRow } = await db().from('employees').select('streak,is_test').eq('id', String(empId)).single();
-      if (empRow && !empRow.is_test) await awardXP(empId, xpBase, empRow.streak || 0);
-    }
+    if (xpBase > 0 && !emp.is_test) await awardXP(emp.id, xpBase, emp.streak || 0);
   }
   // İmtahan bitdi → trainerə push bildiriş (Telegram yox)
   if (!error) {
     const openCount = graded.filter(a => a.type === 'open').length;
-    const parts = [`${empName} (${dept}) imtahanı bitirdi.`];
+    const parts = [`${emp.name} (${emp.dept}) imtahanı bitirdi.`];
     if (testTotal > 0)   parts.push(`Test: ${score}/${testTotal} düz.`);
     if (openCount > 0)   parts.push(`${openCount} açıq sual qiymət gözləyir.`);
     const pExam = U.fillPush('examDone', { metn: parts.join(' ') });

@@ -321,16 +321,16 @@ header{background:linear-gradient(135deg,rgba(255,255,255,0.94) 0%,rgba(240,253,
         <button id="examToggleBtn" onclick="toggleExamActive()" style="border:none;padding:6px 14px;border-radius:10px;cursor:pointer;font-size:0.8rem;font-weight:800;font-family:'Inter',sans-serif;transition:all 0.2s;background:rgba(15,23,42,0.07);color:var(--text-muted);">—</button>
       </div>
 
-      <!-- İşçi imtahan linki -->
-      <div style="background:rgba(var(--primary-rgb),0.06);border:1.5px solid rgba(var(--primary-rgb),0.15);border-radius:14px;padding:0.85rem 1rem;margin-bottom:1rem;display:flex;align-items:center;gap:10px;">
-        <i class="fa-solid fa-link" style="color:var(--primary);flex-shrink:0;"></i>
+      <!-- İşçi imtahanı: ümumi link YOXDUR (F-08) -->
+      <div style="background:rgba(var(--primary-rgb),0.06);border:1.5px solid rgba(var(--primary-rgb),0.15);border-radius:14px;padding:0.85rem 1rem;margin-bottom:1rem;display:flex;align-items:flex-start;gap:10px;">
+        <i class="fa-solid fa-id-card" style="color:var(--primary);flex-shrink:0;margin-top:3px;"></i>
         <div style="flex:1;min-width:0;">
-          <div style="font-size:0.72rem;font-weight:700;color:var(--text-muted);margin-bottom:2px;">İşçi İmtahan Linki</div>
-          <div id="examLinkText" style="font-size:0.8rem;font-weight:600;color:var(--primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
+          <div style="font-size:0.72rem;font-weight:700;color:var(--text-muted);margin-bottom:3px;">İşçilər imtahanı necə açır</div>
+          <div style="font-size:0.8rem;font-weight:600;color:var(--text-soft);line-height:1.5;">
+            İşçi öz kartını açır → <b>İmtahan</b> düyməsi. Ümumi link artıq yoxdur:
+            hər kəs yalnız öz adından imtahan verə bilsin deyə səhifə kart açarı ilə açılır.
+          </div>
         </div>
-        <button onclick="copyExamLink()" style="border:none;background:var(--primary);color:#fff;padding:5px 10px;border-radius:9px;cursor:pointer;font-size:0.75rem;font-weight:700;font-family:'Inter',sans-serif;flex-shrink:0;" title="Linki kopyala">
-          <i class="fa-solid fa-copy"></i>
-        </button>
       </div>
 
       <!-- Filtrlər: hamısı / kassir / barista -->
@@ -486,9 +486,7 @@ function switchImtahanTab(s) {
 var _examActive = false;
 
 function setExamLink() {
-  var url = window.location.origin + '/exam';
-  var el  = document.getElementById('examLinkText');
-  if (el) el.textContent = url;
+  // Ümumi imtahan linki SİLİNDİ (F-08) — işçi öz kartından açır.
   loadExamStatus();
 }
 
@@ -535,11 +533,6 @@ function toggleExamActive() {
     })
     .withFailureHandler(function(){ toast('Xəta baş verdi','err'); })
     .setExamStatus(TRAINER_KEY, newActive);
-}
-
-function copyExamLink() {
-  var url = window.location.origin + '/exam';
-  navigator.clipboard.writeText(url).then(function(){ toast('Link kopyalandı ✓', 'ok'); }).catch(function(){ toast('Kopyalama alınmadı', 'err'); });
 }
 
 // ════════════════════════════════════════════════════════════════

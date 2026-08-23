@@ -96,11 +96,28 @@ check(access('getExamQuestions', FAKE.TRAINER_KEY).ok, 'trainer sualları görm�
 check(!access('getExamQuestions', '').ok, 'imtahan cavabları açıq qalıb!');
 check(!access('getMonthlyReport', '').ok, 'hesabat açarsız açıqdır!');
 
-// public funksiyalar həmişə keçməlidir
-section('4) Açıq (public) funksiyalar açarsız işləyir');
-for (const fn of ['validateAndLog', 'checkScanDevice', 'getEmployeesLite', 'submitEmployeeExam', 'getExamQuestionsPublic', 'getExamStatus']) {
+// Dispatcher-in QARIŞMADIĞI funksiyalar — kiosk və işçi kartı onları
+// açar başlığı olmadan da çağıra bilir. Bunlar `'public'` və ya `'self'`-dir;
+// `'self'` o deməkdir ki, yoxlama funksiyanın ÖZ İÇİNDƏDİR (secret arqumenti).
+section('4) Açarsız çağırıla bilən funksiyalar');
+for (const fn of ['validateAndLog', 'checkScanDevice', 'submitEmployeeExam', 'getExamStatus']) {
   check(access(fn, '').ok, `${fn} açarsız rədd olunur — səhifə sınacaq!`);
 }
+//  ⚠️ `submitEmployeeExam` burada olması onun AÇIQ olması demək DEYİL:
+//  dispatcher ona toxunmur, amma funksiya özü etibarlı `secret` tələb edir
+//  (F-08). Davranış yoxlaması `test-exam.js`-dədir — siyasət cədvəli onu
+//  tuta bilməz, ona görə iki test bir-birini tamamlayır.
+
+// ── F-08: əvvəl AÇIQ olan iki qapı artıq bağlıdır ──────────────────────
+//  `getEmployeesLite` bütün işçi ID-lərini verirdi, `getExamQuestionsPublic`
+//  isə imtahan suallarını — ikisi birlikdə XP ferminin girişi idi.
+//  İndi roster panel açarı istəyir, suallar isə işçinin öz secret-i ilə
+//  `getMyExamQuestions`-dan gəlir.
+section('4b) F-08 — imtahan zənciri bağlandı');
+check(!access('getEmployeesLite', '').ok, 'işçi siyahısı hələ də açarsız açıqdır!');
+check(access('getEmployeesLite', FAKE.TRAINER_KEY).ok, 'trainer paneli işçi siyahısını görmür!');
+check(!access('getExamQuestionsPublic', '').ok, 'köhnə `getExamQuestionsPublic` hələ keçir!');
+check(!access('getExamQuestions', '').ok, 'trainer sualları (düzgün cavablarla) açıqdır!');
 // getEmployeesLite secret sızdırmamalıdır
 const lite = srv.match(/API\.getEmployeesLite[\s\S]*?\n\};/);
 check(lite && !/secret/.test(lite[0]), 'getEmployeesLite secret qaytarır!');
