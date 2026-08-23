@@ -70,7 +70,7 @@ const PLATFORM_KEY = process.env.PLATFORM_KEY || '';
 //
 //  Env-dədir, çünki bu, yerləşdirmənin (deployment) xüsusiyyətidir —
 //  müştəri datası deyil. Dəyişmək üçün deploy lazım deyil.
-const VENDOR_NAME = process.env.VENDOR_NAME || 'IR & Co.';
+const VENDOR_NAME = process.env.VENDOR_NAME || 'IR Systems';
 
 // ══════════════════════════════════════════════════════════════════════════
 //  KONTEKST

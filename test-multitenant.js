@@ -487,7 +487,7 @@ function seedCaches() {
 
   // ══════════════════════════════════════════════════════════════════════
   section('16. Altlıq satıcını göstərir, müştərini yox');
-  //  Panellərin altlığındakı «created by …» ƏVVƏL müştərinin öz brendindən
+  //  Panellərin altlığındakı «Powered by …» ƏVVƏL müştərinin öz brendindən
   //  gəlirdi (`tenants.brand.footer`, ilkin dəyər müştərinin adı). Yəni
   //  Coffeemoon paneli «created by Coffeemoon» yazırdı — müştəri özünü
   //  öz-özünə təqdim edirdi, ikinci müştəri isə «created by Joe's Pizza»
@@ -512,18 +512,30 @@ function seedCaches() {
     fsv.readFileSync(pathv.join(__dirname, 'public', f), 'utf8').includes('brandFooter'));
   ok(kohne.length === 0, 'heç bir paneldə `brandFooter` qalmayıb', kohne.join(', '));
 
-  //  «created by» yazan hər panel satıcı adını işlətməlidir.
+  //  Altlığı olan hər panel satıcı adını işlətməlidir.
   const altligi = paneller.filter(f =>
-    fsv.readFileSync(pathv.join(__dirname, 'public', f), 'utf8').includes('created by'));
+    fsv.readFileSync(pathv.join(__dirname, 'public', f), 'utf8').includes('Powered by'));
   const sehv = altligi.filter(f =>
-    !fsv.readFileSync(pathv.join(__dirname, 'public', f), 'utf8').includes('created by <?= vendorName ?>'));
+    !fsv.readFileSync(pathv.join(__dirname, 'public', f), 'utf8').includes('Powered by <?= vendorName ?>'));
   ok(altligi.length >= 7, `altlığı olan panel sayı: ${altligi.length}`);
   ok(sehv.length === 0, 'hamısı `vendorName` işlədir', sehv.join(', '));
 
+  //  ⚠️ Versiya ARTIQ HARDCODE DEYİL. Əvvəl altlıqlarda `1.0.1` yazılırdı,
+  //  package.json isə çoxdan `3.0.0` idi — yəni panel YALAN göstərirdi.
+  //  İndi görünmür, `data-v` atributunda package.json-dan gəlir.
+  const hardcode = paneller.filter(f =>
+    /version\s+\d+\.\d+\.\d+/.test(fsv.readFileSync(pathv.join(__dirname, 'public', f), 'utf8')));
+  ok(hardcode.length === 0, 'heç bir paneldə hardcode versiya yoxdur', hardcode.join(', '));
+  const veratr = altligi.filter(f =>
+    fsv.readFileSync(pathv.join(__dirname, 'public', f), 'utf8').includes('data-v="<?= appVersion ?>"'));
+  ok(veratr.length === altligi.length,
+     'versiya `data-v` atributunda saxlanılır (köhnə keş diaqnozu üçün)',
+     `${veratr.length}/${altligi.length}`);
+
   //  Ad `&` daşıyır — şablon onu HTML kontekstində qaçırmalıdır, yoxsa
   //  səhifə etibarsız HTML verir (tpl.js elə bunun üçün var).
-  const cixis = require('./tpl').replaceVars('created by <?= vendorName ?>', { vendorName: 'IR & Co.' });
-  ok(cixis === 'created by IR &amp; Co.', '`&` HTML-də qaçırılır', cixis);
+  const cixis = require('./tpl').replaceVars('Powered by <?= vendorName ?>', { vendorName: 'IR & Co.' });
+  ok(cixis === 'Powered by IR &amp; Co.', '`&` daşıyan ad HTML-də qaçırılır', cixis);
 
   // ══════════════════════════════════════════════════════════════════════
   console.log(`\n${'═'.repeat(62)}`);

@@ -226,6 +226,11 @@ function readTemplate(name) {
 // Şablon dəyərləri təhlükəsiz yerləşdirilir — izahı və qaçış qaydaları tpl.js-də.
 const { htmlEscape, replaceVars } = require('./tpl');
 const auditlog = require('./audit');
+//  Versiya TƏK MƏNBƏDƏN — package.json. Əvvəl altlıqlarda `1.0.1` hardcode idi
+//  və package.json artıq `3.0.0` olduğu üçün YALAN göstərirdi. İndi görünmür,
+//  amma `<footer data-v>` atributunda qalır: PWA köhnə nüsxəni keşləyəndə
+//  «hansı versiyadasan» sualının cavabı lazım olur (bu, real hadisə olub).
+const APP_VERSION = require('./package.json').version;
 
 // ── Brend rəngi ──────────────────────────────────────────────────
 //  Panellərin hamısı `--primary` CSS dəyişənindən istifadə edir. Müştərinin
@@ -298,6 +303,7 @@ function brandVars() {
     brandColor: b.themeColor,
     brandBg:    b.bgColor,
     vendorName: T.VENDOR_NAME,
+    appVersion: APP_VERSION,
     brandCss:   brandCssVars(b.themeColor),
     brandTerms: JSON.stringify(termOverrides()),
     tenantId:   (t && t.tenant_id) || '',
