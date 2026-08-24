@@ -314,8 +314,15 @@ function brandVars() {
 // ══════════════════════════════════════════════════════════════════
 //  AÇILIŞ EKRANI (splash)
 // ══════════════════════════════════════════════════════════════════
-//  Panel açılanda qısa marka anı: «Powered by IR SYSTEMS» görünür, sonra
-//  örtük böyüyüb şəffaflaşır — kamera sanki nişanın içindən keçir.
+//  Panel açılanda qısa marka anı: «Powered by IR SYSTEMS» görünür, nişanın
+//  üstündən işıq zolağı keçir, sonra örtük pərdə kimi yuxarı qalxır.
+//
+//  Vaxt cədvəli (cəmi 1.30 san):
+//    0.00 → 0.30   nişan yumşaq görünür        (irsIn)
+//    0.26 → 0.88   işıq zolağı soldan sağa     (irsShine)
+//    0.80 → 1.30   örtük yuxarı qalxır         (irsCurtain)
+//  Zolaq bitməmiş pərdə başlayır — bu, QƏSDƏNDİR: aralıq boşluq qalsa
+//  animasiya iki ayrı hərəkət kimi görünür, üst-üstə düşəndə tək axın olur.
 //
 //  ⚠️ ƏSAS QAYDA: bu, AÇILIŞA VAXT ƏLAVƏ ETMİR. Panellər onsuz da
 //  «Yüklənir…» göstərir; örtük həmin boş vaxtın ÜSTÜNƏ qoyulmur, onu
@@ -341,7 +348,18 @@ function brandVars() {
 //  Qayda odur ki, «hərəkəti azalt» BÜTÜN keçidi silmək demək deyil —
 //  BÖYÜK hərəkəti silmək deməkdir. İndi miqyas yoxdur, yalnız yumşaq
 //  şəffaflıq keçidi var və müddət demək olar ki eynidir.
-const SPLASH_MS = 1500;          // təhlükəsizlik taymeri — hər halda götürülür
+//
+//  ⚠️ İKİNCİ TƏLƏ — «animationend» hadisəsini ADLA yoxlamaq.
+//  Əvvəlki yazılışda dinləyici `animationName==='irsThrough'` axtarırdı,
+//  amma kiçik ekranda ad `irsThroughSm`, «hərəkəti azalt»da isə `irsFade`
+//  olurdu — yəni hər iki halda örtüyü animasiya yox, EHTİYAT TAYMERİ
+//  götürürdü. Görünüşdə bilinmirdi (örtük artıq şəffaf idi), amma ekranda
+//  lazımsız qat qalırdı. İndi ad yox, HƏDƏF yoxlanır: `v.target===e`.
+//  Kök elementdə yalnız çıxış animasiyası olduğu üçün bu, effekti
+//  dəyişdirsək də sınmır.
+//
+//  Taymer animasiyanın SONUNDAN sonra gəlməlidir: 1.30 san + ehtiyat.
+const SPLASH_MS = 1900;          // təhlükəsizlik taymeri — hər halda götürülür
 
 function splashBlock() {
   const rgb  = hexToRgb(T.brand().themeColor) || [91, 94, 244];
@@ -350,32 +368,39 @@ function splashBlock() {
   //  Böyük hərfə çevirmə CSS-dədir, JS-də YOX: `'i'.toUpperCase()` azərbaycanca
   //  «İ» yox, «I» verir. `text-transform` isə `<html lang="az">` qaydasına baxır.
   const ad   = htmlEscape(T.VENDOR_NAME);
+  //  Zolaq nişandan SONRA gəlir və `z-index:2`-dir ki, işıq yazının
+  //  ÜSTÜNDƏN keçsin — metal loqolardakı parıltı effekti budur.
   return `<div id="irSplash" aria-hidden="true"><div class="irs-bg"></div>` +
-    `<div class="irs-mark"><span class="irs-pw">Powered by</span><span class="irs-nm">${ad}</span></div></div>` +
+    `<div class="irs-mark"><span class="irs-pw">Powered by</span><span class="irs-nm">${ad}</span></div>` +
+    `<div class="irs-shine"></div></div>` +
     `<style>#irSplash{position:fixed;inset:0;z-index:2147483000;display:grid;place-items:center;` +
-    `pointer-events:none;will-change:transform,opacity;` +
-    `animation:irsThrough .62s cubic-bezier(.55,0,.35,1) .40s forwards}` +
+    `pointer-events:none;overflow:hidden;will-change:transform,opacity;` +
+    `animation:irsCurtain .50s cubic-bezier(.76,0,.24,1) .80s forwards}` +
     `#irSplash .irs-bg{position:absolute;inset:0;background:linear-gradient(160deg,${base} 0%,${deep} 100%)}` +
     `#irSplash .irs-mark{position:relative;text-align:center;color:#fff;` +
     `font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;animation:irsIn .30s ease-out both}` +
     `#irSplash .irs-pw{display:block;font-size:11px;font-weight:600;letter-spacing:.24em;` +
     `text-transform:uppercase;opacity:.62;margin-bottom:5px}` +
     `#irSplash .irs-nm{display:block;font-size:27px;font-weight:700;letter-spacing:.05em;text-transform:uppercase}` +
-    `@keyframes irsThrough{to{transform:scale(3.4);opacity:0}}` +
-    `@keyframes irsThroughSm{to{transform:scale(2.4);opacity:0}}` +
+    `#irSplash .irs-shine{position:absolute;inset:0;z-index:2;transform:translateX(-100%);` +
+    `will-change:transform;background:linear-gradient(105deg,transparent 38%,` +
+    `rgba(255,255,255,.42) 50%,transparent 62%);` +
+    `animation:irsShine .62s cubic-bezier(.4,0,.3,1) .26s forwards}` +
+    `@keyframes irsShine{to{transform:translateX(100%)}}` +
+    `@keyframes irsCurtain{to{transform:translateY(-101%)}}` +
     `@keyframes irsIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}` +
     `@keyframes irsFade{to{opacity:0}}` +
     `@keyframes irsInSoft{from{opacity:0}to{opacity:1}}` +
-    // Telefonda tam ekran qradiyenti 3.4 dəfə böyütmək ağır qatdır — 2.4 kifayətdir,
-    // görünüş eynidir. (Bu blok «hərəkəti azalt»dan ƏVVƏL gəlməlidir ki, o üstələsin.)
-    `@media(max-width:520px){#irSplash{animation-name:irsThroughSm}}` +
-    // Miqyas TAMAM söndürülür, keçid isə qalır — yalnız şəffaflıq dəyişir.
+    // «Hərəkəti azalt»: sürüşmə də, qalxma da söndürülür — yalnız yumşaq
+    // şəffaflıq keçidi qalır. Zolaq `display:none`-dur, yoxsa ekranın
+    // eninə hərəkət edən ən böyük detal məhz o olardı.
     `@media(prefers-reduced-motion:reduce){` +
     `#irSplash{animation:irsFade .34s ease-in .52s forwards}` +
+    `#irSplash .irs-shine{display:none}` +
     `#irSplash .irs-mark{animation:irsInSoft .24s ease-out both}}</style>` +
     `<script>(function(){var e=document.getElementById('irSplash');if(!e)return;var g=false;` +
     `function go(){if(g)return;g=true;if(e.parentNode)e.parentNode.removeChild(e);}` +
-    `e.addEventListener('animationend',function(v){if(v.animationName==='irsThrough')go();});` +
+    `e.addEventListener('animationend',function(v){if(v.target===e)go();});` +
     `setTimeout(go,${SPLASH_MS});})();<\/script>`;
 }
 

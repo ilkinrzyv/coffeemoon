@@ -584,12 +584,38 @@ function seedCaches() {
   ok(azaltma && /irsFade/.test(azaltma[1]) && /irsInSoft/.test(azaltma[1]),
      'əvəzinə yumşaq şəffaflıq keçidi verilir (miqyas yoxdur)');
 
-  //  Telefonda tam ekran qradiyenti 3.4 dəfə böyütmək ağır qatdır.
-  ok(/@media\(max-width:520px\)\{#irSplash\{animation-name:irsThroughSm\}\}/.test(srcS),
-     'kiçik ekranda miqyas azaldılır');
-  ok(srcS.indexOf('max-width:520px') < srcS.indexOf('prefers-reduced-motion'),
-     'azaltma qaydası kiçik-ekran qaydasından SONRA gəlir (üstələməlidir)');
+  ok(azaltma && /irs-shine\{display:none\}/.test(azaltma[1]),
+     'azaltma rejimində işıq zolağı tamam söndürülür (ən böyük hərəkət odur)');
   ok(/will-change:transform,opacity/.test(srcS), 'qat GPU-ya verilir (titrəməsin)');
+
+  //  ── İŞIQ effekti ────────────────────────────────────────────────────
+  //  Zolaq nişandan SONRA gəlməlidir, yoxsa işıq yazının altından keçər.
+  const iM = srcS.indexOf('irs-mark"><span class="irs-pw"');
+  const iS = srcS.indexOf('class="irs-shine"');
+  ok(iM > 0 && iS > iM, 'işıq zolağı nişandan sonra yerləşir (üstündən keçsin)');
+  ok(/irs-shine\{[^}]*z-index:2/.test(srcS), 'zolaq nişanın üstündədir (z-index)');
+  ok(/irs-shine\{[^}]*transform:translateX\(-100%\)/.test(srcS),
+     'zolağın başlanğıc yeri ekrandan kənardadır (ilk kadrda parıltı görünməsin)');
+  ok(/#irSplash\{[^}]*overflow:hidden/.test(srcS),
+     'zolaq ekrandan kənara çıxanda üfüqi sürüşmə yaratmır');
+
+  //  ⚠️ İKİNCİ REAL TƏLƏ: hadisəni ADLA yoxlamaq.
+  //  Əvvəl `animationName==='irsThrough'` yoxlanırdı; kiçik ekranda ad
+  //  `irsThroughSm`, azaltma rejimində `irsFade` olurdu — hər iki halda
+  //  örtüyü animasiya deyil, ehtiyat taymeri götürürdü. İndi hədəf yoxlanır.
+  ok(/animationend'?,function\(v\)\{if\(v\.target===e\)go\(\)/.test(srcS),
+     'örtük animasiya ADI ilə yox, HƏDƏFİ ilə götürülür (ad dəyişsə sınmır)');
+  const dinl = /addEventListener\('animationend'[^`]*/.exec(srcS);
+  ok(dinl && !dinl[0].includes('animationName'),
+     'dinləyicidə animasiya adına bağlılıq qalmayıb', dinl && dinl[0].slice(0, 70));
+
+  //  Taymer animasiyanın sonundan SONRA gəlməlidir, yoxsa pərdəni yarıda kəsər.
+  const cur = /animation:irsCurtain ([\d.]+)s [^`]*? ([\d.]+)s forwards/.exec(srcS);
+  const ms  = /const SPLASH_MS = (\d+)/.exec(srcS);
+  const cem = cur ? (parseFloat(cur[1]) + parseFloat(cur[2])) * 1000 : NaN;
+  ok(cur && ms && Number(ms[1]) > cem,
+     'təhlükəsizlik taymeri animasiyadan uzundur (pərdə yarıda kəsilmir)',
+     `animasiya ${cem}ms · taymer ${ms && ms[1]}ms`);
 
   // ══════════════════════════════════════════════════════════════════════
   console.log(`\n${'═'.repeat(62)}`);
