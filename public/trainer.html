@@ -433,6 +433,7 @@ header{background:linear-gradient(135deg,rgba(255,255,255,0.94) 0%,rgba(240,253,
 </div><!-- /wrap -->
 <div id="toast"></div>
 <script src="/gsr-shim.js"></script>
+<script src="/common.js"></script>
 <script>
 // var (const yox) — gsr-shim açarı window üzərindən oxuyur (const window-a düşmür).
 var TRAINER_KEY  = <?= trainerKey_js ?>;
@@ -554,7 +555,7 @@ function selectBranch(dept, btn) {
 function renderEmpList(dept) {
   var list=document.getElementById('empList'), f=allEmps.filter(function(e){return e.dept===dept;});
   if (!f.length){list.innerHTML='<div class="empty"><i class="fa-solid fa-users-slash"></i><p>İşçi tapılmadı.</p></div>';return;}
-  list.innerHTML=f.map(function(e){return '<button class="emp-btn" onclick="selectEmp(\''+e.id+'\',\''+e.name.replace(/'/g,"\\'")+'\',this)"><div class="emp-av">'+e.name.charAt(0)+'</div><span>'+e.name+'</span></button>';}).join('');
+  list.innerHTML=f.map(function(e){return '<button class="emp-btn" onclick="selectEmp(\''+escJs(e.id)+'\',\''+escJs(e.name)+'\',this)"><div class="emp-av">'+e.name.charAt(0)+'</div><span>'+esc(e.name)+'</span></button>';}).join('');
   document.getElementById('empCard').scrollIntoView({behavior:'smooth',block:'nearest'});
 }
 
@@ -582,7 +583,7 @@ function renderChecklist() {
       var ck=checks[item.id]||{};
       html+='<div class="cl-item'+(ck.checked?' chk':'')+'" id="ci-'+item.id+'">'+
         '<div class="cl-item-top" onclick="toggleItem(\''+item.id+'\')"><div class="cl-circle"><i class="fa-solid fa-check"></i></div>'+
-        '<span class="cl-item-txt">'+item.text+'</span><span class="cl-cat-tag">'+(item.category||'')+'</span></div>'+
+        '<span class="cl-item-txt">'+esc(item.text)+'</span><span class="cl-cat-tag">'+(item.category||'')+'</span></div>'+
         '<div class="cl-note-wrap"><textarea class="cl-note-input" rows="1" placeholder="Qeyd..." id="note-'+item.id+'" oninput="updateNote(\''+item.id+'\',this.value)">'+(ck.note||'')+'</textarea></div></div>';
     });
   });
@@ -614,8 +615,8 @@ function buildLogCard(log,uid){
   var items=log.items||[],done=items.filter(function(i){return i.checked;}).length,total=items.length;
   var pct=total?Math.round(done/total*100):0,clr=pct>=80?'var(--success)':pct>=50?'var(--warning)':'var(--danger)';
   var time=log.created_at?new Date(log.created_at).toLocaleTimeString('az-AZ',{hour:'2-digit',minute:'2-digit'}):'';
-  var rows=items.map(function(item){var ok=item.checked;return '<div style="display:flex;align-items:flex-start;gap:8px;padding:6px 0;border-bottom:1px solid rgba(15,23,42,0.04);"><div style="width:20px;height:20px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;margin-top:1px;'+(ok?'background:rgba(16,185,129,0.12);':'background:rgba(239,68,68,0.07);')+'"><i class="fa-solid '+(ok?'fa-check':'fa-xmark')+'" style="font-size:0.6rem;color:'+(ok?'#10b981':'#ef4444')+'"></i></div><div style="flex:1;"><div style="font-size:0.83rem;font-weight:600;color:'+(ok?'var(--text-main)':'var(--danger)')+';">'+item.text+'</div>'+(item.note?'<div style="font-size:0.76rem;color:#92400e;background:rgba(245,158,11,0.07);border-radius:6px;padding:3px 7px;margin-top:3px;">'+item.note+'</div>':'')+'</div><span style="font-size:0.68rem;color:var(--text-soft);white-space:nowrap;padding-top:2px;">'+(item.category||'')+'</span></div>';}).join('');
-  return '<div class="log-card"><div onclick="trToggle(\''+uid+'\')" style="cursor:pointer;"><div class="log-head"><div class="log-emp">'+(log.emp_name||'—')+'</div><span class="log-dept">'+log.dept+'</span><span class="log-time">'+time+'</span></div><div style="display:flex;align-items:center;gap:10px;"><div style="flex:1;height:5px;background:rgba(15,23,42,0.07);border-radius:100px;overflow:hidden;"><div style="height:100%;width:'+pct+'%;background:'+clr+';border-radius:100px;"></div></div><span style="font-size:0.8rem;font-weight:700;color:'+clr+';white-space:nowrap;"><i class="fa-solid fa-check-double"></i> '+done+'/'+total+' ('+pct+'%)</span><i class="fa-solid fa-chevron-down" id="ico-'+uid+'" style="font-size:0.75rem;color:var(--text-soft);transition:transform 0.25s;flex-shrink:0;"></i></div></div><div id="det-'+uid+'" style="overflow:hidden;max-height:0;transition:max-height 0.35s ease;"><div style="padding-top:10px;border-top:1px solid rgba(15,23,42,0.05);margin-top:10px;">'+rows+(log.general_note?'<div class="log-note" style="margin-top:8px;"><i class="fa-solid fa-note-sticky"></i> <b>Qeyd:</b> '+log.general_note+'</div>':'')+'</div></div></div>';
+  var rows=items.map(function(item){var ok=item.checked;return '<div style="display:flex;align-items:flex-start;gap:8px;padding:6px 0;border-bottom:1px solid rgba(15,23,42,0.04);"><div style="width:20px;height:20px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;margin-top:1px;'+(ok?'background:rgba(16,185,129,0.12);':'background:rgba(239,68,68,0.07);')+'"><i class="fa-solid '+(ok?'fa-check':'fa-xmark')+'" style="font-size:0.6rem;color:'+(ok?'#10b981':'#ef4444')+'"></i></div><div style="flex:1;"><div style="font-size:0.83rem;font-weight:600;color:'+(ok?'var(--text-main)':'var(--danger)')+';">'+esc(item.text)+'</div>'+(item.note?'<div style="font-size:0.76rem;color:#92400e;background:rgba(245,158,11,0.07);border-radius:6px;padding:3px 7px;margin-top:3px;">'+esc(item.note)+'</div>':'')+'</div><span style="font-size:0.68rem;color:var(--text-soft);white-space:nowrap;padding-top:2px;">'+(item.category||'')+'</span></div>';}).join('');
+  return '<div class="log-card"><div onclick="trToggle(\''+uid+'\')" style="cursor:pointer;"><div class="log-head"><div class="log-emp">'+(log.emp_name||'—')+'</div><span class="log-dept">'+esc(log.dept)+'</span><span class="log-time">'+time+'</span></div><div style="display:flex;align-items:center;gap:10px;"><div style="flex:1;height:5px;background:rgba(15,23,42,0.07);border-radius:100px;overflow:hidden;"><div style="height:100%;width:'+pct+'%;background:'+clr+';border-radius:100px;"></div></div><span style="font-size:0.8rem;font-weight:700;color:'+clr+';white-space:nowrap;"><i class="fa-solid fa-check-double"></i> '+done+'/'+total+' ('+pct+'%)</span><i class="fa-solid fa-chevron-down" id="ico-'+uid+'" style="font-size:0.75rem;color:var(--text-soft);transition:transform 0.25s;flex-shrink:0;"></i></div></div><div id="det-'+uid+'" style="overflow:hidden;max-height:0;transition:max-height 0.35s ease;"><div style="padding-top:10px;border-top:1px solid rgba(15,23,42,0.05);margin-top:10px;">'+rows+(log.general_note?'<div class="log-note" style="margin-top:8px;"><i class="fa-solid fa-note-sticky"></i> <b>Qeyd:</b> '+log.general_note+'</div>':'')+'</div></div></div>';
 }
 function trToggle(uid){var d=document.getElementById('det-'+uid),ic=document.getElementById('ico-'+uid);if(!d)return;var open=d.style.maxHeight&&d.style.maxHeight!=='0px';d.style.maxHeight=open?'0px':d.scrollHeight+200+'px';if(ic)ic.style.transform=open?'':'rotate(180deg)';}
 
@@ -631,7 +632,7 @@ function loadMaterials(){
 function renderMaterials(){
   var el=document.getElementById('materialsList');
   if (!allMaterials.length){el.innerHTML='<div class="empty"><i class="fa-solid fa-book-open"></i><p>Hələ material əlavə edilməyib.</p></div>';return;}
-  el.innerHTML=allMaterials.map(function(m,i){var uid='mat-'+i;return '<div class="mat-card"><div class="mat-head">'+(m.body?'<i class="fa-solid fa-chevron-right mat-expand" id="'+uid+'-ico" onclick="toggleMat(\''+uid+'\')"></i>':'<span style="width:18px;"></span>')+'<div class="mat-title">'+(m.title||'—')+'</div>'+(m.category?'<span class="mat-cat">'+m.category+'</span>':'')+'<button class="del-btn" onclick="deleteMaterial(\''+m.materialId+'\')" title="Sil"><i class="fa-solid fa-trash"></i></button></div>'+(m.body?'<div class="mat-body" id="'+uid+'-body"><div class="mat-body-inner">'+m.body.replace(/\n/g,'<br>')+'</div></div>':'')+'</div>';}).join('');
+  el.innerHTML=allMaterials.map(function(m,i){var uid='mat-'+i;return '<div class="mat-card"><div class="mat-head">'+(m.body?'<i class="fa-solid fa-chevron-right mat-expand" id="'+uid+'-ico" onclick="toggleMat(\''+uid+'\')"></i>':'<span style="width:18px;"></span>')+'<div class="mat-title">'+(m.title||'—')+'</div>'+(m.category?'<span class="mat-cat">'+esc(m.category)+'</span>':'')+'<button class="del-btn" onclick="deleteMaterial(\''+m.materialId+'\')" title="Sil"><i class="fa-solid fa-trash"></i></button></div>'+(m.body?'<div class="mat-body" id="'+uid+'-body"><div class="mat-body-inner">'+m.body.replace(/\n/g,'<br>')+'</div></div>':'')+'</div>';}).join('');
 }
 function toggleMat(uid){var body=document.getElementById(uid+'-body'),ico=document.getElementById(uid+'-ico');if(!body)return;var open=body.style.maxHeight&&body.style.maxHeight!=='0px';body.style.maxHeight=open?'0px':body.scrollHeight+'px';if(ico)ico.style.transform=open?'':'rotate(90deg)';}
 function toggleAddMaterial(){var form=document.getElementById('addMatForm'),open=!form.classList.contains('hidden');form.classList.toggle('hidden',open);document.getElementById('matToggleBtn').innerHTML=open?'<i class="fa-solid fa-plus"></i> Yeni Material Əlavə Et':'<i class="fa-solid fa-minus"></i> Bağla';}
@@ -668,9 +669,9 @@ function renderExamQList(){
     return '<div class="qm-card">'+
       '<span class="qm-type '+(isTest?'qm-test':'qm-open')+'">'+(isTest?'Test':'Açıq')+'</span>'+
       '<div class="qm-content">'+
-        '<div class="qm-text">'+q.text+'</div>'+
+        '<div class="qm-text">'+esc(q.text)+'</div>'+
         '<div class="qm-meta">'+
-          (q.category?'<span style="font-size:0.74rem;color:var(--text-soft);">'+q.category+'</span>':'')+
+          (q.category?'<span style="font-size:0.74rem;color:var(--text-soft);">'+esc(q.category)+'</span>':'')+
           '<span class="role-badge role-'+q.role+'">'+roleLbl+'</span>'+
         '</div>'+
         (opts?'<div class="qm-opts">'+opts+'</div>':'')+
@@ -758,18 +759,18 @@ function buildExamCard(exam,uid){
     else{iconBg='background:rgba(239,68,68,0.07);';iconName='fa-xmark';iconColor='#ef4444';}
     var textColor=isPending?'var(--text-muted)':ok?'var(--text-main)':'var(--danger)';
     var answerInfo='';
-    if(isTest&&a.given){answerInfo='<div style="font-size:0.74rem;color:var(--text-muted);margin-top:2px;">Cavab: <b>'+a.given+'</b>'+(a.given!==a.correct?' (Düzgün: <b style="color:var(--success)">'+a.correct+'</b>)':'')+'</div>';}
-    else if(!isTest&&a.givenText){answerInfo='<div style="font-size:0.78rem;color:var(--text-muted);margin-top:4px;background:rgba(15,23,42,0.03);border-radius:7px;padding:5px 8px;line-height:1.45;">'+a.givenText+'</div>';}
+    if(isTest&&a.given){answerInfo='<div style="font-size:0.74rem;color:var(--text-muted);margin-top:2px;">Cavab: <b>'+esc(a.given)+'</b>'+(a.given!==a.correct?' (Düzgün: <b style="color:var(--success)">'+a.correct+'</b>)':'')+'</div>';}
+    else if(!isTest&&a.givenText){answerInfo='<div style="font-size:0.78rem;color:var(--text-muted);margin-top:4px;background:rgba(15,23,42,0.03);border-radius:7px;padding:5px 8px;line-height:1.45;">'+esc(a.givenText)+'</div>';}
     var gradeButtons='';
     if(isPending&&exam.exam_id){gradeButtons='<div style="display:flex;gap:6px;margin-top:6px;"><button onclick="gradeOpen(\''+exam.exam_id+'\',\''+a.questionId+'\',true,this)" class="eq-open-btn" style="padding:4px 10px;font-size:0.75rem;border-radius:7px;"><i class="fa-solid fa-check"></i> Düzgün</button><button onclick="gradeOpen(\''+exam.exam_id+'\',\''+a.questionId+'\',false,this)" class="eq-open-btn" style="padding:4px 10px;font-size:0.75rem;border-radius:7px;"><i class="fa-solid fa-xmark"></i> Yanlış</button></div>';}
     return '<div style="display:flex;align-items:flex-start;gap:8px;padding:6px 0;border-bottom:1px solid rgba(15,23,42,0.04);">'
       +'<div style="width:20px;height:20px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;margin-top:1px;'+iconBg+'"><i class="fa-solid '+iconName+'" style="font-size:0.6rem;color:'+iconColor+'"></i></div>'
-      +'<div style="flex:1;min-width:0;"><div style="font-size:0.83rem;font-weight:600;color:'+textColor+';">'+a.text+'</div>'+answerInfo+gradeButtons+'</div>'
+      +'<div style="flex:1;min-width:0;"><div style="font-size:0.83rem;font-weight:600;color:'+textColor+';">'+esc(a.text)+'</div>'+answerInfo+gradeButtons+'</div>'
       +'<span style="font-size:0.65rem;color:var(--text-soft);white-space:nowrap;padding-top:3px;">'+(a.category||'')+'</span>'
       +'</div>';
   }).join('');
   var pendingBadge=hasPending?'<span style="font-size:0.67rem;font-weight:700;background:rgba(245,158,11,0.12);color:#d97706;padding:2px 8px;border-radius:6px;margin-left:6px;"><i class="fa-solid fa-clock" style="font-size:0.6rem;margin-right:3px;"></i>Gözləyir</span>':'';
-  return '<div class="log-card"><div onclick="trToggle(\''+uid+'\')" style="cursor:pointer;"><div class="log-head"><div class="log-emp">'+(exam.emp_name||'—')+roleBadge+pendingBadge+'</div><span class="log-dept" style="background:rgba(124,58,237,0.08);color:var(--purple);">'+(exam.dept||'')+'</span><span class="log-time">'+time+'</span></div><div style="display:flex;align-items:center;gap:10px;"><div style="flex:1;height:5px;background:rgba(15,23,42,0.07);border-radius:100px;overflow:hidden;"><div style="height:100%;width:'+pct+'%;background:'+barClr+';border-radius:100px;"></div></div><span class="grade-badge '+grCls+'">'+score+'/'+max+' ('+pct+'%) '+grLbl+'</span><i class="fa-solid fa-chevron-down" id="ico-'+uid+'" style="font-size:0.75rem;color:var(--text-soft);transition:transform 0.25s;flex-shrink:0;"></i></div></div><div id="det-'+uid+'" style="overflow:hidden;max-height:0;transition:max-height 0.35s ease;"><div style="padding-top:10px;border-top:1px solid rgba(15,23,42,0.05);margin-top:10px;">'+(rows||'<div style="font-size:0.82rem;color:var(--text-soft);">Cavab məlumatı yoxdur.</div>')+(exam.note?'<div class="log-note" style="margin-top:8px;"><i class="fa-solid fa-note-sticky"></i> <b>Qeyd:</b> '+exam.note+'</div>':'')+'</div></div></div>';
+  return '<div class="log-card"><div onclick="trToggle(\''+uid+'\')" style="cursor:pointer;"><div class="log-head"><div class="log-emp">'+(exam.emp_name||'—')+roleBadge+pendingBadge+'</div><span class="log-dept" style="background:rgba(124,58,237,0.08);color:var(--purple);">'+(exam.dept||'')+'</span><span class="log-time">'+time+'</span></div><div style="display:flex;align-items:center;gap:10px;"><div style="flex:1;height:5px;background:rgba(15,23,42,0.07);border-radius:100px;overflow:hidden;"><div style="height:100%;width:'+pct+'%;background:'+barClr+';border-radius:100px;"></div></div><span class="grade-badge '+grCls+'">'+score+'/'+max+' ('+pct+'%) '+grLbl+'</span><i class="fa-solid fa-chevron-down" id="ico-'+uid+'" style="font-size:0.75rem;color:var(--text-soft);transition:transform 0.25s;flex-shrink:0;"></i></div></div><div id="det-'+uid+'" style="overflow:hidden;max-height:0;transition:max-height 0.35s ease;"><div style="padding-top:10px;border-top:1px solid rgba(15,23,42,0.05);margin-top:10px;">'+(rows||'<div style="font-size:0.82rem;color:var(--text-soft);">Cavab məlumatı yoxdur.</div>')+(exam.note?'<div class="log-note" style="margin-top:8px;"><i class="fa-solid fa-note-sticky"></i> <b>Qeyd:</b> '+esc(exam.note)+'</div>':'')+'</div></div></div>';
 }
 function gradeOpen(examId,questionId,passed,btn){
   btn.disabled=true;btn.parentNode.querySelectorAll('button').forEach(function(b){b.disabled=true;});
@@ -827,7 +828,7 @@ function renderRateList() {
   if (!list.length) { el.innerHTML = '<div class="empty"><i class="fa-solid fa-users"></i><p>İşçi tapılmadı.</p></div>'; return; }
   el.innerHTML = list.map(function(e) {
     return '<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid rgba(15,23,42,0.05);">'
-      +'<div style="flex:1;min-width:0;"><div style="font-size:0.87rem;font-weight:700;color:var(--text-main);">'+e.name+'</div><div style="font-size:0.72rem;color:var(--text-muted);">'+e.dept+'</div></div>'
+      +'<div style="flex:1;min-width:0;"><div style="font-size:0.87rem;font-weight:700;color:var(--text-main);">'+esc(e.name)+'</div><div style="font-size:0.72rem;color:var(--text-muted);">'+esc(e.dept)+'</div></div>'
       +'<div style="display:flex;gap:5px;align-items:center;">'
         +'<button onclick="rateEmp(\''+e.id+'\',3,this)" title="Kafi +15 Bal" style="border:none;background:rgba(100,116,139,0.1);color:var(--text-muted);border-radius:8px;padding:5px 8px;cursor:pointer;font-size:0.72rem;font-weight:700;font-family:\'Inter\',sans-serif;">⭐⭐⭐<br><span style=\'font-size:0.6rem;\'>+15</span></button>'
         +'<button onclick="rateEmp(\''+e.id+'\',4,this)" title="Yaxşı +30 Bal" style="border:none;background:rgba(99,102,241,0.08);color:var(--kassir);border-radius:8px;padding:5px 8px;cursor:pointer;font-size:0.72rem;font-weight:700;font-family:\'Inter\',sans-serif;">⭐⭐⭐⭐<br><span style=\'font-size:0.6rem;\'>+30</span></button>'
@@ -980,12 +981,12 @@ function renderCedvel() {
     if (_cedvelDept === 'Hamısı' && emp.dept !== prevDept) {
       prevDept = emp.dept;
       html += '<tr><td colspan="'+(dates.length+1)+'" style="padding:8px 2px 4px;font-size:0.68rem;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;">'
-        + '<i class="fa-solid fa-store" style="margin-right:4px;opacity:0.6;"></i>' + emp.dept + '</td></tr>';
+        + '<i class="fa-solid fa-store" style="margin-right:4px;opacity:0.6;"></i>' + esc(emp.dept) + '</td></tr>';
     }
     // Bu işçinin bu həftə işi varmı?
     var hasShift = emp.schedule.some(function(s){ return s.shiftType && s.shiftType !== 'istirahetsm'; });
     html += '<tr>';
-    html += '<td>' + emp.empName + '</td>';
+    html += '<td>' + esc(emp.empName) + '</td>';
     emp.schedule.forEach(function(s) {
       var sm = SHIFT_MAP[s.shiftType || ''] || SHIFT_MAP[''];
       html += '<td>' + (sm.lbl !== '—'

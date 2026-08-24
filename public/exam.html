@@ -239,6 +239,7 @@ body{background:var(--bg);background-image:radial-gradient(ellipse 80% 60% at 20
 
 </div>
 <script src="/gsr-shim.js"></script>
+<script src="/common.js"></script>
 <script>
 // İşçinin öz kart açarı — səhifə `/exam?secret=…` ilə açılır (kartdakı
 // «İmtahan» düyməsindən). gsr-shim bunu `X-CM-Key` kimi göndərir, server
@@ -324,16 +325,16 @@ function renderQ(idx) {
     '<div class="q-meta">'+
       '<div class="q-num-badge" style="background:'+roleColor+';">'+(idx+1)+'</div>'+
       '<span class="q-type-badge '+(isTest?'q-type-test':'q-type-open')+'">'+(isTest?'Test':'Açıq sual')+'</span>'+
-      (q.category?'<span class="q-cat">'+q.category+'</span>':'')+
+      (q.category?'<span class="q-cat">'+esc(q.category)+'</span>':'')+
     '</div>'+
-    '<div class="q-text">'+q.text+'</div>';
+    '<div class="q-text">'+esc(q.text)+'</div>';
 
   if (isTest) {
     html+='<div class="options">';
     (q.options||[]).forEach(function(opt){
       var picked = testAnswers[q.questionId]===opt.label;
-      html+='<button class="opt-btn'+(picked?' picked':'')+'" onclick="pickOpt(\''+q.questionId+'\',\''+opt.label+'\')">'+
-        '<span class="opt-lbl">'+opt.label+'</span>'+opt.text+'</button>';
+      html+='<button class="opt-btn'+(picked?' picked':'')+'" onclick="pickOpt(\''+escJs(q.questionId)+'\',\''+escJs(opt.label)+'\')">'+
+        '<span class="opt-lbl">'+esc(opt.label)+'</span>'+esc(opt.text)+'</button>';
     });
     html+='</div>';
   } else {
@@ -449,7 +450,7 @@ function showResults(res) {
       '<div class="review-card">'+
         '<div class="review-head" onclick="toggleRv(\''+uid+'\')">'+
           '<div class="review-icon '+iconCls+'"><i class="fa-solid '+iconIco+'"></i></div>'+
-          '<div class="review-q">'+(i+1)+'. '+a.text+'</div>'+
+          '<div class="review-q">'+(i+1)+'. '+esc(a.text)+'</div>'+
           '<i class="fa-solid fa-chevron-down" id="'+uid+'-ico" style="font-size:0.7rem;color:var(--text-soft);transition:transform 0.25s;flex-shrink:0;margin-top:3px;"></i>'+
         '</div>'+
         '<div class="review-body" id="'+uid+'-body">';
