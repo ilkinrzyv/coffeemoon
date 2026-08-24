@@ -314,15 +314,29 @@ function brandVars() {
 // ══════════════════════════════════════════════════════════════════
 //  AÇILIŞ EKRANI (splash)
 // ══════════════════════════════════════════════════════════════════
-//  Panel açılanda qısa marka anı: «Powered by IR SYSTEMS» görünür, nişanın
-//  üstündən işıq zolağı keçir, sonra örtük pərdə kimi yuxarı qalxır.
+//  Panel açılanda qısa marka anı: ad möhür kimi düşür, zərbədən iki halqa
+//  yayılır, sonra örtük bütöv halda yuxarı qalxır.
 //
-//  Vaxt cədvəli (cəmi 1.30 san):
-//    0.00 → 0.30   nişan yumşaq görünür        (irsIn)
-//    0.26 → 0.88   işıq zolağı soldan sağa     (irsShine)
-//    0.80 → 1.30   örtük yuxarı qalxır         (irsCurtain)
-//  Zolaq bitməmiş pərdə başlayır — bu, QƏSDƏNDİR: aralıq boşluq qalsa
-//  animasiya iki ayrı hərəkət kimi görünür, üst-üstə düşəndə tək axın olur.
+//  Vaxt cədvəli (cəmi 1.26 san):
+//    0.00 → 0.38   ad möhür kimi düşür         (irsStamp)
+//    0.20 → 0.82   birinci halqa yayılır       (irsRing)
+//    0.22 → 0.50   «Powered by» sətri gəlir    (irsSub)
+//    0.30 → 1.04   ikinci, daha nazik halqa    (irsRing2)
+//    0.78 → 1.26   örtük bütöv qalxır          (irsLift)
+//
+//  Üç incəlik — «gözoxşayan» fərqi bunlardır:
+//    · Möhür 1.5-dən enir və 1-dən BİR AZ AŞAĞI keçib qayıdır: 175 ms-də
+//      0.974-ə düşüb 380 ms-də 1-ə oturur. Bu 2.6%-lik «çökmə» zərbəyə
+//      ağırlıq verir. Ölçülüdür — 1.2-lik təpə cəmi 0.6% verirdi (gözlə
+//      görünmürdü), 1.9 isə 8.5% (cizgi filmi kimi yaylanırdı).
+//    · İki halqa fərqli sürət və qalınlıqdadır; ikincisi daha nazik və
+//      daha solğundur — bir halqa «cizgi filmi», ikisi «dalğa» kimi çıxır.
+//    · Fon düz qradiyent deyil: mərkəzdə çox yumşaq işıqlanma var
+//      (radial qat). Statikdir, heç nəyə baha oturmur, amma yastı
+//      görünməyi aradan qaldırır.
+//
+//  Halqalar nişandan ƏVVƏL gəlir ki, dalğa yazının ARXASINDAN keçsin —
+//  üstündən keçsə yazı oxunmaz olur.
 //
 //  ⚠️ ƏSAS QAYDA: bu, AÇILIŞA VAXT ƏLAVƏ ETMİR. Panellər onsuz da
 //  «Yüklənir…» göstərir; örtük həmin boş vaxtın ÜSTÜNƏ qoyulmur, onu
@@ -358,7 +372,7 @@ function brandVars() {
 //  Kök elementdə yalnız çıxış animasiyası olduğu üçün bu, effekti
 //  dəyişdirsək də sınmır.
 //
-//  Taymer animasiyanın SONUNDAN sonra gəlməlidir: 1.30 san + ehtiyat.
+//  Taymer animasiyanın SONUNDAN sonra gəlməlidir: 1.26 san + ehtiyat.
 const SPLASH_MS = 1900;          // təhlükəsizlik taymeri — hər halda götürülür
 
 function splashBlock() {
@@ -368,35 +382,56 @@ function splashBlock() {
   //  Böyük hərfə çevirmə CSS-dədir, JS-də YOX: `'i'.toUpperCase()` azərbaycanca
   //  «İ» yox, «I» verir. `text-transform` isə `<html lang="az">` qaydasına baxır.
   const ad   = htmlEscape(T.VENDOR_NAME);
-  //  Zolaq nişandan SONRA gəlir və `z-index:2`-dir ki, işıq yazının
-  //  ÜSTÜNDƏN keçsin — metal loqolardakı parıltı effekti budur.
+  //  ⚠️ Şrift yığını nişanın SƏTİRLƏRİNƏ yazılır, təkcə qaba yox.
+  //  admin/checklist/trainer panellərində `*{font-family:'Inter',sans-serif}`
+  //  qaydası var; `*` birbaşa uyğun gəldiyi üçün mirası ÜSTƏLƏYİR. Inter isə
+  //  Google Fonts-dan gəlir — örtük məhz o yüklənərkən görünür. Yığın yalnız
+  //  qabda olsaydı, marka adı ilk saniyədə ümumi `sans-serif` ilə çıxardı.
+  const srift = `font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif`;
   return `<div id="irSplash" aria-hidden="true"><div class="irs-bg"></div>` +
-    `<div class="irs-mark"><span class="irs-pw">Powered by</span><span class="irs-nm">${ad}</span></div>` +
-    `<div class="irs-shine"></div></div>` +
+    `<div class="irs-ring"></div><div class="irs-ring irs-ring2"></div>` +
+    `<div class="irs-mark"><span class="irs-pw">Powered by</span><span class="irs-nm">${ad}</span></div></div>` +
     `<style>#irSplash{position:fixed;inset:0;z-index:2147483000;display:grid;place-items:center;` +
     `pointer-events:none;overflow:hidden;will-change:transform,opacity;` +
-    `animation:irsCurtain .50s cubic-bezier(.76,0,.24,1) .80s forwards}` +
-    `#irSplash .irs-bg{position:absolute;inset:0;background:linear-gradient(160deg,${base} 0%,${deep} 100%)}` +
-    `#irSplash .irs-mark{position:relative;text-align:center;color:#fff;` +
-    `font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;animation:irsIn .30s ease-out both}` +
-    `#irSplash .irs-pw{display:block;font-size:11px;font-weight:600;letter-spacing:.24em;` +
-    `text-transform:uppercase;opacity:.62;margin-bottom:5px}` +
-    `#irSplash .irs-nm{display:block;font-size:27px;font-weight:700;letter-spacing:.05em;text-transform:uppercase}` +
-    `#irSplash .irs-shine{position:absolute;inset:0;z-index:2;transform:translateX(-100%);` +
-    `will-change:transform;background:linear-gradient(105deg,transparent 38%,` +
-    `rgba(255,255,255,.42) 50%,transparent 62%);` +
-    `animation:irsShine .62s cubic-bezier(.4,0,.3,1) .26s forwards}` +
-    `@keyframes irsShine{to{transform:translateX(100%)}}` +
-    `@keyframes irsCurtain{to{transform:translateY(-101%)}}` +
-    `@keyframes irsIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}` +
+    `animation:irsLift .48s cubic-bezier(.72,0,.24,1) .78s forwards}` +
+    // Mərkəzdəki yumşaq işıqlanma statikdir — animasiya deyil, sadəcə fonun
+    // yastı görünməməsi üçün ikinci qat.
+    `#irSplash .irs-bg{position:absolute;inset:0;background:` +
+    `radial-gradient(115% 85% at 50% 40%,rgba(255,255,255,.15) 0%,rgba(255,255,255,0) 62%),` +
+    `linear-gradient(160deg,${base} 0%,${deep} 100%)}` +
+    // Halqalar şəbəkə xanasına düşməsin deyə mütləq yerləşdirilir — yoxsa
+    // grid onlara ayrıca sətir verir və nişanı yerindən oynadır.
+    `#irSplash .irs-ring{position:absolute;left:50%;top:50%;width:92px;height:92px;` +
+    `margin:-46px 0 0 -46px;border:1.5px solid #fff;border-radius:50%;opacity:0;` +
+    `will-change:transform,opacity;animation:irsRing .62s cubic-bezier(.16,.7,.3,1) .20s forwards}` +
+    `#irSplash .irs-ring2{border-width:1px;animation:irsRing2 .74s cubic-bezier(.16,.7,.3,1) .30s forwards}` +
+    `#irSplash .irs-mark{position:relative;text-align:center;color:#fff;${srift};` +
+    `animation:irsStamp .38s cubic-bezier(.2,1.4,.35,1) both}` +
+    // `line-height` də açıq yazılır: 7 panelin gövdə sətir hündürlüyü fərqlidir,
+    // miras qalsa nişanın şaquli ritmi hər panelde başqa cür çıxar.
+    `#irSplash .irs-pw{display:block;${srift};font-size:11px;font-weight:600;` +
+    `line-height:1.2;letter-spacing:.24em;text-transform:uppercase;opacity:0;` +
+    `margin-bottom:5px;animation:irsSub .28s ease-out .22s forwards}` +
+    `#irSplash .irs-nm{display:block;${srift};font-size:27px;font-weight:700;` +
+    `line-height:1.15;letter-spacing:.05em;text-transform:uppercase}` +
+    `@keyframes irsStamp{from{transform:scale(1.5);opacity:0}to{transform:scale(1);opacity:1}}` +
+    // Halqa 0-dan doğulur, 18%-də tam yanır, sonra sönür. Birbaşa .58-dən
+    // başlasaydı ekranda «şıqqıltı» kimi bir anlıq peyda olardı — dalğa yox.
+    `@keyframes irsRing{0%{transform:scale(.34);opacity:0}18%{opacity:.58}` +
+    `100%{transform:scale(2.4);opacity:0}}` +
+    `@keyframes irsRing2{0%{transform:scale(.34);opacity:0}18%{opacity:.3}` +
+    `100%{transform:scale(3.4);opacity:0}}` +
+    `@keyframes irsSub{to{opacity:.62}}` +
+    `@keyframes irsLift{to{transform:translateY(-101%)}}` +
     `@keyframes irsFade{to{opacity:0}}` +
     `@keyframes irsInSoft{from{opacity:0}to{opacity:1}}` +
-    // «Hərəkəti azalt»: sürüşmə də, qalxma da söndürülür — yalnız yumşaq
-    // şəffaflıq keçidi qalır. Zolaq `display:none`-dur, yoxsa ekranın
-    // eninə hərəkət edən ən böyük detal məhz o olardı.
+    // «Hərəkəti azalt»: möhür də, halqa da, qalxma da söndürülür — yalnız
+    // yumşaq şəffaflıq keçidi qalır. Müddət demək olar ki eynidir (0.86 san),
+    // yəni ekranda «heç nə olmadı» hissi yaranmır.
     `@media(prefers-reduced-motion:reduce){` +
     `#irSplash{animation:irsFade .34s ease-in .52s forwards}` +
-    `#irSplash .irs-shine{display:none}` +
+    `#irSplash .irs-ring{display:none}` +
+    `#irSplash .irs-pw{animation:none;opacity:.62}` +
     `#irSplash .irs-mark{animation:irsInSoft .24s ease-out both}}</style>` +
     `<script>(function(){var e=document.getElementById('irSplash');if(!e)return;var g=false;` +
     `function go(){if(g)return;g=true;if(e.parentNode)e.parentNode.removeChild(e);}` +
@@ -452,6 +487,16 @@ app.get('/vapid-public-key', (_, res) =>
 );
 
 // PWA manifesti — brend müştəridən gəlir (əvvəl "Coffeemoon" hardcode idi).
+//
+//  ⚠️ `background_color` QƏSDƏN `themeColor`-dur, `bgColor` DEYİL.
+//  Səbəb: quraşdırılmış PWA açılanda Chrome/iOS ÖZ açılış ekranını çəkir —
+//  `background_color` fonu, üstündə ikon və tətbiq adı. Bunu söndürən API
+//  YOXDUR. Əvvəl bu fon açıq-boz (`bgColor`) idi, örtüyümüz isə bənövşəyi:
+//  istifadəçi ARDICIL iki fərqli ekran görürdü. İndi hər ikisi eyni rəngdir,
+//  yəni sistem ekranı bizim örtüyün ilk kadrına qarışır — bir ekran görünür.
+//
+//  Yəni: rəngi dəyişəndə `splashBlock()`-dakı fonu da dəyiş, yoxsa tikiş
+//  yenidən görünəcək. İkisi də `brand().themeColor`-dan qidalanır.
 function sendManifest(res, { title, short, desc, startUrl, bg, theme }) {
   const b = T.brand();
   res.setHeader('Content-Type', 'application/manifest+json');
@@ -461,7 +506,7 @@ function sendManifest(res, { title, short, desc, startUrl, bg, theme }) {
     description: desc,
     start_url: startUrl,
     display: 'standalone',
-    background_color: bg || b.bgColor,
+    background_color: bg || b.themeColor,
     theme_color: theme || b.themeColor,
     orientation: 'portrait',
     icons: [

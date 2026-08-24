@@ -542,7 +542,14 @@ function seedCaches() {
   //  Örtük ŞABLONDA yox, SERVERDƏ yerləşdirilir — 7 faylda təkrarlansaydı
   //  biri geridə qalardı (bu bazada dəfələrlə baş verən dreyf). Aşağıdakılar
   //  həmin qərarı və onun kənar hallarını qoruyur.
-  const srcS = src;   // server.js mətni (§12-də oxunub)
+  //  ⚠️ `${srift}` şablon yeri fiqurlu mötərizə İLƏ BİTİR. Aşağıdakı
+  //  `irs-xx\{[^}]*...\}` naxışları onda vaxtından əvvəl kəsilirdi və testlər
+  //  səbəbsiz sınırdı. Ona görə yoxlamadan əvvəl yeri açırıq — böyləc
+  //  şriftin ÖZÜNÜ də yoxlaya bilirik, təkcə dəyişən adını yox.
+  const SRIFT = 'font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif';
+  const srcS  = src.replace(/\$\{srift\}/g, SRIFT);   // server.js mətni (§12-də oxunub)
+  ok(src.includes('const srift = `' + SRIFT + '`'),
+     'şrift yığını testin gözlədiyi ilə eynidir (dəyişəndə test xəbər versin)');
 
   ok(/function splashBlock\(/.test(srcS) && /function withSplash\(/.test(srcS),
      'örtük server tərəfdə qurulur');
@@ -584,20 +591,53 @@ function seedCaches() {
   ok(azaltma && /irsFade/.test(azaltma[1]) && /irsInSoft/.test(azaltma[1]),
      'əvəzinə yumşaq şəffaflıq keçidi verilir (miqyas yoxdur)');
 
-  ok(azaltma && /irs-shine\{display:none\}/.test(azaltma[1]),
-     'azaltma rejimində işıq zolağı tamam söndürülür (ən böyük hərəkət odur)');
+  ok(azaltma && /irs-ring\{display:none\}/.test(azaltma[1]),
+     'azaltma rejimində halqalar tamam söndürülür (ən böyük hərəkət onlardır)');
+  //  `.irs-pw` əsas qaydada `opacity:0`-dır və animasiya ilo gəlir. Azaltma
+  //  rejimində animasiya söndürülsə və opacity bərpa EDILMƏSƏ, sətir
+  //  həmişəlik görünməz qalardı — səssiz itki.
+  ok(azaltma && /irs-pw\{animation:none;opacity:\.62\}/.test(azaltma[1]),
+     'azaltma rejimində «Powered by» sətri geri qaytarılır (yoxsa görünməz qalardı)');
   ok(/will-change:transform,opacity/.test(srcS), 'qat GPU-ya verilir (titrəməsin)');
 
-  //  ── İŞIQ effekti ────────────────────────────────────────────────────
-  //  Zolaq nişandan SONRA gəlməlidir, yoxsa işıq yazının altından keçər.
-  const iM = srcS.indexOf('irs-mark"><span class="irs-pw"');
-  const iS = srcS.indexOf('class="irs-shine"');
-  ok(iM > 0 && iS > iM, 'işıq zolağı nişandan sonra yerləşir (üstündən keçsin)');
-  ok(/irs-shine\{[^}]*z-index:2/.test(srcS), 'zolaq nişanın üstündədir (z-index)');
-  ok(/irs-shine\{[^}]*transform:translateX\(-100%\)/.test(srcS),
-     'zolağın başlanğıc yeri ekrandan kənardadır (ilk kadrda parıltı görünməsin)');
+  //  ── MÖHÜR effekti ─────────────────────────────────────────
+  //  Halqalar nişandan ƏVVƏL gəlməlidir: DOM sırası boyama sırasıdır, sonra
+  //  gəlsəydən dalğa yazının ÜSTÜNDƏN keçər və ad oxunmaz olardı.
+  const iRing = srcS.indexOf('class="irs-ring"');
+  const iMark = srcS.indexOf('class="irs-mark"');
+  ok(iRing > 0 && iMark > iRing, 'halqalar nişandan əvvəl yerləşir (arxadan keçsin)');
+  ok(/irs-ring\{[^}]*position:absolute/.test(srcS),
+     'halqalar mütləq yerləşdirilib (grid onlara ayrı sətir verməsin)');
+  ok(/irs-ring\{[^}]*opacity:0/.test(srcS),
+     'halqanın başlanğıc şəffaflığı sıfırdır (ilk kadrda həlqə görünməsin)');
+  ok(/irs-pw\{[^}]*opacity:0/.test(srcS),
+     '«Powered by» başlanğıcda gizlidir (möhürdən sonra gəlir)');
   ok(/#irSplash\{[^}]*overflow:hidden/.test(srcS),
-     'zolaq ekrandan kənara çıxanda üfüqi sürüşmə yaratmır');
+     'halqa kenara çıxanda sürüşmə yaratmır');
+  //  İki halqa fərqli olmalıdır — eyni olsaydılar tək halqa kimi görünərdi.
+  ok(/@keyframes irsRing\b/.test(srcS) && /@keyframes irsRing2\b/.test(srcS),
+     'iki ayrı halqa var (tək halqa «cizgi filmi» kimi görünür)');
+  ok(/irs-ring2\{border-width:1px/.test(srcS),
+     'ikinci halqa daha nazikdir (dərinlik verir)');
+  //  Halqa 0 şəffaflıqdan doğulmalıdır. Birbaşa .58-dən başlasaydı ekranda
+  //  «şıqqıltı» kimi bir anlıq peyda olardı — dalğa yox, sıçrayış.
+  ok(/@keyframes irsRing\{0%\{[^}]*opacity:0\}/.test(srcS) &&
+     /@keyframes irsRing2\{0%\{[^}]*opacity:0\}/.test(srcS),
+     'hər iki halqa sıfır şəffaflıqdan doğulur (pop-in yoxdur)');
+
+  //  ⚠️ ÜÇÜNCÜ TƏLƏ: şrift yalnız qabda təyin olunsa itir.
+  //  admin/checklist/trainer-də `*{font-family:'Inter',sans-serif}` var; `*`
+  //  span-lara BİRBAŞA uyğun gəlir və mirası üstələyir. Inter isə Google
+  //  Fonts-dan yüklənir — örtük məhz o vaxt görünür. Yalnız `.irs-mark`-da
+  //  olsaydı, marka adı ilk saniyədə ümumi `sans-serif` ilə çıxardı.
+  ok(/irs-pw\{[^}]*font-family:Inter/.test(srcS) && /irs-nm\{[^}]*font-family:Inter/.test(srcS),
+     'şrift yığını nişanın SƏTİRLƏRİNƏ yazılıb (panelin `*` qaydası üstələyə bilməsin)');
+  ok(/irs-nm\{[^}]*line-height:/.test(srcS),
+     'sətir hündürlüyü açıq yazılıb (7 panelin ritmi fərqlidir)');
+  //  Möhür 1-dən bir az aşağı keçib qayıtmalıdır — zərbənin ağırlığı oradan gəlir.
+  const bez = /animation:irsStamp [\d.]+s cubic-bezier\([-\d.]+,([\d.]+),/.exec(srcS);
+  ok(bez && parseFloat(bez[1]) > 1,
+     'möhür yumşaq «oturma» ilə gəlir (bezier təpəsi > 1)', bez && bez[1]);
 
   //  ⚠️ İKİNCİ REAL TƏLƏ: hadisəni ADLA yoxlamaq.
   //  Əvvəl `animationName==='irsThrough'` yoxlanırdı; kiçik ekranda ad
@@ -610,12 +650,43 @@ function seedCaches() {
      'dinləyicidə animasiya adına bağlılıq qalmayıb', dinl && dinl[0].slice(0, 70));
 
   //  Taymer animasiyanın sonundan SONRA gəlməlidir, yoxsa pərdəni yarıda kəsər.
-  const cur = /animation:irsCurtain ([\d.]+)s [^`]*? ([\d.]+)s forwards/.exec(srcS);
+  const cur = /animation:irsLift ([\d.]+)s [^`]*? ([\d.]+)s forwards/.exec(srcS);
   const ms  = /const SPLASH_MS = (\d+)/.exec(srcS);
   const cem = cur ? (parseFloat(cur[1]) + parseFloat(cur[2])) * 1000 : NaN;
   ok(cur && ms && Number(ms[1]) > cem,
-     'təhlükəsizlik taymeri animasiyadan uzundur (pərdə yarıda kəsilmir)',
+     'təhlükəsizlik taymeri animasiyadan uzundur (qalxma yarıda kəsilmir)',
      `animasiya ${cem}ms · taymer ${ms && ms[1]}ms`);
+
+  section('18. PWA açılış ekranı ilə tikiş');
+  //  Quraşdırılmış PWA açılanda Chrome/iOS ÖZ açılış ekranını çəkir:
+  //  manifestin `background_color` fonu + ikon + ad. Bunu söndürən API YOXDUR.
+  //  Əvvəl o fon açıq-boz (`bgColor`), örtüyümüz isə brend rəngi idi —
+  //  istifadəçi ARDICIL iki fərqli ekran görürdü. İkisi eyni rəng olanda
+  //  sistem ekranı örtüyün ilk kadrına qarışır və tək ekran kimi oxunur.
+  ok(/background_color: bg \|\| b\.themeColor/.test(srcS),
+     'PWA açılış fonu örtüyün rəngi ilə eynidir (bgColor deyil)');
+  {
+    const i0 = srcS.indexOf('function sendManifest');
+    ok(i0 > 0 && !/b\.bgColor/.test(srcS.slice(i0, i0 + 900)),
+       'manifestdə köhnə açıq-boz fon qalmayıb');
+  }
+  //  İkisi də eyni mənbədən qidalanmalıdır, yoxsa biri dəyişəndə tikiş açılır.
+  ok(/hexToRgb\(T\.brand\(\)\.themeColor\)/.test(srcS),
+     'örtük də eyni brend rəngindən qidalanır (tək mənbə)');
+
+  //  ⚠️ `<meta name="theme-color" content="var(--primary)">` ETİBARSIZ idi:
+  //  meta etiketi CSS dəyişənlərini oxumur, brauzer dəyəri tamam atırdı.
+  //  Nəticə: mobil brauzerin üst zolağı ağ qalır, örtük isə rəngli —
+  //  yuxarıda uyuşmayan zolaq görünürdü.
+  {
+    const fs2 = require('fs'), pt2 = require('path');
+    for (const f of ['mycode','checklist','manager','admin','trainer','icraci','ops']) {
+      const t = fs2.readFileSync(pt2.join(__dirname, 'public', f + '.html'), 'utf8');
+      const mt = /<meta name="theme-color" content="([^"]*)">/.exec(t);
+      ok(mt && !mt[1].includes('var('),
+         `${f}.html: theme-color CSS dəyişəni deyil`, mt && mt[1]);
+    }
+  }
 
   // ══════════════════════════════════════════════════════════════════════
   console.log(`\n${'═'.repeat(62)}`);
