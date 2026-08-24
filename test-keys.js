@@ -119,6 +119,46 @@ section('5. Kənar hallar');
 }
 
 // ══════════════════════════════════════════════════════════════════════════
+//  F-31 — AÇARLAR PRODUKSİYA JURNALINA DÜŞMÜR
+// ══════════════════════════════════════════════════════════════════════════
+//  Açar təxmin edilə bilməz olsa da (yuxarıdakı testlər), jurnala yazılırsa
+//  təxmin etməyə ehtiyac qalmır. Server açılanda hər müştərinin admin və
+//  filial açarlarını giriş linki şəklində konsola yazırdı — Railway
+//  jurnalları isə saxlanılır və oradan silinmir.
+//
+//  ⚠️ BU TEST MƏNBƏ MƏTNİNİ YOXLAYIR, davranışı yox.
+//  Səbəb dürüst deyilməlidir: blok `app.listen` içindədir və ona çatmaq üçün
+//  real Supabase bağlantısı lazımdır. Yoxlanan konkret geriyə sürüşmə budur —
+//  kimsə şərti silib bloku yenidən şərtsiz edir. Bu, ən ehtimallı səhvdir.
+//  Blok tamamilə yenidən qurulsa test onu tutmaya bilər.
+console.log('\n── F-31: açarlar produksiya jurnalına düşmür ──');
+{
+  const fs  = require('fs');
+  const src = fs.readFileSync(require('path').join(__dirname, 'server.js'), 'utf8');
+
+  const qorumaIx = src.indexOf("process.env.NODE_ENV !== 'production'");
+  ok(qorumaIx >= 0, 'NODE_ENV şərti mövcuddur');
+
+  //  Açarı linkə yazan sətirlər — hər ikisi şərtdən SONRA gəlməlidir.
+  const adminIx = src.indexOf('/admin?key=${ak}');
+  const mgrIx   = src.indexOf('/manager?key=${key}');
+  ok(adminIx >= 0 && mgrIx >= 0, 'giriş linki sətirləri tapıldı (test köhnəlməyib)');
+  ok(qorumaIx >= 0 && adminIx > qorumaIx, 'admin açarı yalnız şərtdən sonra yazılır',
+     `şərt=${qorumaIx}, admin=${adminIx}`);
+  ok(qorumaIx >= 0 && mgrIx > qorumaIx, 'filial açarları yalnız şərtdən sonra yazılır',
+     `şərt=${qorumaIx}, filial=${mgrIx}`);
+
+  //  Produksiyada nə baş verdiyi istifadəçiyə bildirilməlidir — səssiz
+  //  keçmək «server açarları yazmır, deməli sınıb» şübhəsi yaradır.
+  ok(src.includes('giriş linkləri jurnala yazılmır'),
+     'produksiyada bunun səbəbi jurnalda izah olunur');
+
+  //  Sənəd: NODE_ENV .env.example-də olmalıdır, yoxsa deploy edən adam bilməz.
+  const env = fs.readFileSync(require('path').join(__dirname, '.env.example'), 'utf8');
+  ok(env.includes('NODE_ENV'), 'NODE_ENV .env.example-də sənədləşdirilib');
+}
+
+// ══════════════════════════════════════════════════════════════════════════
 console.log(`\n${'═'.repeat(62)}`);
 console.log(fail === 0
   ? `🎉  BÜTÜN TESTLƏR KEÇDİ  (${pass}/${pass})`

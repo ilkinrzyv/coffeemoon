@@ -1098,34 +1098,74 @@ function xpNovbede(empId, fn) {
   return indiki;
 }
 
-async function awardXP(empId, baseAmount, streak) {
-  return xpNovbede(String(empId), () => awardXPCore(empId, baseAmount, streak));
-}
+//  F-33: MÜHƏRRİK SİYASƏTDƏN AYRILDI.
+//  ─────────────────────────────────────────────────────────────────
+//  F-24 yuxarıdakı iki qatı (növbə + optimist kilid) qurdu, amma YALNIZ
+//  mükafat yoluna. Gecikmə CƏZASI ayrıca yerdə sadə oxu-dəyiş-yaz idi:
+//
+//      const { data } = await db()…select('xp')…      ← oxu
+//      await db()…update({ xp: Math.max(0, cari - ceza) })   ← yaz
+//
+//  Yəni cəza ilə mükafat üst-üstə düşsə (gec gələn işçinin imtahanı elə
+//  o dəqiqə qiymətləndirilsə) biri o birinin üstündən yazırdı — F-24-ün
+//  bağladığı sinifdən, sadəcə əks istiqamətdə.
+//
+//  Səbəb strukturaldır: qoruma `awardXP`-nin İÇİNDƏ idi, ona görə həmin
+//  funksiyadan keçməyən hər yol qorumasız qalırdı. İndi qoruma AŞAĞI qatda —
+//  `xpDelta` — yerləşir və XP-yə toxunan hər yol ondan keçir.
+//
+//  ⚠️ NİYƏ CƏZA SADƏCƏ `awardXP(id, -ceza, 0)` DEYİL:
+//  `awardXP` streak çoxaldıcısını tətbiq edir. Bu gün `getXPMultiplier(0)`
+//  həmişə 1 qaytarır, çünki `sanitizeTiers` streak minimumunu 1 qoyub
+//  (utils.js) — yəni işləyərdi. Amma bu, BAŞQA faylın yoxlama aralığından
+//  asılı gizli bağlılıqdır: kimsə həmin minimumu 0-a endirsə cəza səssizcə
+//  çoxalardı. Ona görə çoxaldıcı mükafatda, güzəşt isə cəzada qalır —
+//  ikisi də öz yerində, ortaq qat isə yalnız YAZMANI aparır.
 
-async function awardXPCore(empId, baseAmount, streak) {
-  const gained = Math.round(baseAmount * U.getXPMultiplier(streak || 0));
-  if (!gained) return 0;
+//  Verilmiş fərqi (müsbət və ya mənfi) təhlükəsiz tətbiq edir.
+//  Nə qədər dəyişəcəyini HESABLAMIR — onu çağıran bilir.
+async function xpDelta(empId, delta, etiket) {
+  const ferq = Math.round(Number(delta) || 0);
+  if (!ferq) return 0;
 
   for (let cehd = 1; cehd <= XP_CEHD; cehd++) {
     const { data: emp } = await db().from('employees').select('xp').eq('id', empId).single();
     if (!emp) return 0;
     const current = Number(emp.xp) || 0;
+    //  XP mənfi olmur — cəza mövcud baldan çox ola bilər.
+    const yeni = Math.max(0, current + ferq);
 
     //  `xp` NULL ola bilər (miqrasiyadan əvvəlki sətir). SQL-də `= 0` NULL-a
     //  uyğun GƏLMİR, ona görə şərt ayrıca qurulur.
-    let q = db().from('employees').update({ xp: current + gained }, { count: 'exact' }).eq('id', empId);
+    let q = db().from('employees').update({ xp: yeni }, { count: 'exact' }).eq('id', empId);
     q = (emp.xp === null || emp.xp === undefined) ? q.is('xp', null) : q.eq('xp', current);
 
     const { error, count } = await q;
-    if (error) { sbErr('awardXP', error); return 0; }
-    if (count === 1) return gained;
+    if (error) { sbErr(etiket || 'xpDelta', error); return 0; }
+    //  HƏQİQİ dəyişikliyi qaytarır: 10 balı olan işçiyə 15 cəza yazılsa −10-dur.
+    if (count === 1) return yeni - current;
     // count === 0 → aradan başqası yazıb; yenidən oxu.
   }
 
-  //  Bura düşmək praktiki olaraq mümkün deyil (4 dəfə dalbadal qabaqlanmaq).
+  //  Bura düşmək praktiki olaraq mümkün deyil (6 dəfə dalbadal qabaqlanmaq).
   //  Susmuruq: XP itibsə, bunu görmək lazımdır.
-  console.warn(`[XP] ${empId}: ${XP_CEHD} cəhddən sonra yazıla bilmədi (${gained} bal itdi)`);
+  console.warn(`[XP] ${empId}: ${XP_CEHD} cəhddən sonra yazıla bilmədi (${ferq} bal itdi)`);
   return 0;
+}
+
+//  MÜKAFAT — streak çoxaldıcısı burada tətbiq olunur.
+async function awardXP(empId, baseAmount, streak) {
+  const gained = Math.round(baseAmount * U.getXPMultiplier(streak || 0));
+  if (!gained) return 0;
+  return xpNovbede(String(empId), () => xpDelta(empId, gained, 'awardXP'));
+}
+
+//  CƏZA — çoxaldıcı YOXDUR. Streak güzəşti onsuz da `U.latePenaltyXP`
+//  daxilində tətbiq olunub (`streakShield`), ikinci dəfə vurulmamalıdır.
+async function penalizeXP(empId, penalty) {
+  const p = Math.max(0, Math.round(Number(penalty) || 0));
+  if (!p) return 0;
+  return xpNovbede(String(empId), () => xpDelta(empId, -p, 'penalizeXP'));
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -1303,9 +1343,15 @@ API.recalcAllXP = async (dryRun) => {
       oldStreak: emp.streak || 0, newStreak: res.streak,
     });
     if (!dryRun) {
-      await db().from('employees')
+      //  F-33: bu, MÜTLƏQ dəyər yazır (mənbədən yenidən hesablama) — üstələmək
+      //  onun niyyətidir. Amma yazma yenə növbədən keçir ki, uçuşda olan bir
+      //  mükafatın oxu-yaz addımlarının ARASINA düşməsin.
+      //  ⚠️ Bu, köhnəlmə problemini həll ETMİR: paralel gələn mükafat yenidən
+      //  hesablanmış dəyərin altında qala bilər. Bu, qəsdəndir — admin
+      //  «hər şeyi mənbədən yenidən hesabla» deyəndə mənbə üstün sayılır.
+      await xpNovbede(String(emp.id), () => db().from('employees')
         .update({ xp: res.xp, streak: res.streak, milestones_claimed: res.milestones })
-        .eq('id', emp.id);
+        .eq('id', emp.id));
       updated++;
     }
   }
@@ -3227,9 +3273,9 @@ API.validateAndLog = async (secret, qrToken, forceMode) => {
         const lateThreshold = U.getLateLimit(matched.dept, todayShift, ts.getHours() * 60 + ts.getMinutes());
         const lateMins = nowMins - lateThreshold;
         const penalty  = U.latePenaltyXP(lateMins, matched.streak, disc);
-        const { data: empXP } = await db().from('employees').select('xp').eq('id', matched.id).single();
-        const current = empXP?.xp || 0;
-        await db().from('employees').update({ xp: Math.max(0, current - penalty) }).eq('id', matched.id);
+        //  F-33: artıq mükafatla EYNİ mühərrikdən keçir (növbə + optimist kilid).
+        //  Əvvəl burada ayrıca oxu-dəyiş-yaz vardı və paralel mükafatı udurdu.
+        await penalizeXP(matched.id, penalty);
 
         // Aylıq cərimə sistemi — izin və gec gəliş icazəsi olan günlər SAYILMIR.
         // Ay sərhədi GÜN KƏSİMİ saatındadır (03:00), yəni aşağıdakı `getLogicalYMD`
@@ -5912,17 +5958,41 @@ if (require.main === module) (async () => {
       if (!tenants.length) {
         console.warn('⚠️  Heç bir müştəri yoxdur. `node seed-tenant.js` ilə birini yarat.');
       }
-      // Hər müştərinin giriş linklərini konsola yaz (yalnız lokalda faydalıdır).
-      for (const t of tenants) {
-        console.log(`\n🏢  ${t.name}  [${t.tenant_id}] — ${t.status}`);
-        await T.run({ tenantId: t.tenant_id, role: 'system', branchId: null }, async () => {
-          const ak = T.findKey(t.tenant_id, 'admin', null);
-          if (ak) console.log(`   🔑 Admin:   ${base}/admin?key=${ak}`);
-          const keys = await U.getBranchScheduleKeys();
-          for (const [dept, key] of Object.entries(keys)) {
-            console.log(`   🏪 ${dept}: ${base}/manager?key=${key}`);
-          }
-        });
+      // ── Giriş linkləri ──────────────────────────────────────────
+      //  F-31: BU BLOK PRODUKSİYADA İŞLƏMİR.
+      //
+      //  Əvvəl şərtsiz idi və hər açılışda HƏR müştərinin admin açarını,
+      //  üstəlik BÜTÜN filial menecer açarlarını tam link şəklində konsola
+      //  yazırdı. Şərhdə «yalnız lokalda faydalıdır» yazılmışdı, amma bunu
+      //  təmin edən heç nə yox idi — Railway-də də işləyirdi.
+      //
+      //  Nəticə: jurnal girişi olan hər kəs bütün müştərilərin panellərinə
+      //  girə bilərdi. Railway jurnalları saxlanılır, yəni açar bir dəfə
+      //  düşəndən sonra oradan silinmir; müştəri sayı artdıqca hər deploy
+      //  bütöv siyahını yenidən tökürdü.
+      //
+      //  Açarın özü sirrdir — parol kimi davranmalıdır. Sirri jurnala yazmaq
+      //  onu ən azı bir yerdə şifrəsiz saxlamaq deməkdir.
+      //
+      //  Lokalda davranış DƏYİŞMİR: `npm run dev` və `node server.js`
+      //  NODE_ENV qoymur, ona görə linklər həmişəki kimi çıxır.
+      //  Produksiyada açar lazımdırsa admin panelindən (`getAdminKey`) və ya
+      //  `platformTenantKeys` ilə alınır — hər ikisi jurnala düşmür.
+      const linkleriGoster = process.env.NODE_ENV !== 'production';
+      if (!linkleriGoster) {
+        console.log(`🔒  ${tenants.length} müştəri yükləndi — giriş linkləri jurnala yazılmır (NODE_ENV=production).`);
+      } else {
+        for (const t of tenants) {
+          console.log(`\n🏢  ${t.name}  [${t.tenant_id}] — ${t.status}`);
+          await T.run({ tenantId: t.tenant_id, role: 'system', branchId: null }, async () => {
+            const ak = T.findKey(t.tenant_id, 'admin', null);
+            if (ak) console.log(`   🔑 Admin:   ${base}/admin?key=${ak}`);
+            const keys = await U.getBranchScheduleKeys();
+            for (const [dept, key] of Object.entries(keys)) {
+              console.log(`   🏪 ${dept}: ${base}/manager?key=${key}`);
+            }
+          });
+        }
       }
 
       // Avtomatik gecə bağlaması SİLİNİB — açıq smenləri admin paneldən
@@ -5935,4 +6005,10 @@ if (require.main === module) (async () => {
 })();
 
 // Testlər üçün: `API` obyekti dispatcher-in çağırdığı funksiyaların eynisidir.
-module.exports = { API, app };
+//
+// `__xp` — YALNIZ test üçün (tenant.js-dəki `__testSeed` ilə eyni naxış).
+// Gecikmə cəzası `validateAndLog`-un dərinliyindədir və ona çatmaq üçün kiosk
+// QR-ı, filial WiFi-ı və cədvəl qurmaq lazımdır. Yarış testi isə məhz XP
+// mühərrikini yoxlayır, davamiyyət axınını yox — ona görə mühərrik birbaşa
+// açılır. Produksiya kodunda çağırılmır.
+module.exports = { API, app, __xp: { awardXP, penalizeXP, xpDelta } };
