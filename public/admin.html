@@ -2623,7 +2623,7 @@ function loadMgrSchedAdmin() {
           var style = c ? 'background:'+c.bg+';color:'+c.cl+';' : 'background:rgba(15,23,42,0.04);color:var(--text-muted);';
           return '<td class="shift-cell"><div style="'+style+'width:36px;height:30px;border-radius:7px;display:flex;align-items:center;justify-content:center;margin:0 auto;font-size:0.82rem;font-weight:800;">'+(MGR_LBL[st]||'–')+'</div></td>';
         }).join('');
-        return '<tr><td><div style="font-weight:600;font-size:0.88rem;">'+mgr.mgrName+'</div><div style="font-size:0.75rem;color:var(--text-muted);">'+mgr.dept+'</div></td>'+cells+'</tr>';
+        return '<tr><td><div style="font-weight:600;font-size:0.88rem;">'+esc(mgr.mgrName)+'</div><div style="font-size:0.75rem;color:var(--text-muted);">'+esc(mgr.dept)+'</div></td>'+cells+'</tr>';
       }).join('');
     })
     .getMgrScheduleForAdmin(schedWeekStart);
@@ -2648,7 +2648,7 @@ function renderSchedTable(){
       var st=entry?entry.shiftType:'';
       return '<td class="shift-cell"><button class="shift-btn '+(st||'')+'" onclick="openShiftPicker(\''+emp.empId+'\',\''+ds+'\',this,event)">'+SHIFT_LABELS[st||'']+'</button></td>';
     }).join('');
-    return '<tr><td><div style="font-weight:600;font-size:0.88rem;">'+emp.empName+'</div></td>'+cells+'</tr>';
+    return '<tr><td><div style="font-weight:600;font-size:0.88rem;">'+esc(emp.empName)+'</div></td>'+cells+'</tr>';
   }).join('');
 }
 
@@ -2823,7 +2823,7 @@ function renderOnline() {
         html += '<div style="display:flex;align-items:center;gap:10px;padding:0.55rem 0;' +
           (idx < be.length - 1 ? 'border-bottom:1px solid rgba(15,23,42,0.04);' : '') + '">';
         html += '<div class="avatar" style="width:33px;height:33px;border-radius:9px;font-size:0.78rem;flex-shrink:0;">' + getInitials(emp.name) + '</div>';
-        html += '<div style="flex:1;min-width:0;"><div style="font-weight:600;font-size:0.88rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + emp.name + '</div>';
+        html += '<div style="flex:1;min-width:0;"><div style="font-weight:600;font-size:0.88rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(emp.name) + '</div>';
         html += '<div style="font-size:0.76rem;color:var(--text-muted);margin-top:1px;"><i class="fa-regular fa-clock"></i> ' + emp.checkInTime + '</div></div>';
         html += '<div class="e-badge" style="font-family:monospace;font-size:0.79rem;font-weight:700;background:rgba(16,185,129,0.06);color:var(--success);border:1px solid rgba(16,185,129,0.1);padding:3px 8px;border-radius:7px;white-space:nowrap;" data-ci="' + emp.checkInMs + '">--:--</div>';
         html += '</div>';
@@ -2870,8 +2870,8 @@ function loadReport(){
     var html='<div style="overflow-x:auto;"><table class="rep-table"><thead><tr><th>İşçi</th><th>Filial</th><th>Gün</th><th>Vaxtında</th><th>Gecikmə</th><th>%</th><th>İş saatı</th></tr></thead><tbody>';
     data.forEach(function(r){
       var pctColor=r.pct>=90?'var(--success)':(r.pct>=70?'var(--warning)':'var(--danger)');
-      html+='<tr><td><div style="display:flex;align-items:center;gap:8px;"><div class="avatar" style="width:30px;height:30px;border-radius:8px;font-size:0.73rem;">'+getInitials(r.empName)+'</div>'+r.empName+'</div></td>';
-      html+='<td><span style="background:'+branchColor(r.dept)+';padding:3px 8px;border-radius:6px;font-size:0.78rem;font-weight:600;">'+r.dept+'</span></td>';
+      html+='<tr><td><div style="display:flex;align-items:center;gap:8px;"><div class="avatar" style="width:30px;height:30px;border-radius:8px;font-size:0.73rem;">'+getInitials(r.empName)+'</div>'+esc(r.empName)+'</div></td>';
+      html+='<td><span style="background:'+branchColor(r.dept)+';padding:3px 8px;border-radius:6px;font-size:0.78rem;font-weight:600;">'+esc(r.dept)+'</span></td>';
       html+='<td style="font-weight:700;">'+r.totalDays+'</td>';
       html+='<td style="color:var(--success);font-weight:600;">'+r.onTime+'</td>';
       html+='<td style="color:var(--danger);font-weight:600;">'+r.late+'</td>';
@@ -2889,7 +2889,7 @@ function loadWarnings(){
     box.style.display='block';
     list.innerHTML=data.map(function(w){
       return '<div class="warn-item"><div class="warn-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>'+
-        '<div style="flex:1;"><div style="font-weight:700;">'+w.empName+'</div><div style="font-size:0.8rem;color:var(--text-muted);margin-top:2px;">'+w.dept+' — bu həftə <b style="color:var(--danger);">'+w.lateCount+' dəfə</b> gecikib</div></div></div>';
+        '<div style="flex:1;"><div style="font-weight:700;">'+esc(w.empName)+'</div><div style="font-size:0.8rem;color:var(--text-muted);margin-top:2px;">'+esc(w.dept)+' — bu həftə <b style="color:var(--danger);">'+w.lateCount+' dəfə</b> gecikib</div></div></div>';
     }).join('');
   }).getWarnings();
 }
@@ -2917,10 +2917,10 @@ function loadIzinList(){
       var sc={pending:'<span class="badge pending">Gözləyir</span>',approved:'<span class="badge approved">Təsdiqləndi</span>',rejected:'<span class="badge rejected">Rədd edildi</span>'};
       list.innerHTML=data.slice().reverse().map(function(r){
         return '<div class="izin-row"><div class="avatar">'+getInitials(r.empName)+'</div>'+
-          '<div class="izin-info"><b>'+r.empName+'</b><span><i class="fa-solid fa-briefcase"></i> '+r.dept+' &nbsp;|&nbsp; <i class="fa-regular fa-calendar"></i> '+fmtDMY(r.startDate)+(r.endDate!==r.startDate?' — '+fmtDMY(r.endDate):'')+' &nbsp;|&nbsp; '+r.type+(r.note?' — '+r.note:'')+'</span></div>'+
+          '<div class="izin-info"><b>'+esc(r.empName)+'</b><span><i class="fa-solid fa-briefcase"></i> '+esc(r.dept)+' &nbsp;|&nbsp; <i class="fa-regular fa-calendar"></i> '+fmtDMY(r.startDate)+(r.endDate!==r.startDate?' — '+fmtDMY(r.endDate):'')+' &nbsp;|&nbsp; '+esc(r.type)+(r.note?' — '+esc(r.note):'')+'</span></div>'+
           (sc[r.status]||'')+
           '<div class="btn-group">'+
-            '<button class="action-btn" onclick="openIzinModal(\''+r.id+'\',\''+r.status+'\')"><i class="fa-solid fa-pen"></i></button>'+
+            '<button class="action-btn" onclick="openIzinModal(\''+escJs(r.id)+'\',\''+escJs(r.status)+'\')"><i class="fa-solid fa-pen"></i></button>'+
             '<button class="action-btn" style="color:var(--danger)" onclick="delIzin(\''+r.id+'\')"><i class="fa-solid fa-trash"></i></button>'+
           '</div></div>';
       }).join('');
@@ -4048,7 +4048,7 @@ function renderWasteStats(data, dateStr) {
  
     // Branch header
     html += '<div style="background:' + bg + ';padding:0.7rem 1rem;display:flex;align-items:center;justify-content:space-between;">';
-    html += '<span style="font-size:0.88rem;font-weight:700;color:' + tc + ';">' + d.dept + '</span>';
+    html += '<span style="font-size:0.88rem;font-weight:700;color:' + tc + ';">' + esc(d.dept) + '</span>';
     if (d.exceeded) {
       html += '<span style="font-size:0.72rem;font-weight:700;background:rgba(239,68,68,0.12);color:#991b1b;border:1px solid rgba(239,68,68,0.2);padding:2px 8px;border-radius:6px;">' +
         '<i class="fa-solid fa-triangle-exclamation"></i> Limit keçildi</span>';
@@ -4122,7 +4122,7 @@ function statCell(lbl, val, color) {
 }
  
 function escHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-function escAttr(s){ return String(s||'').replace(/'/g,"\\'"); }
+function escAttr(s){ return escJs(s); }   // F-27: `"` və `\` da qaçırılır (common.js)
 
 // ── YENİLİKLƏR ───────────────────────────────────────────────────
 var _ynEdit = null;
@@ -4153,11 +4153,11 @@ function renderYenilikler(list) {
       '</div>' +
       '<div style="flex:1;min-width:0;">' +
         '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px;">' +
-          '<span style="font-weight:700;font-size:0.95rem;">' + yn.title + '</span>' +
+          '<span style="font-weight:700;font-size:0.95rem;">' + esc(yn.title) + '</span>' +
           (yn.pinned ? '<span style="font-size:0.7rem;background:rgba(245,158,11,0.1);color:#b45309;padding:2px 8px;border-radius:6px;font-weight:700;">📌 Sabitlənib</span>' : '') +
           '<span style="font-size:0.72rem;color:var(--text-muted);margin-left:auto;">' + yn.date + '</span>' +
         '</div>' +
-        '<div style="font-size:0.85rem;color:var(--text-muted);line-height:1.5;">' + yn.body + '</div>' +
+        '<div style="font-size:0.85rem;color:var(--text-muted);line-height:1.5;">' + esc(yn.body) + '</div>' +
       '</div>' +
       '<div style="display:flex;gap:5px;flex-shrink:0;">' +
         '<button class="btn sm" onclick="editYenilik(' + JSON.stringify(yn).replace(/"/g,'&quot;') + ')"><i class="fa-solid fa-pen"></i></button>' +
@@ -4464,8 +4464,8 @@ function buildAdminLogCard(log, uid) {
         (ok?'background:rgba(16,185,129,0.12);':'background:rgba(239,68,68,0.07);') + '">' +
         '<i class="fa-solid ' + (ok?'fa-check':'fa-xmark') + '" style="font-size:0.6rem;color:' + (ok?'#10b981':'#ef4444') + ';"></i></div>' +
       '<div style="flex:1;min-width:0;">' +
-        '<div style="font-size:0.83rem;font-weight:600;color:' + (ok?'var(--text-main)':'var(--danger)') + ';">' + item.text + '</div>' +
-        (item.note ? '<div style="font-size:0.76rem;color:#92400e;background:rgba(245,158,11,0.07);border-radius:6px;padding:3px 7px;margin-top:3px;"><i class="fa-solid fa-comment-dots" style="margin-right:4px;"></i>' + item.note + '</div>' : '') +
+        '<div style="font-size:0.83rem;font-weight:600;color:' + (ok?'var(--text-main)':'var(--danger)') + ';">' + esc(item.text) + '</div>' +
+        (item.note ? '<div style="font-size:0.76rem;color:#92400e;background:rgba(245,158,11,0.07);border-radius:6px;padding:3px 7px;margin-top:3px;"><i class="fa-solid fa-comment-dots" style="margin-right:4px;"></i>' + esc(item.note) + '</div>' : '') +
       '</div>' +
       '<span style="font-size:0.68rem;color:var(--text-muted);white-space:nowrap;padding-top:2px;">' + (item.category||'') + '</span>' +
     '</div>';
@@ -4475,7 +4475,7 @@ function buildAdminLogCard(log, uid) {
     '<div onclick="trToggle(\'' + uid + '\')" style="cursor:pointer;">' +
       '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px;">' +
         '<div style="font-weight:700;font-size:0.95rem;flex:1;">' + (log.emp_name||'—') + '</div>' +
-        '<span style="font-size:0.75rem;font-weight:700;color:var(--primary);background:rgba(var(--primary-rgb),0.07);padding:3px 9px;border-radius:7px;">' + log.trainer_name + '</span>' +
+        '<span style="font-size:0.75rem;font-weight:700;color:var(--primary);background:rgba(var(--primary-rgb),0.07);padding:3px 9px;border-radius:7px;">' + esc(log.trainer_name) + '</span>' +
         '<span style="font-family:monospace;font-size:0.75rem;font-weight:700;color:var(--text-muted);">' + time + '</span>' +
       '</div>' +
       '<div style="display:flex;align-items:center;gap:10px;">' +
@@ -4570,7 +4570,7 @@ function buildAdminExamCard(exam, uid) {
   // role detection
   var roleVal=answers.length&&answers[0].role?answers[0].role:'';
   var roleBadge=roleVal?('<span style="font-size:0.7rem;font-weight:800;padding:2px 7px;border-radius:6px;margin-left:4px;background:'+(roleVal==='kassir'?'rgba(var(--primary-rgb),0.1)':'rgba(217,119,6,0.1)')+';color:'+(roleVal==='kassir'?'var(--primary)':'#d97706')+';">'+(roleVal==='kassir'?'Kassir':'Barista')+'</span>'):'';
-  var srcBadge=exam.trainer_name==='Özü'?'<span style="font-size:0.7rem;font-weight:700;background:rgba(13,148,136,0.08);color:#0d9488;padding:2px 7px;border-radius:6px;">Özü</span>':'<span style="font-size:0.7rem;font-weight:700;background:rgba(124,58,237,0.08);color:#7c3aed;padding:2px 7px;border-radius:6px;">'+exam.trainer_name+'</span>';
+  var srcBadge=exam.trainer_name==='Özü'?'<span style="font-size:0.7rem;font-weight:700;background:rgba(13,148,136,0.08);color:#0d9488;padding:2px 7px;border-radius:6px;">Özü</span>':'<span style="font-size:0.7rem;font-weight:700;background:rgba(124,58,237,0.08);color:#7c3aed;padding:2px 7px;border-radius:6px;">'+esc(exam.trainer_name)+'</span>';
 
   var rows = answers.map(function(a){
     var isTest=a.type==='test', ok=a.passed===true, pending=a.passed===null;
@@ -4584,9 +4584,9 @@ function buildAdminExamCard(exam, uid) {
         '<i class="fa-solid '+rowIco+'" style="font-size:0.6rem;color:'+rowClr+';"></i>'+
       '</div>'+
       '<div style="flex:1;min-width:0;">'+
-        '<div style="font-size:0.83rem;font-weight:600;color:'+(ok?'var(--text-main)':'var(--danger)')+';">'+a.text+'</div>'+
-        (isTest&&a.given?'<div style="font-size:0.74rem;color:var(--text-muted);margin-top:2px;">Cavab: <b>'+a.given+'</b>'+(a.given!==a.correct?' → Düzgün: <b style="color:#10b981">'+a.correct+'</b>':'')+'</div>':'') +
-        (!isTest&&a.givenText?'<div style="font-size:0.78rem;color:var(--text-muted);margin-top:3px;font-style:italic;">'+a.givenText+'</div>':'') +
+        '<div style="font-size:0.83rem;font-weight:600;color:'+(ok?'var(--text-main)':'var(--danger)')+';">'+esc(a.text)+'</div>'+
+        (isTest&&a.given?'<div style="font-size:0.74rem;color:var(--text-muted);margin-top:2px;">Cavab: <b>'+esc(a.given)+'</b>'+(a.given!==a.correct?' → Düzgün: <b style="color:#10b981">'+a.correct+'</b>':'')+'</div>':'') +
+        (!isTest&&a.givenText?'<div style="font-size:0.78rem;color:var(--text-muted);margin-top:3px;font-style:italic;">'+esc(a.givenText)+'</div>':'') +
         (pending&&!a.givenText?'<div style="font-size:0.74rem;color:var(--text-soft);margin-top:2px;">Cavab yazılmayıb</div>':'')+
       '</div>'+
       '<span style="font-size:0.65rem;color:var(--text-soft);white-space:nowrap;padding-top:3px;">'+(a.category||'')+'</span>'+
@@ -4596,9 +4596,9 @@ function buildAdminExamCard(exam, uid) {
   return '<div style="background:#fff;border:1px solid rgba(15,23,42,0.06);border-radius:14px;padding:1rem 1.1rem;margin-bottom:8px;">'+
     '<div onclick="trToggle(\''+uid+'\')" style="cursor:pointer;">'+
       '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;">'+
-        '<div style="font-weight:700;font-size:0.95rem;flex:1;">'+exam.emp_name+roleBadge+'</div>'+
+        '<div style="font-weight:700;font-size:0.95rem;flex:1;">'+esc(exam.emp_name)+roleBadge+'</div>'+
         srcBadge+
-        '<span style="font-size:0.75rem;font-weight:700;color:var(--text-muted);background:rgba(15,23,42,0.05);padding:2px 7px;border-radius:6px;">'+exam.dept+'</span>'+
+        '<span style="font-size:0.75rem;font-weight:700;color:var(--text-muted);background:rgba(15,23,42,0.05);padding:2px 7px;border-radius:6px;">'+esc(exam.dept)+'</span>'+
         '<span style="font-family:monospace;font-size:0.75rem;font-weight:700;color:var(--text-muted);">'+time+'</span>'+
       '</div>'+
       '<div style="display:flex;align-items:center;gap:10px;">'+
@@ -4611,7 +4611,7 @@ function buildAdminExamCard(exam, uid) {
     '</div>'+
     '<div id="det-'+uid+'" style="overflow:hidden;max-height:0;transition:max-height 0.35s ease;">'+
       '<div style="padding-top:10px;border-top:1px solid rgba(15,23,42,0.05);margin-top:10px;">'+rows+
-        (exam.note?'<div style="font-size:0.8rem;color:#92400e;background:rgba(245,158,11,0.07);border:1px solid rgba(245,158,11,0.15);border-radius:9px;padding:6px 10px;margin-top:8px;"><i class="fa-solid fa-note-sticky" style="margin-right:5px;"></i><b>Qeyd:</b> '+exam.note+'</div>':'')+
+        (exam.note?'<div style="font-size:0.8rem;color:#92400e;background:rgba(245,158,11,0.07);border:1px solid rgba(245,158,11,0.15);border-radius:9px;padding:6px 10px;margin-top:8px;"><i class="fa-solid fa-note-sticky" style="margin-right:5px;"></i><b>Qeyd:</b> '+esc(exam.note)+'</div>':'')+
       '</div>'+
     '</div>'+
   '</div>';

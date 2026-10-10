@@ -7,7 +7,8 @@
 //  bildiriş çıxdı.
 //
 //  ⚠️ ƏSAS TESTLƏR:
-//    §1 — iki XP hadisəsi eyni anda gəlsə HEÇ BİRİ itmir (F-24).
+//    §1  — iki XP hadisəsi eyni anda gəlsə HEÇ BİRİ itmir (F-24).
+//    §1b — CƏZA da eyni mühərrikdən keçir; mükafatla toqquşanda heç nə itmir (F-33).
 //    §2 — kartın açılışı 14 artıq sorğu atmır (F-22).
 //    §3 — açarsız cihaz qeydiyyatı sonsuz sətir/bildiriş yaratmır (F-19).
 //
@@ -22,7 +23,7 @@ const fake = require('./test-fakedb').install();
 const T = require('./tenant');
 const U = require('./utils');
 const ratelimit = require('./ratelimit');
-const { API } = require('./server');
+const { API, __xp } = require('./server');
 
 let pass = 0, fail = 0;
 function ok(cond, label, detail) {
@@ -84,6 +85,84 @@ section('1. ⚠️ F-24 — paralel XP itmir');
   fake.reset({ ...bir(), employees: [{ tenant_id: 'cm', id: 'E1', name: 'Aysel', dept: 'Elmlər', secret: 'S1', xp: null, streak: 0 }] });
   await inCm(() => XP('E1', 25));
   ok(emp('E1').xp === 25, 'NULL `xp` olan sətrə də yazılır', 'xp=' + emp('E1').xp);
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+section('1b. ⚠️ F-33 — cəza da növbədən keçir');
+{
+  //  F-24 mükafat yolunu qorudu, CƏZA yolu isə kənarda qalmışdı: gecikmə
+  //  cəzası ayrıca oxu-dəyiş-yaz edirdi. Aşağıdakı testlər məhz həmin
+  //  toqquşmanı yoxlayır — köhnə kodda üçü də düşürdü.
+  const bir = (xp) => ({ employees: [{ tenant_id: 'cm', id: 'E1', name: 'Aysel', dept: 'Elmlər',
+                                       secret: 'S1', xp, streak: 0 }],
+                         xp_audit_log: [], push_subscriptions: [], settings: [] });
+
+  //  ① Cəza tək başına düzgün işləyir
+  fake.reset(bir(100));
+  await inCm(() => __xp.penalizeXP('E1', 30));
+  ok(emp('E1').xp === 70, 'cəza tətbiq olunur (100 − 30)', 'xp=' + emp('E1').xp);
+
+  //  ② ⚠️ ƏSAS HAL — cəza və mükafat EYNİ ANDA.
+  //  Köhnə kodda ikisi də köhnə dəyəri oxuyurdu və biri o birinin üstündən
+  //  yazırdı → bal SƏSSİZCƏ itirdi. Köhnə kodda bu sətir 140 yerinə 170 verir.
+  //
+  //  ⚠️ NİYƏ 2+2, SADƏCƏ 1+1 YOX — bunu testi yazarkən ölçdüm.
+  //  `test-fakedb` SİNXRONDUR (`api.then` nəticəni dərhal həll edir), ona görə
+  //  tick sayı fərqli olan iki əməliyyat (cəza qısa, mükafat `giveManualXP`
+  //  üstəgəl növbə hoplarından keçir) öz-özünə ardıcıllaşır — TƏK CÜT köhnə
+  //  kodda da 120 verirdi, yəni qüsuru GÖRMÜRDÜ. Eyni formalı əməliyyatları
+  //  cütləşdirəndə üst-üstə düşmə etibarlı şəkildə baş verir.
+  //  Yəni bu test qəsdən belədir; sadələşdirsən qorumasını itirir.
+  fake.reset(bir(100));
+  await inCm(() => Promise.all([
+    __xp.penalizeXP('E1', 30), __xp.penalizeXP('E1', 30),
+    XP('E1', 50), XP('E1', 50),
+  ]));
+  ok(emp('E1').xp === 140, 'paralel cəza + mükafat: heç biri itmir (100 − 60 + 100)',
+     'xp=' + emp('E1').xp);
+
+  //  ③ Növbələşən sıra — nəticə sıradan asılı olmamalıdır.
+  //  Köhnə kodda 120 yerinə 140 çıxırdı.
+  fake.reset(bir(100));
+  await inCm(() => Promise.all([
+    __xp.penalizeXP('E1', 20), XP('E1', 30),
+    __xp.penalizeXP('E1', 20), XP('E1', 30),
+  ]));
+  ok(emp('E1').xp === 120, 'növbələşən sırada da nəticə eynidir (100 − 40 + 60)',
+     'xp=' + emp('E1').xp);
+
+  //  ④ Çoxlu paralel cəza — hamısı sayılmalıdır
+  fake.reset(bir(100));
+  await inCm(() => Promise.all([1,2,3,4].map(() => __xp.penalizeXP('E1', 10))));
+  ok(emp('E1').xp === 60, 'dörd paralel cəzanın hamısı sayıldı (100 − 40)', 'xp=' + emp('E1').xp);
+
+  //  ⑤ XP mənfi olmur — cəza mövcud baldan çoxdursa 0-da dayanır
+  fake.reset(bir(10));
+  await inCm(() => __xp.penalizeXP('E1', 999));
+  ok(emp('E1').xp === 0, 'XP mənfiyə düşmür (10 − 999 → 0)', 'xp=' + emp('E1').xp);
+
+  //  ⑥ Qaytarılan dəyər HƏQİQİ dəyişiklikdir (tavan işə düşəndə fərqlidir)
+  fake.reset(bir(10));
+  const ferq = await inCm(() => __xp.penalizeXP('E1', 25));
+  ok(ferq === -10, 'qaytarılan dəyər həqiqi dəyişiklikdir (−10, −25 deyil)', 'qaytardı=' + ferq);
+
+  //  ⑦ ⚠️ Cəzaya streak ÇOXALDICISI tətbiq olunmamalıdır.
+  //  `awardXP(id, -ceza, streak)` yazsaydıq çoxaldıcı cəzanı da böyüdərdi.
+  //  Streak güzəşti onsuz da `U.latePenaltyXP` daxilində tətbiq olunur —
+  //  ikinci dəfə vurulsa işçi eyni gecikməyə görə iki dəfə cəzalanardı.
+  fake.reset({ employees: [{ tenant_id: 'cm', id: 'E1', name: 'Aysel', dept: 'Elmlər',
+                             secret: 'S1', xp: 100, streak: 60 }],
+               xp_audit_log: [], push_subscriptions: [], settings: [] });
+  await inCm(() => __xp.penalizeXP('E1', 20));
+  ok(emp('E1').xp === 80, 'uzun streak cəzanı çoxaltmır (60 gün streak → yenə 20)',
+     'xp=' + emp('E1').xp);
+
+  //  ⑧ NULL `xp` olan köhnə sətir cəzada da sınmır
+  fake.reset({ employees: [{ tenant_id: 'cm', id: 'E1', name: 'Aysel', dept: 'Elmlər',
+                             secret: 'S1', xp: null, streak: 0 }],
+               xp_audit_log: [], push_subscriptions: [], settings: [] });
+  await inCm(() => __xp.penalizeXP('E1', 15));
+  ok(emp('E1').xp === 0, 'NULL `xp` cəzada 0-a düşür, xəta vermir', 'xp=' + emp('E1').xp);
 }
 
 // ══════════════════════════════════════════════════════════════════════════

@@ -1318,7 +1318,7 @@ function renderLatePerms(list) {
           '<button class="req-act-btn reject"  onclick="actLatePerm(\''+p.permId+'\',\'rejected\')"><i class="fa-solid fa-xmark"></i> Rədd et</button>' +
         '</div>' : '';
     return '<div class="req-row"><div class="req-row-left">' +
-      '<div class="req-row-name">' + p.empName + '</div>' +
+      '<div class="req-row-name">' + esc(p.empName) + '</div>' +
       '<div class="req-row-sub">📅 ' + p.dateStr + ' &nbsp;·&nbsp; 🕐 ' + p.requestedTime + '</div>' +
       btns + '</div>' +
       '<span class="req-badge ' + cls + '">' + (ST_LBL[p.status] || p.status) + '</span>' +
@@ -1364,8 +1364,8 @@ function renderAvans(list) {
         ? '<div class="req-act-btns"><button class="req-act-btn paid" onclick="actAvans(\''+a.avansId+'\',\'paid\')"><i class="fa-solid fa-money-bill-wave"></i> Ödənildi</button></div>'
         : '';
     return '<div class="req-row"><div class="req-row-left">' +
-      '<div class="req-row-name">' + a.empName + ' &nbsp;<span style="font-size:0.95rem;font-weight:800;color:var(--success);">' + a.amount + ' ₼</span></div>' +
-      (a.note ? '<div class="req-row-note">' + a.note + '</div>' : '') +
+      '<div class="req-row-name">' + esc(a.empName) + ' &nbsp;<span style="font-size:0.95rem;font-weight:800;color:var(--success);">' + a.amount + ' ₼</span></div>' +
+      (a.note ? '<div class="req-row-note">' + esc(a.note) + '</div>' : '') +
       '<div class="req-row-sub">📅 ' + dd + '</div>' +
       btns + '</div>' +
       '<span class="req-badge ' + cls + '">' + (ST_LBL[a.status] || a.status) + '</span>' +
@@ -1402,7 +1402,7 @@ function renderLunchLog(list) {
     else { cls = 'approved'; txt = l.durMin + ' dəq'; }
     var sub = l.ongoing ? ('🍽️ ' + l.start + ' — davam edir') : ('🍽️ ' + l.start + ' → ' + l.end);
     return '<div class="req-row"><div class="req-row-left">' +
-      '<div class="req-row-name">' + l.empName + '</div>' +
+      '<div class="req-row-name">' + esc(l.empName) + '</div>' +
       '<div class="req-row-sub">' + sub + '</div>' +
       '</div><span class="req-badge ' + cls + '">' + txt + '</span></div>';
   }).join('');
@@ -1427,7 +1427,7 @@ function populateFineEmps() {
   var opts = '<option value="">İşçi seçin...</option>';
   (schedData || []).forEach(function(e) {
     if (!e.empId) return;
-    opts += '<option value="' + e.empId + '">' + e.empName + '</option>';
+    opts += '<option value="' + e.empId + '">' + esc(e.empName) + '</option>';
   });
   sel.innerHTML = opts;
   if (cur) sel.value = cur;
@@ -1584,8 +1584,8 @@ function renderMgrFines(list) {
       ? '<div class="req-row-sub" style="color:var(--warning);">⚖️ ' + f.expiresYmd + ' tarixinədək qüvvədədir</div>'
       : '';
     return '<div class="req-row"><div class="req-row-left">' +
-      '<div class="req-row-name">' + f.empName + ' &nbsp;' + etiket + '</div>' +
-      '<div class="req-row-note">' + f.reason + '</div>' +
+      '<div class="req-row-name">' + esc(f.empName) + ' &nbsp;' + etiket + '</div>' +
+      '<div class="req-row-note">' + esc(f.reason) + '</div>' +
       '<div class="req-row-sub">📅 ' + dd + '</div>' +
       muddet + sub + '</div>' +
       '<span class="req-badge ' + bcls + '">' + btxt + '</span>' +
@@ -1610,7 +1610,7 @@ function renderTable() {
       var isToday=ds===TODAY_YMD;
       return '<td class="shift-cell'+(isToday?' today-mark':'')+'"><button class="shift-btn '+(st||'')+'" onclick="openShiftPicker(\''+emp.empId+'\',\''+ds+'\',this,event)">'+SHIFT_LABELS[st||'']+'</button></td>';
     }).join('');
-    return '<tr><td>'+emp.empName+'</td>'+cells+'</tr>';
+    return '<tr><td>'+esc(emp.empName)+'</td>'+cells+'</tr>';
   }).join('');
 }
 

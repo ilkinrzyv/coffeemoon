@@ -2491,7 +2491,7 @@
       '<div class="day-detail-head">' + day.dayName + (day.isToday ? ' <span style="color:var(--primary);">· Bu gün</span>' : '') + '</div>';
     var st = day.shiftType, ss = SHIFT_STYLE[st] || null, shiftHtml = '';
     if (ss) {
-      var timeStr = (day.label && day.label !== '-') ? '<span class="shift-time">· ' + day.label + '</span>' : '';
+      var timeStr = (day.label && day.label !== '-') ? '<span class="shift-time">· ' + esc(day.label) + '</span>' : '';
       shiftHtml = '<div class="shift-pill" style="background:' + ss.bg + ';color:' + ss.color + ';"><i class="fa-solid ' + ss.icon + '"></i>' + ss.label + timeStr + '</div>';
     } else {
       shiftHtml = '<div style="font-size:0.82rem;color:var(--text-muted);margin-bottom:0.75rem;">Cədvəl qeyd edilməyib</div>';
@@ -2545,8 +2545,8 @@
         '<div class="announce-accent type-' + yn.type + '"></div>' +
         '<div class="announce-item-top"><div class="announce-badge type-' + yn.type + '">' + m.label + '</div>' +
         (yn.pinned ? '<div class="announce-pin-mark"><i class="fa-solid fa-thumbtack"></i> Sabitlənib</div>' : '') + '</div>' +
-        '<div class="announce-title">' + yn.title + '</div>' +
-        '<div class="announce-body">' + yn.body + '</div>' +
+        '<div class="announce-title">' + esc(yn.title) + '</div>' +
+        '<div class="announce-body">' + esc(yn.body) + '</div>' +
         '<div class="announce-date"><i class="fa-regular fa-calendar"></i> ' + yn.date + '</div></div>';
     }).join('');
     var ac = document.getElementById('announceCard');
@@ -2600,7 +2600,7 @@
         '<div class="efdoc-row"><span class="efdoc-lbl">Tarix</span><span class="efdoc-val">' + fmtFineDate(f.createdAt) + '</span></div>' +
         orta +
         '<div class="efdoc-row"><span class="efdoc-lbl">Yazan</span><span class="efdoc-val">' + (f.createdBy||'Menecer') + '</span></div>' +
-        '<div class="efdoc-reason"><span class="efdoc-lbl">İzahat / səbəb</span>' + f.reason + '</div>' +
+        '<div class="efdoc-reason"><span class="efdoc-lbl">İzahat / səbəb</span>' + esc(f.reason) + '</div>' +
         (tenbeh
           ? '<div class="efdoc-note" style="margin-top:8px;">Bu, AR Əmək Məcəlləsinin 186-cı maddəsinə əsasən verilən intizam tənbehidir. Müddət bitəndə avtomatik qüvvədən düşür.</div>'
           : '') +
@@ -2886,7 +2886,7 @@
         return '<div class="avans-row">' +
           '<div class="avans-row-left">' +
             '<div class="avans-row-amount">' + a.amount + ' ₼</div>' +
-            (a.note ? '<div class="avans-row-note">' + a.note + '</div>' : '') +
+            (a.note ? '<div class="avans-row-note">' + esc(a.note) + '</div>' : '') +
             '<div class="avans-row-date">' + dd + '</div>' +
           '</div>' +
           '<div class="icaze-badge" style="color:' + s.color + ';"><i class="fa-solid ' + s.icon + '"></i> ' + s.lbl + '</div>' +
@@ -4507,7 +4507,7 @@
       var isGiris = res.type !== 'CIXIS';
       iconEl.innerHTML  = '<i class="fa-solid ' + (isGiris ? 'fa-right-to-bracket' : 'fa-right-from-bracket') + '"></i>';
       titleEl.innerText = isGiris ? 'Giriş Qeydə Alındı' : 'Çıxış Qeydə Alındı';
-      subEl.innerHTML   = '<b style="font-size:1.05rem;">' + res.empName + '</b><br>' + res.dept;
+      subEl.innerHTML   = '<b style="font-size:1.05rem;">' + esc(res.empName) + '</b><br>' + res.dept;
     } else {
       iconEl.innerHTML  = '<i class="fa-solid fa-xmark"></i>';
       titleEl.innerText = 'Qeyd Edilmədi';

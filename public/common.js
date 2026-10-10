@@ -20,6 +20,24 @@ function esc(s) {
   });
 }
 
+/* Dəyəri `onclick="fn('<BURA>')"` kontekstinə təhlükəsiz yerləşdirir.
+ *
+ * Burada İKİ ayrı parser var və hər ikisi öz qaydası ilə oxuyur:
+ *   1. Brauzer əvvəlcə atributu HTML-dekod edir  ("  &quot; → "  )
+ *   2. SONRA nəticəni JS kimi ayrıştırır          (  \' → '     )
+ * Ona görə qaçış sırası da məhz belədir: əvvəl JS, sonra HTML.
+ * Tərs sıra yazsaq HTML-dekod bizim JS qaçışımızı geri açardı.
+ *
+ * `esc()` tək dırnağı QƏSDƏN qaçırmır — biz onu `\'` kimi buraxırıq ki,
+ * HTML-dekoddan sonra JS üçün düzgün qaçış olsun. Atributu qoruyan isə
+ * `esc()`-in `"` → `&quot;` çevirməsidir.
+ *
+ * ⚠️ Yalnız bu kontekst üçündür. Adi mətn üçün `esc()` işlət.
+ */
+function escJs(s) {
+  return esc(String(s == null ? '' : s).replace(/\\/g, '\\\\').replace(/'/g, "\\'"));
+}
+
 /* Date → "YYYY-MM-DD" (yerli saat, UTC deyil — bütün sistem yerli günlə işləyir) */
 function toYMD(d) {
   return d.getFullYear() + '-' +
